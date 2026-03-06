@@ -76,7 +76,4 @@ src/
 This project follows Airbnb TypeScript style guide with Prettier formatting.
 Code style is enforced through ESLint and Prettier, automatically applied on git commit via Husky.
 
-## Team
-
-Backend Team - Phase 1
 ```
