@@ -87,3 +87,21 @@ npm run lint | Manually checks for code style violations.
 npm run format | Manually formats all files in the src/ directory.
 
 npm run type-check | Validates TypeScript integrity without building files.
+
+nest g resource  | to create nest resources
+
+# Run all pending migrations
+npm run migration:run
+
+# Revert last migration
+npm run migration:revert
+
+# Show migration status
+npm run migration:show
+
+# Create Empty Migration
+### Windows PowerShell
+npm run migration:create --name=CreateUsersTable
+
+### Linux/Mac/Git Bash
+npm run migration:create --name=CreateUsersTable
