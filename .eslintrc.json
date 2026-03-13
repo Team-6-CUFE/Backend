@@ -12,7 +12,7 @@
     "airbnb-typescript/base",
     "prettier"
   ],
-  "plugins": ["@typescript-eslint", "prettier"],
+  "plugins": ["@typescript-eslint", "prettier", "import"],
   "rules": {
     "prettier/prettier": "error",
     "no-console": "warn",
@@ -27,11 +27,17 @@
     "import/extensions": [
       "error",
       "ignorePackages",
-      {
-        "ts": "never"
-      }
+      { "ts": "never" }
     ]
   },
+  "overrides": [
+    {
+      "files": ["src/**/*.entity.ts"],
+      "rules": {
+        "import/no-cycle": "off"
+      }
+    }
+  ],
   "env": {
     "node": true,
     "es2022": true
