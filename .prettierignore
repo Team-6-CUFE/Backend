@@ -5,3 +5,4 @@ package-lock.json
 logs
 migrations/*.sql
 seeds/*.sql
+ormconfig.ts

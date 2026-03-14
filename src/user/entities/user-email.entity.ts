@@ -17,7 +17,7 @@ export class UserEmail extends BaseEntity {
   is_verified!: boolean;
 
   @Column({ type: 'timestamp', nullable: true })
-  verified_at!: Date;
+  verified_at!: Date | null;
 
   // Relationship
   @ManyToOne(() => User, (user) => user.emails, { onDelete: 'CASCADE' })
