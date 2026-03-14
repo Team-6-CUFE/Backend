@@ -100,8 +100,16 @@ npm run migration:revert
 npm run migration:show
 
 # Create Empty Migration
-### Windows PowerShell
-npm run migration:create --name=CreateUsersTable
+npm run migration:create database/migrations/MigrationName
 
-### Linux/Mac/Git Bash
-npm run migration:create --name=CreateUsersTable
+# Seed Only (Keep Existing Data)
+npm run seed
+
+# Fresh Database (Drop, Migrate, Seed)
+npm run seed:fresh
+
+This will:
+
+1. Revert all migrations (drop all tables)
+2. Run migrations (create tables)
+3. Run seeders (populate data)

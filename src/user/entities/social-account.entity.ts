@@ -16,9 +16,6 @@ export class SocialAccount extends BaseEntity {
   @Column({ type: 'varchar', length: 255, nullable: true })
   provider_email!: string;
 
-  @Column({ type: 'text', nullable: true })
-  access_token!: string;
-
   // Relationship
   @ManyToOne(() => User, (user) => user.social_accounts, { onDelete: 'CASCADE' })
   @JoinColumn({ name: 'user_id' })
