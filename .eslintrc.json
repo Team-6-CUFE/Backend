@@ -28,7 +28,20 @@
       "error",
       "ignorePackages",
       { "ts": "never" }
-    ]
+    ],
+    "import/no-extraneous-dependencies": [
+    "error",
+    {
+      "devDependencies": [
+        "**/*.spec.ts", 
+        "**/*.test.ts", 
+        "src/database/factories/**/*.ts", 
+        "src/database/seeds/**/*.ts",
+        "ormconfig.ts",            
+        "src/seed-main.ts"
+      ]
+    }
+  ]
   },
   "overrides": [
     {

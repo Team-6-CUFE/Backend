@@ -74,34 +74,18 @@ Code style is enforced through ESLint and Prettier, automatically applied on git
 
 ## Available Scripts
 
-Command     | Description
-
-npm run dev | Starts NestJS in watch mode (auto-reloads on save).
-
-npm run build | Compiles TypeScript to the dist/ folder.
-
-npm run start | Runs the compiled production build.
-
-npm run lint | Manually checks for code style violations.
-
-npm run format | Manually formats all files in the src/ directory.
-
-npm run type-check | Validates TypeScript integrity without building files.
-
-nest g resource  | to create nest resources
-
-# Run all pending migrations
-npm run migration:run
-
-# Revert last migration
-npm run migration:revert
-
-# Show migration status
-npm run migration:show
-
-# Create Empty Migration
-### Windows PowerShell
-npm run migration:create --name=CreateUsersTable
-
-### Linux/Mac/Git Bash
-npm run migration:create --name=CreateUsersTable
+| Command | Description |
+|--------------------------|--------------------------------------------------|
+| `npm run dev`            | Starts NestJS in watch mode (auto-reloads on save) |
+| `npm run build`          | Compiles TypeScript to the dist/ folder           |
+| `npm run start`          | Runs the compiled production build                |
+| `npm run lint`           | Manually checks for code style violations         |
+| `npm run format`         | Manually formats all files in the src/ directory  |
+| `npm run type-check`     | Validates TypeScript integrity without building   |
+| `nest g resource`        | Creates Nest resources                            |
+| `npm run migration:run`  | Runs all pending migrations                       |
+| `npm run migration:revert` | Reverts last migration                          |
+| `npm run migration:show` | Shows migration status                            |
+| `npm run migration:create database/migrations/MigrationName` | Creates empty migration |
+| `npm run seed`           | Seed only (keep existing data)                    |
+| `npm run seed:fresh`     | Fresh database (drop, migrate, seed)              |
