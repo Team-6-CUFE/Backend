@@ -1,9 +1,13 @@
 import { Injectable } from '@nestjs/common';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
+import { UserRepository } from './user.repository';
+import { User } from './entities/user.entity';
 
 @Injectable()
 export class UserService {
+  constructor(private readonly userRepository: UserRepository) {}
+
   create(createUserDto: CreateUserDto) {
     return `This action adds a new user${JSON.stringify(createUserDto)}`;
   }
@@ -22,5 +26,17 @@ export class UserService {
 
   remove(id: number) {
     return `This action removes a #${id} user`;
+  }
+
+  checkUsernameExists(username: string): Promise<boolean> {
+    return this.userRepository.findByUsername(username).then((user) => !!user);
+  }
+
+  checkEmailExists(email: string): Promise<boolean> {
+    return this.userRepository.findByEmail(email).then((user) => !!user);
+  }
+
+  async createUser(createUserDto: CreateUserDto): Promise<User> {
+    return this.userRepository.createUser(createUserDto);
   }
 }
