@@ -8,6 +8,11 @@ import { RegisterDto } from './dto/register.dto';
 export class AuthenticationController {
   constructor(private readonly authenticationService: AuthenticationService) {}
 
+  @Get('test-email')
+  testEmail() {
+    return this.authenticationService.testEmail();
+  }
+
   @Post()
   create(@Body() createAuthenticationDto: CreateAuthenticationDto) {
     return this.authenticationService.create(createAuthenticationDto);

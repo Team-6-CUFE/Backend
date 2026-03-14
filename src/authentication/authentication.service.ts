@@ -3,12 +3,14 @@ import { CreateAuthenticationDto } from './dto/create-authentication.dto';
 import { UpdateAuthenticationDto } from './dto/update-authentication.dto';
 import { RegisterDto } from './dto/register.dto';
 import { UserService } from '../user/user.service';
+import { MailService } from '../mail/mail.service';
 
 @Injectable()
 export class AuthenticationService {
   constructor(
     // private readonly authRepository: AuthenticationRepository,
-    private readonly userService: UserService
+    private readonly userService: UserService,
+    private readonly mailService: MailService
   ) {}
 
   create(createAuthenticationDto: CreateAuthenticationDto) {
@@ -45,7 +47,16 @@ export class AuthenticationService {
     await this.userService.create(createUserDto);
     // now we will need to create a new user///
 
+    // sending email verification link
+    const verificationToken = '';
+    await this.mailService.sendEmailVerification(email, verificationToken);
+
     return `User registered successfully with email ${email}. Please check your email to verify your account. with captcha token ${captchaToken}`;
     // then we will need to create an authentication token to send via email for verification.
+  }
+
+  async testEmail() {
+    await this.mailService.sendWelcomeEmail('email@gmail.com', 'TestUser');
+    return 'Test email sent';
   }
 }
