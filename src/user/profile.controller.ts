@@ -1,6 +1,6 @@
 import { Controller, Get, Put, Body, Param, Request } from '@nestjs/common';
 import { ProfileService } from './profile.service';
-import { UpdateProfileReqDto } from './dto/update-profile.dto';
+import { UpdateProfileReqDto } from './dto/update-profile-req.dto';
 import { UpdateBirthdateReqDto } from './dto/update-birthdate.dto';
 import { UpdateGenderReqDto } from './dto/update-gender.dto';
 import { UpdatePrivacyReqDto } from './dto/update-privacy.dto';
