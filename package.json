@@ -37,7 +37,7 @@
     "@nestjs/typeorm": "^11.0.0",
     "bcrypt": "^6.0.0",
     "class-transformer": "^0.5.1",
-    "class-validator": "^0.15.1",
+    "class-validator": "^0.14.1",
     "cors": "^2.8.6",
     "dotenv": "^17.3.1",
     "express": "^5.2.1",
@@ -53,6 +53,7 @@
   },
   "devDependencies": {
     "@faker-js/faker": "^10.3.0",
+    "@nestjs/cli": "^11.0.16",
     "@nestjs/testing": "^11.1.16",
     "@types/bcrypt": "^6.0.0",
     "@types/cors": "^2.8.19",
