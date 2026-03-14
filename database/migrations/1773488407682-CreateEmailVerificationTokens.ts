@@ -2,9 +2,6 @@ import { MigrationInterface, QueryRunner } from 'typeorm';
 
 export class CreateEmailVerificationTokensTable1773368421891 implements MigrationInterface {
   public async up(queryRunner: QueryRunner): Promise<void> {
-    // Create email_verification_tokens table
-    // Used for: long random tokens sent in email links
-    // Use cases: registration email verification, password reset
     await queryRunner.query(`
       CREATE TABLE email_verification_tokens (
         id         UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -12,7 +9,8 @@ export class CreateEmailVerificationTokensTable1773368421891 implements Migratio
         token      VARCHAR(255) NOT NULL UNIQUE,
         email      VARCHAR(255) NOT NULL,
         expires_at TIMESTAMP    NOT NULL,
-        created_at TIMESTAMP    DEFAULT CURRENT_TIMESTAMP
+        created_at TIMESTAMP    DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP    DEFAULT CURRENT_TIMESTAMP
       );
     `);
 
@@ -39,9 +37,23 @@ export class CreateEmailVerificationTokensTable1773368421891 implements Migratio
       CREATE INDEX idx_email_verification_tokens_expires 
       ON email_verification_tokens(expires_at);
     `);
+
+    // Apply updated_at trigger
+    await queryRunner.query(`
+      CREATE TRIGGER update_email_verification_tokens_updated_at
+      BEFORE UPDATE ON email_verification_tokens
+      FOR EACH ROW
+      EXECUTE FUNCTION update_updated_at_column();
+    `);
   }
 
   public async down(queryRunner: QueryRunner): Promise<void> {
+    // Drop trigger first
+    await queryRunner.query(`
+      DROP TRIGGER IF EXISTS update_email_verification_tokens_updated_at 
+      ON email_verification_tokens;
+    `);
+
     await queryRunner.query(`DROP TABLE IF EXISTS email_verification_tokens CASCADE;`);
   }
 }
