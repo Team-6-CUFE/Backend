@@ -54,11 +54,12 @@ export class UpdateProfileReqDto {
   @Matches(/^\d{4}-\d{2}-\d{2}$/, { message: 'birthdate must be in YYYY-MM-DD format' })
   birthdate?: string;
 
+  // this is named differently since it cant be automatically mapped anwyays
   @IsOptional()
   @IsArray()
   @IsString({ each: true })
   @ArrayMaxSize(10, { message: 'Maximum 10 genres allowed' })
-  favorite_genres?: string[];
+  favoriteGenres?: string[];
 
   @IsOptional()
   @IsUrl({}, { message: 'support_link must be a valid URL' })

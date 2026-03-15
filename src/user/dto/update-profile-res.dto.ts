@@ -17,7 +17,8 @@ export class UpdateProfileResDto {
 
   gender?: string | null;
 
-  favorite_genres!: string[];
+  // this is named differently since it cant be automatically mapped anwyays
+  favoriteGenres!: string[];
 
   support_link?: string | null;
 
