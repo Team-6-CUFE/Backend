@@ -10,13 +10,15 @@ import { UserEmail } from './entities/user-email.entity';
 import { ExternalProfile } from './entities/external-profile.entity';
 import { SocialAccount } from './entities/social-account.entity';
 import { FavoriteGenre } from './entities/favorite-genre.entity';
+import { GenreModule } from '../genre/genre.module';
 
 @Module({
   imports: [
     TypeOrmModule.forFeature([User, UserEmail, ExternalProfile, SocialAccount, FavoriteGenre]),
+    GenreModule,
   ],
-  controllers: [UserController,ProfileController],
-  providers: [UserService, UserRepository,ProfileService],
+  controllers: [UserController, ProfileController],
+  providers: [UserService, UserRepository, ProfileService],
   exports: [UserService, UserRepository],
 })
 export class UserModule {}
