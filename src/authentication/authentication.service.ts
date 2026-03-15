@@ -4,13 +4,16 @@ import { UpdateAuthenticationDto } from './dto/update-authentication.dto';
 import { RegisterDto } from './dto/register.dto';
 import { UserService } from '../user/user.service';
 import { MailService } from '../mail/mail.service';
+import { generateVerificationToken, getExpiryDate } from '../common/utilities/tokens.util';
+import { AuthenticationRepository } from './authentication.repositry';
 
+const VERIFICATION_TOKEN_EXPIRY_MINUTES = 60;
 @Injectable()
 export class AuthenticationService {
   constructor(
-    // private readonly authRepository: AuthenticationRepository,
     private readonly userService: UserService,
-    private readonly mailService: MailService
+    private readonly mailService: MailService,
+    private readonly authRepository: AuthenticationRepository
   ) {}
 
   create(createAuthenticationDto: CreateAuthenticationDto) {
@@ -34,7 +37,6 @@ export class AuthenticationService {
   }
 
   async register(registerDto: RegisterDto) {
-    // here we will verify CapTCHA.
     const { email } = registerDto;
     const { username } = registerDto;
     if (await this.userService.checkEmailExists(email)) {
@@ -44,15 +46,21 @@ export class AuthenticationService {
       return `Username ${username} is already taken.`;
     }
     const { captchaToken, ...createUserDto } = registerDto;
-    await this.userService.create(createUserDto);
-    // now we will need to create a new user///
-
-    // sending email verification link
-    const verificationToken = '';
+    const createdUser = await this.userService.createUser(createUserDto);
+    const verificationToken = generateVerificationToken();
+    const expiryDate = getExpiryDate(VERIFICATION_TOKEN_EXPIRY_MINUTES);
+    await this.authRepository.createVerificationToken(
+      createdUser.user_id,
+      verificationToken,
+      email,
+      expiryDate
+    );
     await this.mailService.sendEmailVerification(email, verificationToken);
-
     return `User registered successfully with email ${email}. Please check your email to verify your account. with captcha token ${captchaToken}`;
-    // then we will need to create an authentication token to send via email for verification.
+  }
+
+  async sendVerificationEmail(email: string, token: string) {
+    await this.mailService.sendEmailVerification(email, token);
   }
 
   async testEmail() {

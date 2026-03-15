@@ -1,4 +1,5 @@
 import { Injectable } from '@nestjs/common';
+import * as bcrypt from 'bcrypt';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { UserRepository } from './user.repository';
@@ -37,6 +38,13 @@ export class UserService {
   }
 
   async createUser(createUserDto: CreateUserDto): Promise<User> {
-    return this.userRepository.createUser(createUserDto);
+    const hashedPassword = await this.hash_password(createUserDto.password);
+    return this.userRepository.createUser(createUserDto, hashedPassword);
+  }
+
+  async hash_password(password: string): Promise<string> {
+    const saltrounds = 10;
+    const hashedPassword = await bcrypt.hash(password, saltrounds);
+    return hashedPassword;
   }
 }

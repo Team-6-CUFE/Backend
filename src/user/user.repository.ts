@@ -4,12 +4,15 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { User } from './entities/user.entity';
 import { CreateUserDto } from './dto/create-user.dto';
+import { UserEmail } from './entities/user-email.entity';
 
 @Injectable()
 export class UserRepository {
   constructor(
     @InjectRepository(User)
-    private repository: Repository<User>
+    private repository: Repository<User>,
+    @InjectRepository(UserEmail)
+    private userEmailRepo: Repository<UserEmail>
   ) {}
 
   async findById(id: string): Promise<User | null> {
@@ -44,9 +47,8 @@ export class UserRepository {
     });
   }
 
-  async createUser(createUserDto: CreateUserDto): Promise<User> {
+  async createUser(createUserDto: CreateUserDto, hashedPassword: string): Promise<User> {
     // Step 1 — Create user record
-    const hashedPassword = '';
     const user = this.repository.create({
       username: createUserDto.username,
       password_hash: hashedPassword,
@@ -61,15 +63,13 @@ export class UserRepository {
     const savedUser = await this.repository.save(user);
 
     // Step 2 — Create email record linked to user
-    // const userEmail = this..create({
-    //   email: createUserDto.email,
-    //   user_id: savedUser.user_id,
-    //   is_primary: true,
-    //   is_verified: false,
-    // });
-
-    // await this.userEmailRepo.save(userEmail);
-
+    const userEmail = this.userEmailRepo.create({
+      email: createUserDto.email,
+      user_id: savedUser.user_id, // link to the created user
+      is_primary: true,
+      is_verified: false,
+    });
+    await this.userEmailRepo.save(userEmail);
     return savedUser;
   }
 }
