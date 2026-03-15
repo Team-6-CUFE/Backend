@@ -2,11 +2,11 @@ import { ExternalProfileDto } from './external-profile.dto';
 import { BaseProfileDataDto } from './base-profile.dto';
 
 export class MyProfileDataDto extends BaseProfileDataDto {
-  email!: string;
+  email!: string | null;
 
-  birthdate!: string;
+  birthdate!: string | null;
 
-  gender!: string;
+  gender!: string | null;
 
   plan!: string;
 

@@ -3,21 +3,21 @@ export class BaseProfileDataDto {
 
   username!: string;
 
-  first_name!: string;
+  first_name!: string | null;
 
-  last_name!: string;
+  last_name!: string | null;
 
-  display_name!: string;
+  display_name!: string | null;
 
-  bio!: string;
+  bio!: string | null;
 
-  avatar_url!: string;
+  avatar_url!: string | null;
 
-  cover_photo!: string;
+  cover_photo!: string | null;
 
-  country!: string;
+  country!: string | null;
 
-  city!: string;
+  city!: string | null;
 
   role!: string;
 
@@ -25,10 +25,11 @@ export class BaseProfileDataDto {
 
   favorite_genres!: string[];
 
-  support_link!: string;
+  support_link!: string | null;
 
   created_at!: Date;
 
+  // derived fields
   favorites_count!: number;
 
   playlist_count!: number;
