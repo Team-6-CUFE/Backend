@@ -34,7 +34,7 @@ export class ProfileController {
     @Body() updateProfileReqDto: UpdateProfileReqDto
   ) {
     const userId: string = req.user.user_id;
-    return this.profileService.updateMyProfile(userId, updateProfileReqDto);
+    return this.profileService.updateProfile(userId, updateProfileReqDto);
   }
 
   @Put('me/birthdate')
