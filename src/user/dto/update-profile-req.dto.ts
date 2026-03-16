@@ -59,7 +59,7 @@ export class UpdateProfileReqDto {
   @IsArray()
   @IsString({ each: true })
   @ArrayMaxSize(10, { message: 'Maximum 10 genres allowed' })
-  favoriteGenres?: string[];
+  favorite_genres?: string[];
 
   @IsOptional()
   @IsUrl({}, { message: 'support_link must be a valid URL' })
