@@ -58,6 +58,7 @@ export class AuthenticationController {
     return this.authenticationService.remove(+id);
   }
 
+  @Public()
   @Post('register')
   register(@Body() registerDto: RegisterDto) {
     return this.authenticationService.register(registerDto);
