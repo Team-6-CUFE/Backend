@@ -86,6 +86,6 @@ Code style is enforced through ESLint and Prettier, automatically applied on git
 | `npm run migration:run`  | Runs all pending migrations                       |
 | `npm run migration:revert` | Reverts last migration                          |
 | `npm run migration:show` | Shows migration status                            |
-| `npm run migration:create database/migrations/MigrationName` | Creates empty migration |
+| `npm run migration:create src/database/migrations/MigrationName` | Creates empty migration |
 | `npm run seed`           | Seed only (keep existing data)                    |
 | `npm run seed:fresh`     | Fresh database (drop, migrate, seed)              |

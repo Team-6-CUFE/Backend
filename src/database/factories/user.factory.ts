@@ -10,7 +10,7 @@ export default setSeederFactory(User, async () => {
   const lastName = faker.person.lastName();
 
   user.username = faker.internet.username({ firstName, lastName }).toLowerCase();
-  user.password_hash = await bcrypt.hash('password123', 10); // Same password for all test users
+  user.password_hash = await bcrypt.hash('Password123', 10); // Same password for all test users
   user.first_name = firstName;
   user.last_name = lastName;
   user.display_name = `${firstName} ${lastName}`;
@@ -24,7 +24,7 @@ export default setSeederFactory(User, async () => {
   user.plan = faker.helpers.weightedArrayElement([
     { weight: 7, value: 'free' },
     { weight: 2, value: 'pro' },
-    { weight: 1, value: 'premium' },
+    { weight: 1, value: 'go+' },
   ]);
   user.is_public = faker.helpers.arrayElement([true, true, true, false]); // 75% public
   user.is_suspended = false;
