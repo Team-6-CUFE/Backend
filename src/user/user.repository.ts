@@ -29,7 +29,16 @@ export class UserRepository {
   }
 
   async findByUsername(username: string): Promise<User | null> {
-    return this.repository.findOne({ where: { username } });
+    return this.repository.findOne({
+      where: { username },
+      relations: [
+        'emails',
+        'external_profiles',
+        'social_accounts',
+        'favorite_genres',
+        'favorite_genres.genre',
+      ],
+    });
   }
 
   async create(userData: Partial<User>): Promise<User> {
