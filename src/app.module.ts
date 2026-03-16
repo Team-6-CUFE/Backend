@@ -1,9 +1,13 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
+import { MailerModule } from '@nestjs-modules/mailer';
 import { getDatabaseConfig } from './config/database.config';
+import { getMailConfig } from './config/mail.config';
 import { UserModule } from './user/user.module';
 import { GenreModule } from './genre/genre.module';
+import { AuthenticationModule } from './authentication/authentication.module';
+import { MailModule } from './mail/mail.module';
 
 @Module({
   imports: [
@@ -20,10 +24,21 @@ import { GenreModule } from './genre/genre.module';
       inject: [ConfigService],
     }),
 
+    // Email configuration
+    MailerModule.forRootAsync({
+      imports: [ConfigModule],
+      useFactory: getMailConfig,
+      inject: [ConfigService],
+    }),
+
     // Feature modules
     UserModule,
 
     GenreModule,
+
+    AuthenticationModule,
+
+    MailModule,
   ],
 })
 export class AppModule {}
