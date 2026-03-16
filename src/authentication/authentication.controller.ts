@@ -23,10 +23,10 @@ export class AuthenticationController {
     return this.authenticationService.findAll();
   }
 
-  @Get(':id')
-  findOne(@Param('id') id: string) {
-    return this.authenticationService.findOne(+id);
-  }
+  // @Get(':id')
+  // findOne(@Param('id') id: string) {
+  //   return this.authenticationService.findOne(+id);
+  // }
 
   @Patch(':id')
   update(@Param('id') id: string, @Body() updateAuthenticationDto: UpdateAuthenticationDto) {
@@ -41,5 +41,11 @@ export class AuthenticationController {
   @Post('register')
   register(@Body() registerDto: RegisterDto) {
     return this.authenticationService.register(registerDto);
+  }
+
+  @Get('verify-email/:token')
+  verifyemail(@Param('token') token: string) {
+    console.log('Received verification token', token);
+    return this.authenticationService.verifyEmail(token);
   }
 }

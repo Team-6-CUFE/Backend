@@ -7,10 +7,11 @@ import { MailModule } from '../mail/mail.module';
 import { AuthenticationRepository } from './authentication.repositry';
 import { EmailVerificationToken } from './entities/emailverficationtokens.entity';
 import { EmailVerificationCode } from './entities/emailverificationcodes.entity';
+import { UserEmail } from '../user/entities/user-email.entity';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([EmailVerificationToken, EmailVerificationCode]),
+    TypeOrmModule.forFeature([EmailVerificationToken, EmailVerificationCode, UserEmail]),
     UserModule,
     MailModule,
   ],
