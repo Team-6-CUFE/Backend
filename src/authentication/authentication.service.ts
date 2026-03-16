@@ -1,4 +1,10 @@
-import { HttpException, HttpStatus, Injectable, BadRequestException } from '@nestjs/common';
+import {
+  HttpException,
+  HttpStatus,
+  Injectable,
+  BadRequestException,
+  NotFoundException,
+} from '@nestjs/common';
 import * as crypto from 'crypto';
 import { CreateAuthenticationDto } from './dto/create-authentication.dto';
 import { UpdateAuthenticationDto } from './dto/update-authentication.dto';
@@ -42,7 +48,7 @@ export class AuthenticationService {
     const { email } = registerDto;
     const { username } = registerDto;
     if (await this.userService.checkEmailExists(email)) {
-      return `Email ${email} is already registered.`;
+      throw new BadRequestException(`Email ${email} is already registered.`);
     }
     const newregisterDto = { ...registerDto };
     if (await this.userService.checkUsernameExists(username)) {
@@ -104,7 +110,7 @@ export class AuthenticationService {
   async resendVerificationEmail(email: string) {
     const useremail = await this.userService.findEmailRecord(email);
     if (!useremail) {
-      throw new BadRequestException(`Email ${email} is not found.`);
+      throw new NotFoundException(`Email ${email} is not found.`);
     }
     if (useremail.is_verified) {
       throw new BadRequestException(`Email ${email} is already verified.`);
