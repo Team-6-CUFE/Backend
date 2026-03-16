@@ -15,6 +15,10 @@ export class UserRepository {
     private favoriteGenreRepository: Repository<FavoriteGenre>
   ) {}
 
+  async findAllUsernames(): Promise<{ username: string }[]> {
+    return this.repository.find({ select: { username: true } });
+  }
+
   async findById(id: string): Promise<User | null> {
     return this.repository.findOne({
       where: { user_id: id },
