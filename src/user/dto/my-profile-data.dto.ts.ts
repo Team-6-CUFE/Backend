@@ -1,16 +1,18 @@
+import { Expose, Exclude } from 'class-transformer';
 import { ExternalProfileDto } from './external-profile.dto';
 import { BaseProfileDataDto } from './base-profile.dto';
 
+@Exclude()
 export class MyProfileDataDto extends BaseProfileDataDto {
-  email!: string | null;
+  @Expose() email!: string | null;
 
-  birthdate!: string | null;
+  @Expose() birthdate!: string | null;
 
-  gender!: string | null;
+  @Expose() gender!: string | null;
 
-  plan!: string;
+  @Expose() plan!: string;
 
-  updated_at!: Date;
+  @Expose() updated_at!: Date;
 
-  external_profiles!: (ExternalProfileDto & { id: string })[];
+  @Expose() external_profiles!: (ExternalProfileDto & { id: string })[];
 }

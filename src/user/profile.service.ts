@@ -1,11 +1,12 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
+import { plainToInstance } from 'class-transformer';
 import { UserRepository } from './user.repository';
 import { MyProfileDataDto } from './dto/my-profile-data.dto.ts';
-import { PublicProfileDataDto } from './dto/public-profile.dto.js';
+import { PublicProfileDataDto } from './dto/public-profile.dto';
 import { UpdateProfileReqDto } from './dto/update-profile-req.dto';
-import { UpdateBirthdateReqDto } from './dto/update-birthdate.dto.js';
-import { UpdateGenderReqDto } from './dto/update-gender.dto.js';
-import { UpdatePrivacyReqDto } from './dto/update-privacy.dto.js';
+import { UpdateBirthdateReqDto } from './dto/update-birthdate.dto';
+import { UpdateGenderReqDto } from './dto/update-gender.dto';
+import { UpdatePrivacyReqDto } from './dto/update-privacy.dto';
 import { UpdateProfileResDto } from './dto/update-profile-res.dto';
 import { User } from './entities/user.entity';
 import { GenreRepository } from '../genre/genre.repository';
@@ -91,8 +92,8 @@ export class ProfileService {
       status: 'Success',
       message: 'Birthdate updated successfully',
       data: {
-        birthdate: updated.birthdate.toISOString(),
-        age: new Date().getFullYear() - updated.birthdate.getFullYear(),
+        birthdate: new Date(updated.birthdate).toISOString().split('T')[0],
+        age: new Date().getFullYear() - new Date(updated.birthdate).getFullYear(),
         changes_remaining: 2, // this needs to be added to db
         updated_at: updated.updated_at,
       },
@@ -106,7 +107,7 @@ export class ProfileService {
     const exists = await this.userRepository.findById(userId);
     if (!exists) throw new NotFoundException('User not found');
 
-    const { favoriteGenres, ...rest } = updateProfileReqDto;
+    const { favorite_genres: favoriteGenres, ...rest } = updateProfileReqDto;
     const userData: Partial<User> = {
       ...rest,
       birthdate: updateProfileReqDto.birthdate
@@ -118,20 +119,22 @@ export class ProfileService {
       await this.userRepository.updateFavoriteGenres(userId, genres);
     }
     const updated = await this.userRepository.update(userId, userData);
+    const raw = {
+      ...updated!,
+      favorite_genres: updated!.favorite_genres?.map((fg) => fg.genre.name) ?? [],
+    };
+    const data = plainToInstance(UpdateProfileResDto, raw, { excludeExtraneousValues: true });
     return {
       status: 'Success',
       message: 'Profile updated successfully',
-      data: {
-        ...updated!,
-        favoriteGenres: updated!.favorite_genres?.map((fg) => fg.genre.name) ?? [],
-      },
+      data,
     };
   }
 
   async findProfile(username: string): Promise<{ status: string; data: PublicProfileDataDto }> {
     const user = await this.userRepository.findByUsername(username);
     if (!user) throw new NotFoundException('User not found');
-    const data: PublicProfileDataDto = {
+    const raw: PublicProfileDataDto = {
       ...user,
       favorite_genres: user.favorite_genres?.map((fg) => fg.genre.name) ?? [],
       favorites_count: 0,
@@ -141,16 +144,17 @@ export class ProfileService {
       followers_count: 0,
       reposts_count: 0,
     };
+    const data = plainToInstance(PublicProfileDataDto, raw, { excludeExtraneousValues: true });
     return { status: 'Success', data };
   }
 
   async findMyProfile(userId: string): Promise<{ status: string; data: MyProfileDataDto }> {
     const user = await this.userRepository.findById(userId);
     if (!user) throw new NotFoundException('User not found');
-    const data: MyProfileDataDto = {
+    const raw: MyProfileDataDto = {
       ...user,
       email: user.emails.find((e) => e.is_primary)?.email ?? null,
-      birthdate: user.birthdate?.toISOString().split('T')[0] ?? null,
+      birthdate: user.birthdate ? new Date(user.birthdate).toISOString().split('T')[0] : null,
       favorite_genres: user.favorite_genres?.map((fg) => fg.genre.name) ?? [],
       favorites_count: 0,
       playlist_count: 0,
@@ -159,6 +163,7 @@ export class ProfileService {
       followers_count: 0,
       reposts_count: 0,
     };
+    const data = plainToInstance(MyProfileDataDto, raw, { excludeExtraneousValues: true });
     return { status: 'Success', data };
   }
 }

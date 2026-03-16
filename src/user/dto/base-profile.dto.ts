@@ -1,44 +1,46 @@
+import { Expose, Exclude } from 'class-transformer';
+
+@Exclude()
 export class BaseProfileDataDto {
-  user_id!: string;
+  @Expose() user_id!: string;
 
-  username!: string;
+  @Expose() username!: string;
 
-  first_name!: string | null;
+  @Expose() first_name!: string | null;
 
-  last_name!: string | null;
+  @Expose() last_name!: string | null;
 
-  display_name!: string | null;
+  @Expose() display_name!: string | null;
 
-  bio!: string | null;
+  @Expose() bio!: string | null;
 
-  avatar_url!: string | null;
+  @Expose() avatar_url!: string | null;
 
-  cover_photo!: string | null;
+  @Expose() cover_photo!: string | null;
 
-  country!: string | null;
+  @Expose() country!: string | null;
 
-  city!: string | null;
+  @Expose() city!: string | null;
 
-  role!: string;
+  @Expose() role!: string;
 
-  is_public!: boolean;
+  @Expose() is_public!: boolean;
 
-  favorite_genres!: string[];
+  @Expose() favorite_genres!: string[];
 
-  support_link!: string | null;
+  @Expose() support_link!: string | null;
 
-  created_at!: Date;
+  @Expose() created_at!: Date;
 
-  // derived fields
-  favorites_count!: number;
+  @Expose() favorites_count!: number;
 
-  playlist_count!: number;
+  @Expose() playlist_count!: number;
 
-  track_count!: number;
+  @Expose() track_count!: number;
 
-  followings_count!: number;
+  @Expose() followings_count!: number;
 
-  followers_count!: number;
+  @Expose() followers_count!: number;
 
-  reposts_count!: number;
+  @Expose() reposts_count!: number;
 }

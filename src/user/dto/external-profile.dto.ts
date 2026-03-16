@@ -1,5 +1,8 @@
-export class ExternalProfileDto {
-  name!: string;
+import { Expose, Exclude } from 'class-transformer';
 
-  url!: string;
+@Exclude()
+export class ExternalProfileDto {
+  @Expose() name!: string;
+
+  @Expose() url!: string;
 }

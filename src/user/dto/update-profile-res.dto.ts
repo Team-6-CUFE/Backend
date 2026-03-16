@@ -1,28 +1,30 @@
+import { Expose, Exclude } from 'class-transformer';
+
+@Exclude()
 export class UpdateProfileResDto {
-  user_id!: string;
+  @Expose() user_id!: string;
 
-  username!: string;
+  @Expose() username!: string;
 
-  first_name?: string | null;
+  @Expose() first_name?: string | null;
 
-  last_name?: string | null;
+  @Expose() last_name?: string | null;
 
-  display_name?: string | null;
+  @Expose() display_name?: string | null;
 
-  bio?: string | null;
+  @Expose() bio?: string | null;
 
-  country?: string | null;
+  @Expose() country?: string | null;
 
-  city?: string | null;
+  @Expose() city?: string | null;
 
-  gender?: string | null;
+  @Expose() gender?: string | null;
 
-  // this is named differently since it cant be automatically mapped anwyays
-  favoriteGenres!: string[];
+  @Expose() favorite_genres!: string[];
 
-  support_link?: string | null;
+  @Expose() support_link?: string | null;
 
-  is_public!: boolean;
+  @Expose() is_public!: boolean;
 
-  updated_at!: Date;
+  @Expose() updated_at!: Date;
 }
