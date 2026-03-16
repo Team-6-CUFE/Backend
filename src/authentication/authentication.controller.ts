@@ -3,11 +3,13 @@ import { AuthenticationService } from './authentication.service';
 import { CreateAuthenticationDto } from './dto/create-authentication.dto';
 import { UpdateAuthenticationDto } from './dto/update-authentication.dto';
 import { RegisterDto } from './dto/register.dto';
+import { Public } from './decorators/public.decorator';
 
 @Controller('auth')
 export class AuthenticationController {
   constructor(private readonly authenticationService: AuthenticationService) {}
 
+  @Public()
   @Get('test-email')
   testEmail() {
     return this.authenticationService.testEmail();
