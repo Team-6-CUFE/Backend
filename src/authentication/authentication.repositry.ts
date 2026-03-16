@@ -1,7 +1,7 @@
 // authentication.repository.ts
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { Repository, MoreThanOrEqual } from 'typeorm';
 import { EmailVerificationToken } from './entities/emailverficationtokens.entity';
 import { EmailVerificationCode } from './entities/emailverificationcodes.entity';
 import { UserEmail } from '../user/entities/user-email.entity';
@@ -52,5 +52,18 @@ export class AuthenticationRepository {
     // delete token
     await this.tokenRepository.delete(record.id);
     return { success: true, message: 'Email verified successfully.' };
+  }
+
+  async deleteExistingTokens(email: string): Promise<void> {
+    await this.tokenRepository.delete({ email });
+  }
+
+  async countRecentVerificationTokens(email: string): Promise<number> {
+    return this.tokenRepository.count({
+      where: {
+        email,
+        created_at: MoreThanOrEqual(new Date(Date.now() - 60 * 60 * 1000)), // last 1 hour
+      },
+    });
   }
 }

@@ -48,4 +48,9 @@ export class AuthenticationController {
     console.log('Received verification token', token);
     return this.authenticationService.verifyEmail(token);
   }
+
+  @Post('resend-verification')
+  resendVerificationEmail(@Body('email') email: string) {
+    return this.authenticationService.resendVerificationEmail(email);
+  }
 }

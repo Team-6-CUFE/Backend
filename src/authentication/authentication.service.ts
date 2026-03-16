@@ -1,4 +1,5 @@
-import { Injectable } from '@nestjs/common';
+import { HttpException, HttpStatus, Injectable, BadRequestException } from '@nestjs/common';
+import * as crypto from 'crypto';
 import { CreateAuthenticationDto } from './dto/create-authentication.dto';
 import { UpdateAuthenticationDto } from './dto/update-authentication.dto';
 import { RegisterDto } from './dto/register.dto';
@@ -8,6 +9,7 @@ import { generateVerificationToken, getExpiryDate } from '../common/utilities/to
 import { AuthenticationRepository } from './authentication.repositry';
 
 const VERIFICATION_TOKEN_EXPIRY_MINUTES = 24 * 60;
+const MAX_RESEND_ATTEMPTS = 3;
 @Injectable()
 export class AuthenticationService {
   constructor(
@@ -42,24 +44,22 @@ export class AuthenticationService {
     if (await this.userService.checkEmailExists(email)) {
       return `Email ${email} is already registered.`;
     }
+    const newregisterDto = { ...registerDto };
     if (await this.userService.checkUsernameExists(username)) {
-      return `Username ${username} is already taken.`;
+      newregisterDto.username = await this.generateUniqueUsername(username);
     }
-    const { captchaToken, ...createUserDto } = registerDto;
-    const createdUser = await this.userService.createUser(createUserDto);
+    const { captchaToken, ...createUserDto } = newregisterDto;
     console.log('captcha token received', captchaToken);
+    const createdUser = await this.userService.createUser(createUserDto);
     const verificationToken = generateVerificationToken();
     const expiryDate = getExpiryDate(VERIFICATION_TOKEN_EXPIRY_MINUTES);
-    console.log('current time', new Date(), 'expiry date', expiryDate);
     await this.authRepository.createVerificationToken(
       createdUser.user_id,
       verificationToken,
       email,
       expiryDate
     );
-    console.log('waiting to send email with token', verificationToken);
     await this.mailService.sendEmailVerification(email, verificationToken);
-    console.log('email sent');
     return {
       status: 'success',
       message: 'Registration successful. Please check your email to verify your account.',
@@ -74,6 +74,19 @@ export class AuthenticationService {
     };
   }
 
+  private async generateUniqueUsername(baseUsername: string): Promise<string> {
+    const suffix = crypto.randomBytes(3).toString('hex');
+    const username = `${baseUsername}_${suffix}`;
+
+    const exists = await this.userService.checkUsernameExists(username);
+
+    if (exists) {
+      return this.generateUniqueUsername(baseUsername); // ← recurse if taken
+    }
+
+    return username;
+  }
+
   async sendVerificationEmail(email: string, token: string) {
     await this.mailService.sendEmailVerification(email, token);
   }
@@ -86,5 +99,40 @@ export class AuthenticationService {
   async verifyEmail(verificationToken: string) {
     console.log('verifying token 2', verificationToken);
     return this.authRepository.verifyEmail(verificationToken);
+  }
+
+  async resendVerificationEmail(email: string) {
+    const useremail = await this.userService.findEmailRecord(email);
+    if (!useremail) {
+      throw new BadRequestException(`Email ${email} is not found.`);
+    }
+    if (useremail.is_verified) {
+      throw new BadRequestException(`Email ${email} is already verified.`);
+    }
+    // rate limits//
+    const exceededRateLimit = await this.authRepository.countRecentVerificationTokens(email);
+    if (exceededRateLimit >= MAX_RESEND_ATTEMPTS) {
+      throw new HttpException(
+        'Too many verification emails sent. Please try again in 5 minutes.',
+        HttpStatus.TOO_MANY_REQUESTS
+      );
+    }
+    // delete any existing token for this email//
+    await this.authRepository.deleteExistingTokens(email);
+    // genetate new token and save
+    const newVerificationToken = generateVerificationToken();
+    const expiryDate = getExpiryDate(VERIFICATION_TOKEN_EXPIRY_MINUTES);
+    await this.authRepository.createVerificationToken(
+      useremail.user_id,
+      newVerificationToken,
+      email,
+      expiryDate
+    );
+    // send email
+    await this.sendVerificationEmail(email, newVerificationToken);
+    return {
+      status: 'success',
+      message: 'Verification email resent. Please check your email.',
+    };
   }
 }

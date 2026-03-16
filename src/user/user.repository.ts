@@ -72,4 +72,8 @@ export class UserRepository {
     await this.userEmailRepo.save(userEmail);
     return savedUser;
   }
+
+  async findEmailRecord(email: string): Promise<UserEmail | null> {
+    return this.userEmailRepo.findOne({ where: { email } });
+  }
 }

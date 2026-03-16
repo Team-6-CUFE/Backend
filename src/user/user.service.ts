@@ -4,6 +4,7 @@ import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { UserRepository } from './user.repository';
 import { User } from './entities/user.entity';
+import { UserEmail } from './entities/user-email.entity';
 
 @Injectable()
 export class UserService {
@@ -46,5 +47,9 @@ export class UserService {
     const saltrounds = 10;
     const hashedPassword = await bcrypt.hash(password, saltrounds);
     return hashedPassword;
+  }
+
+  async findEmailRecord(email: string): Promise<UserEmail | null> {
+    return this.userRepository.findEmailRecord(email);
   }
 }
