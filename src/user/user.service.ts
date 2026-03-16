@@ -37,6 +37,10 @@ export class UserService {
     return this.userRepository.findByEmail(email).then((user) => !!user);
   }
 
+  async findByEmail(email: string): Promise<User | null> {
+    return this.userRepository.findByEmail(email);
+  }
+
   async createUser(createUserDto: CreateUserDto): Promise<User> {
     const hashedPassword = await this.hash_password(createUserDto.password);
     return this.userRepository.createUser(createUserDto, hashedPassword);
@@ -46,5 +50,9 @@ export class UserService {
     const saltrounds = 10;
     const hashedPassword = await bcrypt.hash(password, saltrounds);
     return hashedPassword;
+  }
+
+  async verifyPassword(password: string, passwordHash: string): Promise<boolean> {
+    return bcrypt.compare(password, passwordHash);
   }
 }
