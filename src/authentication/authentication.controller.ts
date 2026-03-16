@@ -9,14 +9,19 @@ import {
   HttpCode,
   HttpStatus,
   Res,
+  Req,
+  UseGuards,
 } from '@nestjs/common';
-import { Response } from 'express';
+import { Response, Request } from 'express';
 import { AuthenticationService } from './authentication.service';
 import { CreateAuthenticationDto } from './dto/create-authentication.dto';
 import { UpdateAuthenticationDto } from './dto/update-authentication.dto';
 import { RegisterDto } from './dto/register.dto';
 import { Public } from './decorators/public.decorator';
 import { LoginDto } from './dto/login.dto';
+import { RefreshAuthGuard } from './guards/refresh-auth.guard';
+import { JwtPayload } from './strategies/jwt.strategy';
+import { CurrentUser } from './decorators/current-user.decorator';
 
 @Controller('auth')
 export class AuthenticationController {
@@ -67,7 +72,25 @@ export class AuthenticationController {
 
   @Post('logout')
   @HttpCode(HttpStatus.OK)
-  logout(@Res({ passthrough: true }) response: Response) {
-    return this.authenticationService.logout(response);
+  logout(@Req() req: Request, @Res({ passthrough: true }) response: Response) {
+    const refreshToken = req.cookies?.refresh_token;
+    return this.authenticationService.logout(response, refreshToken);
+  }
+
+  @Public()
+  @UseGuards(RefreshAuthGuard)
+  @Post('refresh')
+  refresh(
+    @CurrentUser() user: JwtPayload & { refreshToken: string },
+    @Res({ passthrough: true }) response: Response
+  ) {
+    return this.authenticationService.refreshTokens(
+      user.sub,
+      user.email,
+      user.role,
+      user.plan,
+      user.refreshToken,
+      response
+    );
   }
 }

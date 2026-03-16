@@ -14,10 +14,13 @@ import { EmailVerificationCode } from './entities/emailverificationcodes.entity'
 import { JwtStrategy } from './strategies/jwt.strategy';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import { RolesGuard } from './guards/roles.guard';
+import { RefreshToken } from './entities/refresh-token.entity';
+import { RefreshTokenStrategy } from './strategies/jwt-refresh.strategy';
+import { RefreshAuthGuard } from './guards/refresh-auth.guard';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([EmailVerificationToken, EmailVerificationCode]),
+    TypeOrmModule.forFeature([EmailVerificationToken, EmailVerificationCode, RefreshToken]),
     UserModule,
     MailModule,
     PassportModule.register({ defaultStrategy: 'jwt' }),
@@ -42,6 +45,8 @@ import { RolesGuard } from './guards/roles.guard';
       useClass: RolesGuard,
     },
     JwtStrategy,
+    RefreshTokenStrategy,
+    RefreshAuthGuard,
   ],
   exports: [AuthenticationService, JwtModule],
 })

@@ -1,6 +1,8 @@
 import { ForbiddenException, Injectable, UnauthorizedException } from '@nestjs/common';
 import { Response } from 'express';
 import { JwtService } from '@nestjs/jwt';
+import { ConfigService } from '@nestjs/config';
+import * as crypto from 'crypto';
 import { CreateAuthenticationDto } from './dto/create-authentication.dto';
 import { UpdateAuthenticationDto } from './dto/update-authentication.dto';
 import { RegisterDto } from './dto/register.dto';
@@ -20,13 +22,17 @@ const ACCESS_TOKEN_EXPIRY = '15m';
 // Cookie max-age in milliseconds (match ACCESS_TOKEN_EXPIRY)
 const COOKIE_MAX_AGE_MS = 15 * 60 * 1000;
 
+const REFRESH_TOKEN_EXPIRY = '7d';
+const REFRESH_COOKIE_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000;
+
 @Injectable()
 export class AuthenticationService {
   constructor(
     private readonly userService: UserService,
     private readonly mailService: MailService,
     private readonly authRepository: AuthenticationRepository,
-    private readonly jwtService: JwtService
+    private readonly jwtService: JwtService,
+    private readonly configService: ConfigService
   ) {}
 
   create(createAuthenticationDto: CreateAuthenticationDto) {
@@ -122,12 +128,30 @@ export class AuthenticationService {
       expiresIn: ACCESS_TOKEN_EXPIRY,
     });
 
-    // Set httpOnly cookie
+    // Sign refresh token
+    const refreshToken = this.jwtService.sign(payload, {
+      secret: this.configService.get<string>('JWT_REFRESH_SECRET'),
+      expiresIn: REFRESH_TOKEN_EXPIRY,
+    });
+
+    // Save refresh token in DB
+    const expiresAt = new Date(Date.now() + REFRESH_COOKIE_MAX_AGE_MS);
+    const tokenHash = crypto.createHash('sha256').update(refreshToken).digest('hex');
+    await this.authRepository.saveRefreshToken(user.user_id, tokenHash, expiresAt);
+
+    // Set httpOnly cookies
     response.cookie('access_token', accessToken, {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production', // HTTPS only in prod
       sameSite: 'strict',
       maxAge: COOKIE_MAX_AGE_MS,
+    });
+
+    response.cookie('refresh_token', refreshToken, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'strict',
+      maxAge: REFRESH_COOKIE_MAX_AGE_MS,
     });
 
     return {
@@ -145,8 +169,74 @@ export class AuthenticationService {
     };
   }
 
-  logout(response: Response) {
+  async refreshTokens(
+    userId: string,
+    email: string,
+    role: UserRole,
+    plan: UserPlan,
+    oldRefreshToken: string,
+    response: Response
+  ) {
+    // Verify the token exists in DB
+    const oldTokenHash = crypto.createHash('sha256').update(oldRefreshToken).digest('hex');
+    const storedToken = await this.authRepository.findValidRefreshToken(oldTokenHash);
+    if (!storedToken) {
+      throw new UnauthorizedException('Refresh token is invalid or has been revoked');
+    }
+
+    // Check expiry
+    if (storedToken.expires_at < new Date()) {
+      await this.authRepository.revokeRefreshToken(oldTokenHash);
+      throw new UnauthorizedException('Refresh token has expired');
+    }
+
+    // Rotate: revoke old token, issue new pair
+    await this.authRepository.revokeRefreshToken(oldTokenHash);
+
+    const payload: JwtPayload = { sub: userId, email, role, plan };
+
+    const newAccessToken = this.jwtService.sign(payload, {
+      expiresIn: ACCESS_TOKEN_EXPIRY,
+    });
+
+    const newRefreshToken = this.jwtService.sign(payload, {
+      secret: this.configService.get<string>('JWT_REFRESH_SECRET'),
+      expiresIn: REFRESH_TOKEN_EXPIRY,
+    });
+
+    const expiresAt = new Date(Date.now() + REFRESH_COOKIE_MAX_AGE_MS);
+    const tokenHash = crypto.createHash('sha256').update(newRefreshToken).digest('hex');
+    await this.authRepository.saveRefreshToken(userId, tokenHash, expiresAt);
+
+    response.cookie('access_token', newAccessToken, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'strict',
+      maxAge: COOKIE_MAX_AGE_MS,
+    });
+
+    response.cookie('refresh_token', newRefreshToken, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'strict',
+      maxAge: REFRESH_COOKIE_MAX_AGE_MS,
+    });
+
+    return { status: 'success', message: 'Token refreshed successfully' };
+  }
+
+  logout(response: Response, refreshToken?: string) {
+    if (refreshToken) {
+      const tokenHash = crypto.createHash('sha256').update(refreshToken).digest('hex');
+      this.authRepository.revokeRefreshToken(tokenHash).catch(() => null);
+    }
     response.clearCookie('access_token', {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'strict',
+    });
+
+    response.clearCookie('refresh_token', {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'strict',
