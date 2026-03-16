@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException, Logger } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { plainToInstance } from 'class-transformer';
 import { UserRepository } from './user.repository';
 import { MyProfileDataDto } from './dto/my-profile-data.dto.ts';
@@ -14,8 +14,6 @@ import { UsernameAvailabilityService } from './username-availability.service';
 
 @Injectable()
 export class ProfileService {
-  private readonly logger = new Logger(UsernameAvailabilityService.name);
-
   constructor(
     private readonly userRepository: UserRepository,
     private readonly genreRepository: GenreRepository,
@@ -179,7 +177,6 @@ export class ProfileService {
       message: string;
     };
   }> {
-    this.logger.log('i at daaaa profile service');
     const taken = await this.usernameAvailabilityService.isUsernameTaken(username);
     return {
       status: 'success',
