@@ -1,9 +1,10 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { Repository, MoreThanOrEqual } from 'typeorm';
 import { EmailVerificationToken } from './entities/emailverficationtokens.entity';
 import { EmailVerificationCode } from './entities/emailverificationcodes.entity';
 import { RefreshToken } from './entities/refresh-token.entity';
+import { UserEmail } from '../user/entities/user-email.entity';
 
 @Injectable()
 export class AuthenticationRepository {
@@ -15,7 +16,10 @@ export class AuthenticationRepository {
     private readonly codeRepository: Repository<EmailVerificationCode>,
 
     @InjectRepository(RefreshToken)
-    private readonly refreshTokenRepository: Repository<RefreshToken>
+    private readonly refreshTokenRepository: Repository<RefreshToken>,
+     
+    @InjectRepository(UserEmail)
+    private readonly userEmailRepository: Repository<UserEmail>
   ) {}
 
   async createVerificationToken(
@@ -56,5 +60,39 @@ export class AuthenticationRepository {
   /** Hard-delete all tokens for a user (logout-all-devices) */
   async revokeAllForUser(userId: string): Promise<void> {
     await this.refreshTokenRepository.delete({ user_id: userId });
+  }
+  
+  async verifyEmail(token: string): Promise<{ success: boolean; message: string }> {
+    console.log('verifying email with token', token);
+    const record = await this.tokenRepository.findOne({ where: { token } });
+    // if(record)
+    // {
+    //     console.log('record found for token', token, 'record email', record.email, 'record expiry', record.expires_at);
+    // }
+    if (!record) {
+      return { success: false, message: 'Invalid verification token.' };
+    }
+    if (record.expires_at < new Date()) {
+      console.log('token expired at', record.expires_at, 'current time', new Date());
+      return { success: false, message: 'Verification token has expired.' };
+    }
+    // mark verified//
+    await this.userEmailRepository.update({ email: record.email }, { is_verified: true });
+    // delete token
+    await this.tokenRepository.delete(record.id);
+    return { success: true, message: 'Email verified successfully.' };
+  }
+
+  async deleteExistingTokens(email: string): Promise<void> {
+    await this.tokenRepository.delete({ email });
+  }
+
+  async countRecentVerificationTokens(email: string): Promise<number> {
+    return this.tokenRepository.count({
+      where: {
+        email,
+        created_at: MoreThanOrEqual(new Date(Date.now() - 60 * 60 * 1000)), // last 1 hour
+      },
+    });
   }
 }

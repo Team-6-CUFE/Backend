@@ -4,6 +4,7 @@ import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { UserRepository } from './user.repository';
 import { User } from './entities/user.entity';
+import { UserEmail } from './entities/user-email.entity';
 
 @Injectable()
 export class UserService {
@@ -54,5 +55,9 @@ export class UserService {
 
   async verifyPassword(password: string, passwordHash: string): Promise<boolean> {
     return bcrypt.compare(password, passwordHash);
+  }
+  
+  async findEmailRecord(email: string): Promise<UserEmail | null> {
+    return this.userRepository.findEmailRecord(email);
   }
 }

@@ -39,6 +39,7 @@
     "@nestjs/platform-express": "^11.1.16",
     "@nestjs/typeorm": "^11.0.0",
     "bcrypt": "^6.0.0",
+    "bloomfilter": "^1.1.0",
     "class-transformer": "^0.5.1",
     "class-validator": "^0.14.0",
     "cookie-parser": "^1.4.7",
@@ -62,8 +63,10 @@
   },
   "devDependencies": {
     "@faker-js/faker": "^10.3.0",
+    "@nestjs/cli": "^11.0.16",
     "@nestjs/testing": "^11.1.16",
     "@types/bcrypt": "^6.0.0",
+    "@types/bloomfilter": "^0.0.2",
     "@types/cookie-parser": "^1.4.10",
     "@types/cors": "^2.8.19",
     "@types/dotenv": "^8.2.3",

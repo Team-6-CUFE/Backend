@@ -17,10 +17,11 @@ import { RolesGuard } from './guards/roles.guard';
 import { RefreshToken } from './entities/refresh-token.entity';
 import { RefreshTokenStrategy } from './strategies/jwt-refresh.strategy';
 import { RefreshAuthGuard } from './guards/refresh-auth.guard';
+import { UserEmail } from '../user/entities/user-email.entity';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([EmailVerificationToken, EmailVerificationCode, RefreshToken]),
+    TypeOrmModule.forFeature([EmailVerificationToken, EmailVerificationCode, UserEmail, RefreshToken]),
     UserModule,
     MailModule,
     PassportModule.register({ defaultStrategy: 'jwt' }),
