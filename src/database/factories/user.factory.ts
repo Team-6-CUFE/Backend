@@ -24,7 +24,7 @@ export default setSeederFactory(User, async () => {
   user.plan = faker.helpers.weightedArrayElement([
     { weight: 7, value: 'free' },
     { weight: 2, value: 'pro' },
-    { weight: 1, value: 'premium' },
+    { weight: 1, value: 'go+' },
   ]);
   user.is_public = faker.helpers.arrayElement([true, true, true, false]); // 75% public
   user.is_suspended = false;

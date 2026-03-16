@@ -19,7 +19,7 @@ export class CreateUsersTable1773368321367 implements MigrationInterface {
         country       VARCHAR(100),
         city          VARCHAR(100),
         role          VARCHAR(20)  DEFAULT 'listener' CHECK (role IN ('listener', 'artist', 'admin')),
-        plan          VARCHAR(20)  DEFAULT 'free'     CHECK (plan IN ('free', 'pro', 'premium')),
+        plan          VARCHAR(20)  DEFAULT 'free'     CHECK (plan IN ('free', 'pro', 'go+')),
         is_public         BOOLEAN  DEFAULT true,
         is_suspended      BOOLEAN  DEFAULT false,
         suspension_reason VARCHAR(500),

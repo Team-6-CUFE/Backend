@@ -44,7 +44,7 @@ export class UserSeeder implements Seeder {
       last_name: 'User',
       display_name: 'Administrator',
       role: 'admin',
-      plan: 'premium',
+      plan: 'go+',
       is_public: true,
     });
     await userRepository.save(admin);
@@ -75,7 +75,7 @@ export class UserSeeder implements Seeder {
         first_name: 'Jane',
         last_name: 'Smith',
         role: 'artist',
-        plan: 'premium',
+        plan: 'go+',
       },
       {
         username: 'listener1',
