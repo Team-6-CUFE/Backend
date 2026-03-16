@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException, Logger } from '@nestjs/common';
 import { plainToInstance } from 'class-transformer';
 import { UserRepository } from './user.repository';
 import { MyProfileDataDto } from './dto/my-profile-data.dto.ts';
@@ -10,12 +10,16 @@ import { UpdatePrivacyReqDto } from './dto/update-privacy.dto';
 import { UpdateProfileResDto } from './dto/update-profile-res.dto';
 import { User } from './entities/user.entity';
 import { GenreRepository } from '../genre/genre.repository';
+import { UsernameAvailabilityService } from './username-availability.service';
 
 @Injectable()
 export class ProfileService {
+  private readonly logger = new Logger(UsernameAvailabilityService.name);
+
   constructor(
     private readonly userRepository: UserRepository,
-    private readonly genreRepository: GenreRepository
+    private readonly genreRepository: GenreRepository,
+    private readonly usernameAvailabilityService: UsernameAvailabilityService
   ) {}
 
   async updateMyPrivacy(
@@ -165,5 +169,25 @@ export class ProfileService {
     };
     const data = plainToInstance(MyProfileDataDto, raw, { excludeExtraneousValues: true });
     return { status: 'Success', data };
+  }
+
+  async isUsernameTaken(username: string): Promise<{
+    status: string;
+    data: {
+      username: string;
+      available: boolean;
+      message: string;
+    };
+  }> {
+    this.logger.log('i at daaaa profile service');
+    const taken = await this.usernameAvailabilityService.isUsernameTaken(username);
+    return {
+      status: 'success',
+      data: {
+        username,
+        available: !taken,
+        message: taken ? 'Username is already taken' : 'Username is available',
+      },
+    };
   }
 }

@@ -11,6 +11,7 @@ import { ExternalProfile } from './entities/external-profile.entity';
 import { SocialAccount } from './entities/social-account.entity';
 import { FavoriteGenre } from './entities/favorite-genre.entity';
 import { GenreModule } from '../genre/genre.module';
+import { UsernameAvailabilityService } from './username-availability.service';
 
 @Module({
   imports: [
@@ -18,7 +19,7 @@ import { GenreModule } from '../genre/genre.module';
     GenreModule,
   ],
   controllers: [UserController, ProfileController],
-  providers: [UserService, UserRepository, ProfileService],
+  providers: [UserService, UserRepository, ProfileService, UsernameAvailabilityService],
   exports: [UserService, UserRepository],
 })
 export class UserModule {}

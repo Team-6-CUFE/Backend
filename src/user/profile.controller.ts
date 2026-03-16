@@ -1,10 +1,11 @@
-import { Controller, Get, Put, Body, Param, Request, UseGuards } from '@nestjs/common';
+import { Controller, Get, Put, Body, Param, Request, UseGuards, Query } from '@nestjs/common';
 import { ProfileService } from './profile.service';
 import { UpdateProfileReqDto } from './dto/update-profile-req.dto';
 import { UpdateBirthdateReqDto } from './dto/update-birthdate.dto';
 import { UpdateGenderReqDto } from './dto/update-gender.dto';
 import { UpdatePrivacyReqDto } from './dto/update-privacy.dto';
 import { DevAuthGuard } from '../auth/guards/dev-auth.guard';
+import { CheckUsernameDto } from './dto/check-username.dto';
 
 // this is temporary until auth is done :)
 interface AuthenticatedRequest extends Request {
@@ -23,6 +24,11 @@ export class ProfileController {
   async findMyProfile(@Request() req: AuthenticatedRequest) {
     const userId: string = req.user.user_id;
     return this.profileService.findMyProfile(userId);
+  }
+
+  @Get('check-username')
+  async isUsernameTaken(@Query() checkUsernameDto: CheckUsernameDto) {
+    return this.profileService.isUsernameTaken(checkUsernameDto.username);
   }
 
   @Get(':username')
