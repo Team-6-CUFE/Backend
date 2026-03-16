@@ -10,7 +10,7 @@ export type UserPlan = 'free' | 'pro' | 'go+';
 export interface JwtPayload {
   sub: string; // user_id
   email: string;
-  role: UserRole; // 'user' | 'admin'
+  role: UserRole; // 'listener' | 'artist' | 'admin'
   plan: UserPlan; // 'free' | 'pro' | 'go+'
   iat?: number; // issued at
   exp?: number; // expiry
