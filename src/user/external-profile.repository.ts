@@ -23,4 +23,23 @@ export class ExternalProfileRepository {
   async delete(profileId: string): Promise<void> {
     await this.repo.delete(profileId);
   }
+
+  async countUserProfiles(userId: string): Promise<number> {
+    return this.repo.count({
+      where: { user_id: userId },
+    });
+  }
+
+  async findDuplicateProfile(
+    userId: string,
+    name: string,
+    url: string
+  ): Promise<ExternalProfile | null> {
+    return this.repo.findOne({
+      where: [
+        { user_id: userId, name },
+        { user_id: userId, url },
+      ],
+    });
+  }
 }
