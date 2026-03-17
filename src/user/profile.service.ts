@@ -81,7 +81,6 @@ export class ProfileService {
     data: {
       birthdate: string;
       age: number;
-      changes_remaining: number;
       updated_at: Date;
     };
   }> {
@@ -96,7 +95,6 @@ export class ProfileService {
       data: {
         birthdate: new Date(updated.birthdate).toISOString().split('T')[0],
         age: new Date().getFullYear() - new Date(updated.birthdate).getFullYear(),
-        changes_remaining: 2, // this needs to be added to db
         updated_at: updated.updated_at,
       },
     };
