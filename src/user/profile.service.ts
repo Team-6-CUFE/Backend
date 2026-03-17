@@ -120,6 +120,9 @@ export class ProfileService {
       ...updated!,
       favorite_genres: updated!.favorite_genres?.map((fg) => fg.genre.name) ?? [],
     };
+    if (updateProfileReqDto.username && updated) {
+      this.usernameAvailabilityService.addToFilter(updateProfileReqDto.username);
+    }
     const data = plainToInstance(UpdateProfileResDto, raw, { excludeExtraneousValues: true });
     return {
       status: 'Success',
