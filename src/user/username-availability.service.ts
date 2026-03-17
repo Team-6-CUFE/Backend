@@ -12,8 +12,8 @@ export class UsernameAvailabilityService implements OnModuleInit {
     private readonly configService: ConfigService
   ) {
     this.bloomFilter = new BloomFilter(
-      this.configService.get<number>('FILTER_NUM_BITS', 10485760),
-      this.configService.get<number>('FILTER_NUM_HASH_FUNCTIONS', 7)
+      parseInt(this.configService.get('NUM_BITS', '10485760'), 10),
+      parseInt(this.configService.get('NUM_HASH_FUNCTIONS', '7'), 10)
     );
   }
 
