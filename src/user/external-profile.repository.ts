@@ -11,13 +11,30 @@ export class ExternalProfileRepository {
     private repo: Repository<ExternalProfile>
   ) {}
 
+  async findAllByUserId(userId: string): Promise<ExternalProfile[]> {
+    return this.repo.find({
+      where: { user_id: userId },
+      order: { created_at: 'ASC' },
+    });
+  }
+
+  async findById(userId: string, profileId: string): Promise<ExternalProfile | null> {
+    return this.repo.findOne({
+      where: { id: profileId, user_id: userId },
+    });
+  }
+
   async create(userId: string, createDto: CreateExternalProfileDto): Promise<ExternalProfile> {
     const profile = this.repo.create({
       user_id: userId,
       ...createDto,
     });
-
     return this.repo.save(profile);
+  }
+
+  async update(profileId: string, data: Partial<ExternalProfile>): Promise<ExternalProfile | null> {
+    await this.repo.update(profileId, data);
+    return this.repo.findOneBy({ id: profileId });
   }
 
   async delete(profileId: string): Promise<void> {
