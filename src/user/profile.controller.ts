@@ -62,8 +62,6 @@ export class ProfileController {
     return this.profileService.updateMyPrivacy(userId, updatePrivacyReqDto);
   }
 
-  /* --- External Profiles Section --- */
-
   @Get('me/external-profiles')
   async getMyExternalProfiles(@CurrentUser('sub') userId: string) {
     return this.profileService.getMyExternalProfiles(userId);
