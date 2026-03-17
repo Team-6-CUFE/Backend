@@ -1,28 +1,19 @@
-import { Controller, Get, Put, Body, Param, Request, UseGuards, Query } from '@nestjs/common';
+import { Controller, Get, Put, Body, Param, Query } from '@nestjs/common';
 import { ProfileService } from './profile.service';
 import { UpdateProfileReqDto } from './dto/update-profile-req.dto';
 import { UpdateBirthdateReqDto } from './dto/update-birthdate.dto';
 import { UpdateGenderReqDto } from './dto/update-gender.dto';
 import { UpdatePrivacyReqDto } from './dto/update-privacy.dto';
-import { DevAuthGuard } from '../auth/guards/dev-auth.guard';
 import { CheckUsernameDto } from './dto/check-username.dto';
-
-// this is temporary until auth is done :)
-interface AuthenticatedRequest extends Request {
-  user: {
-    user_id: string;
-    username: string;
-  };
-}
+import { Public } from '../authentication/decorators/public.decorator';
+import { CurrentUser } from '../authentication/decorators/current-user.decorator';
 
 @Controller('profile')
 export class ProfileController {
   constructor(private readonly profileService: ProfileService) {}
 
-  @UseGuards(DevAuthGuard)
   @Get('me')
-  async findMyProfile(@Request() req: AuthenticatedRequest) {
-    const userId: string = req.user.user_id;
+  async findMyProfile(@CurrentUser('sub') userId: string) {
     return this.profileService.findMyProfile(userId);
   }
 
@@ -31,48 +22,41 @@ export class ProfileController {
     return this.profileService.isUsernameTaken(checkUsernameDto.username);
   }
 
+  @Public()
   @Get(':username')
   async findProfile(@Param('username') username: string) {
     return this.profileService.findProfile(username);
   }
 
-  @UseGuards(DevAuthGuard)
   @Put('me')
   async updateMyProfile(
-    @Request() req: AuthenticatedRequest,
+    @CurrentUser('sub') userId: string,
     @Body() updateProfileReqDto: UpdateProfileReqDto
   ) {
-    const userId: string = req.user.user_id;
     return this.profileService.updateProfile(userId, updateProfileReqDto);
   }
 
-  @UseGuards(DevAuthGuard)
   @Put('me/birthdate')
   async updateMyBirthdate(
-    @Request() req: AuthenticatedRequest,
+    @CurrentUser('sub') userId: string,
     @Body() updateBirthdateReqDto: UpdateBirthdateReqDto
   ) {
-    const userId: string = req.user.user_id;
     return this.profileService.updateMyBirthdate(userId, updateBirthdateReqDto);
   }
 
-  @UseGuards(DevAuthGuard)
   @Put('me/gender')
   async updateMyGender(
-    @Request() req: AuthenticatedRequest,
+    @CurrentUser('sub') userId: string,
     @Body() updateGenderReqDto: UpdateGenderReqDto
   ) {
-    const userId: string = req.user.user_id;
     return this.profileService.updateMyGender(userId, updateGenderReqDto);
   }
 
-  @UseGuards(DevAuthGuard)
   @Put('me/privacy')
   async updateMyPrivacy(
-    @Request() req: AuthenticatedRequest,
+    @CurrentUser('sub') userId: string,
     @Body() updatePrivacyReqDto: UpdatePrivacyReqDto
   ) {
-    const userId: string = req.user.user_id;
     return this.profileService.updateMyPrivacy(userId, updatePrivacyReqDto);
   }
 }
