@@ -7,7 +7,6 @@ import {
   IsIn,
   MaxLength,
   ArrayMaxSize,
-  Matches,
 } from 'class-validator';
 
 export class UpdateProfileReqDto {
@@ -50,11 +49,6 @@ export class UpdateProfileReqDto {
   @IsIn(['male', 'female', 'other', 'prefer_not_to_say'])
   gender?: string;
 
-  @IsOptional()
-  @Matches(/^\d{4}-\d{2}-\d{2}$/, { message: 'birthdate must be in YYYY-MM-DD format' })
-  birthdate?: string;
-
-  // this is named differently since it cant be automatically mapped anwyays
   @IsOptional()
   @IsArray()
   @IsString({ each: true })
