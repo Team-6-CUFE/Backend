@@ -1,4 +1,9 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  BadRequestException,
+  ConflictException,
+} from '@nestjs/common';
 import { plainToInstance } from 'class-transformer';
 import { UserRepository } from './user.repository';
 import { MyProfileDataDto } from './dto/my-profile-data.dto.ts';
@@ -196,7 +201,32 @@ export class ProfileService {
     userId: string,
     createDto: CreateExternalProfileDto
   ): Promise<{ status: string; message: string; data: ExternalProfile }> {
-    const profile = await this.externalProfileRepository.create(userId, createDto);
+    const profileCount = await this.externalProfileRepository.countUserProfiles(userId);
+    if (profileCount >= 5) {
+      throw new BadRequestException('You can only have a maximum of 5 external links.');
+    }
+
+    const duplicate = await this.externalProfileRepository.findDuplicateProfile(
+      userId,
+      createDto.name,
+      createDto.url
+    );
+    if (duplicate) {
+      if (duplicate.name === createDto.name) {
+        throw new ConflictException(`You already have a link named "${createDto.name}".`);
+      }
+      throw new ConflictException('You already saved this exact URL.');
+    }
+
+    let finalUrl = createDto.url;
+    if (!finalUrl.startsWith('http://') && !finalUrl.startsWith('https://')) {
+      finalUrl = `https://${finalUrl}`;
+    }
+
+    const profile = await this.externalProfileRepository.create(userId, {
+      ...createDto,
+      url: finalUrl,
+    });
 
     return {
       status: 'Success',
