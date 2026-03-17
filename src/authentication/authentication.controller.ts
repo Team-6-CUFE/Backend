@@ -94,13 +94,15 @@ export class AuthenticationController {
       response
     );
   }
-  
+
+  @Public()
   @Get('verify-email/:token')
   verifyemail(@Param('token') token: string) {
     console.log('Received verification token', token);
     return this.authenticationService.verifyEmail(token);
   }
 
+  @Public()
   @Post('resend-verification')
   resendVerificationEmail(@Body('email') email: string) {
     return this.authenticationService.resendVerificationEmail(email);
