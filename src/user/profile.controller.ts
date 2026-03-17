@@ -1,4 +1,4 @@
-import { Controller, Get, Put, Body, Param, Query } from '@nestjs/common';
+import { Controller, Get, Put, Post, Body, Param, Query } from '@nestjs/common';
 import { ProfileService } from './profile.service';
 import { UpdateProfileReqDto } from './dto/update-profile-req.dto';
 import { UpdateBirthdateReqDto } from './dto/update-birthdate.dto';
@@ -7,6 +7,7 @@ import { UpdatePrivacyReqDto } from './dto/update-privacy.dto';
 import { CheckUsernameDto } from './dto/check-username.dto';
 import { Public } from '../authentication/decorators/public.decorator';
 import { CurrentUser } from '../authentication/decorators/current-user.decorator';
+import { CreateExternalProfileDto } from './dto/create-external-profile.dto';
 
 @Controller('profile')
 export class ProfileController {
@@ -58,5 +59,13 @@ export class ProfileController {
     @Body() updatePrivacyReqDto: UpdatePrivacyReqDto
   ) {
     return this.profileService.updateMyPrivacy(userId, updatePrivacyReqDto);
+  }
+
+  @Post('me/external-profiles')
+  async addExternalProfile(
+    @CurrentUser('sub') userId: string,
+    @Body() createExternalProfileDto: CreateExternalProfileDto
+  ) {
+    return this.profileService.addExternalProfile(userId, createExternalProfileDto);
   }
 }
