@@ -1,7 +1,7 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { ProfileController } from './profile.controller';
 import { ProfileService } from './profile.service';
-import { mockProfileService, mockUserId, mockUsername } from './test/profile.mock';
+import { mockProfileService, mockUserId, mockUsername } from './test/user.mock';
 
 describe('ProfileController', () => {
   let controller: ProfileController;
@@ -18,9 +18,6 @@ describe('ProfileController', () => {
   });
 
   afterEach(() => jest.clearAllMocks());
-
-  // Controller tests are thin — they just verify delegation and param passing.
-  // Business logic is tested in the service.
 
   it('findMyProfile → delegates to service with userId', async () => {
     service.findMyProfile.mockResolvedValue({ status: 'Success', data: {} });

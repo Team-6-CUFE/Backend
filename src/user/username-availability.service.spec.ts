@@ -2,7 +2,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { ConfigService } from '@nestjs/config';
 import { UsernameAvailabilityService } from './username-availability.service';
 import { UserRepository } from './user.repository';
-import { mockUserRepository } from './test/profile.mock';
+import { mockUserRepository } from './test/user.mock';
 
 describe('UsernameAvailabilityService', () => {
   let service: UsernameAvailabilityService;
@@ -16,7 +16,7 @@ describe('UsernameAvailabilityService', () => {
         {
           provide: ConfigService,
           useValue: {
-            get: jest.fn((key: string, def: string) => def), // always return defaults
+            get: jest.fn((key: string, def: string) => def),
           },
         },
       ],
@@ -34,8 +34,6 @@ describe('UsernameAvailabilityService', () => {
 
       await service.onModuleInit();
 
-      // alice and bob are in the filter — should be detected as "maybe taken"
-      // (we verify via isUsernameTaken which will then do a DB check)
       userRepo.findByUsername.mockResolvedValue({ username: 'alice' } as any);
       const result = await service.isUsernameTaken('alice');
       expect(result).toBe(true);
@@ -44,14 +42,13 @@ describe('UsernameAvailabilityService', () => {
 
   describe('isUsernameTaken', () => {
     it('should return false immediately if bloom filter says no (no DB call)', async () => {
-      // fresh filter — nothing added, so 'newuser' is definitely not in it
       userRepo.findAllUsernames.mockResolvedValue([]);
       await service.onModuleInit();
 
       const result = await service.isUsernameTaken('totallyunknownxyz123');
 
       expect(result).toBe(false);
-      expect(userRepo.findByUsername).not.toHaveBeenCalled(); // bloom filter short-circuited
+      expect(userRepo.findByUsername).not.toHaveBeenCalled();
     });
 
     it('should do DB check on bloom filter positive and return true if user exists', async () => {
@@ -67,7 +64,6 @@ describe('UsernameAvailabilityService', () => {
     });
 
     it('should return false if bloom filter false positive but user not in DB', async () => {
-      // simulate false positive: manually add to filter but DB returns null
       service.addToFilter('ghostuser');
       userRepo.findByUsername.mockResolvedValue(null);
 
@@ -97,7 +93,6 @@ describe('UsernameAvailabilityService', () => {
 
       await service.isUsernameTaken('brandnew');
 
-      // bloom filter now has it, so DB was consulted
       expect(userRepo.findByUsername).toHaveBeenCalled();
     });
   });

@@ -11,7 +11,7 @@ import {
   mockUser,
   mockUserId,
   mockUsername,
-} from './test/profile.mock';
+} from './test/user.mock';
 
 describe('ProfileService', () => {
   let service: ProfileService;
@@ -35,10 +35,7 @@ describe('ProfileService', () => {
     usernameAvailability = module.get(UsernameAvailabilityService);
   });
 
-  // always verify no lingering mock state bleeds between tests
   afterEach(() => jest.clearAllMocks());
-
-  // ─── findMyProfile ──────────────────────────────────────────────────────────
 
   describe('findMyProfile', () => {
     it('should handle null favorite_genres', async () => {
@@ -101,8 +98,6 @@ describe('ProfileService', () => {
     });
   });
 
-  // ─── findProfile ────────────────────────────────────────────────────────────
-
   describe('findProfile', () => {
     it('should handle null favorite_genres', async () => {
       userRepo.findByUsername.mockResolvedValue({ ...mockUser(), favorite_genres: null as any });
@@ -128,8 +123,6 @@ describe('ProfileService', () => {
       await expect(service.findProfile('ghost')).rejects.toThrow(NotFoundException);
     });
   });
-
-  // ─── updateProfile ──────────────────────────────────────────────────────────
 
   describe('updateProfile', () => {
     const dto = { display_name: 'New Name', favorite_genres: ['Jazz'] };
@@ -196,8 +189,6 @@ describe('ProfileService', () => {
     });
   });
 
-  // ─── updateMyBirthdate ──────────────────────────────────────────────────────
-
   describe('updateMyBirthdate', () => {
     it('should return formatted birthdate and correct age', async () => {
       const birthYear = new Date().getFullYear() - 25;
@@ -223,8 +214,6 @@ describe('ProfileService', () => {
     });
   });
 
-  // ─── updateMyGender ─────────────────────────────────────────────────────────
-
   describe('updateMyGender', () => {
     it('should return updated gender', async () => {
       userRepo.update.mockResolvedValue({ ...mockUser(), gender: 'female' });
@@ -244,8 +233,6 @@ describe('ProfileService', () => {
     });
   });
 
-  // ─── updateMyPrivacy ────────────────────────────────────────────────────────
-
   describe('updateMyPrivacy', () => {
     it('should return updated privacy setting', async () => {
       userRepo.update.mockResolvedValue({ ...mockUser(), is_public: false });
@@ -264,8 +251,6 @@ describe('ProfileService', () => {
       );
     });
   });
-
-  // ─── isUsernameTaken ────────────────────────────────────────────────────────
 
   describe('isUsernameTaken', () => {
     it('should return available: true when username is free', async () => {
