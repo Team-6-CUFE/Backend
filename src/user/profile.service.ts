@@ -11,13 +11,17 @@ import { UpdateProfileResDto } from './dto/update-profile-res.dto';
 import { User } from './entities/user.entity';
 import { GenreRepository } from '../genre/genre.repository';
 import { UsernameAvailabilityService } from './username-availability.service';
+import { ExternalProfile } from './entities/external-profile.entity';
+import { CreateExternalProfileDto } from './dto/create-external-profile.dto';
+import { ExternalProfileRepository } from './external-profile.repository';
 
 @Injectable()
 export class ProfileService {
   constructor(
     private readonly userRepository: UserRepository,
     private readonly genreRepository: GenreRepository,
-    private readonly usernameAvailabilityService: UsernameAvailabilityService
+    private readonly usernameAvailabilityService: UsernameAvailabilityService,
+    private readonly externalProfileRepository: ExternalProfileRepository
   ) {}
 
   async updateMyPrivacy(
@@ -185,6 +189,19 @@ export class ProfileService {
         available: !taken,
         message: taken ? 'Username is already taken' : 'Username is available',
       },
+    };
+  }
+
+  async addExternalProfile(
+    userId: string,
+    createDto: CreateExternalProfileDto
+  ): Promise<{ status: string; message: string; data: ExternalProfile }> {
+    const profile = await this.externalProfileRepository.create(userId, createDto);
+
+    return {
+      status: 'Success',
+      message: 'External profile added successfully',
+      data: profile,
     };
   }
 }
