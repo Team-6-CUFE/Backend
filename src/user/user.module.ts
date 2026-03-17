@@ -12,6 +12,7 @@ import { SocialAccount } from './entities/social-account.entity';
 import { FavoriteGenre } from './entities/favorite-genre.entity';
 import { GenreModule } from '../genre/genre.module';
 import { UsernameAvailabilityService } from './username-availability.service';
+import { ExternalProfileRepository } from './external-profile.repository';
 
 @Module({
   imports: [
@@ -19,7 +20,13 @@ import { UsernameAvailabilityService } from './username-availability.service';
     GenreModule,
   ],
   controllers: [UserController, ProfileController],
-  providers: [UserService, UserRepository, ProfileService, UsernameAvailabilityService],
-  exports: [UserService, UserRepository],
+  providers: [
+    UserService,
+    UserRepository,
+    ProfileService,
+    UsernameAvailabilityService,
+    ExternalProfileRepository,
+  ],
+  exports: [UserService, UserRepository, ExternalProfileRepository],
 })
 export class UserModule {}
