@@ -20,6 +20,8 @@ import { ExternalProfile } from './entities/external-profile.entity';
 import { CreateExternalProfileDto } from './dto/create-external-profile.dto';
 import { ExternalProfileRepository } from './external-profile.repository';
 
+const MAX_EXTERNAL_PROFILES = 10;
+
 @Injectable()
 export class ProfileService {
   constructor(
@@ -202,8 +204,10 @@ export class ProfileService {
     createDto: CreateExternalProfileDto
   ): Promise<{ status: string; message: string; data: ExternalProfile }> {
     const profileCount = await this.externalProfileRepository.countUserProfiles(userId);
-    if (profileCount >= 5) {
-      throw new BadRequestException('You can only have a maximum of 5 external links.');
+    if (profileCount >= MAX_EXTERNAL_PROFILES) {
+      throw new BadRequestException(
+        `You can only have a maximum of ${MAX_EXTERNAL_PROFILES} external links.`
+      );
     }
 
     const duplicate = await this.externalProfileRepository.findDuplicateProfile(
