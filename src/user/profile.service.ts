@@ -131,6 +131,7 @@ export class ProfileService {
     };
   }
 
+  // TODO: switch out mock counts for service function call
   async findProfile(username: string): Promise<{ status: string; data: PublicProfileDataDto }> {
     const user = await this.userRepository.findByUsername(username);
     if (!user) throw new NotFoundException('User not found');
@@ -148,6 +149,7 @@ export class ProfileService {
     return { status: 'Success', data };
   }
 
+  // TODO: switch out mock counts for service function call
   async findMyProfile(userId: string): Promise<{ status: string; data: MyProfileDataDto }> {
     const user = await this.userRepository.findById(userId);
     if (!user) throw new NotFoundException('User not found');
