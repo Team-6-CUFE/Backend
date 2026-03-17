@@ -8,7 +8,7 @@ import {
   BadRequestException,
   NotFoundException,
   UnauthorizedException,
-  ForbiddenException
+  ForbiddenException,
 } from '@nestjs/common';
 import * as crypto from 'crypto';
 import { CreateAuthenticationDto } from './dto/create-authentication.dto';
@@ -122,20 +122,43 @@ export class AuthenticationService {
   }
 
   async login(loginDto: LoginDto, response: Response) {
-    const { email, password } = loginDto;
+    const { credential, password } = loginDto;
 
     // Find user
-    const user = await this.userService.findByEmail(email);
+    let user = await this.userService.findByEmail(credential);
+
+    // If login with email check that the email is verified
+    if (user) {
+      if (!user.emails.find((e) => e.email === credential)?.is_verified) {
+        throw new ForbiddenException({
+          message: 'Please verify your email address before logging in',
+          email_verified: false,
+          email: credential,
+        });
+      }
+    } else {
+      user = await this.userService.findByUsername(credential);
+    }
+
     if (!user) {
       throw new UnauthorizedException('Invalid email or password');
     }
 
-    // Check email is verified
-    if (!user.emails.find((e) => e.email === email)?.is_verified) {
+    // Get primary email
+    const primaryEmail = user.emails.find((e) => e.is_primary);
+
+    if (!primaryEmail) {
+      throw new ForbiddenException({
+        message: 'This account has no email.',
+      });
+    }
+
+    // Check primary email is verified
+    if (!primaryEmail?.is_verified) {
       throw new ForbiddenException({
         message: 'Please verify your email address before logging in',
         email_verified: false,
-        email,
+        email: primaryEmail?.email,
       });
     }
 
@@ -153,7 +176,7 @@ export class AuthenticationService {
     // Build payload and sign access token
     const payload: JwtPayload = {
       sub: user.user_id,
-      email,
+      email: primaryEmail?.email,
       role: user.role as UserRole,
       plan: user.plan as UserPlan,
     };
@@ -193,7 +216,7 @@ export class AuthenticationService {
       message: 'Login successful',
       data: {
         user_id: user.user_id,
-        email,
+        email: primaryEmail.email,
         username: user.username,
         display_name: user.display_name,
         avatar_url: user.avatar_url,
@@ -281,7 +304,7 @@ export class AuthenticationService {
       message: 'Logged out successfully',
     };
   }
-  
+
   async verifyEmail(verificationToken: string) {
     console.log('verifying token 2', verificationToken);
     return this.authRepository.verifyEmail(verificationToken);
