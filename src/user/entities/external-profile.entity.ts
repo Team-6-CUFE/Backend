@@ -14,7 +14,7 @@ export class ExternalProfile extends BaseEntity {
   name!: string; // 'instagram', 'twitter', etc.
 
   @Column({ type: 'varchar', length: 500 })
-  url!: string;
+  url!: string; // The actual link
 
   // Relationship
   @ManyToOne(() => User, (user) => user.external_profiles, { onDelete: 'CASCADE' })
