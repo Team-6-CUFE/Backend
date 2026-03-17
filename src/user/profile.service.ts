@@ -110,12 +110,7 @@ export class ProfileService {
     if (!exists) throw new NotFoundException('User not found');
 
     const { favorite_genres: favoriteGenres, ...rest } = updateProfileReqDto;
-    const userData: Partial<User> = {
-      ...rest,
-      birthdate: updateProfileReqDto.birthdate
-        ? new Date(updateProfileReqDto.birthdate)
-        : undefined,
-    };
+    const userData: Partial<User> = { ...rest };
     if (favoriteGenres !== undefined) {
       const genres = await this.genreRepository.findByNames(favoriteGenres);
       await this.userRepository.updateFavoriteGenres(userId, genres);
