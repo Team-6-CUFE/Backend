@@ -26,8 +26,8 @@ export class UserService {
     return `This action updates a #${id} user${JSON.stringify(updateUserDto)}`;
   }
 
-  remove(id: number) {
-    return `This action removes a #${id} user`;
+  remove(id: string) {
+    return this.userRepository.delete(id);
   }
 
   checkUsernameExists(username: string): Promise<boolean> {

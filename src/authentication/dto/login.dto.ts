@@ -2,7 +2,7 @@ import { IsNotEmpty, IsString, Matches, MinLength } from 'class-validator';
 
 export class LoginDto {
   @IsNotEmpty({ message: 'Email or Profile Link is required' })
-  credential!: string;
+  identifier!: string;
 
   @IsString()
   @IsNotEmpty({ message: 'Password is required' })

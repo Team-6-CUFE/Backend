@@ -122,26 +122,26 @@ export class AuthenticationService {
   }
 
   async login(loginDto: LoginDto, response: Response) {
-    const { credential, password } = loginDto;
+    const { identifier, password } = loginDto;
 
     // Find user
-    let user = await this.userService.findByEmail(credential);
+    let user = await this.userService.findByEmail(identifier);
 
     // If login with email check that the email is verified
     if (user) {
-      if (!user.emails.find((e) => e.email === credential)?.is_verified) {
+      if (!user.emails.find((e) => e.email === identifier)?.is_verified) {
         throw new ForbiddenException({
           message: 'Please verify your email address before logging in',
           email_verified: false,
-          email: credential,
+          email: identifier,
         });
       }
     } else {
-      user = await this.userService.findByUsername(credential);
+      user = await this.userService.findByUsername(identifier);
     }
 
     if (!user) {
-      throw new UnauthorizedException('Invalid email or password');
+      throw new UnauthorizedException('Invalid identifier or password');
     }
 
     // Get primary email
@@ -170,7 +170,7 @@ export class AuthenticationService {
     // Verify password
     const isPasswordValid = await this.userService.verifyPassword(password, user.password_hash);
     if (!isPasswordValid) {
-      throw new UnauthorizedException('Invalid email or password');
+      throw new UnauthorizedException('Invalid identifier or password');
     }
 
     // Build payload and sign access token
@@ -282,10 +282,10 @@ export class AuthenticationService {
     return { status: 'success', message: 'Token refreshed successfully' };
   }
 
-  logout(response: Response, refreshToken?: string) {
+  async logout(response: Response, refreshToken?: string) {
     if (refreshToken) {
       const tokenHash = crypto.createHash('sha256').update(refreshToken).digest('hex');
-      this.authRepository.revokeRefreshToken(tokenHash).catch(() => null);
+      await this.authRepository.revokeRefreshToken(tokenHash).catch(() => null);
     }
     response.clearCookie('access_token', {
       httpOnly: true,
@@ -342,6 +342,15 @@ export class AuthenticationService {
     return {
       status: 'success',
       message: 'Verification email resent. Please check your email.',
+    };
+  }
+
+  async removeUser(userId: string, response: Response, refreshToken?: string) {
+    await this.logout(response, refreshToken);
+    await this.userService.remove(userId);
+    return {
+      status: 'success',
+      message: 'Your account has been deleted successfully.',
     };
   }
 }
