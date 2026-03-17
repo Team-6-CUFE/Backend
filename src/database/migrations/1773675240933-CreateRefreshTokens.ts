@@ -24,7 +24,7 @@ export class CreateRefreshTokens1773675240933 implements MigrationInterface {
     `);
 
     await queryRunner.query(`
-        CREATE FUNCTION expire_refresh_tokens_delete_old_rows() RETURNS trigger
+        CREATE OR REPLACE FUNCTION expire_refresh_tokens_delete_old_rows() RETURNS trigger
         LANGUAGE plpgsql
         AS $$
         BEGIN
@@ -32,7 +32,9 @@ export class CreateRefreshTokens1773675240933 implements MigrationInterface {
         RETURN NEW;
         END;
         $$;
+    `);
 
+    await queryRunner.query(`
         CREATE TRIGGER expire_refresh_tokens_delete_old_rows_trigger
         AFTER INSERT ON refresh_tokens
         EXECUTE PROCEDURE expire_refresh_tokens_delete_old_rows();
