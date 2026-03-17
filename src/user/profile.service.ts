@@ -16,8 +16,8 @@ import { UpdateProfileResDto } from './dto/update-profile-res.dto';
 import { User } from './entities/user.entity';
 import { GenreRepository } from '../genre/genre.repository';
 import { UsernameAvailabilityService } from './username-availability.service';
-import { ExternalProfile } from './entities/external-profile.entity';
 import { CreateExternalProfileDto } from './dto/create-external-profile.dto';
+import { UpdateExternalProfileDto } from './dto/update-external-profile.dto';
 import { ExternalProfileRepository } from './external-profile.repository';
 
 const MAX_EXTERNAL_PROFILES = 10;
@@ -31,95 +31,47 @@ export class ProfileService {
     private readonly externalProfileRepository: ExternalProfileRepository
   ) {}
 
-  async updateMyPrivacy(
-    userId: string,
-    updatePrivacyReqDto: UpdatePrivacyReqDto
-  ): Promise<{
-    status: string;
-    message: string;
-    data: {
-      is_public: boolean;
-      updated_at: Date;
-    };
-  }> {
+  async updateMyPrivacy(userId: string, updatePrivacyReqDto: UpdatePrivacyReqDto) {
     const userData: Partial<User> = { ...updatePrivacyReqDto };
     const updated = await this.userRepository.update(userId, userData);
-
     if (!updated) throw new NotFoundException('User not found');
-
     return {
       status: 'Success',
       message: 'Privacy settings updated successfully',
-      data: {
-        is_public: updated.is_public,
-        updated_at: updated.updated_at,
-      },
+      data: { is_public: updated.is_public, updated_at: updated.updated_at },
     };
   }
 
-  async updateMyGender(
-    userId: string,
-    updateGenderReqDto: UpdateGenderReqDto
-  ): Promise<{
-    status: string;
-    message: string;
-    data: {
-      gender: string;
-      updated_at: Date;
-    };
-  }> {
+  async updateMyGender(userId: string, updateGenderReqDto: UpdateGenderReqDto) {
     const userData: Partial<User> = { ...updateGenderReqDto };
     const updated = await this.userRepository.update(userId, userData);
-
     if (!updated) throw new NotFoundException('User not found');
-
     return {
       status: 'Success',
       message: 'Gender updated successfully',
-      data: {
-        gender: updated.gender,
-        updated_at: updated.updated_at,
-      },
+      data: { gender: updated.gender, updated_at: updated.updated_at },
     };
   }
 
-  async updateMyBirthdate(
-    userId: string,
-    updateBirthdateReqDto: UpdateBirthdateReqDto
-  ): Promise<{
-    status: string;
-    message: string;
-    data: {
-      birthdate: string;
-      age: number;
-      changes_remaining: number;
-      updated_at: Date;
-    };
-  }> {
+  async updateMyBirthdate(userId: string, updateBirthdateReqDto: UpdateBirthdateReqDto) {
     const userData: Partial<User> = { birthdate: new Date(updateBirthdateReqDto.birthdate) };
     const updated = await this.userRepository.update(userId, userData);
-
     if (!updated) throw new NotFoundException('User not found');
-
     return {
       status: 'Success',
       message: 'Birthdate updated successfully',
       data: {
         birthdate: new Date(updated.birthdate).toISOString().split('T')[0],
         age: new Date().getFullYear() - new Date(updated.birthdate).getFullYear(),
-        changes_remaining: 2, // this needs to be added to db
+        changes_remaining: 2,
         updated_at: updated.updated_at,
       },
     };
   }
 
-  async updateProfile(
-    userId: string,
-    updateProfileReqDto: UpdateProfileReqDto
-  ): Promise<{ status: string; message: string; data: UpdateProfileResDto }> {
+  async updateProfile(userId: string, updateProfileReqDto: UpdateProfileReqDto) {
     const exists = await this.userRepository.findById(userId);
     if (!exists) throw new NotFoundException('User not found');
-
     const { favorite_genres: favoriteGenres, ...rest } = updateProfileReqDto;
     const userData: Partial<User> = {
       ...rest,
@@ -137,14 +89,10 @@ export class ProfileService {
       favorite_genres: updated!.favorite_genres?.map((fg) => fg.genre.name) ?? [],
     };
     const data = plainToInstance(UpdateProfileResDto, raw, { excludeExtraneousValues: true });
-    return {
-      status: 'Success',
-      message: 'Profile updated successfully',
-      data,
-    };
+    return { status: 'Success', message: 'Profile updated successfully', data };
   }
 
-  async findProfile(username: string): Promise<{ status: string; data: PublicProfileDataDto }> {
+  async findProfile(username: string) {
     const user = await this.userRepository.findByUsername(username);
     if (!user) throw new NotFoundException('User not found');
     const raw: PublicProfileDataDto = {
@@ -161,7 +109,7 @@ export class ProfileService {
     return { status: 'Success', data };
   }
 
-  async findMyProfile(userId: string): Promise<{ status: string; data: MyProfileDataDto }> {
+  async findMyProfile(userId: string) {
     const user = await this.userRepository.findById(userId);
     if (!user) throw new NotFoundException('User not found');
     const raw: MyProfileDataDto = {
@@ -180,14 +128,7 @@ export class ProfileService {
     return { status: 'Success', data };
   }
 
-  async isUsernameTaken(username: string): Promise<{
-    status: string;
-    data: {
-      username: string;
-      available: boolean;
-      message: string;
-    };
-  }> {
+  async isUsernameTaken(username: string) {
     const taken = await this.usernameAvailabilityService.isUsernameTaken(username);
     return {
       status: 'success',
@@ -199,10 +140,12 @@ export class ProfileService {
     };
   }
 
-  async addExternalProfile(
-    userId: string,
-    createDto: CreateExternalProfileDto
-  ): Promise<{ status: string; message: string; data: ExternalProfile }> {
+  async getMyExternalProfiles(userId: string) {
+    const data = await this.externalProfileRepository.findAllByUserId(userId);
+    return { status: 'Success', data };
+  }
+
+  async addExternalProfile(userId: string, createDto: CreateExternalProfileDto) {
     const profileCount = await this.externalProfileRepository.countUserProfiles(userId);
     if (profileCount >= MAX_EXTERNAL_PROFILES) {
       throw new BadRequestException(
@@ -216,10 +159,11 @@ export class ProfileService {
       createDto.url
     );
     if (duplicate) {
-      if (duplicate.name === createDto.name) {
-        throw new ConflictException(`You already have a link named "${createDto.name}".`);
-      }
-      throw new ConflictException('You already saved this exact URL.');
+      const message =
+        duplicate.name === createDto.name
+          ? `You already have a link named "${createDto.name}".`
+          : 'You already saved this exact URL.';
+      throw new ConflictException(message);
     }
 
     let finalUrl = createDto.url;
@@ -231,11 +175,52 @@ export class ProfileService {
       ...createDto,
       url: finalUrl,
     });
+    return { status: 'Success', message: 'External profile added successfully', data: profile };
+  }
+
+  async updateExternalProfile(
+    userId: string,
+    profileId: string,
+    updateDto: UpdateExternalProfileDto
+  ) {
+    const existing = await this.externalProfileRepository.findById(userId, profileId);
+    if (!existing) throw new NotFoundException('External profile not found');
+
+    const updateData = { ...updateDto };
+
+    if (updateData.name || updateData.url) {
+      const checkName = updateData.name || existing.name;
+      const checkUrl = updateData.url || existing.url;
+      const duplicate = await this.externalProfileRepository.findDuplicateProfile(
+        userId,
+        checkName,
+        checkUrl
+      );
+
+      if (duplicate && duplicate.id !== profileId) {
+        throw new ConflictException('Another profile already uses this name or URL.');
+      }
+    }
+
+    if (updateData.url && !updateData.url.startsWith('http')) {
+      updateData.url = `https://${updateData.url}`;
+    }
+
+    const updated = await this.externalProfileRepository.update(profileId, updateData);
+    if (!updated) throw new NotFoundException('Failed to update profile');
 
     return {
       status: 'Success',
-      message: 'External profile added successfully',
-      data: profile,
+      message: 'External profile updated successfully',
+      data: updated,
     };
+  }
+
+  async deleteExternalProfile(userId: string, profileId: string) {
+    const existing = await this.externalProfileRepository.findById(userId, profileId);
+    if (!existing) throw new NotFoundException('External profile not found');
+
+    await this.externalProfileRepository.delete(profileId);
+    return { status: 'Success', message: 'External profile deleted successfully' };
   }
 }
