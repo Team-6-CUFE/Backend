@@ -30,8 +30,8 @@ export class UserService {
     return `This action updates a #${id} user${JSON.stringify(updateUserDto)}`;
   }
 
-  remove(id: string) {
-    return this.userRepository.delete(id);
+  remove(id: number) {
+    return `This action removes a #${id} user`;
   }
 
   checkUsernameExists(username: string): Promise<boolean> {
@@ -44,10 +44,6 @@ export class UserService {
 
   async findByEmail(email: string): Promise<User | null> {
     return this.userRepository.findByEmail(email);
-  }
-
-  async findByUsername(username: string): Promise<User | null> {
-    return this.userRepository.findByUsername(username);
   }
 
   async createUser(createUserDto: CreateUserDto): Promise<User> {
