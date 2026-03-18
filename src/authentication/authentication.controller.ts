@@ -53,9 +53,14 @@ export class AuthenticationController {
     return this.authenticationService.update(+id, updateAuthenticationDto);
   }
 
-  @Delete(':id')
-  remove(@Param('id') id: string) {
-    return this.authenticationService.remove(+id);
+  @Delete('account')
+  remove(
+    @CurrentUser('sub') userId: string,
+    @Req() req: Request,
+    @Res({ passthrough: true }) response: Response
+  ) {
+    const refreshToken = req.cookies?.refresh_token;
+    return this.authenticationService.removeUser(userId, response, refreshToken);
   }
 
   @Public()
