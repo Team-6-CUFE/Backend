@@ -8,7 +8,7 @@ import {
   BadRequestException,
   NotFoundException,
   UnauthorizedException,
-  ForbiddenException,
+  ForbiddenException
 } from '@nestjs/common';
 import * as crypto from 'crypto';
 import { CreateAuthenticationDto } from './dto/create-authentication.dto';
@@ -122,43 +122,20 @@ export class AuthenticationService {
   }
 
   async login(loginDto: LoginDto, response: Response) {
-    const { identifier, password } = loginDto;
+    const { email, password } = loginDto;
 
     // Find user
-    let user = await this.userService.findByEmail(identifier);
-
-    // If login with email check that the email is verified
-    if (user) {
-      if (!user.emails.find((e) => e.email === identifier)?.is_verified) {
-        throw new ForbiddenException({
-          message: 'Please verify your email address before logging in',
-          email_verified: false,
-          email: identifier,
-        });
-      }
-    } else {
-      user = await this.userService.findByUsername(identifier);
-    }
-
+    const user = await this.userService.findByEmail(email);
     if (!user) {
-      throw new UnauthorizedException('Invalid identifier or password');
+      throw new UnauthorizedException('Invalid email or password');
     }
 
-    // Get primary email
-    const primaryEmail = user.emails.find((e) => e.is_primary);
-
-    if (!primaryEmail) {
-      throw new ForbiddenException({
-        message: 'This account has no email.',
-      });
-    }
-
-    // Check primary email is verified
-    if (!primaryEmail?.is_verified) {
+    // Check email is verified
+    if (!user.emails.find((e) => e.email === email)?.is_verified) {
       throw new ForbiddenException({
         message: 'Please verify your email address before logging in',
         email_verified: false,
-        email: primaryEmail?.email,
+        email,
       });
     }
 
@@ -170,13 +147,13 @@ export class AuthenticationService {
     // Verify password
     const isPasswordValid = await this.userService.verifyPassword(password, user.password_hash);
     if (!isPasswordValid) {
-      throw new UnauthorizedException('Invalid identifier or password');
+      throw new UnauthorizedException('Invalid email or password');
     }
 
     // Build payload and sign access token
     const payload: JwtPayload = {
       sub: user.user_id,
-      email: primaryEmail?.email,
+      email,
       role: user.role as UserRole,
       plan: user.plan as UserPlan,
     };
@@ -216,7 +193,7 @@ export class AuthenticationService {
       message: 'Login successful',
       data: {
         user_id: user.user_id,
-        email: primaryEmail.email,
+        email,
         username: user.username,
         display_name: user.display_name,
         avatar_url: user.avatar_url,
@@ -282,10 +259,10 @@ export class AuthenticationService {
     return { status: 'success', message: 'Token refreshed successfully' };
   }
 
-  async logout(response: Response, refreshToken?: string) {
+  logout(response: Response, refreshToken?: string) {
     if (refreshToken) {
       const tokenHash = crypto.createHash('sha256').update(refreshToken).digest('hex');
-      await this.authRepository.revokeRefreshToken(tokenHash).catch(() => null);
+      this.authRepository.revokeRefreshToken(tokenHash).catch(() => null);
     }
     response.clearCookie('access_token', {
       httpOnly: true,
@@ -304,7 +281,7 @@ export class AuthenticationService {
       message: 'Logged out successfully',
     };
   }
-
+  
   async verifyEmail(verificationToken: string) {
     console.log('verifying token 2', verificationToken);
     return this.authRepository.verifyEmail(verificationToken);
@@ -342,15 +319,6 @@ export class AuthenticationService {
     return {
       status: 'success',
       message: 'Verification email resent. Please check your email.',
-    };
-  }
-
-  async removeUser(userId: string, response: Response, refreshToken?: string) {
-    await this.logout(response, refreshToken);
-    await this.userService.remove(userId);
-    return {
-      status: 'success',
-      message: 'Your account has been deleted successfully.',
     };
   }
 }
