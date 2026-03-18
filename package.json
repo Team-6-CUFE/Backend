@@ -44,6 +44,7 @@
     "@nestjs/passport": "^11.0.5",
     "@nestjs/platform-express": "^11.1.16",
     "@nestjs/typeorm": "^11.0.0",
+    "axios": "^1.13.6",
     "bcrypt": "^6.0.0",
     "bloomfilter": "^1.1.0",
     "class-transformer": "^0.5.1",
@@ -122,19 +123,19 @@
       "^.+\\.(t|j)s$": "ts-jest"
     },
     "transformIgnorePatterns": [
-    "node_modules/(?!(bloomfilter)/)"
+      "node_modules/(?!(bloomfilter)/)"
     ],
     "collectCoverageFrom": [
-    "**/*.ts",
-    "!**/*.spec.ts",
-    "!**/*.module.ts",
-    "!**/test/**",
-    "!main.ts",
-    "!seed-main.ts",
-    "!**/*.dto.ts",
-    "!**/*.entity.ts",
-    "!**/*.type.ts",
-    "!**/migrations/**"
+      "**/*.ts",
+      "!**/*.spec.ts",
+      "!**/*.module.ts",
+      "!**/test/**",
+      "!main.ts",
+      "!seed-main.ts",
+      "!**/*.dto.ts",
+      "!**/*.entity.ts",
+      "!**/*.type.ts",
+      "!**/migrations/**"
     ],
     "coverageDirectory": "../coverage",
     "testEnvironment": "node",

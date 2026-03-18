@@ -21,7 +21,12 @@ import { UserEmail } from '../user/entities/user-email.entity';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([EmailVerificationToken, EmailVerificationCode, UserEmail, RefreshToken]),
+    TypeOrmModule.forFeature([
+      EmailVerificationToken,
+      EmailVerificationCode,
+      UserEmail,
+      RefreshToken,
+    ]),
     UserModule,
     MailModule,
     PassportModule.register({ defaultStrategy: 'jwt' }),

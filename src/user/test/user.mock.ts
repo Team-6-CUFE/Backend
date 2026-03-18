@@ -1,8 +1,6 @@
 import { UserCounts } from '../types/user-counts.type';
 import { User } from '../entities/user.entity';
 
-// ─── Reusable mock data ───────────────────────────────────────────────────────
-
 export const mockUserId = 'uuid-1234';
 export const mockUsername = 'johndoe';
 
@@ -39,8 +37,6 @@ export const mockUserCounts = (): UserCounts => ({
   followers_count: 7,
   reposts_count: 1,
 });
-
-// ─── Mock providers ───────────────────────────────────────────────────────────
 
 export const mockUserRepository = () => ({
   findById: jest.fn(),
