@@ -62,7 +62,7 @@ export class AuthenticationRepository {
     await this.refreshTokenRepository.delete({ user_id: userId });
   }
 
-  async verifyEmail(token: string): Promise<{ success: boolean; message: string }> {
+  async verifyEmail(token: string): Promise<{ status: boolean; message: string }> {
     console.log('verifying email with token', token);
     const record = await this.tokenRepository.findOne({ where: { token } });
     // if(record)
@@ -70,17 +70,17 @@ export class AuthenticationRepository {
     //     console.log('record found for token', token, 'record email', record.email, 'record expiry', record.expires_at);
     // }
     if (!record) {
-      return { success: false, message: 'Invalid verification token.' };
+      return { status: false, message: 'Invalid verification token.' };
     }
     if (record.expires_at < new Date()) {
       console.log('token expired at', record.expires_at, 'current time', new Date());
-      return { success: false, message: 'Verification token has expired.' };
+      return { status: false, message: 'Verification token has expired.' };
     }
     // mark verified//
     await this.userEmailRepository.update({ email: record.email }, { is_verified: true });
     // delete token
     await this.tokenRepository.delete(record.id);
-    return { success: true, message: 'Email verified successfully.' };
+    return { status: true, message: 'Email verified successfully.' };
   }
 
   async deleteExistingTokens(email: string): Promise<void> {
