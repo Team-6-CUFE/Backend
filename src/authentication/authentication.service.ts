@@ -11,8 +11,6 @@ import {
   ForbiddenException,
 } from '@nestjs/common';
 import * as crypto from 'crypto';
-import { CreateAuthenticationDto } from './dto/create-authentication.dto';
-import { UpdateAuthenticationDto } from './dto/update-authentication.dto';
 import { RegisterDto } from './dto/register.dto';
 import { UserService } from '../user/user.service';
 import { MailService } from '../mail/mail.service';
@@ -43,26 +41,6 @@ export class AuthenticationService {
     private readonly jwtService: JwtService,
     private readonly configService: ConfigService
   ) {}
-
-  create(createAuthenticationDto: CreateAuthenticationDto) {
-    return `This action adds a new authentication${JSON.stringify(createAuthenticationDto)}`;
-  }
-
-  findAll() {
-    return `This action returns all authentication ${JSON.stringify(UpdateAuthenticationDto)}`;
-  }
-
-  findOne(id: number) {
-    return `This action returns a #${id} authentication`;
-  }
-
-  update(id: number, updateAuthenticationDto: UpdateAuthenticationDto) {
-    return `This action updates a #${id} authentication ${JSON.stringify(updateAuthenticationDto)}`;
-  }
-
-  remove(id: number) {
-    return `This action removes a #${id} authentication`;
-  }
 
   async register(registerDto: RegisterDto) {
     const { email } = registerDto;
@@ -120,11 +98,6 @@ export class AuthenticationService {
 
   async sendVerificationEmail(email: string, token: string) {
     await this.mailService.sendEmailVerification(email, token);
-  }
-
-  async testEmail() {
-    await this.mailService.sendWelcomeEmail('email@gmail.com', 'TestUser');
-    return 'Test email sent';
   }
 
   async login(loginDto: LoginDto, response: Response) {

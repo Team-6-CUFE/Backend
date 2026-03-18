@@ -50,11 +50,6 @@ export class UserRepository {
     });
   }
 
-  // async create(userData: Partial<User>): Promise<User> {
-  //   const user = this.repository.create(userData);
-  //   return this.repository.save(user);
-  // }
-
   async update(id: string, userData: Partial<User>): Promise<User | null> {
     await this.repository.update(id, userData);
     return this.findById(id);
