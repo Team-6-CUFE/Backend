@@ -9,6 +9,8 @@ import { Public } from '../authentication/decorators/public.decorator';
 import { CurrentUser } from '../authentication/decorators/current-user.decorator';
 import { CreateExternalProfileDto } from './dto/create-external-profile.dto';
 import { UpdateExternalProfileDto } from './dto/update-external-profile.dto';
+import { UpdateAvatarDto } from './dto/update-avatar.dto';
+import { UpdateCoverDto } from './dto/update-cover.dto';
 
 @Controller('profile')
 export class ProfileController {
@@ -87,5 +89,15 @@ export class ProfileController {
   @Delete('me/external-profiles/:id')
   async deleteExternalProfile(@CurrentUser('sub') userId: string, @Param('id') profileId: string) {
     return this.profileService.deleteExternalProfile(userId, profileId);
+  }
+
+  @Put('me/avatar')
+  async updateAvatar(@CurrentUser('sub') userId: string, @Body() updateAvatarDto: UpdateAvatarDto) {
+    return this.profileService.updateAvatar(userId, updateAvatarDto.avatar_url);
+  }
+
+  @Put('me/cover')
+  async updateCover(@CurrentUser('sub') userId: string, @Body() updateCoverDto: UpdateCoverDto) {
+    return this.profileService.updateCover(userId, updateCoverDto.cover_photo);
   }
 }

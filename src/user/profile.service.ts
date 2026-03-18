@@ -257,4 +257,37 @@ export class ProfileService {
     await this.externalProfileRepository.delete(profileId);
     return { status: 'Success', message: 'External profile deleted successfully' };
   }
+
+  async updateAvatar(userId: string, avatarUrl: string) {
+    // We match your existing pattern of using Partial<User>
+    const userData: Partial<User> = { avatar_url: avatarUrl } as any;
+    const updated = await this.userRepository.update(userId, userData);
+
+    if (!updated) throw new NotFoundException('User not found');
+
+    return {
+      status: 'Success',
+      message: 'Profile picture updated successfully',
+      data: {
+        avatar_url: avatarUrl,
+        updated_at: updated.updated_at,
+      },
+    };
+  }
+
+  async updateCover(userId: string, coverPhotoUrl: string) {
+    const userData: Partial<User> = { cover_photo: coverPhotoUrl } as any;
+    const updated = await this.userRepository.update(userId, userData);
+
+    if (!updated) throw new NotFoundException('User not found');
+
+    return {
+      status: 'Success',
+      message: 'Cover photo updated successfully',
+      data: {
+        cover_photo: coverPhotoUrl,
+        updated_at: updated.updated_at,
+      },
+    };
+  }
 }
