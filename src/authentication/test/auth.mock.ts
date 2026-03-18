@@ -120,11 +120,19 @@ export const mockMailService = () => ({
 });
 
 export const mockJwtService = () => ({
-  sign: jest.fn(),
+  sign: jest.fn().mockReturnValue('mocked-token'),
+  verify: jest.fn(),
 });
 
 export const mockConfigService = () => ({
-  get: jest.fn(),
+  get: jest.fn().mockImplementation((key: string) => {
+    const config: Record<string, string> = {
+      JWT_SECRET: 'test-secret',
+      JWT_REFRESH_SECRET: 'test-refresh-secret',
+      NODE_ENV: 'test',
+    };
+    return config[key];
+  }),
 });
 
 export const mockAuthenticationService = () => ({

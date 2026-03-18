@@ -42,34 +42,28 @@ describe('AuthenticationService', () => {
   let authRepo: ReturnType<typeof mockAuthenticationRepository>;
   let userService: ReturnType<typeof mockUserService>;
   let mailService: ReturnType<typeof mockMailService>;
-  let jwtService: JwtService;
+  let jwtService: ReturnType<typeof mockJwtService>;
+  let configService: ReturnType<typeof mockConfigService>; // ← add
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         AuthenticationService,
-        {
-          provide: JwtService,
-          useValue: {
-            sign: jest.fn().mockReturnValue('mocked-token'),
-            verify: jest.fn(),
-          },
-        },
         { provide: AuthenticationRepository, useFactory: mockAuthenticationRepository },
         { provide: UserService, useFactory: mockUserService },
         { provide: MailService, useFactory: mockMailService },
-        { provide: JwtService, useFactory: mockJwtService },
-        { provide: ConfigService, useFactory: mockConfigService },
+        { provide: JwtService, useFactory: mockJwtService }, // ← one entry only
+        { provide: ConfigService, useFactory: mockConfigService }, // ← one entry only
       ],
     }).compile();
 
     service = module.get<AuthenticationService>(AuthenticationService);
-    jwtService = module.get<JwtService>(JwtService);
+    jwtService = module.get(JwtService);
+    configService = module.get(ConfigService); // ← add
     authRepo = module.get(AuthenticationRepository);
     userService = module.get(UserService);
     mailService = module.get(MailService);
   });
-
   afterEach(() => jest.clearAllMocks());
 
   // ─── register() ──────────────────────────────────────────────────────────────
@@ -533,7 +527,7 @@ describe('AuthenticationService', () => {
     });
 
     it('should sign refresh token with JWT_REFRESH_SECRET', async () => {
-      jest.spyOn(service.configService, 'get').mockReturnValue('test-refresh-secret');
+      jest.spyOn(configService, 'get').mockReturnValue('test-refresh-secret');
 
       await service.login(mockLoginDto() as any, res as any);
 
@@ -917,7 +911,7 @@ describe('AuthenticationService', () => {
     });
 
     it('should sign new refresh token with JWT_REFRESH_SECRET', async () => {
-      jest.spyOn(service.configService, 'get').mockReturnValue('test-refresh-secret');
+      jest.spyOn(configService, 'get').mockReturnValue('test-refresh-secret');
 
       await service.refreshTokens(
         mockUserId,
