@@ -1,5 +1,12 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { BadRequestException, HttpException, HttpStatus, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  HttpException,
+  HttpStatus,
+  NotFoundException,
+  ForbiddenException,
+  UnauthorizedException,
+} from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 import { AuthenticationService } from './authentication.service';
@@ -20,6 +27,14 @@ import {
   mockUserId,
   mockEmail,
   mockVerificationToken,
+  mockUsername,
+  mockAccessToken,
+  mockRefreshToken,
+  mockStoredRefreshToken,
+  mockExpiredRefreshToken,
+  mockLoginDto,
+  mockLoginDtoWithUsername,
+  mockResponseWithCookie,
 } from './test/auth.mock';
 
 describe('AuthenticationService', () => {
@@ -451,6 +466,641 @@ describe('AuthenticationService', () => {
 
       const callArg = userService.createUser.mock.calls[0][0];
       expect(callArg.username).toMatch(/^yara_senousy_/);
+    });
+  });
+
+  // ─── login() ──────────────────────────────────────────────────────────────────
+
+  describe('login', () => {
+    let res: ReturnType<typeof mockResponseWithCookie>;
+
+    beforeEach(() => {
+      res = mockResponseWithCookie();
+      userService.findByEmail.mockResolvedValue(mockUser());
+      userService.findByUsername.mockResolvedValue(null);
+      userService.verifyPassword.mockResolvedValue(true);
+      authRepo.saveRefreshToken.mockResolvedValue(undefined);
+      jest
+        .spyOn(service.jwtService, 'sign')
+        .mockReturnValueOnce(mockAccessToken)
+        .mockReturnValueOnce(mockRefreshToken);
+    });
+
+    it('should return success response with correct user data on valid email login', async () => {
+      const result = await service.login(mockLoginDto() as any, res as any);
+
+      expect(result.status).toBe('success');
+      expect(result.data.user_id).toBe(mockUserId);
+      expect(result.data.email).toBe(mockEmail);
+      expect(result.data.username).toBe(mockUsername);
+    });
+
+    it('should find user by username when email lookup returns null', async () => {
+      userService.findByEmail.mockResolvedValue(null);
+      userService.findByUsername.mockResolvedValue(mockUser());
+
+      const result = await service.login(mockLoginDtoWithUsername() as any, res as any);
+
+      expect(userService.findByUsername).toHaveBeenCalledWith(mockUsername);
+      expect(result.status).toBe('success');
+    });
+
+    it('should not call findByUsername if findByEmail succeeds', async () => {
+      await service.login(mockLoginDto() as any, res as any);
+
+      expect(userService.findByUsername).not.toHaveBeenCalled();
+    });
+
+    it('should sign access token with correct payload', async () => {
+      await service.login(mockLoginDto() as any, res as any);
+
+      const signSpy = service.jwtService.sign as jest.Mock;
+      const firstCallPayload = signSpy.mock.calls[0][0];
+      expect(firstCallPayload.sub).toBe(mockUserId);
+      expect(firstCallPayload.email).toBe(mockEmail);
+      expect(firstCallPayload.role).toBe('listener');
+      expect(firstCallPayload.plan).toBe('free');
+    });
+
+    it('should sign refresh token with JWT_REFRESH_SECRET', async () => {
+      jest.spyOn(service.configService, 'get').mockReturnValue('test-refresh-secret');
+
+      await service.login(mockLoginDto() as any, res as any);
+
+      const signSpy = service.jwtService.sign as jest.Mock;
+      const secondCallOptions = signSpy.mock.calls[1][1];
+      expect(secondCallOptions.secret).toBe('test-refresh-secret');
+    });
+
+    it('should save hashed refresh token in DB (not raw token)', async () => {
+      await service.login(mockLoginDto() as any, res as any);
+
+      expect(authRepo.saveRefreshToken).toHaveBeenCalledWith(
+        mockUserId,
+        expect.not.stringContaining(mockRefreshToken), // stored value is a hash, not the raw token
+        expect.any(Date)
+      );
+    });
+
+    it('should save refresh token exactly once', async () => {
+      await service.login(mockLoginDto() as any, res as any);
+
+      expect(authRepo.saveRefreshToken).toHaveBeenCalledTimes(1);
+    });
+
+    it('should set access_token httpOnly cookie', async () => {
+      await service.login(mockLoginDto() as any, res as any);
+
+      expect(res.cookie).toHaveBeenCalledWith(
+        'access_token',
+        mockAccessToken,
+        expect.objectContaining({ httpOnly: true })
+      );
+    });
+
+    it('should set refresh_token httpOnly cookie', async () => {
+      await service.login(mockLoginDto() as any, res as any);
+
+      expect(res.cookie).toHaveBeenCalledWith(
+        'refresh_token',
+        mockRefreshToken,
+        expect.objectContaining({ httpOnly: true })
+      );
+    });
+
+    it('should set both cookies (called exactly twice)', async () => {
+      await service.login(mockLoginDto() as any, res as any);
+
+      expect(res.cookie).toHaveBeenCalledTimes(2);
+    });
+
+    it('should use primary email in the response even when logging in with username', async () => {
+      userService.findByEmail.mockResolvedValue(null);
+      userService.findByUsername.mockResolvedValue(mockUser());
+
+      const result = await service.login(mockLoginDtoWithUsername() as any, res as any);
+
+      expect(result.data.email).toBe(mockEmail);
+    });
+
+    // ── User not found ─────────────────────────────────────────────────────────
+
+    it('should throw UnauthorizedException if neither email nor username matches', async () => {
+      userService.findByEmail.mockResolvedValue(null);
+      userService.findByUsername.mockResolvedValue(null);
+
+      await expect(service.login(mockLoginDto() as any, res as any)).rejects.toThrow(
+        UnauthorizedException
+      );
+    });
+
+    it('should not set cookies if user is not found', async () => {
+      userService.findByEmail.mockResolvedValue(null);
+      userService.findByUsername.mockResolvedValue(null);
+
+      await expect(service.login(mockLoginDto() as any, res as any)).rejects.toThrow();
+      expect(res.cookie).not.toHaveBeenCalled();
+    });
+
+    // ── Email not verified ─────────────────────────────────────────────────────
+
+    it('should throw ForbiddenException if email login used with unverified email', async () => {
+      userService.findByEmail.mockResolvedValue({
+        ...mockUser(),
+        emails: [{ email: mockEmail, is_primary: true, is_verified: false, user_id: mockUserId }],
+      });
+
+      await expect(service.login(mockLoginDto() as any, res as any)).rejects.toThrow(
+        ForbiddenException
+      );
+    });
+
+    it('should throw ForbiddenException if primary email is not verified (username login)', async () => {
+      userService.findByEmail.mockResolvedValue(null);
+      userService.findByUsername.mockResolvedValue({
+        ...mockUser(),
+        emails: [{ email: mockEmail, is_primary: true, is_verified: false, user_id: mockUserId }],
+      });
+
+      await expect(service.login(mockLoginDtoWithUsername() as any, res as any)).rejects.toThrow(
+        ForbiddenException
+      );
+    });
+
+    it('should throw ForbiddenException if user has no emails at all', async () => {
+      userService.findByEmail.mockResolvedValue(null);
+      userService.findByUsername.mockResolvedValue({ ...mockUser(), emails: [] });
+
+      await expect(service.login(mockLoginDtoWithUsername() as any, res as any)).rejects.toThrow(
+        ForbiddenException
+      );
+    });
+
+    it('should throw ForbiddenException if user has no primary email', async () => {
+      userService.findByEmail.mockResolvedValue(null);
+      userService.findByUsername.mockResolvedValue({
+        ...mockUser(),
+        emails: [{ email: mockEmail, is_primary: false, is_verified: true, user_id: mockUserId }],
+      });
+
+      await expect(service.login(mockLoginDtoWithUsername() as any, res as any)).rejects.toThrow(
+        ForbiddenException
+      );
+    });
+
+    // ── Suspended account ──────────────────────────────────────────────────────
+
+    it('should throw ForbiddenException if account is suspended', async () => {
+      userService.findByEmail.mockResolvedValue({ ...mockUser(), is_suspended: true });
+
+      await expect(service.login(mockLoginDto() as any, res as any)).rejects.toThrow(
+        ForbiddenException
+      );
+    });
+
+    it('should not verify password if account is suspended', async () => {
+      userService.findByEmail.mockResolvedValue({ ...mockUser(), is_suspended: true });
+
+      await expect(service.login(mockLoginDto() as any, res as any)).rejects.toThrow();
+      expect(userService.verifyPassword).not.toHaveBeenCalled();
+    });
+
+    // ── Wrong password ─────────────────────────────────────────────────────────
+
+    it('should throw UnauthorizedException if password is invalid', async () => {
+      userService.verifyPassword.mockResolvedValue(false);
+
+      await expect(service.login(mockLoginDto() as any, res as any)).rejects.toThrow(
+        UnauthorizedException
+      );
+    });
+
+    it('should not save refresh token if password is invalid', async () => {
+      userService.verifyPassword.mockResolvedValue(false);
+
+      await expect(service.login(mockLoginDto() as any, res as any)).rejects.toThrow();
+      expect(authRepo.saveRefreshToken).not.toHaveBeenCalled();
+    });
+
+    it('should not set cookies if password is invalid', async () => {
+      userService.verifyPassword.mockResolvedValue(false);
+
+      await expect(service.login(mockLoginDto() as any, res as any)).rejects.toThrow();
+      expect(res.cookie).not.toHaveBeenCalled();
+    });
+
+    // ── DB failure ─────────────────────────────────────────────────────────────
+
+    it('should propagate error if saveRefreshToken fails', async () => {
+      authRepo.saveRefreshToken.mockRejectedValue(new Error('DB error'));
+
+      await expect(service.login(mockLoginDto() as any, res as any)).rejects.toThrow('DB error');
+    });
+  });
+
+  // ─── logout() ─────────────────────────────────────────────────────────────────
+
+  describe('logout', () => {
+    let res: ReturnType<typeof mockResponseWithCookie>;
+
+    beforeEach(() => {
+      res = mockResponseWithCookie();
+      authRepo.revokeRefreshToken.mockResolvedValue(undefined);
+    });
+
+    it('should return success response', async () => {
+      const result = await service.logout(res as any, mockRefreshToken);
+
+      expect(result.status).toBe('success');
+      expect(result.message).toBe('Logged out successfully');
+    });
+
+    it('should clear access_token cookie', async () => {
+      await service.logout(res as any, mockRefreshToken);
+
+      expect(res.clearCookie).toHaveBeenCalledWith(
+        'access_token',
+        expect.objectContaining({ httpOnly: true })
+      );
+    });
+
+    it('should clear refresh_token cookie', async () => {
+      await service.logout(res as any, mockRefreshToken);
+
+      expect(res.clearCookie).toHaveBeenCalledWith(
+        'refresh_token',
+        expect.objectContaining({ httpOnly: true })
+      );
+    });
+
+    it('should clear both cookies exactly once each', async () => {
+      await service.logout(res as any, mockRefreshToken);
+
+      expect(res.clearCookie).toHaveBeenCalledTimes(2);
+    });
+
+    it('should revoke the hashed refresh token in DB when token is provided', async () => {
+      await service.logout(res as any, mockRefreshToken);
+
+      expect(authRepo.revokeRefreshToken).toHaveBeenCalledWith(
+        expect.not.stringContaining(mockRefreshToken)
+      );
+      expect(authRepo.revokeRefreshToken).toHaveBeenCalledTimes(1);
+    });
+
+    it('should not call revokeRefreshToken if no refresh token provided', async () => {
+      await service.logout(res as any, undefined);
+
+      expect(authRepo.revokeRefreshToken).not.toHaveBeenCalled();
+    });
+
+    it('should still clear cookies and return success even if revoke throws', async () => {
+      authRepo.revokeRefreshToken.mockRejectedValue(new Error('DB error'));
+
+      const result = await service.logout(res as any, mockRefreshToken);
+
+      expect(result.status).toBe('success');
+      expect(res.clearCookie).toHaveBeenCalledTimes(2);
+    });
+
+    it('should succeed without a refresh token (logout with only access token)', async () => {
+      const result = await service.logout(res as any);
+
+      expect(result.status).toBe('success');
+      expect(res.clearCookie).toHaveBeenCalledTimes(2);
+    });
+  });
+
+  // ─── refreshTokens() ─────────────────────────────────────────────────────────
+
+  describe('refreshTokens', () => {
+    let res: ReturnType<typeof mockResponseWithCookie>;
+
+    beforeEach(() => {
+      res = mockResponseWithCookie();
+      authRepo.findValidRefreshToken.mockResolvedValue(mockStoredRefreshToken());
+      authRepo.revokeRefreshToken.mockResolvedValue(undefined);
+      authRepo.saveRefreshToken.mockResolvedValue(undefined);
+      jest
+        .spyOn(service.jwtService, 'sign')
+        .mockReturnValueOnce(mockAccessToken)
+        .mockReturnValueOnce(mockRefreshToken);
+    });
+
+    it('should return success response', async () => {
+      const result = await service.refreshTokens(
+        mockUserId,
+        mockEmail,
+        'listener' as any,
+        'free' as any,
+        mockRefreshToken,
+        res as any
+      );
+
+      expect(result.status).toBe('success');
+      expect(result.message).toBe('Token refreshed successfully');
+    });
+
+    it('should look up the hashed token in DB (not raw)', async () => {
+      await service.refreshTokens(
+        mockUserId,
+        mockEmail,
+        'listener' as any,
+        'free' as any,
+        mockRefreshToken,
+        res as any
+      );
+
+      expect(authRepo.findValidRefreshToken).toHaveBeenCalledWith(
+        expect.not.stringContaining(mockRefreshToken) // must be a hash
+      );
+    });
+
+    it('should revoke the old token before issuing a new one', async () => {
+      const callOrder: string[] = [];
+      authRepo.revokeRefreshToken.mockImplementation(async () => {
+        callOrder.push('revoke');
+      });
+      authRepo.saveRefreshToken.mockImplementation(async () => {
+        callOrder.push('save');
+      });
+
+      await service.refreshTokens(
+        mockUserId,
+        mockEmail,
+        'listener' as any,
+        'free' as any,
+        mockRefreshToken,
+        res as any
+      );
+
+      expect(callOrder[0]).toBe('revoke');
+      expect(callOrder[1]).toBe('save');
+    });
+
+    it('should save the new hashed refresh token in DB', async () => {
+      await service.refreshTokens(
+        mockUserId,
+        mockEmail,
+        'listener' as any,
+        'free' as any,
+        mockRefreshToken,
+        res as any
+      );
+
+      expect(authRepo.saveRefreshToken).toHaveBeenCalledWith(
+        mockUserId,
+        expect.any(String),
+        expect.any(Date)
+      );
+    });
+
+    it('should set new access_token cookie', async () => {
+      await service.refreshTokens(
+        mockUserId,
+        mockEmail,
+        'listener' as any,
+        'free' as any,
+        mockRefreshToken,
+        res as any
+      );
+
+      expect(res.cookie).toHaveBeenCalledWith(
+        'access_token',
+        mockAccessToken,
+        expect.objectContaining({ httpOnly: true })
+      );
+    });
+
+    it('should set new refresh_token cookie', async () => {
+      await service.refreshTokens(
+        mockUserId,
+        mockEmail,
+        'listener' as any,
+        'free' as any,
+        mockRefreshToken,
+        res as any
+      );
+
+      expect(res.cookie).toHaveBeenCalledWith(
+        'refresh_token',
+        mockRefreshToken,
+        expect.objectContaining({ httpOnly: true })
+      );
+    });
+
+    it('should sign new access token with correct payload', async () => {
+      await service.refreshTokens(
+        mockUserId,
+        mockEmail,
+        'listener' as any,
+        'free' as any,
+        mockRefreshToken,
+        res as any
+      );
+
+      const signSpy = service.jwtService.sign as jest.Mock;
+      const firstCallPayload = signSpy.mock.calls[0][0];
+      expect(firstCallPayload.sub).toBe(mockUserId);
+      expect(firstCallPayload.email).toBe(mockEmail);
+    });
+
+    it('should sign new refresh token with JWT_REFRESH_SECRET', async () => {
+      jest.spyOn(service.configService, 'get').mockReturnValue('test-refresh-secret');
+
+      await service.refreshTokens(
+        mockUserId,
+        mockEmail,
+        'listener' as any,
+        'free' as any,
+        mockRefreshToken,
+        res as any
+      );
+
+      const signSpy = service.jwtService.sign as jest.Mock;
+      const secondCallOptions = signSpy.mock.calls[1][1];
+      expect(secondCallOptions.secret).toBe('test-refresh-secret');
+    });
+
+    // ── Token not found / revoked ──────────────────────────────────────────────
+
+    it('should throw UnauthorizedException if token not found in DB', async () => {
+      authRepo.findValidRefreshToken.mockResolvedValue(null);
+
+      await expect(
+        service.refreshTokens(
+          mockUserId,
+          mockEmail,
+          'listener' as any,
+          'free' as any,
+          mockRefreshToken,
+          res as any
+        )
+      ).rejects.toThrow(UnauthorizedException);
+    });
+
+    it('should not issue new tokens if stored token is not found', async () => {
+      authRepo.findValidRefreshToken.mockResolvedValue(null);
+
+      await expect(
+        service.refreshTokens(
+          mockUserId,
+          mockEmail,
+          'listener' as any,
+          'free' as any,
+          mockRefreshToken,
+          res as any
+        )
+      ).rejects.toThrow();
+      expect(authRepo.saveRefreshToken).not.toHaveBeenCalled();
+      expect(res.cookie).not.toHaveBeenCalled();
+    });
+
+    // ── Expired token ──────────────────────────────────────────────────────────
+
+    it('should throw UnauthorizedException if stored token is expired', async () => {
+      authRepo.findValidRefreshToken.mockResolvedValue(mockExpiredRefreshToken());
+
+      await expect(
+        service.refreshTokens(
+          mockUserId,
+          mockEmail,
+          'listener' as any,
+          'free' as any,
+          mockRefreshToken,
+          res as any
+        )
+      ).rejects.toThrow(UnauthorizedException);
+    });
+
+    it('should revoke the expired token before throwing', async () => {
+      authRepo.findValidRefreshToken.mockResolvedValue(mockExpiredRefreshToken());
+
+      await expect(
+        service.refreshTokens(
+          mockUserId,
+          mockEmail,
+          'listener' as any,
+          'free' as any,
+          mockRefreshToken,
+          res as any
+        )
+      ).rejects.toThrow();
+      expect(authRepo.revokeRefreshToken).toHaveBeenCalledTimes(1);
+    });
+
+    it('should not set cookies if token is expired', async () => {
+      authRepo.findValidRefreshToken.mockResolvedValue(mockExpiredRefreshToken());
+
+      await expect(
+        service.refreshTokens(
+          mockUserId,
+          mockEmail,
+          'listener' as any,
+          'free' as any,
+          mockRefreshToken,
+          res as any
+        )
+      ).rejects.toThrow();
+      expect(res.cookie).not.toHaveBeenCalled();
+    });
+
+    // ── DB failure ─────────────────────────────────────────────────────────────
+
+    it('should propagate error if saveRefreshToken fails', async () => {
+      authRepo.saveRefreshToken.mockRejectedValue(new Error('DB error'));
+
+      await expect(
+        service.refreshTokens(
+          mockUserId,
+          mockEmail,
+          'listener' as any,
+          'free' as any,
+          mockRefreshToken,
+          res as any
+        )
+      ).rejects.toThrow('DB error');
+    });
+  });
+
+  // ─── removeUser() ─────────────────────────────────────────────────────────────
+
+  describe('removeUser', () => {
+    let res: ReturnType<typeof mockResponseWithCookie>;
+
+    beforeEach(() => {
+      res = mockResponseWithCookie();
+      authRepo.revokeRefreshToken.mockResolvedValue(undefined);
+      userService.remove.mockResolvedValue(undefined);
+    });
+
+    it('should return success response', async () => {
+      const result = await service.removeUser(mockUserId, res as any, mockRefreshToken);
+
+      expect(result.status).toBe('success');
+      expect(result.message).toBe('Your account has been deleted successfully.');
+    });
+
+    it('should call logout before removing user', async () => {
+      const callOrder: string[] = [];
+      authRepo.revokeRefreshToken.mockImplementation(async () => {
+        callOrder.push('logout');
+      });
+      userService.remove.mockImplementation(async () => {
+        callOrder.push('remove');
+      });
+
+      await service.removeUser(mockUserId, res as any, mockRefreshToken);
+
+      expect(callOrder[0]).toBe('logout');
+      expect(callOrder[1]).toBe('remove');
+    });
+
+    it('should clear both cookies as part of logout', async () => {
+      await service.removeUser(mockUserId, res as any, mockRefreshToken);
+
+      expect(res.clearCookie).toHaveBeenCalledWith('access_token', expect.any(Object));
+      expect(res.clearCookie).toHaveBeenCalledWith('refresh_token', expect.any(Object));
+    });
+
+    it('should call userService.remove with the correct userId', async () => {
+      await service.removeUser(mockUserId, res as any, mockRefreshToken);
+
+      expect(userService.remove).toHaveBeenCalledWith(mockUserId);
+      expect(userService.remove).toHaveBeenCalledTimes(1);
+    });
+
+    it('should revoke refresh token during logout', async () => {
+      await service.removeUser(mockUserId, res as any, mockRefreshToken);
+
+      expect(authRepo.revokeRefreshToken).toHaveBeenCalledTimes(1);
+    });
+
+    it('should still remove user even if refresh token is not provided', async () => {
+      const result = await service.removeUser(mockUserId, res as any, undefined);
+
+      expect(userService.remove).toHaveBeenCalledWith(mockUserId);
+      expect(result.status).toBe('success');
+    });
+
+    it('should propagate error if userService.remove fails', async () => {
+      userService.remove.mockRejectedValue(new Error('DB error'));
+
+      await expect(service.removeUser(mockUserId, res as any, mockRefreshToken)).rejects.toThrow(
+        'DB error'
+      );
+    });
+
+    it('should not call userService.remove if logout itself throws', async () => {
+      authRepo.revokeRefreshToken.mockRejectedValue(new Error('hard failure'));
+      res.clearCookie = jest.fn().mockImplementationOnce(() => {
+        throw new Error('cookie error');
+      });
+
+      await expect(service.removeUser(mockUserId, res as any, mockRefreshToken)).rejects.toThrow(
+        'cookie error'
+      );
+      expect(userService.remove).not.toHaveBeenCalled();
     });
   });
 });
