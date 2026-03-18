@@ -1,7 +1,8 @@
 import {
   Injectable,
   NotFoundException,
-  BadRequestException,
+  HttpException,
+  HttpStatus,
   ConflictException,
 } from '@nestjs/common';
 import { plainToInstance } from 'class-transformer';
@@ -148,8 +149,18 @@ export class ProfileService {
   async addExternalProfile(userId: string, createDto: CreateExternalProfileDto) {
     const profileCount = await this.externalProfileRepository.countUserProfiles(userId);
     if (profileCount >= MAX_EXTERNAL_PROFILES) {
-      throw new BadRequestException(
-        `You can only have a maximum of ${MAX_EXTERNAL_PROFILES} external links.`
+      throw new HttpException(
+        {
+          status: 'error',
+          message: 'Validation failed',
+          errors: [
+            {
+              field: 'general',
+              message: `You can only have a maximum of ${MAX_EXTERNAL_PROFILES} external links.`,
+            },
+          ],
+        },
+        HttpStatus.BAD_REQUEST
       );
     }
 
