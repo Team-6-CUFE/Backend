@@ -42,11 +42,19 @@ describe('AuthenticationService', () => {
   let authRepo: ReturnType<typeof mockAuthenticationRepository>;
   let userService: ReturnType<typeof mockUserService>;
   let mailService: ReturnType<typeof mockMailService>;
+  let jwtService: JwtService;
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         AuthenticationService,
+        {
+          provide: JwtService,
+          useValue: {
+            sign: jest.fn().mockReturnValue('mocked-token'),
+            verify: jest.fn(),
+          },
+        },
         { provide: AuthenticationRepository, useFactory: mockAuthenticationRepository },
         { provide: UserService, useFactory: mockUserService },
         { provide: MailService, useFactory: mockMailService },
@@ -55,7 +63,8 @@ describe('AuthenticationService', () => {
       ],
     }).compile();
 
-    service = module.get(AuthenticationService);
+    service = module.get<AuthenticationService>(AuthenticationService);
+    jwtService = module.get<JwtService>(JwtService);
     authRepo = module.get(AuthenticationRepository);
     userService = module.get(UserService);
     mailService = module.get(MailService);
@@ -481,7 +490,8 @@ describe('AuthenticationService', () => {
       userService.verifyPassword.mockResolvedValue(true);
       authRepo.saveRefreshToken.mockResolvedValue(undefined);
       jest
-        .spyOn(service.jwtService, 'sign')
+        .spyOn(jwtService, 'sign')
+        .mockReturnValue('mocked-token')
         .mockReturnValueOnce(mockAccessToken)
         .mockReturnValueOnce(mockRefreshToken);
     });
@@ -514,7 +524,7 @@ describe('AuthenticationService', () => {
     it('should sign access token with correct payload', async () => {
       await service.login(mockLoginDto() as any, res as any);
 
-      const signSpy = service.jwtService.sign as jest.Mock;
+      const signSpy = jwtService.sign as jest.Mock;
       const firstCallPayload = signSpy.mock.calls[0][0];
       expect(firstCallPayload.sub).toBe(mockUserId);
       expect(firstCallPayload.email).toBe(mockEmail);
@@ -527,7 +537,7 @@ describe('AuthenticationService', () => {
 
       await service.login(mockLoginDto() as any, res as any);
 
-      const signSpy = service.jwtService.sign as jest.Mock;
+      const signSpy = jwtService.sign as jest.Mock;
       const secondCallOptions = signSpy.mock.calls[1][1];
       expect(secondCallOptions.secret).toBe('test-refresh-secret');
     });
@@ -782,7 +792,8 @@ describe('AuthenticationService', () => {
       authRepo.revokeRefreshToken.mockResolvedValue(undefined);
       authRepo.saveRefreshToken.mockResolvedValue(undefined);
       jest
-        .spyOn(service.jwtService, 'sign')
+        .spyOn(jwtService, 'sign')
+        .mockReturnValue('mocked-token')
         .mockReturnValueOnce(mockAccessToken)
         .mockReturnValueOnce(mockRefreshToken);
     });
@@ -899,7 +910,7 @@ describe('AuthenticationService', () => {
         res as any
       );
 
-      const signSpy = service.jwtService.sign as jest.Mock;
+      const signSpy = jwtService.sign as jest.Mock;
       const firstCallPayload = signSpy.mock.calls[0][0];
       expect(firstCallPayload.sub).toBe(mockUserId);
       expect(firstCallPayload.email).toBe(mockEmail);
@@ -917,7 +928,7 @@ describe('AuthenticationService', () => {
         res as any
       );
 
-      const signSpy = service.jwtService.sign as jest.Mock;
+      const signSpy = jwtService.sign as jest.Mock;
       const secondCallOptions = signSpy.mock.calls[1][1];
       expect(secondCallOptions.secret).toBe('test-refresh-secret');
     });
