@@ -2,6 +2,10 @@ import { Entity, Column, ManyToOne, JoinColumn, PrimaryGeneratedColumn, Relation
 import { BaseEntity } from '../../common/entities/base.entity';
 import { User } from '../../user/entities/user.entity';
 
+export enum TokenType {
+  EMAIL_VERIFICATION = 'email_verification',
+  PASSWORD_RESET = 'password_reset',
+}
 @Entity('email_verification_tokens')
 export class EmailVerificationToken extends BaseEntity {
   @PrimaryGeneratedColumn('uuid')
@@ -18,6 +22,13 @@ export class EmailVerificationToken extends BaseEntity {
 
   @Column({ type: 'timestamp' })
   expires_at!: Date;
+
+  @Column({
+    type: 'varchar',
+    length: 50,
+    default: TokenType.EMAIL_VERIFICATION,
+  })
+  type!: TokenType;
 
   // Relationship
   @ManyToOne(() => User, { onDelete: 'CASCADE' })
