@@ -13,6 +13,7 @@ import { UserService } from '../user/user.service';
 import { MailService } from '../mail/mail.service';
 import { generateVerificationToken, getExpiryDate } from '../common/utilities/tokens.util';
 import { AuthenticationRepository } from './authentication.repositry';
+import { verifyCaptcha } from '../common/utilities/captcha.util';
 
 const VERIFICATION_TOKEN_EXPIRY_MINUTES = 24 * 60;
 const MAX_RESEND_ATTEMPTS = 3;
@@ -47,6 +48,11 @@ export class AuthenticationService {
   async register(registerDto: RegisterDto) {
     const { email } = registerDto;
     const { username } = registerDto;
+    const isValidCaptcha = await verifyCaptcha(registerDto.captchaToken);
+    if (!isValidCaptcha) {
+      throw new BadRequestException('Captcha verification failed. Please try again.');
+    }
+    console.log('captcha verification passed');
     if (await this.userService.checkEmailExists(email)) {
       throw new BadRequestException(`Email ${email} is already registered.`);
     }
