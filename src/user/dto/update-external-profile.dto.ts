@@ -13,7 +13,7 @@ export class UpdateExternalProfileDto {
   @Transform(({ value }: { value: any }) => (typeof value === 'string' ? value.trim() : value))
   @IsString()
   @IsNotEmpty({ message: 'URL cannot be empty' })
-  @IsUrl({ require_protocol: false }, { message: 'Must be a valid URL format' })
+  @IsUrl({ require_protocol: true }, { message: 'Must be a valid URL format' })
   @MaxLength(255, { message: 'URL cannot be longer than 255 characters' })
   url?: string;
 }

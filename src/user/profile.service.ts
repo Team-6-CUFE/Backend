@@ -169,12 +169,24 @@ export class ProfileService {
       createDto.name,
       createDto.url
     );
+
     if (duplicate) {
-      const message =
-        duplicate.name === createDto.name
-          ? `You already have a link named "${createDto.name}".`
-          : 'You already saved this exact URL.';
-      throw new ConflictException(message);
+      const isNameDuplicate = duplicate.name === createDto.name;
+      throw new HttpException(
+        {
+          status: 'error',
+          message: 'Validation failed',
+          errors: [
+            {
+              field: isNameDuplicate ? 'name' : 'url',
+              message: isNameDuplicate
+                ? `You already have a link named ${createDto.name}.`
+                : 'You already saved this exact URL.',
+            },
+          ],
+        },
+        HttpStatus.CONFLICT
+      );
     }
 
     let finalUrl = createDto.url;
