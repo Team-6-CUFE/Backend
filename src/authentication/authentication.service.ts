@@ -128,20 +128,43 @@ export class AuthenticationService {
   }
 
   async login(loginDto: LoginDto, response: Response) {
-    const { email, password } = loginDto;
+    const { identifier, password } = loginDto;
 
     // Find user
-    const user = await this.userService.findByEmail(email);
-    if (!user) {
-      throw new UnauthorizedException('Invalid email or password');
+    let user = await this.userService.findByEmail(identifier);
+
+    // If login with email check that the email is verified
+    if (user) {
+      if (!user.emails.find((e) => e.email === identifier)?.is_verified) {
+        throw new ForbiddenException({
+          message: 'Please verify your email address before logging in',
+          email_verified: false,
+          email: identifier,
+        });
+      }
+    } else {
+      user = await this.userService.findByUsername(identifier);
     }
 
-    // Check email is verified
-    if (!user.emails.find((e) => e.email === email)?.is_verified) {
+    if (!user) {
+      throw new UnauthorizedException('Invalid identifier or password');
+    }
+
+    // Get primary email
+    const primaryEmail = user.emails.find((e) => e.is_primary);
+
+    if (!primaryEmail) {
+      throw new ForbiddenException({
+        message: 'This account has no email.',
+      });
+    }
+
+    // Check primary email is verified
+    if (!primaryEmail?.is_verified) {
       throw new ForbiddenException({
         message: 'Please verify your email address before logging in',
         email_verified: false,
-        email,
+        email: primaryEmail?.email,
       });
     }
 
@@ -153,13 +176,13 @@ export class AuthenticationService {
     // Verify password
     const isPasswordValid = await this.userService.verifyPassword(password, user.password_hash);
     if (!isPasswordValid) {
-      throw new UnauthorizedException('Invalid email or password');
+      throw new UnauthorizedException('Invalid identifier or password');
     }
 
     // Build payload and sign access token
     const payload: JwtPayload = {
       sub: user.user_id,
-      email,
+      email: primaryEmail?.email,
       role: user.role as UserRole,
       plan: user.plan as UserPlan,
     };
@@ -199,7 +222,7 @@ export class AuthenticationService {
       message: 'Login successful',
       data: {
         user_id: user.user_id,
-        email,
+        email: primaryEmail.email,
         username: user.username,
         display_name: user.display_name,
         avatar_url: user.avatar_url,
@@ -265,10 +288,10 @@ export class AuthenticationService {
     return { status: 'success', message: 'Token refreshed successfully' };
   }
 
-  logout(response: Response, refreshToken?: string) {
+  async logout(response: Response, refreshToken?: string) {
     if (refreshToken) {
       const tokenHash = crypto.createHash('sha256').update(refreshToken).digest('hex');
-      this.authRepository.revokeRefreshToken(tokenHash).catch(() => null);
+      await this.authRepository.revokeRefreshToken(tokenHash).catch(() => null);
     }
     response.clearCookie('access_token', {
       httpOnly: true,
@@ -325,6 +348,15 @@ export class AuthenticationService {
     return {
       status: 'success',
       message: 'Verification email resent. Please check your email.',
+    };
+  }
+
+  async removeUser(userId: string, response: Response, refreshToken?: string) {
+    await this.logout(response, refreshToken);
+    await this.userService.remove(userId);
+    return {
+      status: 'success',
+      message: 'Your account has been deleted successfully.',
     };
   }
 }
