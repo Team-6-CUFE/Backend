@@ -89,3 +89,4 @@ Code style is enforced through ESLint and Prettier, automatically applied on git
 | `npm run migration:create src/database/migrations/MigrationName` | Creates empty migration |
 | `npm run seed`           | Seed only (keep existing data)                    |
 | `npm run seed:fresh`     | Fresh database (drop, migrate, seed)              |
+| `npm run test`           | Run unit tests                                    |
