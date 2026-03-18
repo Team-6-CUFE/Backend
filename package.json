@@ -123,19 +123,19 @@
       "^.+\\.(t|j)s$": "ts-jest"
     },
     "transformIgnorePatterns": [
-    "node_modules/(?!(bloomfilter)/)"
+      "node_modules/(?!(bloomfilter)/)"
     ],
     "collectCoverageFrom": [
-    "**/*.ts",
-    "!**/*.spec.ts",
-    "!**/*.module.ts",
-    "!**/test/**",
-    "!main.ts",
-    "!seed-main.ts",
-    "!**/*.dto.ts",
-    "!**/*.entity.ts",
-    "!**/*.type.ts",
-    "!**/migrations/**"
+      "**/*.ts",
+      "!**/*.spec.ts",
+      "!**/*.module.ts",
+      "!**/test/**",
+      "!main.ts",
+      "!seed-main.ts",
+      "!**/*.dto.ts",
+      "!**/*.entity.ts",
+      "!**/*.type.ts",
+      "!**/migrations/**"
     ],
     "coverageDirectory": "../coverage",
     "testEnvironment": "node",
