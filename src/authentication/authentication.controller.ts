@@ -83,4 +83,10 @@ export class AuthenticationController {
   resendVerificationEmail(@Body('email') email: string) {
     return this.authenticationService.resendVerificationEmail(email);
   }
+
+  @Post('change-password-request')
+  @HttpCode(HttpStatus.OK)
+  changePasswordRequest(@CurrentUser('sub') userId: string) {
+    return this.authenticationService.changePasswordRequest(userId);
+  }
 }

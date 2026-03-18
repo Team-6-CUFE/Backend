@@ -20,6 +20,7 @@ import { LoginDto } from './dto/login.dto';
 import { JwtPayload, UserPlan } from './strategies/jwt.strategy';
 import { UserRole } from './decorators/roles.decorator';
 import { verifyCaptcha } from '../common/utilities/captcha.util';
+import { TokenType } from './entities/emailverficationtokens.entity';
 
 // Access token lifetime
 const ACCESS_TOKEN_EXPIRY = '15m';
@@ -66,9 +67,12 @@ export class AuthenticationService {
       createdUser.user_id,
       verificationToken,
       email,
-      expiryDate
+      expiryDate,
+      TokenType.EMAIL_VERIFICATION
     );
+    console.log('will send email now');
     await this.mailService.sendEmailVerification(email, verificationToken);
+    console.log('email sent');
     return {
       status: 'success',
       message: 'Registration successful. Please check your email to verify your account.',
@@ -314,7 +318,8 @@ export class AuthenticationService {
       useremail.user_id,
       newVerificationToken,
       email,
-      expiryDate
+      expiryDate,
+      TokenType.EMAIL_VERIFICATION
     );
     // send email
     await this.sendVerificationEmail(email, newVerificationToken);
@@ -330,6 +335,34 @@ export class AuthenticationService {
     return {
       status: 'success',
       message: 'Your account has been deleted successfully.',
+    };
+  }
+
+  async changePasswordRequest(userId: string) {
+    const verifiedPrimaryEmail = await this.userService.getPrimaryEmail(userId);
+    if (!verifiedPrimaryEmail) {
+      throw new BadRequestException(
+        'No verified primary email found. Please verify your email address first.'
+      );
+    }
+    // we will generate a verification
+    const verificationToken = generateVerificationToken();
+    const expiryDate = getExpiryDate(VERIFICATION_TOKEN_EXPIRY_MINUTES);
+    await this.authRepository.createVerificationToken(
+      userId,
+      verificationToken,
+      verifiedPrimaryEmail,
+      expiryDate,
+      TokenType.PASSWORD_RESET
+    );
+    await this.mailService.sendPasswordReset(verifiedPrimaryEmail, verificationToken);
+    return {
+      status: 'success',
+      message: `Password reset link sent to your primary email address ${verifiedPrimaryEmail}`,
+      data: {
+        email_sent: true,
+        sent_to: `${verifiedPrimaryEmail}`,
+      },
     };
   }
 }

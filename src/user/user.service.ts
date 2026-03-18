@@ -52,4 +52,8 @@ export class UserService {
   async findEmailRecord(email: string): Promise<UserEmail | null> {
     return this.userRepository.findEmailRecord(email);
   }
+
+  async getPrimaryEmail(userId: string): Promise<string | null> {
+    return this.userRepository.getPrimaryEmail(userId);
+  }
 }

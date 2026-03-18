@@ -153,4 +153,15 @@ export class UserRepository {
       (Object.keys(zero) as (keyof UserCounts)[]).map((k) => [k, parseInt(result[k], 10)])
     ) as UserCounts;
   }
+
+  async getPrimaryEmail(userId: string): Promise<string | null> {
+    const emailRecord = await this.userEmailRepo.findOne({
+      where: {
+        user_id: userId,
+        is_primary: true,
+        is_verified: true,
+      },
+    });
+    return emailRecord?.email ?? null;
+  }
 }

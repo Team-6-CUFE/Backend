@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, MoreThanOrEqual } from 'typeorm';
-import { EmailVerificationToken } from './entities/emailverficationtokens.entity';
+import { EmailVerificationToken, TokenType } from './entities/emailverficationtokens.entity';
 import { EmailVerificationCode } from './entities/emailverificationcodes.entity';
 import { RefreshToken } from './entities/refresh-token.entity';
 import { UserEmail } from '../user/entities/user-email.entity';
@@ -26,13 +26,15 @@ export class AuthenticationRepository {
     userId: string,
     token: string,
     email: string,
-    expiryDate: Date
+    expiryDate: Date,
+    type: TokenType
   ): Promise<EmailVerificationToken> {
     const verificationToken = this.tokenRepository.create({
       user_id: userId,
       token,
       expires_at: expiryDate,
       email,
+      type,
     });
     return this.tokenRepository.save(verificationToken);
   }
