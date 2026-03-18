@@ -1,10 +1,4 @@
-import {
-  Injectable,
-  NotFoundException,
-  HttpException,
-  HttpStatus,
-  ConflictException,
-} from '@nestjs/common';
+import { Injectable, NotFoundException, HttpException, HttpStatus } from '@nestjs/common';
 import { plainToInstance } from 'class-transformer';
 import { UserRepository } from './user.repository';
 import { MyProfileDataDto } from './dto/my-profile-data.dto.ts';
@@ -202,13 +196,27 @@ export class ProfileService {
     updateDto: UpdateExternalProfileDto
   ) {
     const existing = await this.externalProfileRepository.findById(userId, profileId);
-    if (!existing) throw new NotFoundException('External profile not found');
 
-    const updateData = { ...updateDto };
+    if (!existing) {
+      throw new HttpException(
+        {
+          status: 'error',
+          message: 'Resource not found',
+          errors: [
+            {
+              field: 'profileId',
+              message: 'External profile not found.',
+            },
+          ],
+        },
+        HttpStatus.NOT_FOUND
+      );
+    }
 
-    if (updateData.name || updateData.url) {
-      const checkName = updateData.name || existing.name;
-      const checkUrl = updateData.url || existing.url;
+    if (updateDto.name || updateDto.url) {
+      const checkName = updateDto.name || existing.name;
+      const checkUrl = updateDto.url || existing.url;
+
       const duplicate = await this.externalProfileRepository.findDuplicateProfile(
         userId,
         checkName,
@@ -216,22 +224,30 @@ export class ProfileService {
       );
 
       if (duplicate && duplicate.id !== profileId) {
-        throw new ConflictException('Another profile already uses this name or URL.');
+        const isNameDuplicate = duplicate.name === checkName;
+        throw new HttpException(
+          {
+            status: 'error',
+            message: 'Validation failed',
+            errors: [
+              {
+                field: isNameDuplicate ? 'name' : 'url',
+                message: isNameDuplicate
+                  ? `You already have a link named ${checkName}.`
+                  : 'You already saved this exact URL.',
+              },
+            ],
+          },
+          HttpStatus.CONFLICT
+        );
       }
     }
 
-    if (updateData.url && !updateData.url.startsWith('http')) {
-      updateData.url = `https://${updateData.url}`;
-    }
+    const updated = await this.externalProfileRepository.update(profileId, {
+      ...updateDto,
+    });
 
-    const updated = await this.externalProfileRepository.update(profileId, updateData);
-    if (!updated) throw new NotFoundException('Failed to update profile');
-
-    return {
-      status: 'Success',
-      message: 'External profile updated successfully',
-      data: updated,
-    };
+    return { status: 'Success', message: 'External profile updated successfully', data: updated };
   }
 
   async deleteExternalProfile(userId: string, profileId: string) {
