@@ -189,14 +189,9 @@ export class ProfileService {
       );
     }
 
-    let finalUrl = createDto.url;
-    if (!finalUrl.startsWith('http://') && !finalUrl.startsWith('https://')) {
-      finalUrl = `https://${finalUrl}`;
-    }
-
     const profile = await this.externalProfileRepository.create(userId, {
       ...createDto,
-      url: finalUrl,
+      url: createDto.url,
     });
     return { status: 'Success', message: 'External profile added successfully', data: profile };
   }
