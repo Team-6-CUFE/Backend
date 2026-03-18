@@ -39,12 +39,12 @@ export class UserSeeder implements Seeder {
     console.log('  Creating admin user...');
     const admin = userRepository.create({
       username: 'admin',
-      password_hash: await bcrypt.hash('admin123', 10),
+      password_hash: await bcrypt.hash('Admin123', 10),
       first_name: 'Admin',
       last_name: 'User',
       display_name: 'Administrator',
       role: 'admin',
-      plan: 'premium',
+      plan: 'go+',
       is_public: true,
     });
     await userRepository.save(admin);
@@ -58,7 +58,7 @@ export class UserSeeder implements Seeder {
     });
     await emailRepository.save(adminEmail);
 
-    // Create 3 known test users (for development)
+    // Create known test users (for development)
     console.log('  Creating test users...');
     const testUsers = [
       {
@@ -75,7 +75,7 @@ export class UserSeeder implements Seeder {
         first_name: 'Jane',
         last_name: 'Smith',
         role: 'artist',
-        plan: 'premium',
+        plan: 'go+',
       },
       {
         username: 'listener1',
@@ -85,12 +85,29 @@ export class UserSeeder implements Seeder {
         role: 'listener',
         plan: 'free',
       },
+      {
+        username: 'listener2',
+        email: 'listener2@test.com',
+        first_name: 'Emily',
+        last_name: 'Johnson',
+        role: 'listener',
+        plan: 'free',
+        is_suspended: true,
+      },
+      {
+        username: 'listener3',
+        email: 'listener3@test.com',
+        first_name: 'Ann',
+        last_name: 'Michael',
+        role: 'listener',
+        plan: 'free',
+      },
     ];
 
     for (const testUserData of testUsers) {
       const user = userRepository.create({
         username: testUserData.username,
-        password_hash: await bcrypt.hash('password123', 10),
+        password_hash: await bcrypt.hash('Password123', 10),
         first_name: testUserData.first_name,
         last_name: testUserData.last_name,
         display_name: `${testUserData.first_name} ${testUserData.last_name}`,
@@ -98,6 +115,7 @@ export class UserSeeder implements Seeder {
         plan: testUserData.plan,
         bio: `Test ${testUserData.role} account`,
         is_public: true,
+        is_suspended: testUserData.is_suspended || false,
       });
       await userRepository.save(user);
 
@@ -106,7 +124,7 @@ export class UserSeeder implements Seeder {
         user_id: user.user_id,
         email: testUserData.email,
         is_primary: true,
-        is_verified: true,
+        is_verified: testUserData.first_name !== 'Ann',
         verified_at: new Date(),
       });
       await emailRepository.save(email);
@@ -198,8 +216,10 @@ export class UserSeeder implements Seeder {
     }
 
     console.log('Users seeded successfully!');
-    console.log(`   - 1 admin user (admin / admin123)`);
-    console.log(`   - 3 test users (artist1, artist2, listener1 / password123)`);
-    console.log(`   - 50 random users (all password: password123)`);
+    console.log(`   - 1 admin user (admin / Admin123)`);
+    console.log(`   - 3 test users (artist1, artist2, listener1 / Password123)`);
+    console.log(`   - 1 suspended user (listener2 / Password123)`);
+    console.log(`   - 1 unverified user (listener3 / Password123)`);
+    console.log(`   - 50 random users (all password: Password123)`);
   }
 }
