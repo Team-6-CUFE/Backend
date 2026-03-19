@@ -60,4 +60,8 @@ export class UserService {
   async findById(id: string): Promise<User | null> {
     return this.userRepository.findById(id);
   }
+
+  async removeEmail(userId: string, email: string): Promise<void> {
+    return this.userRepository.removeEmail(userId, email);
+  }
 }

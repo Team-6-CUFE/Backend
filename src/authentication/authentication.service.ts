@@ -375,4 +375,32 @@ export class AuthenticationService {
       },
     };
   }
+
+  async removeEmail(userId: string, email: string) {
+    const user = await this.userService.findById(userId);
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+
+    const emailRecord = user.emails.find((e) => e.email === email);
+    if (!emailRecord) {
+      throw new NotFoundException(`Email not found`);
+    }
+
+    if (user.emails.length <= 1) {
+      throw new BadRequestException('Cannot delete your only email address');
+    }
+
+    if (emailRecord.is_primary) {
+      throw new BadRequestException(
+        'Cannot delete primary email. Please set another email as primary first.'
+      );
+    }
+
+    await this.userService.removeEmail(userId, email);
+    return {
+      status: 'success',
+      message: 'Email removed successfully',
+    };
+  }
 }

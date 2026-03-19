@@ -163,4 +163,8 @@ export class UserRepository {
     });
     return this.userEmailRepo.save(newEmail);
   }
+
+  async removeEmail(userId: string, email: string): Promise<void> {
+    await this.userEmailRepo.delete({ user_id: userId, email });
+  }
 }

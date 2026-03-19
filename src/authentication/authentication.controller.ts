@@ -89,4 +89,9 @@ export class AuthenticationController {
   addEmail(@CurrentUser('sub') userId: string, @Body() emailDto: EmailDto) {
     return this.authenticationService.addEmail(userId, emailDto.email);
   }
+
+  @Delete('emails/:email')
+  removeEmail(@CurrentUser('sub') userId: string, @Param('email') email: string) {
+    return this.authenticationService.removeEmail(userId, email);
+  }
 }
