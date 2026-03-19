@@ -4,6 +4,7 @@ import { ProfileService } from './profile.service';
 import { UserRepository } from './user.repository';
 import { GenreRepository } from '../genre/genre.repository';
 import { UsernameAvailabilityService } from './username-availability.service';
+import { ExternalProfileRepository } from './external-profile.repository';
 import {
   mockUserRepository,
   mockGenreRepository,
@@ -11,6 +12,7 @@ import {
   mockUser,
   mockUserId,
   mockUsername,
+  mockExternalProfileRepository,
 } from './test/user.mock';
 
 describe('ProfileService', () => {
@@ -26,6 +28,7 @@ describe('ProfileService', () => {
         { provide: UserRepository, useFactory: mockUserRepository },
         { provide: GenreRepository, useFactory: mockGenreRepository },
         { provide: UsernameAvailabilityService, useFactory: mockUsernameAvailabilityService },
+        { provide: ExternalProfileRepository, useFactory: mockExternalProfileRepository },
       ],
     }).compile();
 
