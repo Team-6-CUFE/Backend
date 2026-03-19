@@ -331,6 +331,7 @@ export class AuthenticationService {
 
   async removeUser(userId: string, response: Response, refreshToken?: string) {
     await this.logout(response, refreshToken);
+    await this.authRepository.revokeAllForUser(userId);
     await this.userService.remove(userId);
     return {
       status: 'success',
