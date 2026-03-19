@@ -403,4 +403,22 @@ export class AuthenticationService {
       message: 'Email removed successfully',
     };
   }
+
+  async getEmails(userId: string) {
+    const emails = await this.userService.getEmails(userId);
+    if (!emails) {
+      throw new NotFoundException('User not found');
+    }
+
+    return {
+      status: 'success',
+      emails: emails.map((e) => ({
+        email: e.email,
+        is_primary: e.is_primary,
+        is_verified: e.is_verified,
+        created_at: e.created_at,
+        updated_at: e.updated_at,
+      })),
+    };
+  }
 }

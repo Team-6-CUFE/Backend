@@ -94,4 +94,9 @@ export class AuthenticationController {
   removeEmail(@CurrentUser('sub') userId: string, @Param('email') email: string) {
     return this.authenticationService.removeEmail(userId, email);
   }
+
+  @Get('emails')
+  getEmails(@CurrentUser('sub') userId: string) {
+    return this.authenticationService.getEmails(userId);
+  }
 }

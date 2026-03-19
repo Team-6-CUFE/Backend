@@ -64,4 +64,8 @@ export class UserService {
   async removeEmail(userId: string, email: string): Promise<void> {
     return this.userRepository.removeEmail(userId, email);
   }
+
+  async getEmails(userId: string): Promise<UserEmail[]> {
+    return this.userRepository.getEmails(userId);
+  }
 }

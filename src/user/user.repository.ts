@@ -167,4 +167,8 @@ export class UserRepository {
   async removeEmail(userId: string, email: string): Promise<void> {
     await this.userEmailRepo.delete({ user_id: userId, email });
   }
+
+  async getEmails(userId: string): Promise<UserEmail[]> {
+    return this.userEmailRepo.find({ where: { user_id: userId } });
+  }
 }
