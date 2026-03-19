@@ -36,6 +36,8 @@ const REFRESH_COOKIE_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000;
 
 const VERIFICATION_TOKEN_EXPIRY_MINUTES = 24 * 60;
 const MAX_RESEND_ATTEMPTS = 3;
+
+const VERIFICATION_CODE_EXPIRY_MINUTES = 5;
 @Injectable()
 export class AuthenticationService {
   constructor(
@@ -439,7 +441,13 @@ export class AuthenticationService {
     }
 
     if (emailRecord.is_primary) {
-      throw new BadRequestException('Email is already set as primary');
+      throw new BadRequestException('This email is already the primary email');
+    }
+
+    if (!emailRecord.is_verified) {
+      throw new BadRequestException(
+        'Cannot set unverified email as primary. Please verify the email first.'
+      );
     }
 
     const currentPrimary = user.emails.find((e) => e.is_primary);
@@ -448,8 +456,8 @@ export class AuthenticationService {
     }
 
     const verificationCode = generateSixDigitCode();
-    const expiryDate = getExpiryDate(VERIFICATION_TOKEN_EXPIRY_MINUTES);
-    await this.authRepository.createVerificationToken(
+    const expiryDate = getExpiryDate(VERIFICATION_CODE_EXPIRY_MINUTES);
+    await this.authRepository.createVerificationCode(
       userId,
       verificationCode,
       currentPrimary.email,
