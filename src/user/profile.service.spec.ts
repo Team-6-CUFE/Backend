@@ -1,9 +1,10 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { NotFoundException } from '@nestjs/common';
+import { NotFoundException, HttpException } from '@nestjs/common';
 import { ProfileService } from './profile.service';
 import { UserRepository } from './user.repository';
 import { GenreRepository } from '../genre/genre.repository';
 import { UsernameAvailabilityService } from './username-availability.service';
+import { ExternalProfileRepository } from './external-profile.repository';
 import {
   mockUserRepository,
   mockGenreRepository,
@@ -11,6 +12,7 @@ import {
   mockUser,
   mockUserId,
   mockUsername,
+  mockExternalProfileRepository,
 } from './test/user.mock';
 
 describe('ProfileService', () => {
@@ -19,6 +21,9 @@ describe('ProfileService', () => {
   let genreRepo: ReturnType<typeof mockGenreRepository>;
   let usernameAvailability: ReturnType<typeof mockUsernameAvailabilityService>;
 
+  let externalRepo: any;
+  const mockProfileId = 'prof-999';
+
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -26,6 +31,7 @@ describe('ProfileService', () => {
         { provide: UserRepository, useFactory: mockUserRepository },
         { provide: GenreRepository, useFactory: mockGenreRepository },
         { provide: UsernameAvailabilityService, useFactory: mockUsernameAvailabilityService },
+        { provide: ExternalProfileRepository, useFactory: mockExternalProfileRepository },
       ],
     }).compile();
 
@@ -33,6 +39,14 @@ describe('ProfileService', () => {
     userRepo = module.get(UserRepository);
     genreRepo = module.get(GenreRepository);
     usernameAvailability = module.get(UsernameAvailabilityService);
+
+    externalRepo = module.get(ExternalProfileRepository);
+
+    externalRepo.findAllByUserId = jest.fn();
+    externalRepo.countUserProfiles = jest.fn();
+    externalRepo.findDuplicateProfile = jest.fn();
+    externalRepo.findById = jest.fn();
+    externalRepo.update = jest.fn();
   });
 
   afterEach(() => jest.clearAllMocks());
@@ -269,6 +283,143 @@ describe('ProfileService', () => {
 
       expect(result.data.available).toBe(false);
       expect(result.data.message).toBe('Username is already taken');
+    });
+  });
+
+  describe('getMyExternalProfiles', () => {
+    it('should return all profiles for a user', async () => {
+      const mockProfiles = [{ id: '1', name: 'GitHub' }];
+      externalRepo.findAllByUserId.mockResolvedValue(mockProfiles);
+
+      const result = await service.getMyExternalProfiles(mockUserId);
+      expect(result.status).toBe('Success');
+      expect(result.data).toEqual(mockProfiles);
+    });
+  });
+
+  describe('addExternalProfile', () => {
+    const dto = { name: 'GitHub', url: 'https://github.com' };
+
+    it('should successfully add a profile', async () => {
+      externalRepo.countUserProfiles.mockResolvedValue(0);
+      externalRepo.findDuplicateProfile.mockResolvedValue(null);
+      externalRepo.create.mockResolvedValue({ id: '1', ...dto });
+
+      const result = await service.addExternalProfile(mockUserId, dto);
+      expect(result.status).toBe('Success');
+      expect(result.data.name).toBe('GitHub');
+    });
+
+    it('should throw 400 if user already has 10 profiles', async () => {
+      externalRepo.countUserProfiles.mockResolvedValue(10);
+
+      try {
+        await service.addExternalProfile(mockUserId, dto);
+      } catch (e: any) {
+        expect(e).toBeInstanceOf(HttpException);
+        expect(e.getStatus()).toBe(400);
+      }
+    });
+
+    it('should throw 409 if duplicate profile exists', async () => {
+      externalRepo.countUserProfiles.mockResolvedValue(0);
+      externalRepo.findDuplicateProfile.mockResolvedValue({ id: '2', name: 'GitHub' });
+
+      try {
+        await service.addExternalProfile(mockUserId, dto);
+      } catch (e: any) {
+        expect(e).toBeInstanceOf(HttpException);
+        expect(e.getStatus()).toBe(409);
+      }
+    });
+  });
+
+  describe('updateExternalProfile', () => {
+    const updateDto = { name: 'NewName' };
+
+    it('should successfully update a profile', async () => {
+      externalRepo.findById.mockResolvedValue({ id: mockProfileId, name: 'OldName' });
+      externalRepo.findDuplicateProfile.mockResolvedValue(null);
+      externalRepo.update.mockResolvedValue({ id: mockProfileId, name: 'NewName' });
+
+      const result = await service.updateExternalProfile(mockUserId, mockProfileId, updateDto);
+      expect(result.status).toBe('Success');
+      expect(result.data!.name).toBe('NewName');
+    });
+
+    it('should throw 404 if profile does not exist', async () => {
+      externalRepo.findById.mockResolvedValue(null);
+
+      try {
+        await service.updateExternalProfile(mockUserId, mockProfileId, updateDto);
+      } catch (e: any) {
+        expect(e).toBeInstanceOf(HttpException);
+        expect(e.getStatus()).toBe(404);
+      }
+    });
+  });
+
+  describe('deleteExternalProfile', () => {
+    it('should successfully delete a profile', async () => {
+      externalRepo.findById.mockResolvedValue({ id: mockProfileId });
+      externalRepo.delete.mockResolvedValue(undefined);
+
+      const result = await service.deleteExternalProfile(mockUserId, mockProfileId);
+      expect(result.status).toBe('Success');
+    });
+
+    it('should throw 404 if profile to delete is not found', async () => {
+      externalRepo.findById.mockResolvedValue(null);
+
+      try {
+        await service.deleteExternalProfile(mockUserId, mockProfileId);
+      } catch (e: any) {
+        expect(e).toBeInstanceOf(NotFoundException);
+      }
+    });
+  });
+
+  describe('updateAvatar', () => {
+    const newAvatar = 'https://s3.aws.com/my-avatar.png';
+
+    it('should successfully update avatar', async () => {
+      userRepo.update.mockResolvedValue({ updated_at: new Date() });
+
+      const result = await service.updateAvatar(mockUserId, newAvatar);
+      expect(result.status).toBe('Success');
+      expect(result.data.avatar_url).toBe(newAvatar);
+    });
+
+    it('should throw 404 if user not found', async () => {
+      userRepo.update.mockResolvedValue(null);
+
+      try {
+        await service.updateAvatar(mockUserId, newAvatar);
+      } catch (e: any) {
+        expect(e).toBeInstanceOf(NotFoundException);
+      }
+    });
+  });
+
+  describe('updateCover', () => {
+    const newCover = 'https://s3.aws.com/my-cover.png';
+
+    it('should successfully update cover photo', async () => {
+      userRepo.update.mockResolvedValue({ updated_at: new Date() });
+
+      const result = await service.updateCover(mockUserId, newCover);
+      expect(result.status).toBe('Success');
+      expect(result.data.cover_photo).toBe(newCover);
+    });
+
+    it('should throw 404 if user not found', async () => {
+      userRepo.update.mockResolvedValue(null);
+
+      try {
+        await service.updateCover(mockUserId, newCover);
+      } catch (e: any) {
+        expect(e).toBeInstanceOf(NotFoundException);
+      }
     });
   });
 });

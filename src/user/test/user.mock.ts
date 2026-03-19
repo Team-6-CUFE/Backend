@@ -56,6 +56,13 @@ export const mockUsernameAvailabilityService = () => ({
   addToFilter: jest.fn(),
 });
 
+export const mockExternalProfileRepository = () => ({
+  findByUserId: jest.fn(),
+  create: jest.fn(),
+  save: jest.fn(),
+  delete: jest.fn(),
+});
+
 export const mockProfileService = () => ({
   findMyProfile: jest.fn(),
   findProfile: jest.fn(),
