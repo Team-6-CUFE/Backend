@@ -77,7 +77,10 @@ export class AuthenticationRepository {
       return { status: false, message: 'Verification token has expired.' };
     }
     // mark verified//
-    await this.userEmailRepository.update({ email: record.email }, { is_verified: true });
+    await this.userEmailRepository.update(
+      { email: record.email },
+      { is_verified: true, verified_at: new Date() }
+    );
     // delete token
     await this.tokenRepository.delete(record.id);
     return { status: true, message: 'Email verified successfully.' };

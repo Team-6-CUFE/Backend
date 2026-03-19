@@ -110,6 +110,7 @@ export const mockUserService = () => ({
   findEmailRecord: jest.fn(),
   findByEmail: jest.fn(),
   findByUsername: jest.fn(),
+  findById: jest.fn().mockResolvedValue(mockUser()),
   verifyPassword: jest.fn(),
   remove: jest.fn(),
 });

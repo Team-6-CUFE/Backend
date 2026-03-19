@@ -481,6 +481,7 @@ describe('AuthenticationService', () => {
       res = mockResponseWithCookie();
       userService.findByEmail.mockResolvedValue(mockUser());
       userService.findByUsername.mockResolvedValue(null);
+      userService.findById.mockResolvedValue(mockUser());
       userService.verifyPassword.mockResolvedValue(true);
       authRepo.saveRefreshToken.mockResolvedValue(undefined);
       jest
@@ -613,6 +614,10 @@ describe('AuthenticationService', () => {
         ...mockUser(),
         emails: [{ email: mockEmail, is_primary: true, is_verified: false, user_id: mockUserId }],
       });
+      userService.findById.mockResolvedValue({
+        ...mockUser(),
+        emails: [{ email: mockEmail, is_primary: true, is_verified: false, user_id: mockUserId }],
+      });
 
       await expect(service.login(mockLoginDto() as any, res as any)).rejects.toThrow(
         ForbiddenException
@@ -625,6 +630,10 @@ describe('AuthenticationService', () => {
         ...mockUser(),
         emails: [{ email: mockEmail, is_primary: true, is_verified: false, user_id: mockUserId }],
       });
+      userService.findById.mockResolvedValue({
+        ...mockUser(),
+        emails: [{ email: mockEmail, is_primary: true, is_verified: false, user_id: mockUserId }],
+      });
 
       await expect(service.login(mockLoginDtoWithUsername() as any, res as any)).rejects.toThrow(
         ForbiddenException
@@ -634,6 +643,7 @@ describe('AuthenticationService', () => {
     it('should throw ForbiddenException if user has no emails at all', async () => {
       userService.findByEmail.mockResolvedValue(null);
       userService.findByUsername.mockResolvedValue({ ...mockUser(), emails: [] });
+      userService.findById.mockResolvedValue({ ...mockUser(), emails: [] });
 
       await expect(service.login(mockLoginDtoWithUsername() as any, res as any)).rejects.toThrow(
         ForbiddenException
@@ -643,6 +653,10 @@ describe('AuthenticationService', () => {
     it('should throw ForbiddenException if user has no primary email', async () => {
       userService.findByEmail.mockResolvedValue(null);
       userService.findByUsername.mockResolvedValue({
+        ...mockUser(),
+        emails: [{ email: mockEmail, is_primary: false, is_verified: true, user_id: mockUserId }],
+      });
+      userService.findById.mockResolvedValue({
         ...mockUser(),
         emails: [{ email: mockEmail, is_primary: false, is_verified: true, user_id: mockUserId }],
       });
@@ -656,6 +670,7 @@ describe('AuthenticationService', () => {
 
     it('should throw ForbiddenException if account is suspended', async () => {
       userService.findByEmail.mockResolvedValue({ ...mockUser(), is_suspended: true });
+      userService.findById.mockResolvedValue({ ...mockUser(), is_suspended: true });
 
       await expect(service.login(mockLoginDto() as any, res as any)).rejects.toThrow(
         ForbiddenException
@@ -664,6 +679,7 @@ describe('AuthenticationService', () => {
 
     it('should not verify password if account is suspended', async () => {
       userService.findByEmail.mockResolvedValue({ ...mockUser(), is_suspended: true });
+      userService.findById.mockResolvedValue({ ...mockUser(), is_suspended: true });
 
       await expect(service.login(mockLoginDto() as any, res as any)).rejects.toThrow();
       expect(userService.verifyPassword).not.toHaveBeenCalled();
@@ -690,6 +706,181 @@ describe('AuthenticationService', () => {
       userService.verifyPassword.mockResolvedValue(false);
 
       await expect(service.login(mockLoginDto() as any, res as any)).rejects.toThrow();
+      expect(res.cookie).not.toHaveBeenCalled();
+    });
+
+    // ── Secondary email login ──────────────────────────────────────────────────
+
+    it('should login successfully with a verified secondary email', async () => {
+      userService.findByEmail.mockResolvedValue({
+        ...mockUser(),
+        emails: [
+          { email: mockEmail, is_primary: true, is_verified: true, user_id: mockUserId },
+          {
+            email: 'secondary@example.com',
+            is_primary: false,
+            is_verified: true,
+            user_id: mockUserId,
+          },
+        ],
+      });
+      userService.findById.mockResolvedValue({
+        ...mockUser(),
+        emails: [
+          { email: mockEmail, is_primary: true, is_verified: true, user_id: mockUserId },
+          {
+            email: 'secondary@example.com',
+            is_primary: false,
+            is_verified: true,
+            user_id: mockUserId,
+          },
+        ],
+      });
+
+      const result = await service.login(
+        { identifier: 'secondary@example.com', password: 'password' } as any,
+        res as any
+      );
+
+      expect(result.status).toBe('success');
+    });
+
+    it('should use primary email in JWT payload even when logging in with secondary email', async () => {
+      userService.findByEmail.mockResolvedValue({
+        ...mockUser(),
+        emails: [
+          { email: mockEmail, is_primary: true, is_verified: true, user_id: mockUserId },
+          {
+            email: 'secondary@example.com',
+            is_primary: false,
+            is_verified: true,
+            user_id: mockUserId,
+          },
+        ],
+      });
+      userService.findById.mockResolvedValue({
+        ...mockUser(),
+        emails: [
+          { email: mockEmail, is_primary: true, is_verified: true, user_id: mockUserId },
+          {
+            email: 'secondary@example.com',
+            is_primary: false,
+            is_verified: true,
+            user_id: mockUserId,
+          },
+        ],
+      });
+
+      await service.login(
+        { identifier: 'secondary@example.com', password: 'password' } as any,
+        res as any
+      );
+
+      const signSpy = jwtService.sign as jest.Mock;
+      const firstCallPayload = signSpy.mock.calls[0][0];
+      expect(firstCallPayload.email).toBe(mockEmail); // primary, not secondary
+    });
+
+    it('should return primary email in response data when logging in with secondary email', async () => {
+      userService.findByEmail.mockResolvedValue({
+        ...mockUser(),
+        emails: [
+          { email: mockEmail, is_primary: true, is_verified: true, user_id: mockUserId },
+          {
+            email: 'secondary@example.com',
+            is_primary: false,
+            is_verified: true,
+            user_id: mockUserId,
+          },
+        ],
+      });
+      userService.findById.mockResolvedValue({
+        ...mockUser(),
+        emails: [
+          { email: mockEmail, is_primary: true, is_verified: true, user_id: mockUserId },
+          {
+            email: 'secondary@example.com',
+            is_primary: false,
+            is_verified: true,
+            user_id: mockUserId,
+          },
+        ],
+      });
+
+      const result = await service.login(
+        { identifier: 'secondary@example.com', password: 'password' } as any,
+        res as any
+      );
+
+      expect(result.data.email).toBe(mockEmail); // primary, not secondary
+    });
+
+    it('should throw ForbiddenException if logging in with unverified secondary email', async () => {
+      userService.findByEmail.mockResolvedValue({
+        ...mockUser(),
+        emails: [
+          { email: mockEmail, is_primary: true, is_verified: true, user_id: mockUserId },
+          {
+            email: 'secondary@example.com',
+            is_primary: false,
+            is_verified: false,
+            user_id: mockUserId,
+          },
+        ],
+      });
+      userService.findById.mockResolvedValue({
+        ...mockUser(),
+        emails: [
+          { email: mockEmail, is_primary: true, is_verified: true, user_id: mockUserId },
+          {
+            email: 'secondary@example.com',
+            is_primary: false,
+            is_verified: false,
+            user_id: mockUserId,
+          },
+        ],
+      });
+
+      await expect(
+        service.login(
+          { identifier: 'secondary@example.com', password: 'password' } as any,
+          res as any
+        )
+      ).rejects.toThrow(ForbiddenException);
+    });
+
+    it('should not set cookies when logging in with unverified secondary email', async () => {
+      userService.findByEmail.mockResolvedValue({
+        ...mockUser(),
+        emails: [
+          { email: mockEmail, is_primary: true, is_verified: true, user_id: mockUserId },
+          {
+            email: 'secondary@example.com',
+            is_primary: false,
+            is_verified: false,
+            user_id: mockUserId,
+          },
+        ],
+      });
+      userService.findById.mockResolvedValue({
+        ...mockUser(),
+        emails: [
+          { email: mockEmail, is_primary: true, is_verified: true, user_id: mockUserId },
+          {
+            email: 'secondary@example.com',
+            is_primary: false,
+            is_verified: false,
+            user_id: mockUserId,
+          },
+        ],
+      });
+
+      await expect(
+        service.login(
+          { identifier: 'secondary@example.com', password: 'password' } as any,
+          res as any
+        )
+      ).rejects.toThrow();
       expect(res.cookie).not.toHaveBeenCalled();
     });
 

@@ -104,23 +104,28 @@ export class AuthenticationService {
     const { identifier, password } = loginDto;
 
     // Find user
-    let user = await this.userService.findByEmail(identifier);
+    const foundUser =
+      (await this.userService.findByEmail(identifier)) ??
+      (await this.userService.findByUsername(identifier));
 
-    // If login with email check that the email is verified
-    if (user) {
-      if (!user.emails.find((e) => e.email === identifier)?.is_verified) {
-        throw new ForbiddenException({
-          message: 'Please verify your email address before logging in',
-          email_verified: false,
-          email: identifier,
-        });
-      }
-    } else {
-      user = await this.userService.findByUsername(identifier);
+    if (!foundUser) {
+      throw new UnauthorizedException('Invalid identifier or password');
     }
+
+    const user = await this.userService.findById(foundUser.user_id);
 
     if (!user) {
       throw new UnauthorizedException('Invalid identifier or password');
+    }
+
+    // If login with email check that the email is verified
+    const usedEmail = user.emails.find((e) => e.email === identifier);
+    if (usedEmail && !usedEmail.is_verified) {
+      throw new ForbiddenException({
+        message: 'Please verify your email address before logging in',
+        email_verified: false,
+        email: identifier,
+      });
     }
 
     // Get primary email
