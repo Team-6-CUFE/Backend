@@ -126,6 +126,7 @@ export class UserRepository {
     });
 
     await this.userEmailRepo.save(userEmail);
+    savedUser.emails = [userEmail];
     return savedUser;
   }
 

@@ -392,7 +392,6 @@ export class AuthenticationService {
         prefill: {
           display_name: `${profile.firstName} ${profile.lastName}`,
           email: profile.email,
-          avatar_url: profile.avatarUrl,
         },
       },
     };
@@ -410,6 +409,7 @@ export class AuthenticationService {
       profile.lastName,
       expiryDate
     );
+    return token;
   }
 
   private buildUserResponse(user: User) {

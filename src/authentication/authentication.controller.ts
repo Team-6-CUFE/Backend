@@ -20,6 +20,8 @@ import { RefreshAuthGuard } from './guards/refresh-auth.guard';
 import { JwtPayload } from './strategies/jwt.strategy';
 import { CurrentUser } from './decorators/current-user.decorator';
 import { CompleteOAuthProfileDto } from './dto/complete-oauth-profile.dto';
+import { GoogleAuthGuard } from './guards/google-auth.guard';
+import { OAuthProfile } from './types/oauth-profile.type';
 
 @Controller('auth')
 export class AuthenticationController {
@@ -92,5 +94,22 @@ export class AuthenticationController {
     @Res({ passthrough: true }) response: Response
   ) {
     return this.authenticationService.completeOAuthProfile(oauthData, response);
+  }
+
+  @Public()
+  @UseGuards(GoogleAuthGuard)
+  @Get('google')
+  googleLogin() {
+    // NestJS/Passport handles the redirect — this method body never executes
+  }
+
+  @Public()
+  @UseGuards(GoogleAuthGuard)
+  @Get('google/callback')
+  async googleCallback(
+    @CurrentUser() googleUser: OAuthProfile,
+    @Res({ passthrough: true }) response: Response
+  ) {
+    return this.authenticationService.handleOAuthCallback(googleUser, response);
   }
 }

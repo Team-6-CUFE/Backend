@@ -19,6 +19,7 @@ import { RefreshTokenStrategy } from './strategies/jwt-refresh.strategy';
 import { RefreshAuthGuard } from './guards/refresh-auth.guard';
 import { UserEmail } from '../user/entities/user-email.entity';
 import { PendingOAuthToken } from './entities/pending-oauth.entity';
+import { GoogleStrategy } from './strategies/google.strategy';
 
 @Module({
   imports: [
@@ -55,6 +56,8 @@ import { PendingOAuthToken } from './entities/pending-oauth.entity';
     JwtStrategy,
     RefreshTokenStrategy,
     RefreshAuthGuard,
+    GoogleStrategy,
+    GoogleStrategy,
   ],
   exports: [AuthenticationService, JwtModule],
 })
