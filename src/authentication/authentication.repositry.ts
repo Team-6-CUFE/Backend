@@ -68,6 +68,10 @@ export class AuthenticationRepository {
     await this.codeRepository.delete(id);
   }
 
+  async deleteExistingVerificationCodes(userId: string): Promise<void> {
+    await this.codeRepository.delete({ user_id: userId });
+  }
+
   async saveRefreshToken(userId: string, token: string, expiresAt: Date): Promise<void> {
     const entity = this.refreshTokenRepository.create({
       user_id: userId,

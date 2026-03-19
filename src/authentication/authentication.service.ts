@@ -454,6 +454,8 @@ export class AuthenticationService {
       throw new BadRequestException('Current primary email not found');
     }
 
+    await this.authRepository.deleteExistingVerificationCodes(userId); // for resending code
+
     const verificationCode = generateSixDigitCode();
     const expiryDate = getExpiryDate(VERIFICATION_CODE_EXPIRY_MINUTES);
     await this.authRepository.createVerificationCode(userId, verificationCode, email, expiryDate);
