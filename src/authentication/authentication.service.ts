@@ -106,7 +106,7 @@ export class AuthenticationService {
 
   async login(loginDto: LoginDto, response: Response) {
     const { identifier, password } = loginDto;
-
+    console.log('Login attempt with password', password);
     // Find user
     let user = await this.userService.findByEmail(identifier);
 
@@ -289,7 +289,6 @@ export class AuthenticationService {
   }
 
   async verifyEmail(verificationToken: string) {
-    console.log('verifying token 2', verificationToken);
     return this.authRepository.verifyEmail(verificationToken);
   }
 
@@ -362,6 +361,61 @@ export class AuthenticationService {
       data: {
         email_sent: true,
         sent_to: `${verifiedPrimaryEmail}`,
+      },
+    };
+  }
+
+  async changePassword(token: string, newPassword: string) {
+    console.log('Received password change request with token', token);
+    const record = await this.authRepository.findPasswordResetToken(token);
+    if (!record) {
+      console.log('hi');
+      throw new BadRequestException('Invalid or expired password reset token.');
+    }
+    if (record.expires_at < new Date()) {
+      console.log('hello');
+      throw new BadRequestException('Invalid or expired password reset token.');
+    }
+    const user = await this.userService.findById(record.user_id);
+    const isSamePassword = await this.userService.verifyPassword(newPassword, user!.password_hash);
+    if (isSamePassword) {
+      throw new BadRequestException('New password must be different from current password.');
+    }
+    await this.userService.updatePassword(record.user_id, newPassword);
+    await this.authRepository.deleteVerificationToken(record.id);
+    await this.authRepository.revokeAllRefreshTokens(record.user_id);
+    return {
+      status: 'success',
+      message: 'Password has been changed successfully. Please log in with your new password.',
+      data: {
+        password_changed: true,
+        reset_at: new Date(),
+      },
+    };
+  }
+
+  async forgotPassword(email: string) {
+    const useremail = await this.userService.findEmailRecord(email);
+    if (!useremail || !useremail.is_verified) {
+      throw new NotFoundException(`No verified account found with email ${email}.`);
+    }
+    const userId = useremail.user_id;
+    const verificationToken = generateVerificationToken();
+    const expiryDate = getExpiryDate(VERIFICATION_TOKEN_EXPIRY_MINUTES);
+    await this.authRepository.createVerificationToken(
+      userId,
+      verificationToken,
+      email,
+      expiryDate,
+      TokenType.PASSWORD_RESET
+    );
+    await this.mailService.sendPasswordReset(email, verificationToken);
+    return {
+      status: 'success',
+      message: `Password reset link sent to your email address ${email}`,
+      data: {
+        email_sent: true,
+        sent_to: `${email}`,
       },
     };
   }

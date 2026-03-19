@@ -164,4 +164,8 @@ export class UserRepository {
     });
     return emailRecord?.email ?? null;
   }
+
+  async updatePassword(userId: string, newPasswordHash: string): Promise<void> {
+    await this.repository.update(userId, { password_hash: newPasswordHash });
+  }
 }
