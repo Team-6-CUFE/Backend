@@ -85,6 +85,11 @@ export class AuthenticationController {
     return this.authenticationService.resendVerificationEmail(email);
   }
 
+  @Post('emails/:email/set-primary')
+  setPrimaryEmail(@CurrentUser('sub') userId: string, @Param('email') email: string) {
+    return this.authenticationService.setPrimaryEmail(userId, email);
+  }
+
   @Post('emails')
   addEmail(@CurrentUser('sub') userId: string, @Body() emailDto: EmailDto) {
     return this.authenticationService.addEmail(userId, emailDto.email);

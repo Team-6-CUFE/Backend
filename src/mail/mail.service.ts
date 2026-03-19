@@ -77,14 +77,20 @@ export class MailService {
   /**
    * Send primary email change verification code
    */
-  async sendPrimaryEmailChangeCode(email: string, code: string, username: string) {
+  async sendPrimaryEmailChangeCode(
+    email: string,
+    code: string,
+    display_name: string,
+    new_primary_email: string
+  ) {
     await this.mailerService.sendMail({
       to: email,
       subject: 'Verify Primary Email Change',
       template: 'primary-email-change',
       context: {
-        username,
+        display_name,
         code,
+        new_primary_email,
       },
     });
   }

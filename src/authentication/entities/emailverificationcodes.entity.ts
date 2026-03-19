@@ -13,8 +13,8 @@ export class EmailVerificationCode extends BaseEntity {
   @Column({ type: 'varchar', length: 6 })
   code!: string;
 
-  @Column({ type: 'integer', default: 0 })
-  attempts!: number;
+  @Column({ type: 'varchar', length: 255 })
+  email!: string;
 
   @Column({ type: 'timestamp' })
   expires_at!: Date;

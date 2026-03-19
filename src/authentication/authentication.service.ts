@@ -14,7 +14,11 @@ import * as crypto from 'crypto';
 import { RegisterDto } from './dto/register.dto';
 import { UserService } from '../user/user.service';
 import { MailService } from '../mail/mail.service';
-import { generateVerificationToken, getExpiryDate } from '../common/utilities/tokens.util';
+import {
+  generateVerificationToken,
+  getExpiryDate,
+  generateSixDigitCode,
+} from '../common/utilities/tokens.util';
 import { AuthenticationRepository } from './authentication.repositry';
 import { LoginDto } from './dto/login.dto';
 import { JwtPayload, UserPlan } from './strategies/jwt.strategy';
@@ -420,6 +424,54 @@ export class AuthenticationService {
         created_at: e.created_at,
         updated_at: e.updated_at,
       })),
+    };
+  }
+
+  async setPrimaryEmail(userId: string, email: string) {
+    const user = await this.userService.findById(userId);
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+
+    const emailRecord = user.emails.find((e) => e.email === email);
+    if (!emailRecord) {
+      throw new NotFoundException(`Email not found`);
+    }
+
+    if (emailRecord.is_primary) {
+      throw new BadRequestException('Email is already set as primary');
+    }
+
+    const currentPrimary = user.emails.find((e) => e.is_primary);
+    if (!currentPrimary) {
+      throw new BadRequestException('Current primary email not found');
+    }
+
+    const verificationCode = generateSixDigitCode();
+    const expiryDate = getExpiryDate(VERIFICATION_TOKEN_EXPIRY_MINUTES);
+    await this.authRepository.createVerificationToken(
+      userId,
+      verificationCode,
+      currentPrimary.email,
+      expiryDate
+    );
+    await this.mailService.sendPrimaryEmailChangeCode(
+      currentPrimary.email,
+      verificationCode,
+      user.display_name,
+      email
+    );
+
+    return {
+      status: 'success',
+      message:
+        'Verification code sent to your current primary email. Please verify to complete the change.',
+      data: {
+        verification_required: true,
+        code_sent_to: currentPrimary.email,
+        new_primary_email: email,
+        expires_in: 600,
+      },
     };
   }
 }

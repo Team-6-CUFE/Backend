@@ -37,6 +37,21 @@ export class AuthenticationRepository {
     return this.tokenRepository.save(verificationToken);
   }
 
+  async createVerificationCode(
+    userId: string,
+    code: string,
+    email: string,
+    expiryDate: Date
+  ): Promise<EmailVerificationCode> {
+    const verificationCode = this.codeRepository.create({
+      user_id: userId,
+      code,
+      expires_at: expiryDate,
+      email,
+    });
+    return this.codeRepository.save(verificationCode);
+  }
+
   async saveRefreshToken(userId: string, token: string, expiresAt: Date): Promise<void> {
     const entity = this.refreshTokenRepository.create({
       user_id: userId,
