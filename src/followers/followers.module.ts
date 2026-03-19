@@ -11,7 +11,7 @@ import { NoBlockGuard } from './guards/no-block.guard';
 @Module({
   imports: [TypeOrmModule.forFeature([UserFollow, UserBlock]), UserModule],
   controllers: [FollowersController],
-  providers: [FollowersService, FollowersRepository],
+  providers: [FollowersService, FollowersRepository, NoBlockGuard],
   exports: [FollowersRepository, NoBlockGuard],
 })
 export class FollowersModule {}
