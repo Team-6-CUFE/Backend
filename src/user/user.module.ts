@@ -1,6 +1,5 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
-import { UserController } from './user.controller';
 import { UserService } from './user.service';
 import { ProfileController } from './profile.controller';
 import { ProfileService } from './profile.service';
@@ -19,7 +18,7 @@ import { ExternalProfileRepository } from './external-profile.repository';
     TypeOrmModule.forFeature([User, UserEmail, ExternalProfile, SocialAccount, FavoriteGenre]),
     GenreModule,
   ],
-  controllers: [UserController, ProfileController],
+  controllers: [ProfileController],
   providers: [
     UserService,
     UserRepository,

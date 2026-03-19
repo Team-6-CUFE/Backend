@@ -48,7 +48,18 @@ export class ProfileService {
     };
   }
 
-  async updateMyBirthdate(userId: string, updateBirthdateReqDto: UpdateBirthdateReqDto) {
+  async updateMyBirthdate(
+    userId: string,
+    updateBirthdateReqDto: UpdateBirthdateReqDto
+  ): Promise<{
+    status: string;
+    message: string;
+    data: {
+      birthdate: string;
+      age: number;
+      updated_at: Date;
+    };
+  }> {
     const userData: Partial<User> = { birthdate: new Date(updateBirthdateReqDto.birthdate) };
     const updated = await this.userRepository.update(userId, userData);
     if (!updated) throw new NotFoundException('User not found');
@@ -58,7 +69,6 @@ export class ProfileService {
       data: {
         birthdate: new Date(updated.birthdate).toISOString().split('T')[0],
         age: new Date().getFullYear() - new Date(updated.birthdate).getFullYear(),
-        changes_remaining: 2,
         updated_at: updated.updated_at,
       },
     };
@@ -68,12 +78,7 @@ export class ProfileService {
     const exists = await this.userRepository.findById(userId);
     if (!exists) throw new NotFoundException('User not found');
     const { favorite_genres: favoriteGenres, ...rest } = updateProfileReqDto;
-    const userData: Partial<User> = {
-      ...rest,
-      birthdate: updateProfileReqDto.birthdate
-        ? new Date(updateProfileReqDto.birthdate)
-        : undefined,
-    };
+    const userData: Partial<User> = { ...rest };
     if (favoriteGenres !== undefined) {
       const genres = await this.genreRepository.findByNames(favoriteGenres);
       await this.userRepository.updateFavoriteGenres(userId, genres);
@@ -83,11 +88,15 @@ export class ProfileService {
       ...updated!,
       favorite_genres: updated!.favorite_genres?.map((fg) => fg.genre.name) ?? [],
     };
+    if (updateProfileReqDto.username && updated) {
+      this.usernameAvailabilityService.addToFilter(updateProfileReqDto.username);
+    }
     const data = plainToInstance(UpdateProfileResDto, raw, { excludeExtraneousValues: true });
     return { status: 'Success', message: 'Profile updated successfully', data };
   }
 
-  async findProfile(username: string) {
+  // TODO: switch out mock counts for service function call
+  async findProfile(username: string): Promise<{ status: string; data: PublicProfileDataDto }> {
     const user = await this.userRepository.findByUsername(username);
     if (!user) throw new NotFoundException('User not found');
     const raw: PublicProfileDataDto = {
@@ -104,7 +113,8 @@ export class ProfileService {
     return { status: 'Success', data };
   }
 
-  async findMyProfile(userId: string) {
+  // TODO: switch out mock counts for service function call
+  async findMyProfile(userId: string): Promise<{ status: string; data: MyProfileDataDto }> {
     const user = await this.userRepository.findById(userId);
     if (!user) throw new NotFoundException('User not found');
     const raw: MyProfileDataDto = {
