@@ -35,6 +35,13 @@ import {
   mockLoginDto,
   mockLoginDtoWithUsername,
   mockResponseWithCookie,
+  mockPendingToken,
+  mockSocialAccount,
+  mockOAuthProfile,
+  mockProviderId,
+  mockCompleteOAuthProfileDto,
+  mockExpiredPendingOAuthSession,
+  mockPendingOAuthSession,
 } from './test/auth.mock';
 
 describe('AuthenticationService', () => {
@@ -1106,6 +1113,336 @@ describe('AuthenticationService', () => {
         'cookie error'
       );
       expect(userService.remove).not.toHaveBeenCalled();
+    });
+  });
+
+  // ─── handleOAuthCallback() ────────────────────────────────────────────────────
+
+  describe('handleOAuthCallback', () => {
+    let res: ReturnType<typeof mockResponseWithCookie>;
+
+    beforeEach(() => {
+      res = mockResponseWithCookie();
+      userService.findSocialAccount.mockResolvedValue(null);
+      userService.findByEmail.mockResolvedValue(null);
+      userService.findById.mockResolvedValue(mockUser());
+      userService.createSocialAccount.mockResolvedValue(undefined);
+      authRepo.createPendingOauthToken.mockResolvedValue(undefined);
+      authRepo.saveRefreshToken.mockResolvedValue(undefined);
+      jest.spyOn(tokensUtil, 'generateVerificationToken').mockReturnValue(mockPendingToken);
+      jest
+        .spyOn(jwtService, 'sign')
+        .mockReturnValue('mocked-token')
+        .mockReturnValueOnce(mockAccessToken)
+        .mockReturnValueOnce(mockRefreshToken);
+    });
+
+    // ── Case 1: Returning user ─────────────────────────────────────────────────
+
+    it('should return login response for returning user (social account found)', async () => {
+      userService.findSocialAccount.mockResolvedValue(mockSocialAccount());
+
+      const result = await service.handleOAuthCallback(mockOAuthProfile(), res as any);
+
+      expect(result.status).toBe('success');
+      expect(result.type).toBe('login');
+    });
+
+    it('should call findById with user_id from social account', async () => {
+      userService.findSocialAccount.mockResolvedValue(mockSocialAccount());
+
+      await service.handleOAuthCallback(mockOAuthProfile(), res as any);
+
+      expect(userService.findById).toHaveBeenCalledWith(mockUserId);
+    });
+
+    it('should issue tokens for returning user', async () => {
+      userService.findSocialAccount.mockResolvedValue(mockSocialAccount());
+
+      await service.handleOAuthCallback(mockOAuthProfile(), res as any);
+
+      expect(authRepo.saveRefreshToken).toHaveBeenCalledTimes(1);
+      expect(res.cookie).toHaveBeenCalledTimes(2);
+    });
+
+    it('should not call findByEmail if social account is found', async () => {
+      userService.findSocialAccount.mockResolvedValue(mockSocialAccount());
+
+      await service.handleOAuthCallback(mockOAuthProfile(), res as any);
+
+      expect(userService.findByEmail).not.toHaveBeenCalled();
+    });
+
+    it('should throw NotFoundException if user not found for social account', async () => {
+      userService.findSocialAccount.mockResolvedValue(mockSocialAccount());
+      userService.findById.mockResolvedValue(null);
+
+      await expect(service.handleOAuthCallback(mockOAuthProfile(), res as any)).rejects.toThrow(
+        NotFoundException
+      );
+    });
+
+    // ── Case 2: Email already registered ──────────────────────────────────────
+
+    it('should link social account and login if email already registered', async () => {
+      userService.findSocialAccount.mockResolvedValue(null);
+      userService.findByEmail.mockResolvedValue(mockUser());
+
+      const result = await service.handleOAuthCallback(mockOAuthProfile(), res as any);
+
+      expect(result.status).toBe('success');
+      expect(result.type).toBe('login');
+      expect(userService.createSocialAccount).toHaveBeenCalledWith(
+        mockUserId,
+        'google',
+        mockProviderId,
+        mockEmail
+      );
+    });
+
+    it('should issue tokens when linking existing account', async () => {
+      userService.findSocialAccount.mockResolvedValue(null);
+      userService.findByEmail.mockResolvedValue(mockUser());
+
+      await service.handleOAuthCallback(mockOAuthProfile(), res as any);
+
+      expect(res.cookie).toHaveBeenCalledTimes(2);
+      expect(authRepo.saveRefreshToken).toHaveBeenCalledTimes(1);
+    });
+
+    it('should not create pending session if email already registered', async () => {
+      userService.findSocialAccount.mockResolvedValue(null);
+      userService.findByEmail.mockResolvedValue(mockUser());
+
+      await service.handleOAuthCallback(mockOAuthProfile(), res as any);
+
+      expect(authRepo.createPendingOauthToken).not.toHaveBeenCalled();
+    });
+
+    // ── Case 3: Brand new user ─────────────────────────────────────────────────
+
+    it('should return registration_incomplete for brand new user', async () => {
+      const result = await service.handleOAuthCallback(mockOAuthProfile(), res as any);
+
+      expect(result.status).toBe('success');
+      expect(result.type).toBe('registration_incomplete');
+    });
+
+    it('should return pending_token in response for new user', async () => {
+      const result = await service.handleOAuthCallback(mockOAuthProfile(), res as any);
+
+      if ('pending_token' in result.data) {
+        expect(result.data.pending_token).toBe(mockPendingToken);
+      } else {
+        fail('pending_token not found in result.data');
+      }
+    });
+
+    it('should return prefill data for new user', async () => {
+      const result = await service.handleOAuthCallback(mockOAuthProfile(), res as any);
+
+      if ('prefill' in result.data) {
+        expect(result.data.prefill.email).toBe(mockEmail);
+        expect(result.data.prefill.display_name).toBe('Yara Senousy');
+      } else {
+        fail('prefill not found in result.data');
+      }
+    });
+
+    it('should call createPendingOauthToken with correct args for new user', async () => {
+      await service.handleOAuthCallback(mockOAuthProfile(), res as any);
+
+      expect(authRepo.createPendingOauthToken).toHaveBeenCalledWith(
+        mockPendingToken,
+        'google',
+        mockProviderId,
+        mockEmail,
+        'Yara',
+        'Senousy',
+        expect.any(Date)
+      );
+    });
+
+    it('should not issue tokens for new user', async () => {
+      await service.handleOAuthCallback(mockOAuthProfile(), res as any);
+
+      expect(res.cookie).not.toHaveBeenCalled();
+      expect(authRepo.saveRefreshToken).not.toHaveBeenCalled();
+    });
+
+    it('should not call createSocialAccount for new user', async () => {
+      await service.handleOAuthCallback(mockOAuthProfile(), res as any);
+
+      expect(userService.createSocialAccount).not.toHaveBeenCalled();
+    });
+  });
+
+  // ─── completeOAuthProfile() ───────────────────────────────────────────────────
+
+  describe('completeOAuthProfile', () => {
+    let res: ReturnType<typeof mockResponseWithCookie>;
+
+    beforeEach(() => {
+      res = mockResponseWithCookie();
+      authRepo.findPendingToken.mockResolvedValue(mockPendingOAuthSession());
+      authRepo.deletePendingToken.mockResolvedValue(undefined);
+      authRepo.saveRefreshToken.mockResolvedValue(undefined);
+      userService.checkUsernameExists.mockResolvedValue(false);
+      userService.createOAuthUser.mockResolvedValue(mockUser());
+      userService.createSocialAccount.mockResolvedValue(undefined);
+      jest
+        .spyOn(jwtService, 'sign')
+        .mockReturnValue('mocked-token')
+        .mockReturnValueOnce(mockAccessToken)
+        .mockReturnValueOnce(mockRefreshToken);
+    });
+
+    it('should return success response after completing profile', async () => {
+      const result = await service.completeOAuthProfile(
+        mockCompleteOAuthProfileDto() as any,
+        res as any
+      );
+
+      expect(result.status).toBe('success');
+      expect(result.message).toBe('Profile completed and logged in successfully');
+    });
+
+    it('should create user with correct data from pending session and form', async () => {
+      await service.completeOAuthProfile(mockCompleteOAuthProfileDto() as any, res as any);
+
+      expect(userService.createOAuthUser).toHaveBeenCalledWith(
+        expect.objectContaining({
+          email: mockEmail,
+          first_name: 'Yara',
+          last_name: 'Senousy',
+          display_name: 'Yara Senousy',
+          birthdate: '1995-06-15',
+          gender: 'female',
+        })
+      );
+    });
+
+    it('should create social account after creating user', async () => {
+      await service.completeOAuthProfile(mockCompleteOAuthProfileDto() as any, res as any);
+
+      expect(userService.createSocialAccount).toHaveBeenCalledWith(
+        mockUserId,
+        'google',
+        mockProviderId,
+        mockEmail
+      );
+    });
+
+    it('should call createSocialAccount after createOAuthUser', async () => {
+      const callOrder: string[] = [];
+      userService.createOAuthUser.mockImplementation(async () => {
+        callOrder.push('createOAuthUser');
+        return mockUser();
+      });
+      userService.createSocialAccount.mockImplementation(async () => {
+        callOrder.push('createSocialAccount');
+      });
+
+      await service.completeOAuthProfile(mockCompleteOAuthProfileDto() as any, res as any);
+
+      expect(callOrder[0]).toBe('createOAuthUser');
+      expect(callOrder[1]).toBe('createSocialAccount');
+    });
+
+    it('should delete pending token after creating user', async () => {
+      await service.completeOAuthProfile(mockCompleteOAuthProfileDto() as any, res as any);
+
+      expect(authRepo.deletePendingToken).toHaveBeenCalledWith(mockPendingToken);
+      expect(authRepo.deletePendingToken).toHaveBeenCalledTimes(1);
+    });
+
+    it('should issue tokens after completing profile', async () => {
+      await service.completeOAuthProfile(mockCompleteOAuthProfileDto() as any, res as any);
+
+      expect(res.cookie).toHaveBeenCalledTimes(2);
+      expect(authRepo.saveRefreshToken).toHaveBeenCalledTimes(1);
+    });
+
+    it('should generate username from display_name', async () => {
+      await service.completeOAuthProfile(mockCompleteOAuthProfileDto() as any, res as any);
+
+      const callArg = userService.createOAuthUser.mock.calls[0][0];
+      expect(callArg.username).toMatch(/^yara_senousy/);
+    });
+
+    it('should generate unique username if display_name based username is taken', async () => {
+      userService.checkUsernameExists.mockResolvedValueOnce(true).mockResolvedValueOnce(false);
+
+      await service.completeOAuthProfile(mockCompleteOAuthProfileDto() as any, res as any);
+
+      const callArg = userService.createOAuthUser.mock.calls[0][0];
+      expect(callArg.username).toMatch(/^yara_senousy_[a-f0-9]{6}$/);
+    });
+
+    // ── Invalid token ──────────────────────────────────────────────────────────
+
+    it('should throw NotFoundException if pending token not found', async () => {
+      authRepo.findPendingToken.mockResolvedValue(null);
+
+      await expect(
+        service.completeOAuthProfile(mockCompleteOAuthProfileDto() as any, res as any)
+      ).rejects.toThrow(NotFoundException);
+    });
+
+    it('should not create user if pending token not found', async () => {
+      authRepo.findPendingToken.mockResolvedValue(null);
+
+      await expect(
+        service.completeOAuthProfile(mockCompleteOAuthProfileDto() as any, res as any)
+      ).rejects.toThrow();
+      expect(userService.createOAuthUser).not.toHaveBeenCalled();
+    });
+
+    // ── Expired token ──────────────────────────────────────────────────────────
+
+    it('should throw BadRequestException if pending token is expired', async () => {
+      authRepo.findPendingToken.mockResolvedValue(mockExpiredPendingOAuthSession());
+
+      await expect(
+        service.completeOAuthProfile(mockCompleteOAuthProfileDto() as any, res as any)
+      ).rejects.toThrow(BadRequestException);
+    });
+
+    it('should not create user if pending token is expired', async () => {
+      authRepo.findPendingToken.mockResolvedValue(mockExpiredPendingOAuthSession());
+
+      await expect(
+        service.completeOAuthProfile(mockCompleteOAuthProfileDto() as any, res as any)
+      ).rejects.toThrow();
+      expect(userService.createOAuthUser).not.toHaveBeenCalled();
+    });
+
+    it('should not set cookies if pending token is expired', async () => {
+      authRepo.findPendingToken.mockResolvedValue(mockExpiredPendingOAuthSession());
+
+      await expect(
+        service.completeOAuthProfile(mockCompleteOAuthProfileDto() as any, res as any)
+      ).rejects.toThrow();
+      expect(res.cookie).not.toHaveBeenCalled();
+    });
+
+    // ── DB failures ────────────────────────────────────────────────────────────
+
+    it('should propagate error if createOAuthUser fails', async () => {
+      userService.createOAuthUser.mockRejectedValue(new Error('DB error'));
+
+      await expect(
+        service.completeOAuthProfile(mockCompleteOAuthProfileDto() as any, res as any)
+      ).rejects.toThrow('DB error');
+    });
+
+    it('should not issue tokens if createSocialAccount fails', async () => {
+      userService.createSocialAccount.mockRejectedValue(new Error('DB error'));
+
+      await expect(
+        service.completeOAuthProfile(mockCompleteOAuthProfileDto() as any, res as any)
+      ).rejects.toThrow('DB error');
+      expect(res.cookie).not.toHaveBeenCalled();
     });
   });
 });
