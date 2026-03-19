@@ -4,7 +4,6 @@ import {
   IsEmail,
   IsEnum,
   IsNotEmpty,
-  IsOptional,
   IsString,
   Matches,
   MaxLength,
@@ -59,10 +58,10 @@ export class CreateUserDto {
   birthdate!: Date;
 
   @IsEnum(Gender, {
-    message: 'Gender must be one of: male, female, other, prefer_not_to_say',
+    message: 'Gender must be one of: male, female, prefer_not_to_say',
   })
-  @IsOptional()
-  gender?: Gender;
+  @IsNotEmpty({ message: 'Gender is required' })
+  gender!: Gender;
 
   @IsString()
   @IsNotEmpty({ message: 'Country is required' })

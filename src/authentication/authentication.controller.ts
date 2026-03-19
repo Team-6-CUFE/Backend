@@ -19,6 +19,7 @@ import { LoginDto } from './dto/login.dto';
 import { RefreshAuthGuard } from './guards/refresh-auth.guard';
 import { JwtPayload } from './strategies/jwt.strategy';
 import { CurrentUser } from './decorators/current-user.decorator';
+import { CompleteOAuthProfileDto } from './dto/complete-oauth-profile.dto';
 
 @Controller('auth')
 export class AuthenticationController {
@@ -82,5 +83,14 @@ export class AuthenticationController {
   @Post('resend-verification')
   resendVerificationEmail(@Body('email') email: string) {
     return this.authenticationService.resendVerificationEmail(email);
+  }
+
+  @Public()
+  @Post('oauth/complete')
+  completeOAuth(
+    @Body() oauthData: CompleteOAuthProfileDto,
+    @Res({ passthrough: true }) response: Response
+  ) {
+    return this.authenticationService.completeOAuthProfile(oauthData, response);
   }
 }

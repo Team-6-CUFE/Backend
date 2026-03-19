@@ -47,6 +47,16 @@ export class AuthenticationRepository {
     return this.pendingOauthRepository.save(pendingOauthToken);
   }
 
+  async findPendingToken(token: string): Promise<PendingOAuthToken | null> {
+    return this.pendingOauthRepository.findOne({
+      where: { token },
+    });
+  }
+
+  async deletePendingToken(token: string): Promise<void> {
+    await this.pendingOauthRepository.delete({ token });
+  }
+
   async createVerificationToken(
     userId: string,
     token: string,

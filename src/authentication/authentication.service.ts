@@ -22,6 +22,8 @@ import { UserRole } from './decorators/roles.decorator';
 import { verifyCaptcha } from '../common/utilities/captcha.util';
 import { OAuthProfile } from './types/oauth-profile.type';
 import { User } from '../user/entities/user.entity';
+import { CompleteOAuthProfileDto } from './dto/complete-oauth-profile.dto';
+import { OAuthUser } from './types/oauth-user.type';
 
 // Access token lifetime
 const ACCESS_TOKEN_EXPIRY = '15m';
@@ -420,6 +422,48 @@ export class AuthenticationService {
       avatar_url: user.avatar_url,
       role: user.role,
       plan: user.plan,
+    };
+  }
+
+  async completeOAuthProfile(oauthData: CompleteOAuthProfileDto, response: Response) {
+    const pendingToken = await this.authRepository.findPendingToken(oauthData.pending_token);
+    if (!pendingToken) {
+      throw new NotFoundException('Invalid or expired pending token');
+    }
+    if (pendingToken.expires_at < new Date()) {
+      throw new BadRequestException('Pending token has expired');
+    }
+    let username = oauthData.display_name.toLowerCase().replace(/\s+/g, '_');
+    if (await this.userService.checkUsernameExists(username)) {
+      username = await this.generateUniqueUsername(username);
+    }
+
+    const createOAuthUser: OAuthUser = {
+      email: pendingToken.email,
+      username,
+      first_name: pendingToken.first_name,
+      last_name: pendingToken.last_name,
+      birthdate: oauthData.birthdate,
+      gender: oauthData.gender,
+      display_name: oauthData.display_name,
+    };
+    const user = await this.userService.createOAuthUser(createOAuthUser);
+
+    await this.userService.createSocialAccount(
+      user.user_id,
+      pendingToken.provider,
+      pendingToken.provider_id,
+      pendingToken.email
+    );
+
+    await this.authRepository.deletePendingToken(pendingToken.token);
+
+    await this.issueTokens(user, response, pendingToken.email);
+
+    return {
+      status: 'success',
+      message: 'Profile completed and logged in successfully',
+      data: this.buildUserResponse(user),
     };
   }
 }
