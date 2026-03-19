@@ -52,4 +52,24 @@ export class UserService {
   async findEmailRecord(email: string): Promise<UserEmail | null> {
     return this.userRepository.findEmailRecord(email);
   }
+
+  async addEmail(userId: string, email: string): Promise<UserEmail> {
+    return this.userRepository.addEmail(userId, email);
+  }
+
+  async findById(id: string): Promise<User | null> {
+    return this.userRepository.findById(id);
+  }
+
+  async removeEmail(userId: string, email: string): Promise<void> {
+    return this.userRepository.removeEmail(userId, email);
+  }
+
+  async getEmails(userId: string): Promise<UserEmail[]> {
+    return this.userRepository.getEmails(userId);
+  }
+
+  async setPrimaryEmail(userId: string, email: string): Promise<void> {
+    return this.userRepository.setPrimaryEmail(userId, email);
+  }
 }

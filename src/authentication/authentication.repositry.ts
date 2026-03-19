@@ -37,6 +37,41 @@ export class AuthenticationRepository {
     return this.tokenRepository.save(verificationToken);
   }
 
+  async createVerificationCode(
+    userId: string,
+    code: string,
+    email: string,
+    expiryDate: Date
+  ): Promise<EmailVerificationCode> {
+    const verificationCode = this.codeRepository.create({
+      user_id: userId,
+      code,
+      expires_at: expiryDate,
+      email,
+    });
+    return this.codeRepository.save(verificationCode);
+  }
+
+  async findValidVerificationCode(
+    userId: string,
+    code: string
+  ): Promise<EmailVerificationCode | null> {
+    return this.codeRepository.findOne({
+      where: {
+        user_id: userId,
+        code,
+      },
+    });
+  }
+
+  async deleteVerificationCode(id: string): Promise<void> {
+    await this.codeRepository.delete(id);
+  }
+
+  async deleteExistingVerificationCodes(userId: string): Promise<void> {
+    await this.codeRepository.delete({ user_id: userId });
+  }
+
   async saveRefreshToken(userId: string, token: string, expiresAt: Date): Promise<void> {
     const entity = this.refreshTokenRepository.create({
       user_id: userId,
@@ -77,7 +112,10 @@ export class AuthenticationRepository {
       return { status: false, message: 'Verification token has expired.' };
     }
     // mark verified//
-    await this.userEmailRepository.update({ email: record.email }, { is_verified: true });
+    await this.userEmailRepository.update(
+      { email: record.email },
+      { is_verified: true, verified_at: new Date() }
+    );
     // delete token
     await this.tokenRepository.delete(record.id);
     return { status: true, message: 'Email verified successfully.' };

@@ -153,4 +153,29 @@ export class UserRepository {
       (Object.keys(zero) as (keyof UserCounts)[]).map((k) => [k, parseInt(result[k], 10)])
     ) as UserCounts;
   }
+
+  async addEmail(userId: string, email: string): Promise<UserEmail> {
+    const newEmail = this.userEmailRepo.create({
+      email,
+      user_id: userId,
+      is_primary: false,
+      is_verified: false,
+    });
+    return this.userEmailRepo.save(newEmail);
+  }
+
+  async removeEmail(userId: string, email: string): Promise<void> {
+    await this.userEmailRepo.delete({ user_id: userId, email });
+  }
+
+  async getEmails(userId: string): Promise<UserEmail[]> {
+    return this.userEmailRepo.find({ where: { user_id: userId } });
+  }
+
+  async setPrimaryEmail(userId: string, email: string): Promise<void> {
+    // Unset current primary email
+    await this.userEmailRepo.update({ user_id: userId, is_primary: true }, { is_primary: false });
+    // Set new primary email
+    await this.userEmailRepo.update({ user_id: userId, email }, { is_primary: true });
+  }
 }

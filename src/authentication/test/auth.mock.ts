@@ -101,6 +101,12 @@ export const mockAuthenticationRepository = () => ({
   findValidRefreshToken: jest.fn(),
   revokeRefreshToken: jest.fn(),
   revokeAllForUser: jest.fn(),
+  // Email management
+  createVerificationCode: jest.fn(),
+  deleteExistingVerificationCodes: jest.fn(),
+  findValidVerificationCode: jest.fn(),
+  deleteVerificationCode: jest.fn(),
+  // ------------------------------
 });
 
 export const mockUserService = () => ({
@@ -110,13 +116,22 @@ export const mockUserService = () => ({
   findEmailRecord: jest.fn(),
   findByEmail: jest.fn(),
   findByUsername: jest.fn(),
+  findById: jest.fn().mockResolvedValue(mockUser()),
   verifyPassword: jest.fn(),
   remove: jest.fn(),
+  // ------------------------------
+  addEmail: jest.fn(),
+  removeEmail: jest.fn(),
+  getEmails: jest.fn(),
+  setPrimaryEmail: jest.fn(),
+  // ------------------------------
 });
 
 export const mockMailService = () => ({
   sendEmailVerification: jest.fn(),
   sendWelcomeEmail: jest.fn(),
+  sendEmailAddedNotification: jest.fn(),
+  sendPrimaryEmailChangeCode: jest.fn(),
 });
 
 export const mockJwtService = () => ({
@@ -144,4 +159,56 @@ export const mockAuthenticationService = () => ({
   logout: jest.fn(),
   refreshTokens: jest.fn(),
   removeUser: jest.fn(),
+  // ------------------------------
+  addEmail: jest.fn(),
+  removeEmail: jest.fn(),
+  setPrimaryEmail: jest.fn(),
+  verifyPrimaryEmailChange: jest.fn(),
+  getEmails: jest.fn(),
+  // ------------------------------
+});
+
+// ─── Email management mocks ───────────────────────────────────────────────────
+
+export const mockSecondaryEmail = 'secondary@example.com';
+export const mockVerificationCode = '123456';
+
+export const mockUserWithMultipleEmails = (): Partial<User> => ({
+  ...mockUser(),
+  emails: [
+    {
+      email: mockEmail,
+      is_primary: true,
+      is_verified: true,
+      user_id: mockUserId,
+    } as UserEmail,
+    {
+      email: mockSecondaryEmail,
+      is_primary: false,
+      is_verified: true,
+      user_id: mockUserId,
+    } as UserEmail,
+  ],
+});
+
+export const mockNewEmailRecord = () => ({
+  email: mockSecondaryEmail,
+  is_primary: false,
+  is_verified: false,
+  user_id: mockUserId,
+  created_at: new Date(),
+  updated_at: new Date(),
+});
+
+export const mockVerificationCodeRecord = () => ({
+  id: 'code-uuid-001',
+  user_id: mockUserId,
+  code: mockVerificationCode,
+  email: mockSecondaryEmail,
+  expires_at: new Date(Date.now() + 5 * 60 * 1000), // 5 min from now
+});
+
+export const mockExpiredVerificationCodeRecord = () => ({
+  ...mockVerificationCodeRecord(),
+  expires_at: new Date(Date.now() - 1000), // already expired
 });

@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>New Email Added</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      background-color: #f4f4f4;
+      font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+      color: #333333;
+    }
+
+    .wrapper {
+      max-width: 600px;
+      margin: 40px auto;
+      background-color: #ffffff;
+      border-radius: 8px;
+      overflow: hidden;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+    }
+
+    .header {
+      background-color: #f50;
+      padding: 32px 40px;
+    }
+
+    .header h1 {
+      color: #ffffff;
+      font-size: 24px;
+      font-weight: 700;
+      letter-spacing: -0.5px;
+    }
+
+    .body {
+      padding: 40px;
+    }
+
+    .body p {
+      font-size: 15px;
+      line-height: 1.7;
+      color: #555555;
+      margin-bottom: 16px;
+    }
+
+    .email-box {
+      background-color: #fff8f5;
+      border-left: 4px solid #f50;
+      border-radius: 4px;
+      padding: 16px 20px;
+      margin: 24px 0;
+      font-size: 15px;
+      color: #333333;
+      word-break: break-all;
+    }
+
+    .email-box strong {
+      display: block;
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 0.8px;
+      color: #f50;
+      margin-bottom: 6px;
+    }
+
+    .alert-box {
+      background-color: #fff3cd;
+      border: 1px solid #ffc107;
+      border-radius: 4px;
+      padding: 16px 20px;
+      margin: 24px 0;
+      font-size: 14px;
+      color: #856404;
+      line-height: 1.6;
+    }
+
+    .cta-button {
+      display: inline-block;
+      margin-top: 8px;
+      padding: 12px 28px;
+      background-color: #f50;
+      color: #ffffff;
+      text-decoration: none;
+      border-radius: 4px;
+      font-size: 15px;
+      font-weight: 600;
+    }
+
+    .divider {
+      border: none;
+      border-top: 1px solid #eeeeee;
+      margin: 32px 0;
+    }
+
+    .footer {
+      padding: 0 40px 40px;
+      font-size: 13px;
+      color: #999999;
+      line-height: 1.6;
+    }
+
+    .footer a {
+      color: #f50;
+      text-decoration: none;
+    }
+  </style>
+</head>
+<body>
+  <div class="wrapper">
+
+    <div class="header">
+      <h1>SoundCloud Clone</h1>
+    </div>
+
+    <div class="body">
+      <p>Hi <strong>{{display_name}}</strong>,</p>
+
+      <p>
+        We're letting you know that a new email address has been added to your account.
+      </p>
+
+      <div class="email-box">
+        <strong>New Email Added</strong>
+        {{newEmail}}
+      </div>
+
+      <div class="alert-box">
+        ⚠️ If you did not add this email address, your account may be compromised.
+        Please secure your account immediately by changing your password.
+      </div>
+
+      <p>
+        You can review and manage all email addresses linked to your account from your account settings.
+      </p>
+
+    </div>
+
+    <hr class="divider" />
+
+    <div class="footer">
+      <p>
+        This is an automated security notification. Please do not reply to this email.
+      </p>
+      <p style="margin-top: 8px;">
+        If you need help, contact our <a href="#">support team</a>.
+      </p>
+      <p style="margin-top: 16px;">
+        © {{year}} SoundCloud Clone. All rights reserved.
+      </p>
+    </div>
+
+  </div>
+</body>
+</html>
