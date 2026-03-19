@@ -153,4 +153,14 @@ export class UserRepository {
       (Object.keys(zero) as (keyof UserCounts)[]).map((k) => [k, parseInt(result[k], 10)])
     ) as UserCounts;
   }
+
+  async addEmail(userId: string, email: string): Promise<UserEmail> {
+    const newEmail = this.userEmailRepo.create({
+      email,
+      user_id: userId,
+      is_primary: false,
+      is_verified: false,
+    });
+    return this.userEmailRepo.save(newEmail);
+  }
 }

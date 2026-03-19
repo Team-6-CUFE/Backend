@@ -332,4 +332,42 @@ export class AuthenticationService {
       message: 'Your account has been deleted successfully.',
     };
   }
+
+  async addEmail(userId: string, email: string) {
+    const user = await this.userService.findById(userId);
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+
+    if (await this.userService.checkEmailExists(email)) {
+      throw new BadRequestException(`Email ${email} is already associated with an account`);
+    }
+
+    const newEmailRecord = await this.userService.addEmail(userId, email);
+
+    const verificationToken = generateVerificationToken();
+    const expiryDate = getExpiryDate(VERIFICATION_TOKEN_EXPIRY_MINUTES);
+    await this.authRepository.createVerificationToken(userId, verificationToken, email, expiryDate);
+
+    await this.mailService.sendEmailAddedNotification(
+      user.emails.find((e) => e.is_primary)?.email || '',
+      email,
+      user.display_name
+    );
+    // await new Promise((resolve) => setTimeout(resolve, 10000)); // for testing with mailtrap
+    await this.mailService.sendEmailVerification(email, verificationToken);
+
+    return {
+      status: 'success',
+      message: 'Email added successfully. Please check your inbox to verify.',
+      data: {
+        email: newEmailRecord.email,
+        is_primary: newEmailRecord.is_primary,
+        is_verified: newEmailRecord.is_verified,
+        verification_sent: true,
+        notification_sent_to_primary: false,
+        created_at: newEmailRecord.created_at,
+      },
+    };
+  }
 }

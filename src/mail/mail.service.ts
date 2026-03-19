@@ -61,15 +61,15 @@ export class MailService {
   /**
    * Send notification when new email is added
    */
-  async sendEmailAddedNotification(primaryEmail: string, newEmail: string, username: string) {
+  async sendEmailAddedNotification(primaryEmail: string, newEmail: string, display_name: string) {
     await this.mailerService.sendMail({
       to: primaryEmail,
       subject: 'New Email Added to Your Account',
       template: 'email-added',
       context: {
-        username,
+        display_name,
         newEmail,
-        accountUrl: `${this.configService.get('FRONTEND_URL')}/settings/account`,
+        year: new Date().getFullYear(),
       },
     });
   }
