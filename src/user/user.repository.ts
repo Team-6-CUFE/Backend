@@ -8,6 +8,7 @@ import { Genre } from '../genre/entities/genre.entity';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UserEmail } from './entities/user-email.entity';
 import { UserCounts } from './types/user-counts.type';
+import { SocialAccount } from './entities/social-account.entity';
 
 @Injectable()
 export class UserRepository {
@@ -17,7 +18,9 @@ export class UserRepository {
     @InjectRepository(FavoriteGenre)
     private favoriteGenreRepository: Repository<FavoriteGenre>,
     @InjectRepository(UserEmail)
-    private userEmailRepo: Repository<UserEmail>
+    private userEmailRepo: Repository<UserEmail>,
+    @InjectRepository(SocialAccount)
+    private socialAccountRepo: Repository<SocialAccount>
   ) {}
 
   async findAllUsernames(): Promise<{ username: string }[]> {
@@ -152,5 +155,23 @@ export class UserRepository {
     return Object.fromEntries(
       (Object.keys(zero) as (keyof UserCounts)[]).map((k) => [k, parseInt(result[k], 10)])
     ) as UserCounts;
+  }
+
+  async createSocialAccount(user_id: string, provider: string, provider_id: string, email: string) {
+    const socialAccount = this.socialAccountRepo.create({
+      provider_id,
+      user_id,
+      provider,
+      provider_email: email,
+    });
+
+    const savedSocialAccount = await this.socialAccountRepo.save(socialAccount);
+    return savedSocialAccount;
+  }
+
+  async findSocialAccount(provider: string, providerId: string) {
+    return this.socialAccountRepo.findOne({
+      where: { provider, provider_id: providerId },
+    });
   }
 }

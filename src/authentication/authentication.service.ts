@@ -20,6 +20,8 @@ import { LoginDto } from './dto/login.dto';
 import { JwtPayload, UserPlan } from './strategies/jwt.strategy';
 import { UserRole } from './decorators/roles.decorator';
 import { verifyCaptcha } from '../common/utilities/captcha.util';
+import { OAuthProfile } from './types/oauth-profile.type';
+import { User } from '../user/entities/user.entity';
 
 // Access token lifetime
 const ACCESS_TOKEN_EXPIRY = '15m';
@@ -32,6 +34,8 @@ const REFRESH_COOKIE_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000;
 
 const VERIFICATION_TOKEN_EXPIRY_MINUTES = 24 * 60;
 const MAX_RESEND_ATTEMPTS = 3;
+
+const PENDING_OAUTH_TOKEN_EXPIRY_MINUTES = 10;
 @Injectable()
 export class AuthenticationService {
   constructor(
@@ -152,10 +156,28 @@ export class AuthenticationService {
       throw new UnauthorizedException('Invalid identifier or password');
     }
 
+    await this.issueTokens(user, response, primaryEmail?.email);
+
+    return {
+      status: 'success',
+      message: 'Login successful',
+      data: {
+        user_id: user.user_id,
+        email: primaryEmail.email,
+        username: user.username,
+        display_name: user.display_name,
+        avatar_url: user.avatar_url,
+        role: user.role,
+        plan: user.plan,
+      },
+    };
+  }
+
+  async issueTokens(user: User, response: Response, email: string) {
     // Build payload and sign access token
     const payload: JwtPayload = {
       sub: user.user_id,
-      email: primaryEmail?.email,
+      email,
       role: user.role as UserRole,
       plan: user.plan as UserPlan,
     };
@@ -189,20 +211,6 @@ export class AuthenticationService {
       sameSite: 'strict',
       maxAge: REFRESH_COOKIE_MAX_AGE_MS,
     });
-
-    return {
-      status: 'success',
-      message: 'Login successful',
-      data: {
-        user_id: user.user_id,
-        email: primaryEmail.email,
-        username: user.username,
-        display_name: user.display_name,
-        avatar_url: user.avatar_url,
-        role: user.role,
-        plan: user.plan,
-      },
-    };
   }
 
   async refreshTokens(
@@ -330,6 +338,88 @@ export class AuthenticationService {
     return {
       status: 'success',
       message: 'Your account has been deleted successfully.',
+    };
+  }
+
+  async handleOAuthCallback(profile: OAuthProfile, response: Response) {
+    // Already linked social account
+    const existingSocialAccount = await this.userService.findSocialAccount(
+      profile.provider,
+      profile.providerId
+    );
+
+    if (existingSocialAccount) {
+      const user = await this.userService.findById(existingSocialAccount.user_id);
+      if (!user) {
+        throw new NotFoundException('User not found for the social account.');
+      }
+
+      await this.issueTokens(user, response, profile.email);
+      return {
+        status: 'success',
+        type: 'login',
+        data: this.buildUserResponse(user),
+      };
+    }
+
+    // Email already registered
+    const existingUser = await this.userService.findByEmail(profile.email);
+
+    if (existingUser) {
+      await this.userService.createSocialAccount(
+        existingUser.user_id,
+        profile.provider,
+        profile.providerId,
+        profile.email
+      );
+      await this.issueTokens(existingUser, response, profile.email);
+      return {
+        status: 'success',
+        type: 'login',
+        data: this.buildUserResponse(existingUser),
+      };
+    }
+
+    // Brand new user
+    const pendingToken = await this.createPendingOAuthSession(profile);
+    return {
+      status: 'success',
+      type: 'registration_incomplete',
+      data: {
+        pending_token: pendingToken,
+        prefill: {
+          display_name: `${profile.firstName} ${profile.lastName}`,
+          email: profile.email,
+          avatar_url: profile.avatarUrl,
+        },
+      },
+    };
+  }
+
+  async createPendingOAuthSession(profile: OAuthProfile) {
+    const token = generateVerificationToken();
+    const expiryDate = getExpiryDate(PENDING_OAUTH_TOKEN_EXPIRY_MINUTES);
+    await this.authRepository.createPendingOauthToken(
+      token,
+      profile.provider,
+      profile.providerId,
+      profile.email,
+      profile.firstName,
+      profile.lastName,
+      expiryDate
+    );
+  }
+
+  private buildUserResponse(user: User) {
+    const primaryEmail = user.emails.find((e) => e.is_primary);
+    return {
+      user_id: user.user_id,
+      email: primaryEmail?.email,
+      username: user.username,
+      display_name: user.display_name,
+      avatar_url: user.avatar_url,
+      role: user.role,
+      plan: user.plan,
     };
   }
 }

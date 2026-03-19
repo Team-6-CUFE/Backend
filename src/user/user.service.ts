@@ -52,4 +52,16 @@ export class UserService {
   async findEmailRecord(email: string): Promise<UserEmail | null> {
     return this.userRepository.findEmailRecord(email);
   }
+
+  async findById(id: string): Promise<User | null> {
+    return this.userRepository.findById(id);
+  }
+
+  async createSocialAccount(user_id: string, provider: string, provider_id: string, email: string) {
+    return this.userRepository.createSocialAccount(user_id, provider, provider_id, email);
+  }
+
+  async findSocialAccount(provider: string, providerId: string) {
+    return this.userRepository.findSocialAccount(provider, providerId);
+  }
 }
