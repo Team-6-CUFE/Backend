@@ -85,6 +85,11 @@ export class AuthenticationController {
     return this.authenticationService.resendVerificationEmail(email);
   }
 
+  @Post('/emails/verify-primary-change')
+  verifyPrimaryEmailChange(@CurrentUser('sub') userId: string, @Body('code') code: string) {
+    return this.authenticationService.verifyPrimaryEmailChange(userId, code);
+  }
+
   @Post('emails/:email/set-primary')
   setPrimaryEmail(@CurrentUser('sub') userId: string, @Param('email') email: string) {
     return this.authenticationService.setPrimaryEmail(userId, email);

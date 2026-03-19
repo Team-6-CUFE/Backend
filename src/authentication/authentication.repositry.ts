@@ -52,6 +52,22 @@ export class AuthenticationRepository {
     return this.codeRepository.save(verificationCode);
   }
 
+  async findValidVerificationCode(
+    userId: string,
+    code: string
+  ): Promise<EmailVerificationCode | null> {
+    return this.codeRepository.findOne({
+      where: {
+        user_id: userId,
+        code,
+      },
+    });
+  }
+
+  async deleteVerificationCode(id: string): Promise<void> {
+    await this.codeRepository.delete(id);
+  }
+
   async saveRefreshToken(userId: string, token: string, expiresAt: Date): Promise<void> {
     const entity = this.refreshTokenRepository.create({
       user_id: userId,

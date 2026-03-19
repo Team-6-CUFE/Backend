@@ -171,4 +171,11 @@ export class UserRepository {
   async getEmails(userId: string): Promise<UserEmail[]> {
     return this.userEmailRepo.find({ where: { user_id: userId } });
   }
+
+  async setPrimaryEmail(userId: string, email: string): Promise<void> {
+    // Unset current primary email
+    await this.userEmailRepo.update({ user_id: userId, is_primary: true }, { is_primary: false });
+    // Set new primary email
+    await this.userEmailRepo.update({ user_id: userId, email }, { is_primary: true });
+  }
 }

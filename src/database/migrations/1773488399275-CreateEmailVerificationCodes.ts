@@ -10,7 +10,7 @@ export class CreateEmailVerificationCodesTable1773368421892 implements Migration
         email      VARCHAR(255) NOT NULL,
         expires_at TIMESTAMP   NOT NULL,
         created_at TIMESTAMP   DEFAULT CURRENT_TIMESTAMP,
-        updated_at TIMESTAMP   DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP   DEFAULT CURRENT_TIMESTAMP
       );
     `);
 

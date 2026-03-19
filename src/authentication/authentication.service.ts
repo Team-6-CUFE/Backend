@@ -366,7 +366,6 @@ export class AuthenticationService {
       email,
       user.display_name
     );
-    // await new Promise((resolve) => setTimeout(resolve, 10000)); // for testing with mailtrap
     await this.mailService.sendEmailVerification(email, verificationToken);
 
     return {
@@ -386,7 +385,7 @@ export class AuthenticationService {
   async removeEmail(userId: string, email: string) {
     const user = await this.userService.findById(userId);
     if (!user) {
-      throw new NotFoundException('User not found');
+      throw new NotFoundException('Email not found');
     }
 
     const emailRecord = user.emails.find((e) => e.email === email);
@@ -432,7 +431,7 @@ export class AuthenticationService {
   async setPrimaryEmail(userId: string, email: string) {
     const user = await this.userService.findById(userId);
     if (!user) {
-      throw new NotFoundException('User not found');
+      throw new NotFoundException('Email not found');
     }
 
     const emailRecord = user.emails.find((e) => e.email === email);
@@ -457,12 +456,7 @@ export class AuthenticationService {
 
     const verificationCode = generateSixDigitCode();
     const expiryDate = getExpiryDate(VERIFICATION_CODE_EXPIRY_MINUTES);
-    await this.authRepository.createVerificationCode(
-      userId,
-      verificationCode,
-      currentPrimary.email,
-      expiryDate
-    );
+    await this.authRepository.createVerificationCode(userId, verificationCode, email, expiryDate);
     await this.mailService.sendPrimaryEmailChangeCode(
       currentPrimary.email,
       verificationCode,
@@ -479,6 +473,31 @@ export class AuthenticationService {
         code_sent_to: currentPrimary.email,
         new_primary_email: email,
         expires_in: 600,
+      },
+    };
+  }
+
+  async verifyPrimaryEmailChange(userId: string, code: string) {
+    const verificationRecord = await this.authRepository.findValidVerificationCode(userId, code);
+    if (!verificationRecord) {
+      throw new BadRequestException('Invalid or expired verification code');
+    }
+
+    if (verificationRecord.expires_at < new Date()) {
+      this.authRepository.deleteVerificationCode(verificationRecord.id).catch(() => null);
+      throw new BadRequestException('Invalid or expired verification code');
+    }
+
+    const emailToSetPrimary = verificationRecord.email;
+    await this.userService.setPrimaryEmail(userId, emailToSetPrimary);
+    await this.authRepository.deleteVerificationCode(verificationRecord.id);
+
+    return {
+      status: 'success',
+      message: 'Primary email changed successfully',
+      data: {
+        new_primary: emailToSetPrimary,
+        changed_at: Date.now(),
       },
     };
   }

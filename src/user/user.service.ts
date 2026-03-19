@@ -68,4 +68,8 @@ export class UserService {
   async getEmails(userId: string): Promise<UserEmail[]> {
     return this.userRepository.getEmails(userId);
   }
+
+  async setPrimaryEmail(userId: string, email: string): Promise<void> {
+    return this.userRepository.setPrimaryEmail(userId, email);
+  }
 }
