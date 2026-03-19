@@ -405,8 +405,8 @@ export class AuthenticationService {
       profile.provider,
       profile.providerId,
       profile.email,
-      profile.firstName,
-      profile.lastName,
+      profile.firstName!,
+      profile.lastName!,
       expiryDate
     );
     return token;

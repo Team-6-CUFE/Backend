@@ -22,6 +22,7 @@ import { CurrentUser } from './decorators/current-user.decorator';
 import { CompleteOAuthProfileDto } from './dto/complete-oauth-profile.dto';
 import { GoogleAuthGuard } from './guards/google-auth.guard';
 import { OAuthProfile } from './types/oauth-profile.type';
+import { FacebookAuthGuard } from './guards/facebook-auth.guard';
 
 @Controller('auth')
 export class AuthenticationController {
@@ -111,5 +112,23 @@ export class AuthenticationController {
     @Res({ passthrough: true }) response: Response
   ) {
     return this.authenticationService.handleOAuthCallback(googleUser, response);
+  }
+
+  @Public()
+  @UseGuards(FacebookAuthGuard)
+  @Get('facebook')
+  facebookLogin() {
+    // Passport handles the redirect — body never executes
+  }
+
+  @Public()
+  @UseGuards(FacebookAuthGuard)
+  @Get('facebook/callback')
+  async facebookCallback(
+    @CurrentUser() facebookUser: OAuthProfile,
+    @Res({ passthrough: true }) response: Response
+  ) {
+    return this.authenticationService.handleOAuthCallback(facebookUser, response);
+    // ↑ exact same method as Google — works for any provider!
   }
 }
