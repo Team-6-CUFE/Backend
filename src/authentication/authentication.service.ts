@@ -383,7 +383,7 @@ export class AuthenticationService {
     }
     await this.userService.updatePassword(record.user_id, newPassword);
     await this.authRepository.deleteVerificationToken(record.id);
-    await this.authRepository.revokeAllRefreshTokens(record.user_id);
+    await this.authRepository.revokeAllForUser(record.user_id);
     return {
       status: 'success',
       message: 'Password has been changed successfully. Please log in with your new password.',

@@ -107,8 +107,4 @@ export class AuthenticationRepository {
   async deleteVerificationToken(tokenId: string): Promise<void> {
     await this.tokenRepository.delete(tokenId);
   }
-
-  async revokeAllRefreshTokens(userId: string): Promise<void> {
-    await this.refreshTokenRepository.delete({ user_id: userId });
-  }
 }

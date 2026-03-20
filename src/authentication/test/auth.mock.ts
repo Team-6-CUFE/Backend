@@ -101,6 +101,8 @@ export const mockAuthenticationRepository = () => ({
   findValidRefreshToken: jest.fn(),
   revokeRefreshToken: jest.fn(),
   revokeAllForUser: jest.fn(),
+  findPasswordResetToken: jest.fn(),
+  deleteVerificationToken: jest.fn(),
 });
 
 export const mockUserService = () => ({
@@ -112,11 +114,15 @@ export const mockUserService = () => ({
   findByUsername: jest.fn(),
   verifyPassword: jest.fn(),
   remove: jest.fn(),
+  updatePassword: jest.fn(),
+  getPrimaryEmail: jest.fn(),
+  findById: jest.fn(),
 });
 
 export const mockMailService = () => ({
   sendEmailVerification: jest.fn(),
   sendWelcomeEmail: jest.fn(),
+  sendPasswordReset: jest.fn(),
 });
 
 export const mockJwtService = () => ({
@@ -144,4 +150,7 @@ export const mockAuthenticationService = () => ({
   logout: jest.fn(),
   refreshTokens: jest.fn(),
   removeUser: jest.fn(),
+  changePasswordRequest: jest.fn(),
+  changePassword: jest.fn(),
+  forgotPassword: jest.fn(),
 });
