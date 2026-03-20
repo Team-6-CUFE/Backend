@@ -46,15 +46,24 @@ export class CreateUserDto {
     minLength: 3,
     maxLength: 50,
   })
-  @IsString()
-  @IsNotEmpty({ message: 'Username is required' })
-  @MinLength(3, { message: 'Username must be at least 3 characters' })
-  @MaxLength(50, { message: 'Username must be at most 50 characters' })
-  @Matches(/^[a-zA-Z0-9_]+$/, {
-    message: 'Username can only contain letters, numbers, and underscores',
+  // @IsString()
+  // @MinLength(3, { message: 'Username must be at least 3 characters' })
+  // @MaxLength(50, { message: 'Username must be at most 50 characters' })
+  // @Matches(/^[a-zA-Z0-9_]+$/, {
+  //   message: 'Username can only contain letters, numbers, and underscores',
+  // })
+  // @Transform(({ value }) => value.trim().toLowerCase())
+  // username!: string;
+  @ApiProperty({
+    description: 'Display name shown on the user profile (max 100 characters)',
+    example: 'Yara Senousy',
+    maxLength: 100,
   })
-  @Transform(({ value }) => value.trim().toLowerCase())
-  username!: string;
+  @IsString()
+  @IsNotEmpty({ message: 'Display name is required' })
+  @MaxLength(100, { message: 'Display name must be at most 100 characters' })
+  @Transform(({ value }) => value.trim())
+  display_name!: string;
 
   @ApiProperty({
     description: 'First name (max 100 characters)',

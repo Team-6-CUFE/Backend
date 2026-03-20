@@ -57,22 +57,21 @@ export class AuthenticationService {
 
   async register(registerDto: RegisterDto) {
     const { email } = registerDto;
-    const { username } = registerDto;
-    const isValidCaptcha = await verifyCaptcha(registerDto.captchaToken);
+    const isValidCaptcha = await verifyCaptcha(registerDto.captcha_token);
     if (!isValidCaptcha) {
       throw new BadRequestException('Captcha verification failed. Please try again.');
     }
-    console.log('captcha verification passed');
     if (await this.userService.checkEmailExists(email)) {
       throw new BadRequestException(`Email ${email} is already registered.`);
     }
-    const newregisterDto = { ...registerDto };
+    // const newregisterDto = { ...registerDto };
+    let username = registerDto.display_name.toLowerCase().replace(/\s+/g, '_');
     if (await this.userService.checkUsernameExists(username)) {
-      newregisterDto.username = await this.generateUniqueUsername(username);
+      username = await this.generateUniqueUsername(username);
     }
-    const { captchaToken, ...createUserDto } = newregisterDto;
-    console.log('captcha token received', captchaToken);
-    const createdUser = await this.userService.createUser(createUserDto);
+    const { captcha_token: captchaToken, ...createUserDto } = registerDto;
+    console.log(captchaToken);
+    const createdUser = await this.userService.createUser(createUserDto, username);
     const verificationToken = generateVerificationToken();
     const expiryDate = getExpiryDate(VERIFICATION_TOKEN_EXPIRY_MINUTES);
     await this.authRepository.createVerificationToken(
@@ -82,9 +81,7 @@ export class AuthenticationService {
       expiryDate,
       TokenType.EMAIL_VERIFICATION
     );
-    console.log('will send email now');
     await this.mailService.sendEmailVerification(email, verificationToken);
-    console.log('email sent');
     return {
       status: 'success',
       message: 'Registration successful. Please check your email to verify your account.',
@@ -118,7 +115,6 @@ export class AuthenticationService {
 
   async login(loginDto: LoginDto, response: Response) {
     const { identifier, password } = loginDto;
-    console.log('Login attempt with password', password);
     // Find user
     const foundUser =
       (await this.userService.findByEmail(identifier)) ??
@@ -553,14 +549,11 @@ export class AuthenticationService {
   }
 
   async changePassword(token: string, newPassword: string) {
-    console.log('Received password change request with token', token);
     const record = await this.authRepository.findPasswordResetToken(token);
     if (!record) {
-      console.log('hi');
       throw new BadRequestException('Invalid or expired password reset token.');
     }
     if (record.expires_at < new Date()) {
-      console.log('hello');
       throw new BadRequestException('Invalid or expired password reset token.');
     }
     const user = await this.userService.findById(record.user_id);

@@ -38,10 +38,10 @@ export class UserService {
     return this.userRepository.findById(id);
   }
 
-  async createUser(createUserDto: CreateUserDto): Promise<User> {
+  async createUser(createUserDto: CreateUserDto, username: string): Promise<User> {
     const hashedPassword = await this.hash_password(createUserDto.password);
-    this.usernameAvailabilityService.addToFilter(createUserDto.username);
-    return this.userRepository.createUser(createUserDto, hashedPassword);
+    this.usernameAvailabilityService.addToFilter(username);
+    return this.userRepository.createUser(createUserDto, hashedPassword, username);
   }
 
   async createOAuthUser(createOAuthUser: OAuthUser): Promise<User> {
