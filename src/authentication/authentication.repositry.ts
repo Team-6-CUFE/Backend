@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, MoreThanOrEqual } from 'typeorm';
-import { EmailVerificationToken } from './entities/emailverficationtokens.entity';
+import { EmailVerificationToken, TokenType } from './entities/emailverficationtokens.entity';
 import { EmailVerificationCode } from './entities/emailverificationcodes.entity';
 import { RefreshToken } from './entities/refresh-token.entity';
 import { UserEmail } from '../user/entities/user-email.entity';
@@ -26,13 +26,15 @@ export class AuthenticationRepository {
     userId: string,
     token: string,
     email: string,
-    expiryDate: Date
+    expiryDate: Date,
+    type: TokenType
   ): Promise<EmailVerificationToken> {
     const verificationToken = this.tokenRepository.create({
       user_id: userId,
       token,
       expires_at: expiryDate,
       email,
+      type,
     });
     return this.tokenRepository.save(verificationToken);
   }
@@ -100,10 +102,6 @@ export class AuthenticationRepository {
   async verifyEmail(token: string): Promise<{ status: boolean; message: string }> {
     console.log('verifying email with token', token);
     const record = await this.tokenRepository.findOne({ where: { token } });
-    // if(record)
-    // {
-    //     console.log('record found for token', token, 'record email', record.email, 'record expiry', record.expires_at);
-    // }
     if (!record) {
       return { status: false, message: 'Invalid verification token.' };
     }
@@ -132,5 +130,19 @@ export class AuthenticationRepository {
         created_at: MoreThanOrEqual(new Date(Date.now() - 60 * 60 * 1000)), // last 1 hour
       },
     });
+  }
+
+  async findPasswordResetToken(token: string): Promise<EmailVerificationToken | null> {
+    return this.tokenRepository.findOne({
+      where: {
+        token,
+        type: TokenType.PASSWORD_RESET,
+        expires_at: MoreThanOrEqual(new Date()), // only return if not expired
+      },
+    });
+  }
+
+  async deleteVerificationToken(tokenId: string): Promise<void> {
+    await this.tokenRepository.delete(tokenId);
   }
 }

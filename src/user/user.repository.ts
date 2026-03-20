@@ -178,4 +178,19 @@ export class UserRepository {
     // Set new primary email
     await this.userEmailRepo.update({ user_id: userId, email }, { is_primary: true });
   }
+
+  async getPrimaryEmail(userId: string): Promise<string | null> {
+    const emailRecord = await this.userEmailRepo.findOne({
+      where: {
+        user_id: userId,
+        is_primary: true,
+        is_verified: true,
+      },
+    });
+    return emailRecord?.email ?? null;
+  }
+
+  async updatePassword(userId: string, newPasswordHash: string): Promise<void> {
+    await this.repository.update(userId, { password_hash: newPasswordHash });
+  }
 }

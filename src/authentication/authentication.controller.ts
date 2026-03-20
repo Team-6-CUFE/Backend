@@ -20,6 +20,7 @@ import { RefreshAuthGuard } from './guards/refresh-auth.guard';
 import { JwtPayload } from './strategies/jwt.strategy';
 import { CurrentUser } from './decorators/current-user.decorator';
 import { EmailDto } from './dto/email.dto';
+import { ChangePasswordDto } from './dto/changePassword.dto';
 
 @Controller('auth')
 export class AuthenticationController {
@@ -108,5 +109,27 @@ export class AuthenticationController {
   @Get('emails')
   getEmails(@CurrentUser('sub') userId: string) {
     return this.authenticationService.getEmails(userId);
+  }
+
+  @Post('change-password-request')
+  @HttpCode(HttpStatus.OK)
+  changePasswordRequest(@CurrentUser('sub') userId: string) {
+    return this.authenticationService.changePasswordRequest(userId);
+  }
+
+  @Public()
+  @HttpCode(HttpStatus.OK)
+  @Post('reset-password')
+  changePassword(@Body() changePasswordDto: ChangePasswordDto) {
+    return this.authenticationService.changePassword(
+      changePasswordDto.token,
+      changePasswordDto.newPassword
+    );
+  }
+
+  @Public()
+  @Post('forgot-password')
+  forgotPassword(@Body('email') email: string) {
+    return this.authenticationService.forgotPassword(email);
   }
 }

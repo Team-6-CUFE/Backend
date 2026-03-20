@@ -481,4 +481,143 @@ describe('AuthenticationController', () => {
     });
   });
   // ──────────────────────────────────────────────────────────────────────────────
+  // ─── changePasswordRequest ────────────────────────────────────────────────────
+
+  describe('changePasswordRequest', () => {
+    it('should delegate to service with userId from JWT', async () => {
+      service.changePasswordRequest.mockResolvedValue({
+        status: 'success',
+        message: 'Password reset link sent to your primary email address.',
+        data: { email_sent: true, sent_to: mockEmail },
+      });
+
+      await controller.changePasswordRequest(mockUserId);
+
+      expect(service.changePasswordRequest).toHaveBeenCalledWith(mockUserId);
+      expect(service.changePasswordRequest).toHaveBeenCalledTimes(1);
+    });
+
+    it('should return the service response as is', async () => {
+      const mockServiceResponse = {
+        status: 'success',
+        message: 'Password reset link sent to your primary email address.',
+        data: { email_sent: true, sent_to: mockEmail },
+      };
+      service.changePasswordRequest.mockResolvedValue(mockServiceResponse);
+
+      const result = await controller.changePasswordRequest(mockUserId);
+
+      expect(result).toEqual(mockServiceResponse);
+    });
+
+    it('should propagate exception thrown by service', async () => {
+      service.changePasswordRequest.mockRejectedValue(
+        new BadRequestException('No verified primary email found.')
+      );
+
+      await expect(controller.changePasswordRequest(mockUserId)).rejects.toThrow(
+        BadRequestException
+      );
+    });
+  });
+
+  // ─── changePassword ───────────────────────────────────────────────────────────
+
+  describe('changePassword', () => {
+    const mockChangePasswordDto = {
+      token: mockVerificationToken,
+      newPassword: 'NewSecurePassword123!',
+    };
+
+    it('should delegate to service with token and newPassword', async () => {
+      service.changePassword.mockResolvedValue({
+        status: 'success',
+        message: 'Password has been changed successfully.',
+        data: { password_changed: true, reset_at: new Date() },
+      });
+
+      await controller.changePassword(mockChangePasswordDto as any);
+
+      expect(service.changePassword).toHaveBeenCalledWith(
+        mockChangePasswordDto.token,
+        mockChangePasswordDto.newPassword
+      );
+      expect(service.changePassword).toHaveBeenCalledTimes(1);
+    });
+
+    it('should return the service response as is', async () => {
+      const mockServiceResponse = {
+        status: 'success',
+        message: 'Password has been changed successfully.',
+        data: { password_changed: true, reset_at: new Date() },
+      };
+      service.changePassword.mockResolvedValue(mockServiceResponse);
+
+      const result = await controller.changePassword(mockChangePasswordDto as any);
+
+      expect(result).toEqual(mockServiceResponse);
+    });
+
+    it('should propagate exception if token is invalid', async () => {
+      service.changePassword.mockRejectedValue(
+        new BadRequestException('Invalid or expired password reset token.')
+      );
+
+      await expect(controller.changePassword(mockChangePasswordDto as any)).rejects.toThrow(
+        BadRequestException
+      );
+    });
+
+    it('should propagate exception if same password', async () => {
+      service.changePassword.mockRejectedValue(
+        new BadRequestException('New password must be different from current password.')
+      );
+
+      await expect(controller.changePassword(mockChangePasswordDto as any)).rejects.toThrow(
+        BadRequestException
+      );
+    });
+  });
+
+  // ─── forgotPassword ───────────────────────────────────────────────────────────
+
+  describe('forgotPassword', () => {
+    it('should delegate to service with email', async () => {
+      service.forgotPassword.mockResolvedValue({
+        status: 'success',
+        message: 'Password reset link sent.',
+        data: { email_sent: true, sent_to: mockEmail },
+      });
+
+      await controller.forgotPassword(mockEmail);
+
+      expect(service.forgotPassword).toHaveBeenCalledWith(mockEmail);
+      expect(service.forgotPassword).toHaveBeenCalledTimes(1);
+    });
+
+    it('should return the service response as is', async () => {
+      const mockServiceResponse = {
+        status: 'success',
+        message: 'Password reset link sent.',
+        data: { email_sent: true, sent_to: mockEmail },
+      };
+      service.forgotPassword.mockResolvedValue(mockServiceResponse);
+
+      const result = await controller.forgotPassword(mockEmail);
+
+      expect(result).toEqual(mockServiceResponse);
+    });
+
+    it('should propagate exception if email not found', async () => {
+      service.forgotPassword.mockRejectedValue(new NotFoundException('No verified account found.'));
+
+      await expect(controller.forgotPassword(mockEmail)).rejects.toThrow(NotFoundException);
+    });
+
+    it('should propagate exception if email not verified', async () => {
+      service.forgotPassword.mockRejectedValue(new NotFoundException('No verified account found.'));
+
+      await expect(controller.forgotPassword(mockEmail)).rejects.toThrow(NotFoundException);
+    });
+  });
 });

@@ -33,6 +33,10 @@ export class UserService {
     return this.userRepository.findByUsername(username);
   }
 
+  async findById(id: string): Promise<User | null> {
+    return this.userRepository.findById(id);
+  }
+
   async createUser(createUserDto: CreateUserDto): Promise<User> {
     const hashedPassword = await this.hash_password(createUserDto.password);
     this.usernameAvailabilityService.addToFilter(createUserDto.username);
@@ -57,10 +61,6 @@ export class UserService {
     return this.userRepository.addEmail(userId, email);
   }
 
-  async findById(id: string): Promise<User | null> {
-    return this.userRepository.findById(id);
-  }
-
   async removeEmail(userId: string, email: string): Promise<void> {
     return this.userRepository.removeEmail(userId, email);
   }
@@ -71,5 +71,14 @@ export class UserService {
 
   async setPrimaryEmail(userId: string, email: string): Promise<void> {
     return this.userRepository.setPrimaryEmail(userId, email);
+  }
+
+  async getPrimaryEmail(userId: string): Promise<string | null> {
+    return this.userRepository.getPrimaryEmail(userId);
+  }
+
+  async updatePassword(userId: string, newPassword: string): Promise<void> {
+    const hashedPassword = await this.hash_password(newPassword);
+    await this.userRepository.updatePassword(userId, hashedPassword);
   }
 }

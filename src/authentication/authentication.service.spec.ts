@@ -111,7 +111,8 @@ describe('AuthenticationService', () => {
         mockUserId,
         mockVerificationToken,
         mockEmail,
-        expect.any(Date)
+        expect.any(Date),
+        'email_verification'
       );
     });
 
@@ -335,7 +336,8 @@ describe('AuthenticationService', () => {
         mockUserEmail().user_id,
         mockVerificationToken,
         mockEmail,
-        expect.any(Date)
+        expect.any(Date),
+        'email_verification'
       );
     });
 
@@ -1342,7 +1344,8 @@ describe('AuthenticationService', () => {
         mockUserId,
         mockVerificationToken,
         mockSecondaryEmail,
-        expect.any(Date)
+        expect.any(Date),
+        'email_verification'
       );
     });
 
@@ -1759,4 +1762,310 @@ describe('AuthenticationService', () => {
     });
   });
   // ───────────────────────────────────────────────────────────────────────────────
+  // ─── changePasswordRequest() ──────────────────────────────────────────────────
+
+  describe('changePasswordRequest', () => {
+    beforeEach(() => {
+      jest.spyOn(tokensUtil, 'generateVerificationToken').mockReturnValue(mockVerificationToken);
+      userService.getPrimaryEmail.mockResolvedValue(mockEmail);
+      authRepo.createVerificationToken.mockResolvedValue(undefined);
+      mailService.sendPasswordReset.mockResolvedValue(undefined);
+    });
+
+    it('should return success response with masked email', async () => {
+      const result = await service.changePasswordRequest(mockUserId);
+
+      expect(result.status).toBe('success');
+      expect(result.data.email_sent).toBe(true);
+      expect(result.data.sent_to).toBe(mockEmail);
+    });
+
+    it('should call getPrimaryEmail with correct userId', async () => {
+      await service.changePasswordRequest(mockUserId);
+
+      expect(userService.getPrimaryEmail).toHaveBeenCalledWith(mockUserId);
+      expect(userService.getPrimaryEmail).toHaveBeenCalledTimes(1);
+    });
+
+    it('should create verification token with PASSWORD_RESET type', async () => {
+      await service.changePasswordRequest(mockUserId);
+
+      expect(authRepo.createVerificationToken).toHaveBeenCalledWith(
+        mockUserId,
+        mockVerificationToken,
+        mockEmail,
+        expect.any(Date),
+        'password_reset'
+      );
+    });
+
+    it('should send password reset email with correct args', async () => {
+      await service.changePasswordRequest(mockUserId);
+
+      expect(mailService.sendPasswordReset).toHaveBeenCalledWith(mockEmail, mockVerificationToken);
+      expect(mailService.sendPasswordReset).toHaveBeenCalledTimes(1);
+    });
+
+    it('should throw BadRequestException if no verified primary email found', async () => {
+      userService.getPrimaryEmail.mockResolvedValue(null);
+
+      await expect(service.changePasswordRequest(mockUserId)).rejects.toThrow(BadRequestException);
+    });
+
+    it('should not create token if no primary email found', async () => {
+      userService.getPrimaryEmail.mockResolvedValue(null);
+
+      await expect(service.changePasswordRequest(mockUserId)).rejects.toThrow();
+      expect(authRepo.createVerificationToken).not.toHaveBeenCalled();
+    });
+
+    it('should not send email if no primary email found', async () => {
+      userService.getPrimaryEmail.mockResolvedValue(null);
+
+      await expect(service.changePasswordRequest(mockUserId)).rejects.toThrow();
+      expect(mailService.sendPasswordReset).not.toHaveBeenCalled();
+    });
+
+    it('should not send email if createVerificationToken fails', async () => {
+      authRepo.createVerificationToken.mockRejectedValue(new Error('DB error'));
+
+      await expect(service.changePasswordRequest(mockUserId)).rejects.toThrow('DB error');
+      expect(mailService.sendPasswordReset).not.toHaveBeenCalled();
+    });
+
+    it('should propagate error if sendPasswordReset fails', async () => {
+      mailService.sendPasswordReset.mockRejectedValue(new Error('Mail error'));
+
+      await expect(service.changePasswordRequest(mockUserId)).rejects.toThrow('Mail error');
+    });
+  });
+
+  // ─── changePassword() ─────────────────────────────────────────────────────────
+
+  describe('changePassword', () => {
+    const mockPasswordResetToken = {
+      id: 'token-id-123',
+      user_id: mockUserId,
+      token: mockVerificationToken,
+      email: mockEmail,
+      expires_at: new Date(Date.now() + 60 * 60 * 1000), // 1 hour from now
+      type: 'password_reset',
+    };
+
+    beforeEach(() => {
+      authRepo.findPasswordResetToken.mockResolvedValue(mockPasswordResetToken);
+      userService.findById.mockResolvedValue(mockUser());
+      userService.verifyPassword.mockResolvedValue(false); // different password by default
+      userService.updatePassword.mockResolvedValue(undefined);
+      authRepo.deleteVerificationToken.mockResolvedValue(undefined);
+      authRepo.revokeAllForUser.mockResolvedValue(undefined);
+    });
+
+    it('should return success response', async () => {
+      const result = await service.changePassword(mockVerificationToken, 'NewPassword123!');
+
+      expect(result.status).toBe('success');
+      expect(result.data.password_changed).toBe(true);
+      expect(result.data.reset_at).toBeInstanceOf(Date);
+    });
+
+    it('should call findPasswordResetToken with correct token', async () => {
+      await service.changePassword(mockVerificationToken, 'NewPassword123!');
+
+      expect(authRepo.findPasswordResetToken).toHaveBeenCalledWith(mockVerificationToken);
+      expect(authRepo.findPasswordResetToken).toHaveBeenCalledTimes(1);
+    });
+
+    it('should update password with correct userId', async () => {
+      await service.changePassword(mockVerificationToken, 'NewPassword123!');
+
+      expect(userService.updatePassword).toHaveBeenCalledWith(mockUserId, 'NewPassword123!');
+      expect(userService.updatePassword).toHaveBeenCalledTimes(1);
+    });
+
+    it('should delete token after successful password change', async () => {
+      await service.changePassword(mockVerificationToken, 'NewPassword123!');
+
+      expect(authRepo.deleteVerificationToken).toHaveBeenCalledWith(mockPasswordResetToken.id);
+      expect(authRepo.deleteVerificationToken).toHaveBeenCalledTimes(1);
+    });
+
+    it('should revoke all refresh tokens after password change', async () => {
+      await service.changePassword(mockVerificationToken, 'NewPassword123!');
+
+      expect(authRepo.revokeAllForUser).toHaveBeenCalledWith(mockUserId);
+      expect(authRepo.revokeAllForUser).toHaveBeenCalledTimes(1);
+    });
+
+    it('should delete token before revoking refresh tokens', async () => {
+      const callOrder: string[] = [];
+      authRepo.deleteVerificationToken.mockImplementation(async () => {
+        callOrder.push('delete');
+      });
+      authRepo.revokeAllForUser.mockImplementation(async () => {
+        callOrder.push('revoke');
+      });
+
+      await service.changePassword(mockVerificationToken, 'NewPassword123!');
+
+      expect(callOrder).toEqual(['delete', 'revoke']);
+    });
+
+    it('should throw BadRequestException if token not found', async () => {
+      authRepo.findPasswordResetToken.mockResolvedValue(null);
+
+      await expect(
+        service.changePassword(mockVerificationToken, 'NewPassword123!')
+      ).rejects.toThrow(BadRequestException);
+    });
+
+    it('should not update password if token not found', async () => {
+      authRepo.findPasswordResetToken.mockResolvedValue(null);
+
+      await expect(
+        service.changePassword(mockVerificationToken, 'NewPassword123!')
+      ).rejects.toThrow();
+      expect(userService.updatePassword).not.toHaveBeenCalled();
+    });
+
+    it('should throw BadRequestException if token is expired', async () => {
+      authRepo.findPasswordResetToken.mockResolvedValue({
+        ...mockPasswordResetToken,
+        expires_at: new Date(Date.now() - 1000), // expired 1 second ago
+      });
+
+      await expect(
+        service.changePassword(mockVerificationToken, 'NewPassword123!')
+      ).rejects.toThrow(BadRequestException);
+    });
+
+    it('should not update password if token is expired', async () => {
+      authRepo.findPasswordResetToken.mockResolvedValue({
+        ...mockPasswordResetToken,
+        expires_at: new Date(Date.now() - 1000),
+      });
+
+      await expect(
+        service.changePassword(mockVerificationToken, 'NewPassword123!')
+      ).rejects.toThrow();
+      expect(userService.updatePassword).not.toHaveBeenCalled();
+    });
+
+    it('should throw BadRequestException if new password is same as current', async () => {
+      userService.verifyPassword.mockResolvedValue(true); // same password
+
+      await expect(
+        service.changePassword(mockVerificationToken, 'SamePassword123!')
+      ).rejects.toThrow(BadRequestException);
+    });
+
+    it('should not update password if same as current', async () => {
+      userService.verifyPassword.mockResolvedValue(true);
+
+      await expect(
+        service.changePassword(mockVerificationToken, 'SamePassword123!')
+      ).rejects.toThrow();
+      expect(userService.updatePassword).not.toHaveBeenCalled();
+    });
+
+    it('should propagate error if updatePassword fails', async () => {
+      userService.updatePassword.mockRejectedValue(new Error('DB error'));
+
+      await expect(
+        service.changePassword(mockVerificationToken, 'NewPassword123!')
+      ).rejects.toThrow('DB error');
+    });
+
+    it('should not delete token if updatePassword fails', async () => {
+      userService.updatePassword.mockRejectedValue(new Error('DB error'));
+
+      await expect(
+        service.changePassword(mockVerificationToken, 'NewPassword123!')
+      ).rejects.toThrow();
+      expect(authRepo.deleteVerificationToken).not.toHaveBeenCalled();
+    });
+  });
+
+  // ─── forgotPassword() ─────────────────────────────────────────────────────────
+
+  describe('forgotPassword', () => {
+    beforeEach(() => {
+      jest.spyOn(tokensUtil, 'generateVerificationToken').mockReturnValue(mockVerificationToken);
+      userService.findEmailRecord.mockResolvedValue({ ...mockUserEmail(), is_verified: true });
+      authRepo.createVerificationToken.mockResolvedValue(undefined);
+      mailService.sendPasswordReset.mockResolvedValue(undefined);
+    });
+
+    it('should return success response', async () => {
+      const result = await service.forgotPassword(mockEmail);
+
+      expect(result.status).toBe('success');
+      expect(result.data.email_sent).toBe(true);
+      expect(result.data.sent_to).toBe(mockEmail);
+    });
+
+    it('should create verification token with PASSWORD_RESET type', async () => {
+      await service.forgotPassword(mockEmail);
+
+      expect(authRepo.createVerificationToken).toHaveBeenCalledWith(
+        mockUserEmail().user_id,
+        mockVerificationToken,
+        mockEmail,
+        expect.any(Date),
+        'password_reset'
+      );
+    });
+
+    it('should send password reset email with correct args', async () => {
+      await service.forgotPassword(mockEmail);
+
+      expect(mailService.sendPasswordReset).toHaveBeenCalledWith(mockEmail, mockVerificationToken);
+      expect(mailService.sendPasswordReset).toHaveBeenCalledTimes(1);
+    });
+
+    it('should throw NotFoundException if email not found', async () => {
+      userService.findEmailRecord.mockResolvedValue(null);
+
+      await expect(service.forgotPassword(mockEmail)).rejects.toThrow(NotFoundException);
+    });
+
+    it('should throw NotFoundException if email is not verified', async () => {
+      userService.findEmailRecord.mockResolvedValue({
+        ...mockUserEmail(),
+        is_verified: false,
+      });
+
+      await expect(service.forgotPassword(mockEmail)).rejects.toThrow(NotFoundException);
+    });
+
+    it('should not create token if email not found', async () => {
+      userService.findEmailRecord.mockResolvedValue(null);
+
+      await expect(service.forgotPassword(mockEmail)).rejects.toThrow();
+      expect(authRepo.createVerificationToken).not.toHaveBeenCalled();
+    });
+
+    it('should not send email if email not verified', async () => {
+      userService.findEmailRecord.mockResolvedValue({
+        ...mockUserEmail(),
+        is_verified: false,
+      });
+
+      await expect(service.forgotPassword(mockEmail)).rejects.toThrow();
+      expect(mailService.sendPasswordReset).not.toHaveBeenCalled();
+    });
+
+    it('should not send email if createVerificationToken fails', async () => {
+      authRepo.createVerificationToken.mockRejectedValue(new Error('DB error'));
+
+      await expect(service.forgotPassword(mockEmail)).rejects.toThrow('DB error');
+      expect(mailService.sendPasswordReset).not.toHaveBeenCalled();
+    });
+
+    it('should propagate error if sendPasswordReset fails', async () => {
+      mailService.sendPasswordReset.mockRejectedValue(new Error('Mail error'));
+
+      await expect(service.forgotPassword(mockEmail)).rejects.toThrow('Mail error');
+    });
+  });
 });

@@ -107,6 +107,8 @@ export const mockAuthenticationRepository = () => ({
   findValidVerificationCode: jest.fn(),
   deleteVerificationCode: jest.fn(),
   // ------------------------------
+  findPasswordResetToken: jest.fn(),
+  deleteVerificationToken: jest.fn(),
 });
 
 export const mockUserService = () => ({
@@ -125,6 +127,8 @@ export const mockUserService = () => ({
   getEmails: jest.fn(),
   setPrimaryEmail: jest.fn(),
   // ------------------------------
+  updatePassword: jest.fn(),
+  getPrimaryEmail: jest.fn(),
 });
 
 export const mockMailService = () => ({
@@ -132,6 +136,7 @@ export const mockMailService = () => ({
   sendWelcomeEmail: jest.fn(),
   sendEmailAddedNotification: jest.fn(),
   sendPrimaryEmailChangeCode: jest.fn(),
+  sendPasswordReset: jest.fn(),
 });
 
 export const mockJwtService = () => ({
@@ -166,6 +171,9 @@ export const mockAuthenticationService = () => ({
   verifyPrimaryEmailChange: jest.fn(),
   getEmails: jest.fn(),
   // ------------------------------
+  changePasswordRequest: jest.fn(),
+  changePassword: jest.fn(),
+  forgotPassword: jest.fn(),
 });
 
 // ─── Email management mocks ───────────────────────────────────────────────────
