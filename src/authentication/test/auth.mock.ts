@@ -15,13 +15,13 @@ export const mockPassword = 'SecurePassword123!';
 export const mockRegisterDto = () => ({
   email: mockEmail,
   password: mockPassword,
-  username: mockUsername,
+  display_name: 'Yara Senousy',
   first_name: 'Yara',
   last_name: 'Senousy',
   birthdate: new Date('1995-06-15'),
   gender: 'female',
   country: 'Egypt',
-  captchaToken: 'valid-captcha-token',
+  captcha_token: 'valid-captcha-token',
 });
 
 export const mockLoginDto = () => ({
@@ -142,12 +142,10 @@ export const mockAuthenticationRepository = () => ({
   findValidRefreshToken: jest.fn(),
   revokeRefreshToken: jest.fn(),
   revokeAllForUser: jest.fn(),
-  // Email management
   createVerificationCode: jest.fn(),
   deleteExistingVerificationCodes: jest.fn(),
   findValidVerificationCode: jest.fn(),
   deleteVerificationCode: jest.fn(),
-  // ------------------------------
   findPasswordResetToken: jest.fn(),
   deleteVerificationToken: jest.fn(),
   createPendingOauthToken: jest.fn(),
@@ -165,12 +163,10 @@ export const mockUserService = () => ({
   findById: jest.fn().mockResolvedValue(mockUser()),
   verifyPassword: jest.fn(),
   remove: jest.fn(),
-  // ------------------------------
   addEmail: jest.fn(),
   removeEmail: jest.fn(),
   getEmails: jest.fn(),
   setPrimaryEmail: jest.fn(),
-  // ------------------------------
   updatePassword: jest.fn(),
   getPrimaryEmail: jest.fn(),
   findSocialAccount: jest.fn(),
@@ -213,19 +209,15 @@ export const mockAuthenticationService = () => ({
   removeUser: jest.fn(),
   handleOAuthCallback: jest.fn(),
   completeOAuthProfile: jest.fn(),
-  // ------------------------------
   addEmail: jest.fn(),
   removeEmail: jest.fn(),
   setPrimaryEmail: jest.fn(),
   verifyPrimaryEmailChange: jest.fn(),
   getEmails: jest.fn(),
-  // ------------------------------
   changePasswordRequest: jest.fn(),
   changePassword: jest.fn(),
   forgotPassword: jest.fn(),
 });
-
-// ─── Email management mocks ───────────────────────────────────────────────────
 
 export const mockVerificationCode = '123456';
 

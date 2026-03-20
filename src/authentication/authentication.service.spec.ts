@@ -56,7 +56,7 @@ describe('AuthenticationService', () => {
   let userService: ReturnType<typeof mockUserService>;
   let mailService: ReturnType<typeof mockMailService>;
   let jwtService: ReturnType<typeof mockJwtService>;
-  let configService: ReturnType<typeof mockConfigService>; // ← add
+  let configService: ReturnType<typeof mockConfigService>;
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
@@ -65,8 +65,8 @@ describe('AuthenticationService', () => {
         { provide: AuthenticationRepository, useFactory: mockAuthenticationRepository },
         { provide: UserService, useFactory: mockUserService },
         { provide: MailService, useFactory: mockMailService },
-        { provide: JwtService, useFactory: mockJwtService }, // ← one entry only
-        { provide: ConfigService, useFactory: mockConfigService }, // ← one entry only
+        { provide: JwtService, useFactory: mockJwtService },
+        { provide: ConfigService, useFactory: mockConfigService },
       ],
     }).compile();
 
@@ -105,10 +105,11 @@ describe('AuthenticationService', () => {
     it('should call createUser with correct dto (without captchaToken)', async () => {
       await service.register(mockRegisterDto() as any);
 
-      const callArg = userService.createUser.mock.calls[0][0];
-      expect(callArg).not.toHaveProperty('captchaToken');
-      expect(callArg.email).toBe(mockEmail);
-      expect(callArg.username).toBe('yara_senousy');
+      const [createUserDtoArg, usernameArg] = userService.createUser.mock.calls[0];
+      expect(createUserDtoArg).not.toHaveProperty('captchaToken');
+      expect(createUserDtoArg).not.toHaveProperty('captcha_token');
+      expect(createUserDtoArg.email).toBe(mockEmail);
+      expect(usernameArg).toBe('yara_senousy');
     });
 
     it('should call createVerificationToken with correct args', async () => {
@@ -178,9 +179,9 @@ describe('AuthenticationService', () => {
 
       const result = await service.register(mockRegisterDto() as any);
 
-      const callArg = userService.createUser.mock.calls[0][0];
-      expect(callArg.username).not.toBe('yara_senousy');
-      expect(callArg.username).toMatch(/^yara_senousy_[a-f0-9]{6}$/);
+      const [, usernameArg] = userService.createUser.mock.calls[0];
+      expect(usernameArg).not.toBe('yara_senousy');
+      expect(usernameArg).toMatch(/^yara_senousy_[a-f0-9]{6}$/);
       expect(result.status).toBe('success');
     });
 
@@ -201,8 +202,8 @@ describe('AuthenticationService', () => {
 
       await service.register(mockRegisterDto() as any);
 
-      const callArg = userService.createUser.mock.calls[0][0];
-      expect(callArg.username).toBe('yara_senousy');
+      const [, usernameArg] = userService.createUser.mock.calls[0];
+      expect(usernameArg).toBe('yara_senousy');
     });
 
     it('should not call createVerificationToken if createUser fails', async () => {
@@ -453,8 +454,8 @@ describe('AuthenticationService', () => {
 
       await service.register(mockRegisterDto() as any);
 
-      const callArg = userService.createUser.mock.calls[0][0];
-      expect(callArg.username).toBe('yara_senousy');
+      const [, usernameArg] = userService.createUser.mock.calls[0];
+      expect(usernameArg).toBe('yara_senousy');
     });
 
     it('should generate username with correct pattern if taken once', async () => {
@@ -462,8 +463,8 @@ describe('AuthenticationService', () => {
 
       await service.register(mockRegisterDto() as any);
 
-      const callArg = userService.createUser.mock.calls[0][0];
-      expect(callArg.username).toMatch(/^yara_senousy_[a-f0-9]{6}$/);
+      const [, usernameArg] = userService.createUser.mock.calls[0];
+      expect(usernameArg).toMatch(/^yara_senousy_[a-f0-9]{6}$/);
     });
 
     it('should recurse until a unique username is found', async () => {
@@ -482,8 +483,8 @@ describe('AuthenticationService', () => {
 
       await service.register(mockRegisterDto() as any);
 
-      const callArg = userService.createUser.mock.calls[0][0];
-      expect(callArg.username).toMatch(/^yara_senousy_/);
+      const [, usernameArg] = userService.createUser.mock.calls[0];
+      expect(usernameArg).toMatch(/^yara_senousy_/);
     });
   });
 
@@ -1314,7 +1315,6 @@ describe('AuthenticationService', () => {
       expect(userService.remove).not.toHaveBeenCalled();
     });
   });
-  // ───────────────────────────────────────────────────────────────────────────────
   // ─── addEmail() ───────────────────────────────────────────────────────────────
 
   describe('addEmail', () => {
@@ -1768,7 +1768,6 @@ describe('AuthenticationService', () => {
       ).rejects.toThrow('DB error');
     });
   });
-  // ───────────────────────────────────────────────────────────────────────────────
   // ─── changePasswordRequest() ──────────────────────────────────────────────────
 
   describe('changePasswordRequest', () => {
