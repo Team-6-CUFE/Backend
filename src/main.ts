@@ -10,7 +10,7 @@ async function bootstrap() {
   app.use(cookieParser());
 
   const config = new DocumentBuilder()
-    .setTitle('API Documentation')
+    .setTitle('Harmonica Documentation')
     .setDescription('API description')
     .setVersion('1.0')
     .addCookieAuth('access_token')
