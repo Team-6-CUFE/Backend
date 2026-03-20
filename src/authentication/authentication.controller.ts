@@ -12,6 +12,7 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import { Response, Request } from 'express';
+import { ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { AuthenticationService } from './authentication.service';
 import { RegisterDto } from './dto/register.dto';
 import { Public } from './decorators/public.decorator';
@@ -26,6 +27,7 @@ import { GoogleAuthGuard } from './guards/google-auth.guard';
 import { OAuthProfile } from './types/oauth-profile.type';
 import { FacebookAuthGuard } from './guards/facebook-auth.guard';
 
+@ApiTags('Authentication')
 @Controller('auth')
 export class AuthenticationController {
   constructor(private readonly authenticationService: AuthenticationService) {}
@@ -46,6 +48,10 @@ export class AuthenticationController {
     return this.authenticationService.register(registerDto);
   }
 
+  @ApiOperation({ summary: 'Login with email or username' })
+  @ApiResponse({ status: 200, description: 'Login successful' })
+  @ApiResponse({ status: 401, description: 'Invalid credentials' })
+  @ApiResponse({ status: 403, description: 'Email not verified or account suspended' })
   @Public()
   @Post('login')
   @HttpCode(HttpStatus.OK)
