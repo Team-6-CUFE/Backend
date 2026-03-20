@@ -57,6 +57,22 @@ export class UserService {
     return this.userRepository.findEmailRecord(email);
   }
 
+  async addEmail(userId: string, email: string): Promise<UserEmail> {
+    return this.userRepository.addEmail(userId, email);
+  }
+
+  async removeEmail(userId: string, email: string): Promise<void> {
+    return this.userRepository.removeEmail(userId, email);
+  }
+
+  async getEmails(userId: string): Promise<UserEmail[]> {
+    return this.userRepository.getEmails(userId);
+  }
+
+  async setPrimaryEmail(userId: string, email: string): Promise<void> {
+    return this.userRepository.setPrimaryEmail(userId, email);
+  }
+
   async getPrimaryEmail(userId: string): Promise<string | null> {
     return this.userRepository.getPrimaryEmail(userId);
   }

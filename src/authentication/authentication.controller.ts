@@ -19,6 +19,7 @@ import { LoginDto } from './dto/login.dto';
 import { RefreshAuthGuard } from './guards/refresh-auth.guard';
 import { JwtPayload } from './strategies/jwt.strategy';
 import { CurrentUser } from './decorators/current-user.decorator';
+import { EmailDto } from './dto/email.dto';
 import { ChangePasswordDto } from './dto/changePassword.dto';
 
 @Controller('auth')
@@ -83,6 +84,31 @@ export class AuthenticationController {
   @Post('resend-verification')
   resendVerificationEmail(@Body('email') email: string) {
     return this.authenticationService.resendVerificationEmail(email);
+  }
+
+  @Post('/emails/verify-primary-change')
+  verifyPrimaryEmailChange(@CurrentUser('sub') userId: string, @Body('code') code: string) {
+    return this.authenticationService.verifyPrimaryEmailChange(userId, code);
+  }
+
+  @Post('emails/:email/set-primary')
+  setPrimaryEmail(@CurrentUser('sub') userId: string, @Param('email') email: string) {
+    return this.authenticationService.setPrimaryEmail(userId, email);
+  }
+
+  @Post('emails')
+  addEmail(@CurrentUser('sub') userId: string, @Body() emailDto: EmailDto) {
+    return this.authenticationService.addEmail(userId, emailDto.email);
+  }
+
+  @Delete('emails/:email')
+  removeEmail(@CurrentUser('sub') userId: string, @Param('email') email: string) {
+    return this.authenticationService.removeEmail(userId, email);
+  }
+
+  @Get('emails')
+  getEmails(@CurrentUser('sub') userId: string) {
+    return this.authenticationService.getEmails(userId);
   }
 
   @Post('change-password-request')

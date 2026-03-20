@@ -1,4 +1,4 @@
-import { Controller, Get, Put, Body, Param, Query } from '@nestjs/common';
+import { Controller, Get, Put, Post, Patch, Delete, Body, Param, Query } from '@nestjs/common';
 import { ProfileService } from './profile.service';
 import { UpdateProfileReqDto } from './dto/update-profile-req.dto';
 import { UpdateBirthdateReqDto } from './dto/update-birthdate.dto';
@@ -7,6 +7,10 @@ import { UpdatePrivacyReqDto } from './dto/update-privacy.dto';
 import { CheckUsernameDto } from './dto/check-username.dto';
 import { Public } from '../authentication/decorators/public.decorator';
 import { CurrentUser } from '../authentication/decorators/current-user.decorator';
+import { CreateExternalProfileDto } from './dto/create-external-profile.dto';
+import { UpdateExternalProfileDto } from './dto/update-external-profile.dto';
+import { UpdateAvatarDto } from './dto/update-avatar.dto';
+import { UpdateCoverDto } from './dto/update-cover.dto';
 
 @Controller('profile')
 export class ProfileController {
@@ -58,5 +62,42 @@ export class ProfileController {
     @Body() updatePrivacyReqDto: UpdatePrivacyReqDto
   ) {
     return this.profileService.updateMyPrivacy(userId, updatePrivacyReqDto);
+  }
+
+  @Get('me/external-profiles')
+  async getMyExternalProfiles(@CurrentUser('sub') userId: string) {
+    return this.profileService.getMyExternalProfiles(userId);
+  }
+
+  @Post('me/external-profiles')
+  async addExternalProfile(
+    @CurrentUser('sub') userId: string,
+    @Body() createExternalProfileDto: CreateExternalProfileDto
+  ) {
+    return this.profileService.addExternalProfile(userId, createExternalProfileDto);
+  }
+
+  @Patch('me/external-profiles/:id')
+  async updateExternalProfile(
+    @CurrentUser('sub') userId: string,
+    @Param('id') profileId: string,
+    @Body() updateExternalProfileDto: UpdateExternalProfileDto
+  ) {
+    return this.profileService.updateExternalProfile(userId, profileId, updateExternalProfileDto);
+  }
+
+  @Delete('me/external-profiles/:id')
+  async deleteExternalProfile(@CurrentUser('sub') userId: string, @Param('id') profileId: string) {
+    return this.profileService.deleteExternalProfile(userId, profileId);
+  }
+
+  @Put('me/avatar')
+  async updateAvatar(@CurrentUser('sub') userId: string, @Body() updateAvatarDto: UpdateAvatarDto) {
+    return this.profileService.updateAvatar(userId, updateAvatarDto.avatar_url);
+  }
+
+  @Put('me/cover')
+  async updateCover(@CurrentUser('sub') userId: string, @Body() updateCoverDto: UpdateCoverDto) {
+    return this.profileService.updateCover(userId, updateCoverDto.cover_photo);
   }
 }

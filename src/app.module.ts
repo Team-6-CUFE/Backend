@@ -8,6 +8,7 @@ import { UserModule } from './user/user.module';
 import { GenreModule } from './genre/genre.module';
 import { AuthenticationModule } from './authentication/authentication.module';
 import { MailModule } from './mail/mail.module';
+import { FollowersModule } from './followers/followers.module';
 
 @Module({
   imports: [
@@ -39,6 +40,8 @@ import { MailModule } from './mail/mail.module';
     AuthenticationModule,
 
     MailModule,
+
+    FollowersModule,
   ],
 })
 export class AppModule {}
