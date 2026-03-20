@@ -12,7 +12,7 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import { Response, Request } from 'express';
-import { ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
+import { ApiBody, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { AuthenticationService } from './authentication.service';
 import { RegisterDto } from './dto/register.dto';
 import { Public } from './decorators/public.decorator';
@@ -48,10 +48,69 @@ export class AuthenticationController {
     return this.authenticationService.register(registerDto);
   }
 
-  @ApiOperation({ summary: 'Login with email or username' })
-  @ApiResponse({ status: 200, description: 'Login successful' })
-  @ApiResponse({ status: 401, description: 'Invalid credentials' })
-  @ApiResponse({ status: 403, description: 'Email not verified or account suspended' })
+  @ApiOperation({
+    summary: 'Login with email or username',
+    description:
+      'Authenticates a user with email or username and password. On success, sets httpOnly `access_token` and `refresh_token` cookies.',
+  })
+  @ApiBody({ type: LoginDto })
+  @ApiResponse({
+    status: 200,
+    description: 'Login successful',
+    schema: {
+      example: {
+        status: 'success',
+        message: 'Login successful',
+        data: {
+          user_id: '550e8400-e29b-41d4-a716-446655440001',
+          email: 'yara@example.com',
+          username: 'yara_senousy',
+          display_name: 'Yara Senousy',
+          avatar_url: 'https://s3.amazonaws.com/avatars/user_123.jpg',
+          role: 'listener',
+          plan: 'free',
+        },
+      },
+    },
+  })
+  @ApiResponse({
+    status: 401,
+    description: 'Invalid credentials',
+    schema: {
+      example: {
+        statusCode: 401,
+        message: 'Invalid credentials or password',
+      },
+    },
+  })
+  @ApiResponse({
+    status: 403,
+    description: 'Email not verified or account suspended',
+    content: {
+      'application/json': {
+        examples: {
+          unverified: {
+            summary: 'Email not verified',
+            value: {
+              statusCode: 403,
+              message: 'Please verify your email address before logging in',
+              email_verified: false,
+              email: 'yara@example.com',
+            },
+          },
+          suspended: {
+            summary: 'Account suspended',
+            value: {
+              statusCode: 403,
+              message: 'Your account has been suspended. Please contact support.',
+            },
+          },
+        },
+      },
+    },
+  })
+  @ApiResponse({ status: 429, description: 'Too many failed login attempts' })
+  @ApiResponse({ status: 500, description: 'Unexpected server error' })
   @Public()
   @Post('login')
   @HttpCode(HttpStatus.OK)
