@@ -105,12 +105,13 @@ export class CreateUsersTable1773368321367 implements MigrationInterface {
     // Create social_accounts table
     await queryRunner.query(`
       CREATE TABLE social_accounts (
-        provider_id    VARCHAR(255) PRIMARY KEY UNIQUE NOT NULL,
+        provider_id    VARCHAR(255) NOT NULL,
         user_id        UUID         NOT NULL REFERENCES users(user_id) ON DELETE CASCADE,
         provider       VARCHAR(20)  NOT NULL CHECK (provider IN ('google', 'facebook')),
         provider_email VARCHAR(255),
         created_at     TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         updated_at     TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        PRIMARY KEY (provider, provider_id),
         CONSTRAINT unique_user_provider UNIQUE(user_id, provider)
       );
     `);

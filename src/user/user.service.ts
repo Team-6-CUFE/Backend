@@ -5,6 +5,7 @@ import { UserRepository } from './user.repository';
 import { User } from './entities/user.entity';
 import { UserEmail } from './entities/user-email.entity';
 import { UsernameAvailabilityService } from './username-availability.service';
+import { OAuthUser } from '../authentication/types/oauth-user.type';
 
 @Injectable()
 export class UserService {
@@ -41,6 +42,11 @@ export class UserService {
     const hashedPassword = await this.hash_password(createUserDto.password);
     this.usernameAvailabilityService.addToFilter(createUserDto.username);
     return this.userRepository.createUser(createUserDto, hashedPassword);
+  }
+
+  async createOAuthUser(createOAuthUser: OAuthUser): Promise<User> {
+    this.usernameAvailabilityService.addToFilter(createOAuthUser.username);
+    return this.userRepository.createOAuthUser(createOAuthUser);
   }
 
   async hash_password(password: string): Promise<string> {
@@ -80,5 +86,13 @@ export class UserService {
   async updatePassword(userId: string, newPassword: string): Promise<void> {
     const hashedPassword = await this.hash_password(newPassword);
     await this.userRepository.updatePassword(userId, hashedPassword);
+  }
+
+  async createSocialAccount(user_id: string, provider: string, provider_id: string, email: string) {
+    return this.userRepository.createSocialAccount(user_id, provider, provider_id, email);
+  }
+
+  async findSocialAccount(provider: string, providerId: string) {
+    return this.userRepository.findSocialAccount(provider, providerId);
   }
 }

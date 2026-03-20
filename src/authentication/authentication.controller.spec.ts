@@ -15,6 +15,9 @@ import {
   mockRequest,
   mockSecondaryEmail,
   mockVerificationCode,
+  mockOAuthProfile,
+  mockPendingToken,
+  mockCompleteOAuthProfileDto,
 } from './test/auth.mock';
 
 describe('AuthenticationController', () => {
@@ -618,6 +621,173 @@ describe('AuthenticationController', () => {
       service.forgotPassword.mockRejectedValue(new NotFoundException('No verified account found.'));
 
       await expect(controller.forgotPassword(mockEmail)).rejects.toThrow(NotFoundException);
+    });
+  });
+
+  // ─── googleCallback ───────────────────────────────────────────────────────────
+
+  describe('googleCallback', () => {
+    it('should delegate to handleOAuthCallback with profile and response', async () => {
+      const profile = mockOAuthProfile();
+      const res = mockResponseWithCookie();
+      service.handleOAuthCallback.mockResolvedValue({
+        status: 'success',
+        type: 'login',
+        data: {},
+      });
+
+      await controller.googleCallback(profile as any, res as any);
+
+      expect(service.handleOAuthCallback).toHaveBeenCalledWith(profile, res);
+      expect(service.handleOAuthCallback).toHaveBeenCalledTimes(1);
+    });
+
+    it('should return the service response as is', async () => {
+      const mockServiceResponse = {
+        status: 'success',
+        type: 'registration_incomplete',
+        data: { pending_token: mockPendingToken, prefill: {} },
+      };
+      service.handleOAuthCallback.mockResolvedValue(mockServiceResponse);
+
+      const result = await controller.googleCallback(
+        mockOAuthProfile() as any,
+        mockResponseWithCookie() as any
+      );
+
+      expect(result).toEqual(mockServiceResponse);
+    });
+
+    it('should propagate exception thrown by service', async () => {
+      service.handleOAuthCallback.mockRejectedValue(new Error('OAuth error'));
+
+      await expect(
+        controller.googleCallback(mockOAuthProfile() as any, mockResponseWithCookie() as any)
+      ).rejects.toThrow('OAuth error');
+    });
+  });
+
+  // ─── completeOAuthProfile ─────────────────────────────────────────────────────
+
+  describe('completeOAuthProfile', () => {
+    it('should delegate to service with dto and response', async () => {
+      const dto = mockCompleteOAuthProfileDto();
+      const res = mockResponseWithCookie();
+      service.completeOAuthProfile.mockResolvedValue({
+        status: 'success',
+        message: 'Profile completed and logged in successfully',
+        data: {},
+      });
+
+      await controller.completeOAuth(dto as any, res as any);
+
+      expect(service.completeOAuthProfile).toHaveBeenCalledWith(dto, res);
+      expect(service.completeOAuthProfile).toHaveBeenCalledTimes(1);
+    });
+
+    it('should return the service response as is', async () => {
+      const mockServiceResponse = {
+        status: 'success',
+        message: 'Profile completed and logged in successfully',
+        data: { user_id: mockUserId },
+      };
+      service.completeOAuthProfile.mockResolvedValue(mockServiceResponse);
+
+      const result = await controller.completeOAuth(
+        mockCompleteOAuthProfileDto() as any,
+        mockResponseWithCookie() as any
+      );
+
+      expect(result).toEqual(mockServiceResponse);
+    });
+
+    it('should propagate exception thrown by service', async () => {
+      service.completeOAuthProfile.mockRejectedValue(new NotFoundException('Invalid token'));
+
+      await expect(
+        controller.completeOAuth(
+          mockCompleteOAuthProfileDto() as any,
+          mockResponseWithCookie() as any
+        )
+      ).rejects.toThrow(NotFoundException);
+    });
+  });
+  // ─── facebookCallback ─────────────────────────────────────────────────────────
+
+  describe('facebookCallback', () => {
+    it('should delegate to handleOAuthCallback with profile and response', async () => {
+      const profile = mockOAuthProfile();
+      const res = mockResponseWithCookie();
+      service.handleOAuthCallback.mockResolvedValue({
+        status: 'success',
+        type: 'login',
+        data: {},
+      });
+
+      await controller.facebookCallback(profile as any, res as any);
+
+      expect(service.handleOAuthCallback).toHaveBeenCalledWith(profile, res);
+      expect(service.handleOAuthCallback).toHaveBeenCalledTimes(1);
+    });
+
+    it('should return the service response as is', async () => {
+      const mockServiceResponse = {
+        status: 'success',
+        type: 'registration_incomplete',
+        data: { pending_token: mockPendingToken, prefill: {} },
+      };
+      service.handleOAuthCallback.mockResolvedValue(mockServiceResponse);
+
+      const result = await controller.facebookCallback(
+        mockOAuthProfile() as any,
+        mockResponseWithCookie() as any
+      );
+
+      expect(result).toEqual(mockServiceResponse);
+    });
+
+    it('should return login type when user already exists', async () => {
+      service.handleOAuthCallback.mockResolvedValue({
+        status: 'success',
+        type: 'login',
+        data: { user_id: mockUserId, email: mockEmail },
+      });
+
+      const result = await controller.facebookCallback(
+        mockOAuthProfile() as any,
+        mockResponseWithCookie() as any
+      );
+
+      expect(result.type).toBe('login');
+    });
+
+    it('should return registration_incomplete type for new user', async () => {
+      service.handleOAuthCallback.mockResolvedValue({
+        status: 'success',
+        type: 'registration_incomplete',
+        data: {
+          pending_token: mockPendingToken,
+          prefill: { display_name: 'John Doe', email: mockEmail },
+        },
+      });
+
+      const result = await controller.facebookCallback(
+        mockOAuthProfile() as any,
+        mockResponseWithCookie() as any
+      );
+
+      expect(result.type).toBe('registration_incomplete');
+      // ← use type assertion to tell TypeScript which type it is
+      const data = result.data as { pending_token: string; prefill: object };
+      expect(data.pending_token).toBe(mockPendingToken);
+    });
+
+    it('should propagate exception thrown by service', async () => {
+      service.handleOAuthCallback.mockRejectedValue(new Error('OAuth error'));
+
+      await expect(
+        controller.facebookCallback(mockOAuthProfile() as any, mockResponseWithCookie() as any)
+      ).rejects.toThrow('OAuth error');
     });
   });
 });

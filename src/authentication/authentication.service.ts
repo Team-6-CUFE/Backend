@@ -25,6 +25,10 @@ import { JwtPayload, UserPlan } from './strategies/jwt.strategy';
 import { UserRole } from './decorators/roles.decorator';
 import { verifyCaptcha } from '../common/utilities/captcha.util';
 import { TokenType } from './entities/emailverficationtokens.entity';
+import { OAuthProfile } from './types/oauth-profile.type';
+import { User } from '../user/entities/user.entity';
+import { CompleteOAuthProfileDto } from './dto/complete-oauth-profile.dto';
+import { OAuthUser } from './types/oauth-user.type';
 
 // Access token lifetime
 const ACCESS_TOKEN_EXPIRY = '15m';
@@ -39,6 +43,8 @@ const VERIFICATION_TOKEN_EXPIRY_MINUTES = 24 * 60;
 const MAX_RESEND_ATTEMPTS = 3;
 
 const VERIFICATION_CODE_EXPIRY_MINUTES = 5;
+
+const PENDING_OAUTH_TOKEN_EXPIRY_MINUTES = 10;
 @Injectable()
 export class AuthenticationService {
   constructor(
@@ -167,10 +173,28 @@ export class AuthenticationService {
       throw new UnauthorizedException('Invalid identifier or password');
     }
 
+    await this.issueTokens(user, response, primaryEmail?.email);
+
+    return {
+      status: 'success',
+      message: 'Login successful',
+      data: {
+        user_id: user.user_id,
+        email: primaryEmail.email,
+        username: user.username,
+        display_name: user.display_name,
+        avatar_url: user.avatar_url,
+        role: user.role,
+        plan: user.plan,
+      },
+    };
+  }
+
+  async issueTokens(user: User, response: Response, email: string) {
     // Build payload and sign access token
     const payload: JwtPayload = {
       sub: user.user_id,
-      email: primaryEmail?.email,
+      email,
       role: user.role as UserRole,
       plan: user.plan as UserPlan,
     };
@@ -204,20 +228,6 @@ export class AuthenticationService {
       sameSite: 'strict',
       maxAge: REFRESH_COOKIE_MAX_AGE_MS,
     });
-
-    return {
-      status: 'success',
-      message: 'Login successful',
-      data: {
-        user_id: user.user_id,
-        email: primaryEmail.email,
-        username: user.username,
-        display_name: user.display_name,
-        avatar_url: user.avatar_url,
-        role: user.role,
-        plan: user.plan,
-      },
-    };
   }
 
   async refreshTokens(
@@ -594,6 +604,130 @@ export class AuthenticationService {
         email_sent: true,
         sent_to: `${email}`,
       },
+    };
+  }
+
+  async handleOAuthCallback(profile: OAuthProfile, response: Response) {
+    // Already linked social account
+    const existingSocialAccount = await this.userService.findSocialAccount(
+      profile.provider,
+      profile.providerId
+    );
+
+    if (existingSocialAccount) {
+      const user = await this.userService.findById(existingSocialAccount.user_id);
+      if (!user) {
+        throw new NotFoundException('User not found for the social account.');
+      }
+
+      await this.issueTokens(user, response, profile.email);
+      return {
+        status: 'success',
+        type: 'login',
+        data: this.buildUserResponse(user),
+      };
+    }
+
+    // Email already registered
+    const existingUser = await this.userService.findByEmail(profile.email);
+
+    if (existingUser) {
+      await this.userService.createSocialAccount(
+        existingUser.user_id,
+        profile.provider,
+        profile.providerId,
+        profile.email
+      );
+      await this.issueTokens(existingUser, response, profile.email);
+      return {
+        status: 'success',
+        type: 'login',
+        data: this.buildUserResponse(existingUser),
+      };
+    }
+
+    // Brand new user
+    const pendingToken = await this.createPendingOAuthSession(profile);
+    return {
+      status: 'success',
+      type: 'registration_incomplete',
+      data: {
+        pending_token: pendingToken,
+        prefill: {
+          display_name: `${profile.firstName} ${profile.lastName}`,
+          email: profile.email,
+        },
+      },
+    };
+  }
+
+  async createPendingOAuthSession(profile: OAuthProfile) {
+    const token = generateVerificationToken();
+    const expiryDate = getExpiryDate(PENDING_OAUTH_TOKEN_EXPIRY_MINUTES);
+    await this.authRepository.createPendingOauthToken(
+      token,
+      profile.provider,
+      profile.providerId,
+      profile.email,
+      profile.firstName!,
+      profile.lastName!,
+      expiryDate
+    );
+    return token;
+  }
+
+  private buildUserResponse(user: User) {
+    const primaryEmail = user.emails.find((e) => e.is_primary);
+    return {
+      user_id: user.user_id,
+      email: primaryEmail?.email,
+      username: user.username,
+      display_name: user.display_name,
+      avatar_url: user.avatar_url,
+      role: user.role,
+      plan: user.plan,
+    };
+  }
+
+  async completeOAuthProfile(oauthData: CompleteOAuthProfileDto, response: Response) {
+    const pendingToken = await this.authRepository.findPendingToken(oauthData.pending_token);
+    if (!pendingToken) {
+      throw new NotFoundException('Invalid or expired pending token');
+    }
+    if (pendingToken.expires_at < new Date()) {
+      throw new BadRequestException('Pending token has expired');
+    }
+    let username = oauthData.display_name.toLowerCase().replace(/\s+/g, '_');
+    if (await this.userService.checkUsernameExists(username)) {
+      username = await this.generateUniqueUsername(username);
+    }
+
+    const createOAuthUser: OAuthUser = {
+      email: pendingToken.email,
+      username,
+      first_name: pendingToken.first_name,
+      last_name: pendingToken.last_name,
+      birthdate: oauthData.birthdate,
+      gender: oauthData.gender,
+      display_name: oauthData.display_name,
+    };
+    const user = await this.userService.createOAuthUser(createOAuthUser);
+
+    await this.userService.createSocialAccount(
+      user.user_id,
+      pendingToken.provider,
+      pendingToken.provider_id,
+      pendingToken.email
+    );
+
+    await this.authRepository.deletePendingToken(pendingToken.token);
+
+    await this.issueTokens(user, response, pendingToken.email);
+
+    return {
+      status: 'success',
+      message: 'Profile completed and logged in successfully',
+      data: this.buildUserResponse(user),
     };
   }
 }

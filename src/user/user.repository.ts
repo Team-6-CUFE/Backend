@@ -8,6 +8,8 @@ import { Genre } from '../genre/entities/genre.entity';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UserEmail } from './entities/user-email.entity';
 import { UserCounts } from './types/user-counts.type';
+import { SocialAccount } from './entities/social-account.entity';
+import { OAuthUser } from '../authentication/types/oauth-user.type';
 
 @Injectable()
 export class UserRepository {
@@ -17,7 +19,9 @@ export class UserRepository {
     @InjectRepository(FavoriteGenre)
     private favoriteGenreRepository: Repository<FavoriteGenre>,
     @InjectRepository(UserEmail)
-    private userEmailRepo: Repository<UserEmail>
+    private userEmailRepo: Repository<UserEmail>,
+    @InjectRepository(SocialAccount)
+    private socialAccountRepo: Repository<SocialAccount>
   ) {}
 
   async findAllUsernames(): Promise<{ username: string }[]> {
@@ -92,11 +96,37 @@ export class UserRepository {
     // Step 2 — Create email record linked to user
     const userEmail = this.userEmailRepo.create({
       email: createUserDto.email,
-      user_id: savedUser.user_id, // link to the created user
+      user_id: savedUser.user_id,
       is_primary: true,
       is_verified: false,
     });
     await this.userEmailRepo.save(userEmail);
+    return savedUser;
+  }
+
+  async createOAuthUser(createOAuthUser: OAuthUser): Promise<User> {
+    // Step 1 — Create user record
+    const user = this.repository.create({
+      username: createOAuthUser.username,
+      first_name: createOAuthUser.first_name,
+      last_name: createOAuthUser.last_name,
+      display_name: createOAuthUser.display_name,
+      birthdate: createOAuthUser.birthdate,
+      gender: createOAuthUser.gender,
+    });
+
+    const savedUser = await this.repository.save(user);
+
+    // Step 2 — Create email record linked to user
+    const userEmail = this.userEmailRepo.create({
+      email: createOAuthUser.email,
+      user_id: savedUser.user_id,
+      is_primary: true,
+      is_verified: true,
+    });
+
+    await this.userEmailRepo.save(userEmail);
+    savedUser.emails = [userEmail];
     return savedUser;
   }
 
@@ -192,5 +222,23 @@ export class UserRepository {
 
   async updatePassword(userId: string, newPasswordHash: string): Promise<void> {
     await this.repository.update(userId, { password_hash: newPasswordHash });
+  }
+
+  async createSocialAccount(user_id: string, provider: string, provider_id: string, email: string) {
+    const socialAccount = this.socialAccountRepo.create({
+      provider_id,
+      user_id,
+      provider,
+      provider_email: email,
+    });
+
+    const savedSocialAccount = await this.socialAccountRepo.save(socialAccount);
+    return savedSocialAccount;
+  }
+
+  async findSocialAccount(provider: string, providerId: string) {
+    return this.socialAccountRepo.findOne({
+      where: { provider, provider_id: providerId },
+    });
   }
 }

@@ -18,6 +18,9 @@ import { RefreshToken } from './entities/refresh-token.entity';
 import { RefreshTokenStrategy } from './strategies/jwt-refresh.strategy';
 import { RefreshAuthGuard } from './guards/refresh-auth.guard';
 import { UserEmail } from '../user/entities/user-email.entity';
+import { PendingOAuthToken } from './entities/pending-oauth.entity';
+import { GoogleStrategy } from './strategies/google.strategy';
+import { FacebookStrategy } from './strategies/facebook.strategy';
 
 @Module({
   imports: [
@@ -26,6 +29,7 @@ import { UserEmail } from '../user/entities/user-email.entity';
       EmailVerificationCode,
       UserEmail,
       RefreshToken,
+      PendingOAuthToken,
     ]),
     UserModule,
     MailModule,
@@ -53,6 +57,8 @@ import { UserEmail } from '../user/entities/user-email.entity';
     JwtStrategy,
     RefreshTokenStrategy,
     RefreshAuthGuard,
+    GoogleStrategy,
+    FacebookStrategy,
   ],
   exports: [AuthenticationService, JwtModule],
 })

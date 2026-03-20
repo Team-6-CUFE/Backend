@@ -1,6 +1,7 @@
 import { User } from '../../user/entities/user.entity';
 import { UserEmail } from '../../user/entities/user-email.entity';
 import { RefreshToken } from '../entities/refresh-token.entity';
+import { OAuthProfile } from '../types/oauth-profile.type';
 
 export const mockUserId = 'uuid-auth-1234';
 export const mockEmail = 'yara@example.com';
@@ -89,6 +90,46 @@ export const mockRequest = (refreshToken?: string) => ({
   },
 });
 
+export const mockProviderId = 'google-provider-id-123';
+export const mockPendingToken = 'pending-token-abc123';
+export const mockSecondaryEmail = 'secondary@example.com';
+
+export const mockOAuthProfile = (): OAuthProfile => ({
+  provider: 'google',
+  providerId: mockProviderId,
+  email: mockEmail,
+  firstName: 'Yara',
+  lastName: 'Senousy',
+});
+
+export const mockSocialAccount = () => ({
+  provider: 'google',
+  provider_id: mockProviderId,
+  user_id: mockUserId,
+});
+
+export const mockPendingOAuthSession = () => ({
+  token: mockPendingToken,
+  provider: 'google',
+  provider_id: mockProviderId,
+  email: mockEmail,
+  first_name: 'Yara',
+  last_name: 'Senousy',
+  expires_at: new Date(Date.now() + 10 * 60 * 1000), // 10 min from now
+});
+
+export const mockExpiredPendingOAuthSession = () => ({
+  ...mockPendingOAuthSession(),
+  expires_at: new Date(Date.now() - 1000), // already expired
+});
+
+export const mockCompleteOAuthProfileDto = () => ({
+  pending_token: mockPendingToken,
+  display_name: 'Yara Senousy',
+  birthdate: '1995-06-15',
+  gender: 'female',
+});
+
 // Service / Repository
 
 export const mockAuthenticationRepository = () => ({
@@ -109,6 +150,9 @@ export const mockAuthenticationRepository = () => ({
   // ------------------------------
   findPasswordResetToken: jest.fn(),
   deleteVerificationToken: jest.fn(),
+  createPendingOauthToken: jest.fn(),
+  findPendingToken: jest.fn(),
+  deletePendingToken: jest.fn(),
 });
 
 export const mockUserService = () => ({
@@ -129,6 +173,9 @@ export const mockUserService = () => ({
   // ------------------------------
   updatePassword: jest.fn(),
   getPrimaryEmail: jest.fn(),
+  findSocialAccount: jest.fn(),
+  createSocialAccount: jest.fn(),
+  createOAuthUser: jest.fn(),
 });
 
 export const mockMailService = () => ({
@@ -164,6 +211,8 @@ export const mockAuthenticationService = () => ({
   logout: jest.fn(),
   refreshTokens: jest.fn(),
   removeUser: jest.fn(),
+  handleOAuthCallback: jest.fn(),
+  completeOAuthProfile: jest.fn(),
   // ------------------------------
   addEmail: jest.fn(),
   removeEmail: jest.fn(),
@@ -178,7 +227,6 @@ export const mockAuthenticationService = () => ({
 
 // ─── Email management mocks ───────────────────────────────────────────────────
 
-export const mockSecondaryEmail = 'secondary@example.com';
 export const mockVerificationCode = '123456';
 
 export const mockUserWithMultipleEmails = (): Partial<User> => ({

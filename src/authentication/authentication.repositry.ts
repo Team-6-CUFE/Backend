@@ -5,6 +5,7 @@ import { EmailVerificationToken, TokenType } from './entities/emailverficationto
 import { EmailVerificationCode } from './entities/emailverificationcodes.entity';
 import { RefreshToken } from './entities/refresh-token.entity';
 import { UserEmail } from '../user/entities/user-email.entity';
+import { PendingOAuthToken } from './entities/pending-oauth.entity';
 
 @Injectable()
 export class AuthenticationRepository {
@@ -19,8 +20,42 @@ export class AuthenticationRepository {
     private readonly refreshTokenRepository: Repository<RefreshToken>,
 
     @InjectRepository(UserEmail)
-    private readonly userEmailRepository: Repository<UserEmail>
+    private readonly userEmailRepository: Repository<UserEmail>,
+
+    @InjectRepository(PendingOAuthToken)
+    private readonly pendingOauthRepository: Repository<PendingOAuthToken>
   ) {}
+
+  async createPendingOauthToken(
+    token: string,
+    provider: string,
+    providerId: string,
+    email: string,
+    firstName: string,
+    lastName: string,
+    expiresAt: Date
+  ): Promise<PendingOAuthToken> {
+    const pendingOauthToken = this.pendingOauthRepository.create({
+      token,
+      provider,
+      provider_id: providerId,
+      email,
+      first_name: firstName,
+      last_name: lastName,
+      expires_at: expiresAt,
+    });
+    return this.pendingOauthRepository.save(pendingOauthToken);
+  }
+
+  async findPendingToken(token: string): Promise<PendingOAuthToken | null> {
+    return this.pendingOauthRepository.findOne({
+      where: { token },
+    });
+  }
+
+  async deletePendingToken(token: string): Promise<void> {
+    await this.pendingOauthRepository.delete({ token });
+  }
 
   async createVerificationToken(
     userId: string,

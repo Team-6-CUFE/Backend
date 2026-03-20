@@ -21,6 +21,10 @@ import { JwtPayload } from './strategies/jwt.strategy';
 import { CurrentUser } from './decorators/current-user.decorator';
 import { EmailDto } from './dto/email.dto';
 import { ChangePasswordDto } from './dto/changePassword.dto';
+import { CompleteOAuthProfileDto } from './dto/complete-oauth-profile.dto';
+import { GoogleAuthGuard } from './guards/google-auth.guard';
+import { OAuthProfile } from './types/oauth-profile.type';
+import { FacebookAuthGuard } from './guards/facebook-auth.guard';
 
 @Controller('auth')
 export class AuthenticationController {
@@ -131,5 +135,49 @@ export class AuthenticationController {
   @Post('forgot-password')
   forgotPassword(@Body('email') email: string) {
     return this.authenticationService.forgotPassword(email);
+  }
+
+  @Public()
+  @Post('oauth/complete')
+  completeOAuth(
+    @Body() oauthData: CompleteOAuthProfileDto,
+    @Res({ passthrough: true }) response: Response
+  ) {
+    return this.authenticationService.completeOAuthProfile(oauthData, response);
+  }
+
+  @Public()
+  @UseGuards(GoogleAuthGuard)
+  @Get('google')
+  googleLogin() {
+    // NestJS/Passport handles the redirect — this method body never executes
+  }
+
+  @Public()
+  @UseGuards(GoogleAuthGuard)
+  @Get('google/callback')
+  async googleCallback(
+    @CurrentUser() googleUser: OAuthProfile,
+    @Res({ passthrough: true }) response: Response
+  ) {
+    return this.authenticationService.handleOAuthCallback(googleUser, response);
+  }
+
+  @Public()
+  @UseGuards(FacebookAuthGuard)
+  @Get('facebook')
+  facebookLogin() {
+    // Passport handles the redirect — body never executes
+  }
+
+  @Public()
+  @UseGuards(FacebookAuthGuard)
+  @Get('facebook/callback')
+  async facebookCallback(
+    @CurrentUser() facebookUser: OAuthProfile,
+    @Res({ passthrough: true }) response: Response
+  ) {
+    return this.authenticationService.handleOAuthCallback(facebookUser, response);
+    // ↑ exact same method as Google — works for any provider!
   }
 }
