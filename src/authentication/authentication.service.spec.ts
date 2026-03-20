@@ -35,6 +35,12 @@ import {
   mockLoginDto,
   mockLoginDtoWithUsername,
   mockResponseWithCookie,
+  mockNewEmailRecord,
+  mockSecondaryEmail,
+  mockUserWithMultipleEmails,
+  mockVerificationCode,
+  mockVerificationCodeRecord,
+  mockExpiredVerificationCodeRecord,
   mockPendingToken,
   mockSocialAccount,
   mockOAuthProfile,
@@ -112,7 +118,8 @@ describe('AuthenticationService', () => {
         mockUserId,
         mockVerificationToken,
         mockEmail,
-        expect.any(Date)
+        expect.any(Date),
+        'email_verification'
       );
     });
 
@@ -336,7 +343,8 @@ describe('AuthenticationService', () => {
         mockUserEmail().user_id,
         mockVerificationToken,
         mockEmail,
-        expect.any(Date)
+        expect.any(Date),
+        'email_verification'
       );
     });
 
@@ -488,6 +496,7 @@ describe('AuthenticationService', () => {
       res = mockResponseWithCookie();
       userService.findByEmail.mockResolvedValue(mockUser());
       userService.findByUsername.mockResolvedValue(null);
+      userService.findById.mockResolvedValue(mockUser());
       userService.verifyPassword.mockResolvedValue(true);
       authRepo.saveRefreshToken.mockResolvedValue(undefined);
       jest
@@ -620,6 +629,10 @@ describe('AuthenticationService', () => {
         ...mockUser(),
         emails: [{ email: mockEmail, is_primary: true, is_verified: false, user_id: mockUserId }],
       });
+      userService.findById.mockResolvedValue({
+        ...mockUser(),
+        emails: [{ email: mockEmail, is_primary: true, is_verified: false, user_id: mockUserId }],
+      });
 
       await expect(service.login(mockLoginDto() as any, res as any)).rejects.toThrow(
         ForbiddenException
@@ -632,6 +645,10 @@ describe('AuthenticationService', () => {
         ...mockUser(),
         emails: [{ email: mockEmail, is_primary: true, is_verified: false, user_id: mockUserId }],
       });
+      userService.findById.mockResolvedValue({
+        ...mockUser(),
+        emails: [{ email: mockEmail, is_primary: true, is_verified: false, user_id: mockUserId }],
+      });
 
       await expect(service.login(mockLoginDtoWithUsername() as any, res as any)).rejects.toThrow(
         ForbiddenException
@@ -641,6 +658,7 @@ describe('AuthenticationService', () => {
     it('should throw ForbiddenException if user has no emails at all', async () => {
       userService.findByEmail.mockResolvedValue(null);
       userService.findByUsername.mockResolvedValue({ ...mockUser(), emails: [] });
+      userService.findById.mockResolvedValue({ ...mockUser(), emails: [] });
 
       await expect(service.login(mockLoginDtoWithUsername() as any, res as any)).rejects.toThrow(
         ForbiddenException
@@ -650,6 +668,10 @@ describe('AuthenticationService', () => {
     it('should throw ForbiddenException if user has no primary email', async () => {
       userService.findByEmail.mockResolvedValue(null);
       userService.findByUsername.mockResolvedValue({
+        ...mockUser(),
+        emails: [{ email: mockEmail, is_primary: false, is_verified: true, user_id: mockUserId }],
+      });
+      userService.findById.mockResolvedValue({
         ...mockUser(),
         emails: [{ email: mockEmail, is_primary: false, is_verified: true, user_id: mockUserId }],
       });
@@ -663,6 +685,7 @@ describe('AuthenticationService', () => {
 
     it('should throw ForbiddenException if account is suspended', async () => {
       userService.findByEmail.mockResolvedValue({ ...mockUser(), is_suspended: true });
+      userService.findById.mockResolvedValue({ ...mockUser(), is_suspended: true });
 
       await expect(service.login(mockLoginDto() as any, res as any)).rejects.toThrow(
         ForbiddenException
@@ -671,6 +694,7 @@ describe('AuthenticationService', () => {
 
     it('should not verify password if account is suspended', async () => {
       userService.findByEmail.mockResolvedValue({ ...mockUser(), is_suspended: true });
+      userService.findById.mockResolvedValue({ ...mockUser(), is_suspended: true });
 
       await expect(service.login(mockLoginDto() as any, res as any)).rejects.toThrow();
       expect(userService.verifyPassword).not.toHaveBeenCalled();
@@ -697,6 +721,181 @@ describe('AuthenticationService', () => {
       userService.verifyPassword.mockResolvedValue(false);
 
       await expect(service.login(mockLoginDto() as any, res as any)).rejects.toThrow();
+      expect(res.cookie).not.toHaveBeenCalled();
+    });
+
+    // ── Secondary email login ──────────────────────────────────────────────────
+
+    it('should login successfully with a verified secondary email', async () => {
+      userService.findByEmail.mockResolvedValue({
+        ...mockUser(),
+        emails: [
+          { email: mockEmail, is_primary: true, is_verified: true, user_id: mockUserId },
+          {
+            email: 'secondary@example.com',
+            is_primary: false,
+            is_verified: true,
+            user_id: mockUserId,
+          },
+        ],
+      });
+      userService.findById.mockResolvedValue({
+        ...mockUser(),
+        emails: [
+          { email: mockEmail, is_primary: true, is_verified: true, user_id: mockUserId },
+          {
+            email: 'secondary@example.com',
+            is_primary: false,
+            is_verified: true,
+            user_id: mockUserId,
+          },
+        ],
+      });
+
+      const result = await service.login(
+        { identifier: 'secondary@example.com', password: 'password' } as any,
+        res as any
+      );
+
+      expect(result.status).toBe('success');
+    });
+
+    it('should use primary email in JWT payload even when logging in with secondary email', async () => {
+      userService.findByEmail.mockResolvedValue({
+        ...mockUser(),
+        emails: [
+          { email: mockEmail, is_primary: true, is_verified: true, user_id: mockUserId },
+          {
+            email: 'secondary@example.com',
+            is_primary: false,
+            is_verified: true,
+            user_id: mockUserId,
+          },
+        ],
+      });
+      userService.findById.mockResolvedValue({
+        ...mockUser(),
+        emails: [
+          { email: mockEmail, is_primary: true, is_verified: true, user_id: mockUserId },
+          {
+            email: 'secondary@example.com',
+            is_primary: false,
+            is_verified: true,
+            user_id: mockUserId,
+          },
+        ],
+      });
+
+      await service.login(
+        { identifier: 'secondary@example.com', password: 'password' } as any,
+        res as any
+      );
+
+      const signSpy = jwtService.sign as jest.Mock;
+      const firstCallPayload = signSpy.mock.calls[0][0];
+      expect(firstCallPayload.email).toBe(mockEmail); // primary, not secondary
+    });
+
+    it('should return primary email in response data when logging in with secondary email', async () => {
+      userService.findByEmail.mockResolvedValue({
+        ...mockUser(),
+        emails: [
+          { email: mockEmail, is_primary: true, is_verified: true, user_id: mockUserId },
+          {
+            email: 'secondary@example.com',
+            is_primary: false,
+            is_verified: true,
+            user_id: mockUserId,
+          },
+        ],
+      });
+      userService.findById.mockResolvedValue({
+        ...mockUser(),
+        emails: [
+          { email: mockEmail, is_primary: true, is_verified: true, user_id: mockUserId },
+          {
+            email: 'secondary@example.com',
+            is_primary: false,
+            is_verified: true,
+            user_id: mockUserId,
+          },
+        ],
+      });
+
+      const result = await service.login(
+        { identifier: 'secondary@example.com', password: 'password' } as any,
+        res as any
+      );
+
+      expect(result.data.email).toBe(mockEmail); // primary, not secondary
+    });
+
+    it('should throw ForbiddenException if logging in with unverified secondary email', async () => {
+      userService.findByEmail.mockResolvedValue({
+        ...mockUser(),
+        emails: [
+          { email: mockEmail, is_primary: true, is_verified: true, user_id: mockUserId },
+          {
+            email: 'secondary@example.com',
+            is_primary: false,
+            is_verified: false,
+            user_id: mockUserId,
+          },
+        ],
+      });
+      userService.findById.mockResolvedValue({
+        ...mockUser(),
+        emails: [
+          { email: mockEmail, is_primary: true, is_verified: true, user_id: mockUserId },
+          {
+            email: 'secondary@example.com',
+            is_primary: false,
+            is_verified: false,
+            user_id: mockUserId,
+          },
+        ],
+      });
+
+      await expect(
+        service.login(
+          { identifier: 'secondary@example.com', password: 'password' } as any,
+          res as any
+        )
+      ).rejects.toThrow(ForbiddenException);
+    });
+
+    it('should not set cookies when logging in with unverified secondary email', async () => {
+      userService.findByEmail.mockResolvedValue({
+        ...mockUser(),
+        emails: [
+          { email: mockEmail, is_primary: true, is_verified: true, user_id: mockUserId },
+          {
+            email: 'secondary@example.com',
+            is_primary: false,
+            is_verified: false,
+            user_id: mockUserId,
+          },
+        ],
+      });
+      userService.findById.mockResolvedValue({
+        ...mockUser(),
+        emails: [
+          { email: mockEmail, is_primary: true, is_verified: true, user_id: mockUserId },
+          {
+            email: 'secondary@example.com',
+            is_primary: false,
+            is_verified: false,
+            user_id: mockUserId,
+          },
+        ],
+      });
+
+      await expect(
+        service.login(
+          { identifier: 'secondary@example.com', password: 'password' } as any,
+          res as any
+        )
+      ).rejects.toThrow();
       expect(res.cookie).not.toHaveBeenCalled();
     });
 
@@ -1113,6 +1312,767 @@ describe('AuthenticationService', () => {
         'cookie error'
       );
       expect(userService.remove).not.toHaveBeenCalled();
+    });
+  });
+  // ───────────────────────────────────────────────────────────────────────────────
+  // ─── addEmail() ───────────────────────────────────────────────────────────────
+
+  describe('addEmail', () => {
+    beforeEach(() => {
+      userService.findById.mockResolvedValue(mockUser());
+      userService.checkEmailExists.mockResolvedValue(false);
+      userService.addEmail.mockResolvedValue(mockNewEmailRecord());
+      authRepo.createVerificationToken.mockResolvedValue(undefined);
+      mailService.sendEmailAddedNotification.mockResolvedValue(undefined);
+      mailService.sendEmailVerification.mockResolvedValue(undefined);
+      jest.spyOn(tokensUtil, 'generateVerificationToken').mockReturnValue(mockVerificationToken);
+    });
+
+    it('should return success response with email data', async () => {
+      const result = await service.addEmail(mockUserId, mockSecondaryEmail);
+
+      expect(result.status).toBe('success');
+      expect(result.data.email).toBe(mockSecondaryEmail);
+      expect(result.data.is_verified).toBe(false);
+      expect(result.data.verification_sent).toBe(true);
+    });
+
+    it('should call addEmail on userService with correct args', async () => {
+      await service.addEmail(mockUserId, mockSecondaryEmail);
+
+      expect(userService.addEmail).toHaveBeenCalledWith(mockUserId, mockSecondaryEmail);
+      expect(userService.addEmail).toHaveBeenCalledTimes(1);
+    });
+
+    it('should create verification token for the new email', async () => {
+      await service.addEmail(mockUserId, mockSecondaryEmail);
+
+      expect(authRepo.createVerificationToken).toHaveBeenCalledWith(
+        mockUserId,
+        mockVerificationToken,
+        mockSecondaryEmail,
+        expect.any(Date),
+        'email_verification'
+      );
+    });
+
+    it('should send verification email to the new email', async () => {
+      await service.addEmail(mockUserId, mockSecondaryEmail);
+
+      expect(mailService.sendEmailVerification).toHaveBeenCalledWith(
+        mockSecondaryEmail,
+        mockVerificationToken
+      );
+    });
+
+    it('should notify primary email about the new email addition', async () => {
+      await service.addEmail(mockUserId, mockSecondaryEmail);
+
+      expect(mailService.sendEmailAddedNotification).toHaveBeenCalledWith(
+        mockEmail, // primary email
+        mockSecondaryEmail,
+        mockUser().display_name
+      );
+    });
+
+    it('should send notification before verification email', async () => {
+      const callOrder: string[] = [];
+      mailService.sendEmailAddedNotification.mockImplementation(async () => {
+        callOrder.push('notification');
+      });
+      mailService.sendEmailVerification.mockImplementation(async () => {
+        callOrder.push('verification');
+      });
+
+      await service.addEmail(mockUserId, mockSecondaryEmail);
+
+      expect(callOrder[0]).toBe('notification');
+      expect(callOrder[1]).toBe('verification');
+    });
+
+    it('should throw NotFoundException if user not found', async () => {
+      userService.findById.mockResolvedValue(null);
+
+      await expect(service.addEmail(mockUserId, mockSecondaryEmail)).rejects.toThrow(
+        NotFoundException
+      );
+    });
+
+    it('should throw BadRequestException if email already exists', async () => {
+      userService.checkEmailExists.mockResolvedValue(true);
+
+      await expect(service.addEmail(mockUserId, mockSecondaryEmail)).rejects.toThrow(
+        BadRequestException
+      );
+    });
+
+    it('should not add email if it already exists', async () => {
+      userService.checkEmailExists.mockResolvedValue(true);
+
+      await expect(service.addEmail(mockUserId, mockSecondaryEmail)).rejects.toThrow();
+      expect(userService.addEmail).not.toHaveBeenCalled();
+    });
+
+    it('should propagate error if addEmail on userService fails', async () => {
+      userService.addEmail.mockRejectedValue(new Error('DB error'));
+
+      await expect(service.addEmail(mockUserId, mockSecondaryEmail)).rejects.toThrow('DB error');
+    });
+
+    it('should not send emails if createVerificationToken fails', async () => {
+      authRepo.createVerificationToken.mockRejectedValue(new Error('DB error'));
+
+      await expect(service.addEmail(mockUserId, mockSecondaryEmail)).rejects.toThrow('DB error');
+      expect(mailService.sendEmailVerification).not.toHaveBeenCalled();
+    });
+  });
+
+  // ─── removeEmail() ────────────────────────────────────────────────────────────
+
+  describe('removeEmail', () => {
+    beforeEach(() => {
+      userService.findById.mockResolvedValue(mockUserWithMultipleEmails());
+      userService.removeEmail.mockResolvedValue(undefined);
+    });
+
+    it('should return success response', async () => {
+      const result = await service.removeEmail(mockUserId, mockSecondaryEmail);
+
+      expect(result.status).toBe('success');
+      expect(result.message).toBe('Email removed successfully');
+    });
+
+    it('should call removeEmail on userService with correct args', async () => {
+      await service.removeEmail(mockUserId, mockSecondaryEmail);
+
+      expect(userService.removeEmail).toHaveBeenCalledWith(mockUserId, mockSecondaryEmail);
+      expect(userService.removeEmail).toHaveBeenCalledTimes(1);
+    });
+
+    it('should throw NotFoundException if user not found', async () => {
+      userService.findById.mockResolvedValue(null);
+
+      await expect(service.removeEmail(mockUserId, mockSecondaryEmail)).rejects.toThrow(
+        NotFoundException
+      );
+    });
+
+    it('should throw NotFoundException if email not found on user', async () => {
+      await expect(service.removeEmail(mockUserId, 'nonexistent@example.com')).rejects.toThrow(
+        NotFoundException
+      );
+    });
+
+    it('should throw BadRequestException if trying to delete the only email', async () => {
+      userService.findById.mockResolvedValue(mockUser()); // only one email
+
+      await expect(service.removeEmail(mockUserId, mockEmail)).rejects.toThrow(BadRequestException);
+    });
+
+    it('should throw BadRequestException if trying to delete primary email', async () => {
+      await expect(service.removeEmail(mockUserId, mockEmail)).rejects.toThrow(BadRequestException);
+    });
+
+    it('should not call removeEmail if email is primary', async () => {
+      await expect(service.removeEmail(mockUserId, mockEmail)).rejects.toThrow();
+      expect(userService.removeEmail).not.toHaveBeenCalled();
+    });
+
+    it('should propagate error if removeEmail on userService fails', async () => {
+      userService.removeEmail.mockRejectedValue(new Error('DB error'));
+
+      await expect(service.removeEmail(mockUserId, mockSecondaryEmail)).rejects.toThrow('DB error');
+    });
+  });
+
+  // ─── getEmails() ──────────────────────────────────────────────────────────────
+
+  describe('getEmails', () => {
+    beforeEach(() => {
+      userService.getEmails.mockResolvedValue(mockUser().emails);
+    });
+
+    it('should return success response with emails array', async () => {
+      const result = await service.getEmails(mockUserId);
+
+      expect(result.status).toBe('success');
+      expect(Array.isArray(result.emails)).toBe(true);
+    });
+
+    it('should call getEmails on userService with correct userId', async () => {
+      await service.getEmails(mockUserId);
+
+      expect(userService.getEmails).toHaveBeenCalledWith(mockUserId);
+      expect(userService.getEmails).toHaveBeenCalledTimes(1);
+    });
+
+    it('should return mapped emails without user_id', async () => {
+      const result = await service.getEmails(mockUserId);
+
+      result.emails.forEach((e) => {
+        expect(e).not.toHaveProperty('user_id');
+        expect(e).toHaveProperty('email');
+        expect(e).toHaveProperty('is_primary');
+        expect(e).toHaveProperty('is_verified');
+        expect(e).toHaveProperty('created_at');
+        expect(e).toHaveProperty('updated_at');
+      });
+    });
+
+    it('should throw NotFoundException if user not found', async () => {
+      userService.getEmails.mockResolvedValue(null);
+
+      await expect(service.getEmails(mockUserId)).rejects.toThrow(NotFoundException);
+    });
+
+    it('should return empty array if user has no emails', async () => {
+      userService.getEmails.mockResolvedValue([]);
+
+      const result = await service.getEmails(mockUserId);
+
+      expect(result.emails).toEqual([]);
+    });
+  });
+
+  // ─── setPrimaryEmail() ────────────────────────────────────────────────────────
+
+  describe('setPrimaryEmail', () => {
+    beforeEach(() => {
+      userService.findById.mockResolvedValue(mockUserWithMultipleEmails());
+      authRepo.deleteExistingVerificationCodes.mockResolvedValue(undefined);
+      authRepo.createVerificationCode.mockResolvedValue(undefined);
+      mailService.sendPrimaryEmailChangeCode.mockResolvedValue(undefined);
+      jest.spyOn(tokensUtil, 'generateSixDigitCode').mockReturnValue(mockVerificationCode);
+    });
+
+    it('should return success response with verification data', async () => {
+      const result = await service.setPrimaryEmail(mockUserId, mockSecondaryEmail);
+
+      expect(result.status).toBe('success');
+      expect(result.data.verification_required).toBe(true);
+      expect(result.data.new_primary_email).toBe(mockSecondaryEmail);
+      expect(result.data.code_sent_to).toBe(mockEmail); // sent to current primary
+      expect(result.data.expires_in).toBe(600);
+    });
+
+    it('should delete existing verification codes before creating new one', async () => {
+      await service.setPrimaryEmail(mockUserId, mockSecondaryEmail);
+
+      expect(authRepo.deleteExistingVerificationCodes).toHaveBeenCalledWith(mockUserId);
+    });
+
+    it('should delete existing code before creating new one (call order)', async () => {
+      const callOrder: string[] = [];
+      authRepo.deleteExistingVerificationCodes.mockImplementation(async () => {
+        callOrder.push('delete');
+      });
+      authRepo.createVerificationCode.mockImplementation(async () => {
+        callOrder.push('create');
+      });
+
+      await service.setPrimaryEmail(mockUserId, mockSecondaryEmail);
+
+      expect(callOrder[0]).toBe('delete');
+      expect(callOrder[1]).toBe('create');
+    });
+
+    it('should create verification code with correct args', async () => {
+      await service.setPrimaryEmail(mockUserId, mockSecondaryEmail);
+
+      expect(authRepo.createVerificationCode).toHaveBeenCalledWith(
+        mockUserId,
+        mockVerificationCode,
+        mockSecondaryEmail,
+        expect.any(Date)
+      );
+    });
+
+    it('should send code to current primary email not the new one', async () => {
+      await service.setPrimaryEmail(mockUserId, mockSecondaryEmail);
+
+      expect(mailService.sendPrimaryEmailChangeCode).toHaveBeenCalledWith(
+        mockEmail, // current primary — code is sent here
+        mockVerificationCode,
+        mockUser().display_name,
+        mockSecondaryEmail // new primary — for context in the email
+      );
+    });
+
+    it('should throw NotFoundException if user not found', async () => {
+      userService.findById.mockResolvedValue(null);
+
+      await expect(service.setPrimaryEmail(mockUserId, mockSecondaryEmail)).rejects.toThrow(
+        NotFoundException
+      );
+    });
+
+    it('should throw NotFoundException if email not found on user', async () => {
+      await expect(service.setPrimaryEmail(mockUserId, 'nonexistent@example.com')).rejects.toThrow(
+        NotFoundException
+      );
+    });
+
+    it('should throw BadRequestException if email is already primary', async () => {
+      await expect(service.setPrimaryEmail(mockUserId, mockEmail)).rejects.toThrow(
+        BadRequestException
+      );
+    });
+
+    it('should throw BadRequestException if email is not verified', async () => {
+      userService.findById.mockResolvedValue({
+        ...mockUserWithMultipleEmails(),
+        emails: [
+          { email: mockEmail, is_primary: true, is_verified: true, user_id: mockUserId },
+          { email: mockSecondaryEmail, is_primary: false, is_verified: false, user_id: mockUserId },
+        ],
+      });
+
+      await expect(service.setPrimaryEmail(mockUserId, mockSecondaryEmail)).rejects.toThrow(
+        BadRequestException
+      );
+    });
+
+    it('should not send code if email is not verified', async () => {
+      userService.findById.mockResolvedValue({
+        ...mockUserWithMultipleEmails(),
+        emails: [
+          { email: mockEmail, is_primary: true, is_verified: true, user_id: mockUserId },
+          { email: mockSecondaryEmail, is_primary: false, is_verified: false, user_id: mockUserId },
+        ],
+      });
+
+      await expect(service.setPrimaryEmail(mockUserId, mockSecondaryEmail)).rejects.toThrow();
+      expect(mailService.sendPrimaryEmailChangeCode).not.toHaveBeenCalled();
+    });
+
+    it('should throw BadRequestException if no current primary email found', async () => {
+      userService.findById.mockResolvedValue({
+        ...mockUserWithMultipleEmails(),
+        emails: [
+          { email: mockEmail, is_primary: false, is_verified: true, user_id: mockUserId },
+          { email: mockSecondaryEmail, is_primary: false, is_verified: true, user_id: mockUserId },
+        ],
+      });
+
+      await expect(service.setPrimaryEmail(mockUserId, mockSecondaryEmail)).rejects.toThrow(
+        BadRequestException
+      );
+    });
+
+    it('should propagate error if createVerificationCode fails', async () => {
+      authRepo.createVerificationCode.mockRejectedValue(new Error('DB error'));
+
+      await expect(service.setPrimaryEmail(mockUserId, mockSecondaryEmail)).rejects.toThrow(
+        'DB error'
+      );
+      expect(mailService.sendPrimaryEmailChangeCode).not.toHaveBeenCalled();
+    });
+  });
+
+  // ─── verifyPrimaryEmailChange() ───────────────────────────────────────────────
+
+  describe('verifyPrimaryEmailChange', () => {
+    beforeEach(() => {
+      authRepo.findValidVerificationCode.mockResolvedValue(mockVerificationCodeRecord());
+      authRepo.deleteVerificationCode.mockResolvedValue(undefined);
+      userService.setPrimaryEmail.mockResolvedValue(undefined);
+    });
+
+    it('should return success response with new primary email', async () => {
+      const result = await service.verifyPrimaryEmailChange(mockUserId, mockVerificationCode);
+
+      expect(result.status).toBe('success');
+      expect(result.message).toBe('Primary email changed successfully');
+      expect(result.data.new_primary).toBe(mockSecondaryEmail);
+    });
+
+    it('should call setPrimaryEmail with correct email from verification record', async () => {
+      await service.verifyPrimaryEmailChange(mockUserId, mockVerificationCode);
+
+      expect(userService.setPrimaryEmail).toHaveBeenCalledWith(mockUserId, mockSecondaryEmail);
+      expect(userService.setPrimaryEmail).toHaveBeenCalledTimes(1);
+    });
+
+    it('should delete verification code after successful change', async () => {
+      await service.verifyPrimaryEmailChange(mockUserId, mockVerificationCode);
+
+      expect(authRepo.deleteVerificationCode).toHaveBeenCalledWith(mockVerificationCodeRecord().id);
+      expect(authRepo.deleteVerificationCode).toHaveBeenCalledTimes(1);
+    });
+
+    it('should call setPrimaryEmail before deleting verification code', async () => {
+      const callOrder: string[] = [];
+      userService.setPrimaryEmail.mockImplementation(async () => {
+        callOrder.push('setPrimary');
+      });
+      authRepo.deleteVerificationCode.mockImplementation(async () => {
+        callOrder.push('deleteCode');
+      });
+
+      await service.verifyPrimaryEmailChange(mockUserId, mockVerificationCode);
+
+      expect(callOrder[0]).toBe('setPrimary');
+      expect(callOrder[1]).toBe('deleteCode');
+    });
+
+    it('should throw BadRequestException if verification code not found', async () => {
+      authRepo.findValidVerificationCode.mockResolvedValue(null);
+
+      await expect(
+        service.verifyPrimaryEmailChange(mockUserId, mockVerificationCode)
+      ).rejects.toThrow(BadRequestException);
+    });
+
+    it('should not change primary email if code not found', async () => {
+      authRepo.findValidVerificationCode.mockResolvedValue(null);
+
+      await expect(
+        service.verifyPrimaryEmailChange(mockUserId, mockVerificationCode)
+      ).rejects.toThrow();
+      expect(userService.setPrimaryEmail).not.toHaveBeenCalled();
+    });
+
+    it('should throw BadRequestException if verification code is expired', async () => {
+      authRepo.findValidVerificationCode.mockResolvedValue(mockExpiredVerificationCodeRecord());
+
+      await expect(
+        service.verifyPrimaryEmailChange(mockUserId, mockVerificationCode)
+      ).rejects.toThrow(BadRequestException);
+    });
+
+    it('should not change primary email if code is expired', async () => {
+      authRepo.findValidVerificationCode.mockResolvedValue(mockExpiredVerificationCodeRecord());
+
+      await expect(
+        service.verifyPrimaryEmailChange(mockUserId, mockVerificationCode)
+      ).rejects.toThrow();
+      expect(userService.setPrimaryEmail).not.toHaveBeenCalled();
+    });
+
+    it('should attempt to delete expired code after rejecting', async () => {
+      authRepo.findValidVerificationCode.mockResolvedValue(mockExpiredVerificationCodeRecord());
+
+      await expect(
+        service.verifyPrimaryEmailChange(mockUserId, mockVerificationCode)
+      ).rejects.toThrow();
+      expect(authRepo.deleteVerificationCode).toHaveBeenCalledWith(
+        mockExpiredVerificationCodeRecord().id
+      );
+    });
+
+    it('should propagate error if setPrimaryEmail fails', async () => {
+      userService.setPrimaryEmail.mockRejectedValue(new Error('DB error'));
+
+      await expect(
+        service.verifyPrimaryEmailChange(mockUserId, mockVerificationCode)
+      ).rejects.toThrow('DB error');
+    });
+  });
+  // ───────────────────────────────────────────────────────────────────────────────
+  // ─── changePasswordRequest() ──────────────────────────────────────────────────
+
+  describe('changePasswordRequest', () => {
+    beforeEach(() => {
+      jest.spyOn(tokensUtil, 'generateVerificationToken').mockReturnValue(mockVerificationToken);
+      userService.getPrimaryEmail.mockResolvedValue(mockEmail);
+      authRepo.createVerificationToken.mockResolvedValue(undefined);
+      mailService.sendPasswordReset.mockResolvedValue(undefined);
+    });
+
+    it('should return success response with masked email', async () => {
+      const result = await service.changePasswordRequest(mockUserId);
+
+      expect(result.status).toBe('success');
+      expect(result.data.email_sent).toBe(true);
+      expect(result.data.sent_to).toBe(mockEmail);
+    });
+
+    it('should call getPrimaryEmail with correct userId', async () => {
+      await service.changePasswordRequest(mockUserId);
+
+      expect(userService.getPrimaryEmail).toHaveBeenCalledWith(mockUserId);
+      expect(userService.getPrimaryEmail).toHaveBeenCalledTimes(1);
+    });
+
+    it('should create verification token with PASSWORD_RESET type', async () => {
+      await service.changePasswordRequest(mockUserId);
+
+      expect(authRepo.createVerificationToken).toHaveBeenCalledWith(
+        mockUserId,
+        mockVerificationToken,
+        mockEmail,
+        expect.any(Date),
+        'password_reset'
+      );
+    });
+
+    it('should send password reset email with correct args', async () => {
+      await service.changePasswordRequest(mockUserId);
+
+      expect(mailService.sendPasswordReset).toHaveBeenCalledWith(mockEmail, mockVerificationToken);
+      expect(mailService.sendPasswordReset).toHaveBeenCalledTimes(1);
+    });
+
+    it('should throw BadRequestException if no verified primary email found', async () => {
+      userService.getPrimaryEmail.mockResolvedValue(null);
+
+      await expect(service.changePasswordRequest(mockUserId)).rejects.toThrow(BadRequestException);
+    });
+
+    it('should not create token if no primary email found', async () => {
+      userService.getPrimaryEmail.mockResolvedValue(null);
+
+      await expect(service.changePasswordRequest(mockUserId)).rejects.toThrow();
+      expect(authRepo.createVerificationToken).not.toHaveBeenCalled();
+    });
+
+    it('should not send email if no primary email found', async () => {
+      userService.getPrimaryEmail.mockResolvedValue(null);
+
+      await expect(service.changePasswordRequest(mockUserId)).rejects.toThrow();
+      expect(mailService.sendPasswordReset).not.toHaveBeenCalled();
+    });
+
+    it('should not send email if createVerificationToken fails', async () => {
+      authRepo.createVerificationToken.mockRejectedValue(new Error('DB error'));
+
+      await expect(service.changePasswordRequest(mockUserId)).rejects.toThrow('DB error');
+      expect(mailService.sendPasswordReset).not.toHaveBeenCalled();
+    });
+
+    it('should propagate error if sendPasswordReset fails', async () => {
+      mailService.sendPasswordReset.mockRejectedValue(new Error('Mail error'));
+
+      await expect(service.changePasswordRequest(mockUserId)).rejects.toThrow('Mail error');
+    });
+  });
+
+  // ─── changePassword() ─────────────────────────────────────────────────────────
+
+  describe('changePassword', () => {
+    const mockPasswordResetToken = {
+      id: 'token-id-123',
+      user_id: mockUserId,
+      token: mockVerificationToken,
+      email: mockEmail,
+      expires_at: new Date(Date.now() + 60 * 60 * 1000), // 1 hour from now
+      type: 'password_reset',
+    };
+
+    beforeEach(() => {
+      authRepo.findPasswordResetToken.mockResolvedValue(mockPasswordResetToken);
+      userService.findById.mockResolvedValue(mockUser());
+      userService.verifyPassword.mockResolvedValue(false); // different password by default
+      userService.updatePassword.mockResolvedValue(undefined);
+      authRepo.deleteVerificationToken.mockResolvedValue(undefined);
+      authRepo.revokeAllForUser.mockResolvedValue(undefined);
+    });
+
+    it('should return success response', async () => {
+      const result = await service.changePassword(mockVerificationToken, 'NewPassword123!');
+
+      expect(result.status).toBe('success');
+      expect(result.data.password_changed).toBe(true);
+      expect(result.data.reset_at).toBeInstanceOf(Date);
+    });
+
+    it('should call findPasswordResetToken with correct token', async () => {
+      await service.changePassword(mockVerificationToken, 'NewPassword123!');
+
+      expect(authRepo.findPasswordResetToken).toHaveBeenCalledWith(mockVerificationToken);
+      expect(authRepo.findPasswordResetToken).toHaveBeenCalledTimes(1);
+    });
+
+    it('should update password with correct userId', async () => {
+      await service.changePassword(mockVerificationToken, 'NewPassword123!');
+
+      expect(userService.updatePassword).toHaveBeenCalledWith(mockUserId, 'NewPassword123!');
+      expect(userService.updatePassword).toHaveBeenCalledTimes(1);
+    });
+
+    it('should delete token after successful password change', async () => {
+      await service.changePassword(mockVerificationToken, 'NewPassword123!');
+
+      expect(authRepo.deleteVerificationToken).toHaveBeenCalledWith(mockPasswordResetToken.id);
+      expect(authRepo.deleteVerificationToken).toHaveBeenCalledTimes(1);
+    });
+
+    it('should revoke all refresh tokens after password change', async () => {
+      await service.changePassword(mockVerificationToken, 'NewPassword123!');
+
+      expect(authRepo.revokeAllForUser).toHaveBeenCalledWith(mockUserId);
+      expect(authRepo.revokeAllForUser).toHaveBeenCalledTimes(1);
+    });
+
+    it('should delete token before revoking refresh tokens', async () => {
+      const callOrder: string[] = [];
+      authRepo.deleteVerificationToken.mockImplementation(async () => {
+        callOrder.push('delete');
+      });
+      authRepo.revokeAllForUser.mockImplementation(async () => {
+        callOrder.push('revoke');
+      });
+
+      await service.changePassword(mockVerificationToken, 'NewPassword123!');
+
+      expect(callOrder).toEqual(['delete', 'revoke']);
+    });
+
+    it('should throw BadRequestException if token not found', async () => {
+      authRepo.findPasswordResetToken.mockResolvedValue(null);
+
+      await expect(
+        service.changePassword(mockVerificationToken, 'NewPassword123!')
+      ).rejects.toThrow(BadRequestException);
+    });
+
+    it('should not update password if token not found', async () => {
+      authRepo.findPasswordResetToken.mockResolvedValue(null);
+
+      await expect(
+        service.changePassword(mockVerificationToken, 'NewPassword123!')
+      ).rejects.toThrow();
+      expect(userService.updatePassword).not.toHaveBeenCalled();
+    });
+
+    it('should throw BadRequestException if token is expired', async () => {
+      authRepo.findPasswordResetToken.mockResolvedValue({
+        ...mockPasswordResetToken,
+        expires_at: new Date(Date.now() - 1000), // expired 1 second ago
+      });
+
+      await expect(
+        service.changePassword(mockVerificationToken, 'NewPassword123!')
+      ).rejects.toThrow(BadRequestException);
+    });
+
+    it('should not update password if token is expired', async () => {
+      authRepo.findPasswordResetToken.mockResolvedValue({
+        ...mockPasswordResetToken,
+        expires_at: new Date(Date.now() - 1000),
+      });
+
+      await expect(
+        service.changePassword(mockVerificationToken, 'NewPassword123!')
+      ).rejects.toThrow();
+      expect(userService.updatePassword).not.toHaveBeenCalled();
+    });
+
+    it('should throw BadRequestException if new password is same as current', async () => {
+      userService.verifyPassword.mockResolvedValue(true); // same password
+
+      await expect(
+        service.changePassword(mockVerificationToken, 'SamePassword123!')
+      ).rejects.toThrow(BadRequestException);
+    });
+
+    it('should not update password if same as current', async () => {
+      userService.verifyPassword.mockResolvedValue(true);
+
+      await expect(
+        service.changePassword(mockVerificationToken, 'SamePassword123!')
+      ).rejects.toThrow();
+      expect(userService.updatePassword).not.toHaveBeenCalled();
+    });
+
+    it('should propagate error if updatePassword fails', async () => {
+      userService.updatePassword.mockRejectedValue(new Error('DB error'));
+
+      await expect(
+        service.changePassword(mockVerificationToken, 'NewPassword123!')
+      ).rejects.toThrow('DB error');
+    });
+
+    it('should not delete token if updatePassword fails', async () => {
+      userService.updatePassword.mockRejectedValue(new Error('DB error'));
+
+      await expect(
+        service.changePassword(mockVerificationToken, 'NewPassword123!')
+      ).rejects.toThrow();
+      expect(authRepo.deleteVerificationToken).not.toHaveBeenCalled();
+    });
+  });
+
+  // ─── forgotPassword() ─────────────────────────────────────────────────────────
+
+  describe('forgotPassword', () => {
+    beforeEach(() => {
+      jest.spyOn(tokensUtil, 'generateVerificationToken').mockReturnValue(mockVerificationToken);
+      userService.findEmailRecord.mockResolvedValue({ ...mockUserEmail(), is_verified: true });
+      authRepo.createVerificationToken.mockResolvedValue(undefined);
+      mailService.sendPasswordReset.mockResolvedValue(undefined);
+    });
+
+    it('should return success response', async () => {
+      const result = await service.forgotPassword(mockEmail);
+
+      expect(result.status).toBe('success');
+      expect(result.data.email_sent).toBe(true);
+      expect(result.data.sent_to).toBe(mockEmail);
+    });
+
+    it('should create verification token with PASSWORD_RESET type', async () => {
+      await service.forgotPassword(mockEmail);
+
+      expect(authRepo.createVerificationToken).toHaveBeenCalledWith(
+        mockUserEmail().user_id,
+        mockVerificationToken,
+        mockEmail,
+        expect.any(Date),
+        'password_reset'
+      );
+    });
+
+    it('should send password reset email with correct args', async () => {
+      await service.forgotPassword(mockEmail);
+
+      expect(mailService.sendPasswordReset).toHaveBeenCalledWith(mockEmail, mockVerificationToken);
+      expect(mailService.sendPasswordReset).toHaveBeenCalledTimes(1);
+    });
+
+    it('should throw NotFoundException if email not found', async () => {
+      userService.findEmailRecord.mockResolvedValue(null);
+
+      await expect(service.forgotPassword(mockEmail)).rejects.toThrow(NotFoundException);
+    });
+
+    it('should throw NotFoundException if email is not verified', async () => {
+      userService.findEmailRecord.mockResolvedValue({
+        ...mockUserEmail(),
+        is_verified: false,
+      });
+
+      await expect(service.forgotPassword(mockEmail)).rejects.toThrow(NotFoundException);
+    });
+
+    it('should not create token if email not found', async () => {
+      userService.findEmailRecord.mockResolvedValue(null);
+
+      await expect(service.forgotPassword(mockEmail)).rejects.toThrow();
+      expect(authRepo.createVerificationToken).not.toHaveBeenCalled();
+    });
+
+    it('should not send email if email not verified', async () => {
+      userService.findEmailRecord.mockResolvedValue({
+        ...mockUserEmail(),
+        is_verified: false,
+      });
+
+      await expect(service.forgotPassword(mockEmail)).rejects.toThrow();
+      expect(mailService.sendPasswordReset).not.toHaveBeenCalled();
+    });
+
+    it('should not send email if createVerificationToken fails', async () => {
+      authRepo.createVerificationToken.mockRejectedValue(new Error('DB error'));
+
+      await expect(service.forgotPassword(mockEmail)).rejects.toThrow('DB error');
+      expect(mailService.sendPasswordReset).not.toHaveBeenCalled();
+    });
+
+    it('should propagate error if sendPasswordReset fails', async () => {
+      mailService.sendPasswordReset.mockRejectedValue(new Error('Mail error'));
+
+      await expect(service.forgotPassword(mockEmail)).rejects.toThrow('Mail error');
     });
   });
 

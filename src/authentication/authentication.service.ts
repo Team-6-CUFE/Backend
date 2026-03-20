@@ -14,12 +14,17 @@ import * as crypto from 'crypto';
 import { RegisterDto } from './dto/register.dto';
 import { UserService } from '../user/user.service';
 import { MailService } from '../mail/mail.service';
-import { generateVerificationToken, getExpiryDate } from '../common/utilities/tokens.util';
+import {
+  generateVerificationToken,
+  getExpiryDate,
+  generateSixDigitCode,
+} from '../common/utilities/tokens.util';
 import { AuthenticationRepository } from './authentication.repositry';
 import { LoginDto } from './dto/login.dto';
 import { JwtPayload, UserPlan } from './strategies/jwt.strategy';
 import { UserRole } from './decorators/roles.decorator';
 import { verifyCaptcha } from '../common/utilities/captcha.util';
+import { TokenType } from './entities/emailverficationtokens.entity';
 import { OAuthProfile } from './types/oauth-profile.type';
 import { User } from '../user/entities/user.entity';
 import { CompleteOAuthProfileDto } from './dto/complete-oauth-profile.dto';
@@ -36,6 +41,8 @@ const REFRESH_COOKIE_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000;
 
 const VERIFICATION_TOKEN_EXPIRY_MINUTES = 24 * 60;
 const MAX_RESEND_ATTEMPTS = 3;
+
+const VERIFICATION_CODE_EXPIRY_MINUTES = 5;
 
 const PENDING_OAUTH_TOKEN_EXPIRY_MINUTES = 10;
 @Injectable()
@@ -72,9 +79,12 @@ export class AuthenticationService {
       createdUser.user_id,
       verificationToken,
       email,
-      expiryDate
+      expiryDate,
+      TokenType.EMAIL_VERIFICATION
     );
+    console.log('will send email now');
     await this.mailService.sendEmailVerification(email, verificationToken);
+    console.log('email sent');
     return {
       status: 'success',
       message: 'Registration successful. Please check your email to verify your account.',
@@ -108,25 +118,30 @@ export class AuthenticationService {
 
   async login(loginDto: LoginDto, response: Response) {
     const { identifier, password } = loginDto;
-
+    console.log('Login attempt with password', password);
     // Find user
-    let user = await this.userService.findByEmail(identifier);
+    const foundUser =
+      (await this.userService.findByEmail(identifier)) ??
+      (await this.userService.findByUsername(identifier));
 
-    // If login with email check that the email is verified
-    if (user) {
-      if (!user.emails.find((e) => e.email === identifier)?.is_verified) {
-        throw new ForbiddenException({
-          message: 'Please verify your email address before logging in',
-          email_verified: false,
-          email: identifier,
-        });
-      }
-    } else {
-      user = await this.userService.findByUsername(identifier);
+    if (!foundUser) {
+      throw new UnauthorizedException('Invalid identifier or password');
     }
+
+    const user = await this.userService.findById(foundUser.user_id);
 
     if (!user) {
       throw new UnauthorizedException('Invalid identifier or password');
+    }
+
+    // If login with email check that the email is verified
+    const usedEmail = user.emails.find((e) => e.email === identifier);
+    if (usedEmail && !usedEmail.is_verified) {
+      throw new ForbiddenException({
+        message: 'Please verify your email address before logging in',
+        email_verified: false,
+        email: identifier,
+      });
     }
 
     // Get primary email
@@ -295,7 +310,6 @@ export class AuthenticationService {
   }
 
   async verifyEmail(verificationToken: string) {
-    console.log('verifying token 2', verificationToken);
     return this.authRepository.verifyEmail(verificationToken);
   }
 
@@ -324,7 +338,8 @@ export class AuthenticationService {
       useremail.user_id,
       newVerificationToken,
       email,
-      expiryDate
+      expiryDate,
+      TokenType.EMAIL_VERIFICATION
     );
     // send email
     await this.sendVerificationEmail(email, newVerificationToken);
@@ -336,10 +351,259 @@ export class AuthenticationService {
 
   async removeUser(userId: string, response: Response, refreshToken?: string) {
     await this.logout(response, refreshToken);
+    await this.authRepository.revokeAllForUser(userId);
     await this.userService.remove(userId);
     return {
       status: 'success',
       message: 'Your account has been deleted successfully.',
+    };
+  }
+
+  async addEmail(userId: string, email: string) {
+    const user = await this.userService.findById(userId);
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+
+    if (await this.userService.checkEmailExists(email)) {
+      throw new BadRequestException(`Email ${email} is already associated with an account`);
+    }
+
+    const newEmailRecord = await this.userService.addEmail(userId, email);
+
+    const verificationToken = generateVerificationToken();
+    const expiryDate = getExpiryDate(VERIFICATION_TOKEN_EXPIRY_MINUTES);
+    await this.authRepository.createVerificationToken(
+      userId,
+      verificationToken,
+      email,
+      expiryDate,
+      TokenType.EMAIL_VERIFICATION
+    );
+
+    await this.mailService.sendEmailAddedNotification(
+      user.emails.find((e) => e.is_primary)?.email || '',
+      email,
+      user.display_name
+    );
+    await this.mailService.sendEmailVerification(email, verificationToken);
+
+    return {
+      status: 'success',
+      message: 'Email added successfully. Please check your inbox to verify.',
+      data: {
+        email: newEmailRecord.email,
+        is_primary: newEmailRecord.is_primary,
+        is_verified: newEmailRecord.is_verified,
+        verification_sent: true,
+        notification_sent_to_primary: false,
+        created_at: newEmailRecord.created_at,
+      },
+    };
+  }
+
+  async removeEmail(userId: string, email: string) {
+    const user = await this.userService.findById(userId);
+    if (!user) {
+      throw new NotFoundException('Email not found');
+    }
+
+    const emailRecord = user.emails.find((e) => e.email === email);
+    if (!emailRecord) {
+      throw new NotFoundException(`Email not found`);
+    }
+
+    if (user.emails.length <= 1) {
+      throw new BadRequestException('Cannot delete your only email address');
+    }
+
+    if (emailRecord.is_primary) {
+      throw new BadRequestException(
+        'Cannot delete primary email. Please set another email as primary first.'
+      );
+    }
+
+    await this.userService.removeEmail(userId, email);
+    return {
+      status: 'success',
+      message: 'Email removed successfully',
+    };
+  }
+
+  async getEmails(userId: string) {
+    const emails = await this.userService.getEmails(userId);
+    if (!emails) {
+      throw new NotFoundException('User not found');
+    }
+
+    return {
+      status: 'success',
+      emails: emails.map((e) => ({
+        email: e.email,
+        is_primary: e.is_primary,
+        is_verified: e.is_verified,
+        created_at: e.created_at,
+        updated_at: e.updated_at,
+      })),
+    };
+  }
+
+  async setPrimaryEmail(userId: string, email: string) {
+    const user = await this.userService.findById(userId);
+    if (!user) {
+      throw new NotFoundException('Email not found');
+    }
+
+    const emailRecord = user.emails.find((e) => e.email === email);
+    if (!emailRecord) {
+      throw new NotFoundException(`Email not found`);
+    }
+
+    if (emailRecord.is_primary) {
+      throw new BadRequestException('This email is already the primary email');
+    }
+
+    if (!emailRecord.is_verified) {
+      throw new BadRequestException(
+        'Cannot set unverified email as primary. Please verify the email first.'
+      );
+    }
+
+    const currentPrimary = user.emails.find((e) => e.is_primary);
+    if (!currentPrimary) {
+      throw new BadRequestException('Current primary email not found');
+    }
+
+    await this.authRepository.deleteExistingVerificationCodes(userId); // for resending code
+
+    const verificationCode = generateSixDigitCode();
+    const expiryDate = getExpiryDate(VERIFICATION_CODE_EXPIRY_MINUTES);
+    await this.authRepository.createVerificationCode(userId, verificationCode, email, expiryDate);
+    await this.mailService.sendPrimaryEmailChangeCode(
+      currentPrimary.email,
+      verificationCode,
+      user.display_name,
+      email
+    );
+
+    return {
+      status: 'success',
+      message:
+        'Verification code sent to your current primary email. Please verify to complete the change.',
+      data: {
+        verification_required: true,
+        code_sent_to: currentPrimary.email,
+        new_primary_email: email,
+        expires_in: 600,
+      },
+    };
+  }
+
+  async verifyPrimaryEmailChange(userId: string, code: string) {
+    const verificationRecord = await this.authRepository.findValidVerificationCode(userId, code);
+    if (!verificationRecord) {
+      throw new BadRequestException('Invalid or expired verification code');
+    }
+
+    if (verificationRecord.expires_at < new Date()) {
+      this.authRepository.deleteVerificationCode(verificationRecord.id).catch(() => null);
+      throw new BadRequestException('Invalid or expired verification code');
+    }
+
+    const emailToSetPrimary = verificationRecord.email;
+    await this.userService.setPrimaryEmail(userId, emailToSetPrimary);
+    await this.authRepository.deleteVerificationCode(verificationRecord.id);
+
+    return {
+      status: 'success',
+      message: 'Primary email changed successfully',
+      data: {
+        new_primary: emailToSetPrimary,
+        changed_at: Date.now(),
+      },
+    };
+  }
+
+  async changePasswordRequest(userId: string) {
+    const verifiedPrimaryEmail = await this.userService.getPrimaryEmail(userId);
+    if (!verifiedPrimaryEmail) {
+      throw new BadRequestException(
+        'No verified primary email found. Please verify your email address first.'
+      );
+    }
+    // we will generate a verification
+    const verificationToken = generateVerificationToken();
+    const expiryDate = getExpiryDate(VERIFICATION_TOKEN_EXPIRY_MINUTES);
+    await this.authRepository.createVerificationToken(
+      userId,
+      verificationToken,
+      verifiedPrimaryEmail,
+      expiryDate,
+      TokenType.PASSWORD_RESET
+    );
+    await this.mailService.sendPasswordReset(verifiedPrimaryEmail, verificationToken);
+    return {
+      status: 'success',
+      message: `Password reset link sent to your primary email address ${verifiedPrimaryEmail}`,
+      data: {
+        email_sent: true,
+        sent_to: `${verifiedPrimaryEmail}`,
+      },
+    };
+  }
+
+  async changePassword(token: string, newPassword: string) {
+    console.log('Received password change request with token', token);
+    const record = await this.authRepository.findPasswordResetToken(token);
+    if (!record) {
+      console.log('hi');
+      throw new BadRequestException('Invalid or expired password reset token.');
+    }
+    if (record.expires_at < new Date()) {
+      console.log('hello');
+      throw new BadRequestException('Invalid or expired password reset token.');
+    }
+    const user = await this.userService.findById(record.user_id);
+    const isSamePassword = await this.userService.verifyPassword(newPassword, user!.password_hash);
+    if (isSamePassword) {
+      throw new BadRequestException('New password must be different from current password.');
+    }
+    await this.userService.updatePassword(record.user_id, newPassword);
+    await this.authRepository.deleteVerificationToken(record.id);
+    await this.authRepository.revokeAllForUser(record.user_id);
+    return {
+      status: 'success',
+      message: 'Password has been changed successfully. Please log in with your new password.',
+      data: {
+        password_changed: true,
+        reset_at: new Date(),
+      },
+    };
+  }
+
+  async forgotPassword(email: string) {
+    const useremail = await this.userService.findEmailRecord(email);
+    if (!useremail || !useremail.is_verified) {
+      throw new NotFoundException(`No verified account found with email ${email}.`);
+    }
+    const userId = useremail.user_id;
+    const verificationToken = generateVerificationToken();
+    const expiryDate = getExpiryDate(VERIFICATION_TOKEN_EXPIRY_MINUTES);
+    await this.authRepository.createVerificationToken(
+      userId,
+      verificationToken,
+      email,
+      expiryDate,
+      TokenType.PASSWORD_RESET
+    );
+    await this.mailService.sendPasswordReset(email, verificationToken);
+    return {
+      status: 'success',
+      message: `Password reset link sent to your email address ${email}`,
+      data: {
+        email_sent: true,
+        sent_to: `${email}`,
+      },
     };
   }
 

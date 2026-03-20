@@ -184,6 +184,46 @@ export class UserRepository {
     ) as UserCounts;
   }
 
+  async addEmail(userId: string, email: string): Promise<UserEmail> {
+    const newEmail = this.userEmailRepo.create({
+      email,
+      user_id: userId,
+      is_primary: false,
+      is_verified: false,
+    });
+    return this.userEmailRepo.save(newEmail);
+  }
+
+  async removeEmail(userId: string, email: string): Promise<void> {
+    await this.userEmailRepo.delete({ user_id: userId, email });
+  }
+
+  async getEmails(userId: string): Promise<UserEmail[]> {
+    return this.userEmailRepo.find({ where: { user_id: userId } });
+  }
+
+  async setPrimaryEmail(userId: string, email: string): Promise<void> {
+    // Unset current primary email
+    await this.userEmailRepo.update({ user_id: userId, is_primary: true }, { is_primary: false });
+    // Set new primary email
+    await this.userEmailRepo.update({ user_id: userId, email }, { is_primary: true });
+  }
+
+  async getPrimaryEmail(userId: string): Promise<string | null> {
+    const emailRecord = await this.userEmailRepo.findOne({
+      where: {
+        user_id: userId,
+        is_primary: true,
+        is_verified: true,
+      },
+    });
+    return emailRecord?.email ?? null;
+  }
+
+  async updatePassword(userId: string, newPasswordHash: string): Promise<void> {
+    await this.repository.update(userId, { password_hash: newPasswordHash });
+  }
+
   async createSocialAccount(user_id: string, provider: string, provider_id: string, email: string) {
     const socialAccount = this.socialAccountRepo.create({
       provider_id,

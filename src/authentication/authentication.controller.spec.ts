@@ -1,5 +1,5 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { NotFoundException } from '@nestjs/common';
+import { BadRequestException, NotFoundException } from '@nestjs/common';
 import { AuthenticationController } from './authentication.controller';
 import { AuthenticationService } from './authentication.service';
 import {
@@ -13,6 +13,8 @@ import {
   mockRefreshToken,
   mockResponseWithCookie,
   mockRequest,
+  mockSecondaryEmail,
+  mockVerificationCode,
   mockOAuthProfile,
   mockPendingToken,
   mockCompleteOAuthProfileDto,
@@ -298,6 +300,327 @@ describe('AuthenticationController', () => {
       await expect(
         controller.remove(mockUserId, mockRequest() as any, mockResponseWithCookie() as any)
       ).rejects.toThrow('Delete failed');
+    });
+  });
+
+  // ──────────────────────────────────────────────────────────────────────────────
+  // ─── addEmail ────────────────────────────────────────────────────────────────
+
+  describe('addEmail', () => {
+    it('should delegate to service with userId and email', async () => {
+      const dto = { email: mockSecondaryEmail };
+      service.addEmail.mockResolvedValue({ status: 'success', message: 'Email added', data: {} });
+
+      await controller.addEmail(mockUserId, dto as any);
+
+      expect(service.addEmail).toHaveBeenCalledWith(mockUserId, mockSecondaryEmail);
+      expect(service.addEmail).toHaveBeenCalledTimes(1);
+    });
+
+    it('should return the service response as is', async () => {
+      const mockServiceResponse = { status: 'success', message: 'Email added', data: {} };
+      service.addEmail.mockResolvedValue(mockServiceResponse);
+
+      const result = await controller.addEmail(mockUserId, { email: mockSecondaryEmail } as any);
+
+      expect(result).toEqual(mockServiceResponse);
+    });
+
+    it('should propagate exception thrown by service', async () => {
+      service.addEmail.mockRejectedValue(new BadRequestException('Email already exists'));
+
+      await expect(
+        controller.addEmail(mockUserId, { email: mockSecondaryEmail } as any)
+      ).rejects.toThrow(BadRequestException);
+    });
+  });
+
+  // ─── removeEmail ─────────────────────────────────────────────────────────────
+
+  describe('removeEmail', () => {
+    it('should delegate to service with userId and email param', async () => {
+      service.removeEmail.mockResolvedValue({ status: 'success', message: 'Email removed' });
+
+      await controller.removeEmail(mockUserId, mockSecondaryEmail);
+
+      expect(service.removeEmail).toHaveBeenCalledWith(mockUserId, mockSecondaryEmail);
+      expect(service.removeEmail).toHaveBeenCalledTimes(1);
+    });
+
+    it('should return the service response as is', async () => {
+      const mockServiceResponse = { status: 'success', message: 'Email removed successfully' };
+      service.removeEmail.mockResolvedValue(mockServiceResponse);
+
+      const result = await controller.removeEmail(mockUserId, mockSecondaryEmail);
+
+      expect(result).toEqual(mockServiceResponse);
+    });
+
+    it('should propagate exception thrown by service', async () => {
+      service.removeEmail.mockRejectedValue(new BadRequestException('Cannot delete primary email'));
+
+      await expect(controller.removeEmail(mockUserId, mockSecondaryEmail)).rejects.toThrow(
+        BadRequestException
+      );
+    });
+  });
+
+  // ─── getEmails ────────────────────────────────────────────────────────────────
+
+  describe('getEmails', () => {
+    it('should delegate to service with userId from jwt', async () => {
+      service.getEmails.mockResolvedValue({ status: 'success', emails: [] });
+
+      await controller.getEmails(mockUserId);
+
+      expect(service.getEmails).toHaveBeenCalledWith(mockUserId);
+      expect(service.getEmails).toHaveBeenCalledTimes(1);
+    });
+
+    it('should return the service response as is', async () => {
+      const mockServiceResponse = {
+        status: 'success',
+        emails: [{ email: mockEmail, is_primary: true, is_verified: true }],
+      };
+      service.getEmails.mockResolvedValue(mockServiceResponse);
+
+      const result = await controller.getEmails(mockUserId);
+
+      expect(result).toEqual(mockServiceResponse);
+    });
+
+    it('should propagate exception thrown by service', async () => {
+      service.getEmails.mockRejectedValue(new NotFoundException('User not found'));
+
+      await expect(controller.getEmails(mockUserId)).rejects.toThrow(NotFoundException);
+    });
+  });
+
+  // ─── setPrimaryEmail ──────────────────────────────────────────────────────────
+
+  describe('setPrimaryEmail', () => {
+    it('should delegate to service with userId and email param', async () => {
+      service.setPrimaryEmail.mockResolvedValue({
+        status: 'success',
+        message: 'Verification code sent',
+        data: {},
+      });
+
+      await controller.setPrimaryEmail(mockUserId, mockSecondaryEmail);
+
+      expect(service.setPrimaryEmail).toHaveBeenCalledWith(mockUserId, mockSecondaryEmail);
+      expect(service.setPrimaryEmail).toHaveBeenCalledTimes(1);
+    });
+
+    it('should return the service response as is', async () => {
+      const mockServiceResponse = {
+        status: 'success',
+        message: 'Verification code sent to your current primary email.',
+        data: {
+          verification_required: true,
+          code_sent_to: mockEmail,
+          new_primary_email: mockSecondaryEmail,
+          expires_in: 600,
+        },
+      };
+      service.setPrimaryEmail.mockResolvedValue(mockServiceResponse);
+
+      const result = await controller.setPrimaryEmail(mockUserId, mockSecondaryEmail);
+
+      expect(result).toEqual(mockServiceResponse);
+    });
+
+    it('should propagate exception thrown by service', async () => {
+      service.setPrimaryEmail.mockRejectedValue(
+        new BadRequestException('Email is already primary')
+      );
+
+      await expect(controller.setPrimaryEmail(mockUserId, mockSecondaryEmail)).rejects.toThrow(
+        BadRequestException
+      );
+    });
+  });
+
+  // ─── verifyPrimaryEmailChange ─────────────────────────────────────────────────
+
+  describe('verifyPrimaryEmailChange', () => {
+    it('should delegate to service with userId and code from body', async () => {
+      service.verifyPrimaryEmailChange.mockResolvedValue({
+        status: 'success',
+        message: 'Primary email changed successfully',
+        data: {},
+      });
+
+      await controller.verifyPrimaryEmailChange(mockUserId, mockVerificationCode);
+
+      expect(service.verifyPrimaryEmailChange).toHaveBeenCalledWith(
+        mockUserId,
+        mockVerificationCode
+      );
+      expect(service.verifyPrimaryEmailChange).toHaveBeenCalledTimes(1);
+    });
+
+    it('should return the service response as is', async () => {
+      const mockServiceResponse = {
+        status: 'success',
+        message: 'Primary email changed successfully',
+        data: { new_primary: mockSecondaryEmail },
+      };
+      service.verifyPrimaryEmailChange.mockResolvedValue(mockServiceResponse);
+
+      const result = await controller.verifyPrimaryEmailChange(mockUserId, mockVerificationCode);
+
+      expect(result).toEqual(mockServiceResponse);
+    });
+
+    it('should propagate exception thrown by service', async () => {
+      service.verifyPrimaryEmailChange.mockRejectedValue(
+        new BadRequestException('Invalid or expired verification code')
+      );
+
+      await expect(
+        controller.verifyPrimaryEmailChange(mockUserId, mockVerificationCode)
+      ).rejects.toThrow(BadRequestException);
+    });
+  });
+  // ──────────────────────────────────────────────────────────────────────────────
+  // ─── changePasswordRequest ────────────────────────────────────────────────────
+
+  describe('changePasswordRequest', () => {
+    it('should delegate to service with userId from JWT', async () => {
+      service.changePasswordRequest.mockResolvedValue({
+        status: 'success',
+        message: 'Password reset link sent to your primary email address.',
+        data: { email_sent: true, sent_to: mockEmail },
+      });
+
+      await controller.changePasswordRequest(mockUserId);
+
+      expect(service.changePasswordRequest).toHaveBeenCalledWith(mockUserId);
+      expect(service.changePasswordRequest).toHaveBeenCalledTimes(1);
+    });
+
+    it('should return the service response as is', async () => {
+      const mockServiceResponse = {
+        status: 'success',
+        message: 'Password reset link sent to your primary email address.',
+        data: { email_sent: true, sent_to: mockEmail },
+      };
+      service.changePasswordRequest.mockResolvedValue(mockServiceResponse);
+
+      const result = await controller.changePasswordRequest(mockUserId);
+
+      expect(result).toEqual(mockServiceResponse);
+    });
+
+    it('should propagate exception thrown by service', async () => {
+      service.changePasswordRequest.mockRejectedValue(
+        new BadRequestException('No verified primary email found.')
+      );
+
+      await expect(controller.changePasswordRequest(mockUserId)).rejects.toThrow(
+        BadRequestException
+      );
+    });
+  });
+
+  // ─── changePassword ───────────────────────────────────────────────────────────
+
+  describe('changePassword', () => {
+    const mockChangePasswordDto = {
+      token: mockVerificationToken,
+      newPassword: 'NewSecurePassword123!',
+    };
+
+    it('should delegate to service with token and newPassword', async () => {
+      service.changePassword.mockResolvedValue({
+        status: 'success',
+        message: 'Password has been changed successfully.',
+        data: { password_changed: true, reset_at: new Date() },
+      });
+
+      await controller.changePassword(mockChangePasswordDto as any);
+
+      expect(service.changePassword).toHaveBeenCalledWith(
+        mockChangePasswordDto.token,
+        mockChangePasswordDto.newPassword
+      );
+      expect(service.changePassword).toHaveBeenCalledTimes(1);
+    });
+
+    it('should return the service response as is', async () => {
+      const mockServiceResponse = {
+        status: 'success',
+        message: 'Password has been changed successfully.',
+        data: { password_changed: true, reset_at: new Date() },
+      };
+      service.changePassword.mockResolvedValue(mockServiceResponse);
+
+      const result = await controller.changePassword(mockChangePasswordDto as any);
+
+      expect(result).toEqual(mockServiceResponse);
+    });
+
+    it('should propagate exception if token is invalid', async () => {
+      service.changePassword.mockRejectedValue(
+        new BadRequestException('Invalid or expired password reset token.')
+      );
+
+      await expect(controller.changePassword(mockChangePasswordDto as any)).rejects.toThrow(
+        BadRequestException
+      );
+    });
+
+    it('should propagate exception if same password', async () => {
+      service.changePassword.mockRejectedValue(
+        new BadRequestException('New password must be different from current password.')
+      );
+
+      await expect(controller.changePassword(mockChangePasswordDto as any)).rejects.toThrow(
+        BadRequestException
+      );
+    });
+  });
+
+  // ─── forgotPassword ───────────────────────────────────────────────────────────
+
+  describe('forgotPassword', () => {
+    it('should delegate to service with email', async () => {
+      service.forgotPassword.mockResolvedValue({
+        status: 'success',
+        message: 'Password reset link sent.',
+        data: { email_sent: true, sent_to: mockEmail },
+      });
+
+      await controller.forgotPassword(mockEmail);
+
+      expect(service.forgotPassword).toHaveBeenCalledWith(mockEmail);
+      expect(service.forgotPassword).toHaveBeenCalledTimes(1);
+    });
+
+    it('should return the service response as is', async () => {
+      const mockServiceResponse = {
+        status: 'success',
+        message: 'Password reset link sent.',
+        data: { email_sent: true, sent_to: mockEmail },
+      };
+      service.forgotPassword.mockResolvedValue(mockServiceResponse);
+
+      const result = await controller.forgotPassword(mockEmail);
+
+      expect(result).toEqual(mockServiceResponse);
+    });
+
+    it('should propagate exception if email not found', async () => {
+      service.forgotPassword.mockRejectedValue(new NotFoundException('No verified account found.'));
+
+      await expect(controller.forgotPassword(mockEmail)).rejects.toThrow(NotFoundException);
+    });
+
+    it('should propagate exception if email not verified', async () => {
+      service.forgotPassword.mockRejectedValue(new NotFoundException('No verified account found.'));
+
+      await expect(controller.forgotPassword(mockEmail)).rejects.toThrow(NotFoundException);
     });
   });
 
