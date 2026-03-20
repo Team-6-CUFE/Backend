@@ -303,7 +303,6 @@ describe('AuthenticationController', () => {
     });
   });
 
-  // ──────────────────────────────────────────────────────────────────────────────
   // ─── addEmail ────────────────────────────────────────────────────────────────
 
   describe('addEmail', () => {
@@ -483,7 +482,6 @@ describe('AuthenticationController', () => {
       ).rejects.toThrow(BadRequestException);
     });
   });
-  // ──────────────────────────────────────────────────────────────────────────────
   // ─── changePasswordRequest ────────────────────────────────────────────────────
 
   describe('changePasswordRequest', () => {

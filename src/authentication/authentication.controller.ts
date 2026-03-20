@@ -12,6 +12,7 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import { Response, Request } from 'express';
+import { ApiTags } from '@nestjs/swagger';
 import { AuthenticationService } from './authentication.service';
 import { RegisterDto } from './dto/register.dto';
 import { Public } from './decorators/public.decorator';
@@ -25,11 +26,35 @@ import { CompleteOAuthProfileDto } from './dto/complete-oauth-profile.dto';
 import { GoogleAuthGuard } from './guards/google-auth.guard';
 import { OAuthProfile } from './types/oauth-profile.type';
 import { FacebookAuthGuard } from './guards/facebook-auth.guard';
+import {
+  ApiDeleteAccount,
+  ApiRegister,
+  ApiLogin,
+  ApiLogout,
+  ApiRefreshToken,
+  ApiVerifyEmail,
+  ApiResendVerification,
+  ApiGetEmails,
+  ApiAddEmail,
+  ApiRemoveEmail,
+  ApiSetPrimaryEmail,
+  ApiVerifyPrimaryEmailChange,
+  ApiChangePasswordRequest,
+  ApiResetPassword,
+  ApiForgotPassword,
+  ApiGoogleLogin,
+  ApiGoogleCallback,
+  ApiFacebookLogin,
+  ApiFacebookCallback,
+  ApiCompleteOAuth,
+} from './authentication.swagger';
 
+@ApiTags('Authentication')
 @Controller('auth')
 export class AuthenticationController {
   constructor(private readonly authenticationService: AuthenticationService) {}
 
+  @ApiDeleteAccount()
   @Delete('account')
   remove(
     @CurrentUser('sub') userId: string,
@@ -40,12 +65,14 @@ export class AuthenticationController {
     return this.authenticationService.removeUser(userId, response, refreshToken);
   }
 
+  @ApiRegister()
   @Public()
   @Post('register')
   register(@Body() registerDto: RegisterDto) {
     return this.authenticationService.register(registerDto);
   }
 
+  @ApiLogin()
   @Public()
   @Post('login')
   @HttpCode(HttpStatus.OK)
@@ -53,6 +80,7 @@ export class AuthenticationController {
     return this.authenticationService.login(loginDto, response);
   }
 
+  @ApiLogout()
   @Post('logout')
   @HttpCode(HttpStatus.OK)
   logout(@Req() req: Request, @Res({ passthrough: true }) response: Response) {
@@ -60,6 +88,7 @@ export class AuthenticationController {
     return this.authenticationService.logout(response, refreshToken);
   }
 
+  @ApiRefreshToken()
   @Public()
   @UseGuards(RefreshAuthGuard)
   @Post('refresh')
@@ -77,50 +106,58 @@ export class AuthenticationController {
     );
   }
 
+  @ApiVerifyEmail()
   @Public()
   @Get('verify-email/:token')
   verifyemail(@Param('token') token: string) {
-    console.log('Received verification token', token);
     return this.authenticationService.verifyEmail(token);
   }
 
+  @ApiResendVerification()
   @Public()
   @Post('resend-verification')
   resendVerificationEmail(@Body('email') email: string) {
     return this.authenticationService.resendVerificationEmail(email);
   }
 
+  @ApiVerifyPrimaryEmailChange()
   @Post('/emails/verify-primary-change')
   verifyPrimaryEmailChange(@CurrentUser('sub') userId: string, @Body('code') code: string) {
     return this.authenticationService.verifyPrimaryEmailChange(userId, code);
   }
 
+  @ApiSetPrimaryEmail()
   @Post('emails/:email/set-primary')
   setPrimaryEmail(@CurrentUser('sub') userId: string, @Param('email') email: string) {
     return this.authenticationService.setPrimaryEmail(userId, email);
   }
 
+  @ApiAddEmail()
   @Post('emails')
   addEmail(@CurrentUser('sub') userId: string, @Body() emailDto: EmailDto) {
     return this.authenticationService.addEmail(userId, emailDto.email);
   }
 
+  @ApiRemoveEmail()
   @Delete('emails/:email')
   removeEmail(@CurrentUser('sub') userId: string, @Param('email') email: string) {
     return this.authenticationService.removeEmail(userId, email);
   }
 
+  @ApiGetEmails()
   @Get('emails')
   getEmails(@CurrentUser('sub') userId: string) {
     return this.authenticationService.getEmails(userId);
   }
 
+  @ApiChangePasswordRequest()
   @Post('change-password-request')
   @HttpCode(HttpStatus.OK)
   changePasswordRequest(@CurrentUser('sub') userId: string) {
     return this.authenticationService.changePasswordRequest(userId);
   }
 
+  @ApiResetPassword()
   @Public()
   @HttpCode(HttpStatus.OK)
   @Post('reset-password')
@@ -131,12 +168,14 @@ export class AuthenticationController {
     );
   }
 
+  @ApiForgotPassword()
   @Public()
   @Post('forgot-password')
   forgotPassword(@Body('email') email: string) {
     return this.authenticationService.forgotPassword(email);
   }
 
+  @ApiCompleteOAuth()
   @Public()
   @Post('oauth/complete')
   completeOAuth(
@@ -146,6 +185,7 @@ export class AuthenticationController {
     return this.authenticationService.completeOAuthProfile(oauthData, response);
   }
 
+  @ApiGoogleLogin()
   @Public()
   @UseGuards(GoogleAuthGuard)
   @Get('google')
@@ -153,6 +193,7 @@ export class AuthenticationController {
     // NestJS/Passport handles the redirect — this method body never executes
   }
 
+  @ApiGoogleCallback()
   @Public()
   @UseGuards(GoogleAuthGuard)
   @Get('google/callback')
@@ -163,6 +204,7 @@ export class AuthenticationController {
     return this.authenticationService.handleOAuthCallback(googleUser, response);
   }
 
+  @ApiFacebookLogin()
   @Public()
   @UseGuards(FacebookAuthGuard)
   @Get('facebook')
@@ -170,6 +212,7 @@ export class AuthenticationController {
     // Passport handles the redirect — body never executes
   }
 
+  @ApiFacebookCallback()
   @Public()
   @UseGuards(FacebookAuthGuard)
   @Get('facebook/callback')
@@ -178,6 +221,5 @@ export class AuthenticationController {
     @Res({ passthrough: true }) response: Response
   ) {
     return this.authenticationService.handleOAuthCallback(facebookUser, response);
-    // ↑ exact same method as Google — works for any provider!
   }
 }

@@ -78,14 +78,18 @@ export class UserRepository {
     });
   }
 
-  async createUser(createUserDto: CreateUserDto, hashedPassword: string): Promise<User> {
+  async createUser(
+    createUserDto: CreateUserDto,
+    hashedPassword: string,
+    username: string
+  ): Promise<User> {
     // Step 1 — Create user record
     const user = this.repository.create({
-      username: createUserDto.username,
+      username,
       password_hash: hashedPassword,
       first_name: createUserDto.first_name,
       last_name: createUserDto.last_name,
-      display_name: createUserDto.username, // display_name defaults to username
+      display_name: createUserDto.display_name,
       birthdate: createUserDto.birthdate,
       gender: createUserDto.gender,
       country: createUserDto.country,

@@ -1,4 +1,5 @@
 import { Controller, Get, Put, Post, Patch, Delete, Body, Param, Query } from '@nestjs/common';
+import { ApiTags } from '@nestjs/swagger';
 import { ProfileService } from './profile.service';
 import { UpdateProfileReqDto } from './dto/update-profile-req.dto';
 import { UpdateBirthdateReqDto } from './dto/update-birthdate.dto';
@@ -12,6 +13,7 @@ import { UpdateExternalProfileDto } from './dto/update-external-profile.dto';
 import { UpdateAvatarDto } from './dto/update-avatar.dto';
 import { UpdateCoverDto } from './dto/update-cover.dto';
 
+@ApiTags('Profile')
 @Controller('profile')
 export class ProfileController {
   constructor(private readonly profileService: ProfileService) {}
