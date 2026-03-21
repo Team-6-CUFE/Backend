@@ -184,6 +184,8 @@ export const mockUserService = () => ({
   findSocialAccount: jest.fn(),
   createSocialAccount: jest.fn(),
   createOAuthUser: jest.fn(),
+  deleteSocialAccount: jest.fn(),
+  getSocialAccounts: jest.fn(),
 });
 
 export const mockMailService = () => ({
@@ -229,6 +231,9 @@ export const mockAuthenticationService = () => ({
   changePasswordRequest: jest.fn(),
   changePassword: jest.fn(),
   forgotPassword: jest.fn(),
+  linkSocialAccount: jest.fn(),
+  unlinkSocialAccount: jest.fn(),
+  getSocialAccounts: jest.fn(),
 });
 
 export const mockVerificationCode = '123456';
