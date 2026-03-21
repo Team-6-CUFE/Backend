@@ -813,4 +813,27 @@ export class AuthenticationService {
       message: 'Social account unlinked successfully',
     };
   }
+
+  async getSocialAccounts(userId: string) {
+    // we need to return display_name + all data from social accounts
+    const user = await this.userService.findById(userId);
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+    const socialAccounts = await this.userService.getSocialAccounts(userId);
+    return {
+      status: 'success',
+      data: {
+        display_name: user.display_name,
+        social_accounts: socialAccounts.map(
+          (acc: { provider_id: any; provider: any; provider_email: any; created_at: any }) => ({
+            providerid: acc.provider_id,
+            provider: acc.provider,
+            provider_email: acc.provider_email,
+            linked_at: acc.created_at,
+          })
+        ),
+      },
+    };
+  }
 }
