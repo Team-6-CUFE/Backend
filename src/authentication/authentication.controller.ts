@@ -253,4 +253,9 @@ export class AuthenticationController {
   ) {
     return this.authenticationService.unlinkSocialAccount(userId, provider, providerId);
   }
+
+  @Get('social-accounts')
+  getSocialAccounts(@CurrentUser('sub') userId: string) {
+    return this.authenticationService.getSocialAccounts(userId);
+  }
 }
