@@ -245,4 +245,8 @@ export class UserRepository {
       where: { provider, provider_id: providerId },
     });
   }
+
+  async deleteSocialAccount(provider: string, providerId: string) {
+    return this.socialAccountRepo.delete({ provider, provider_id: providerId });
+  }
 }

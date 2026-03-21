@@ -723,4 +723,56 @@ export class AuthenticationService {
       data: this.buildUserResponse(user),
     };
   }
+
+  async linkSocialAccount(userId: string, profile: OAuthProfile) {
+    // Check if this social account is already linked to anyone
+    const existingSocialAccount = await this.userService.findSocialAccount(
+      profile.provider,
+      profile.providerId
+    );
+
+    if (existingSocialAccount) {
+      if (existingSocialAccount.user_id === userId) {
+        throw new BadRequestException(
+          `This ${profile.provider} account is already linked to your account`
+        );
+      }
+      throw new BadRequestException(
+        `This ${profile.provider} account is already linked to another user`
+      );
+    }
+
+    await this.userService.createSocialAccount(
+      userId,
+      profile.provider,
+      profile.providerId,
+      profile.email
+    );
+
+    return {
+      status: 'success',
+      message: `${profile.provider} account linked successfully`,
+      data: {
+        provider: profile.provider,
+        provider_email: profile.email,
+        linked_at: new Date(),
+      },
+    };
+  }
+
+  async unlinkSocialAccount(userId: string, provider: string, providerId: string) {
+    const socialAccount = await this.userService.findSocialAccount(provider, providerId);
+
+    if (!socialAccount) {
+      throw new NotFoundException('Social account not found');
+    }
+    if (socialAccount.user_id !== userId) {
+      throw new ForbiddenException('You are not allowed to unlink this social account');
+    }
+    await this.userService.deleteSocialAccount(provider, providerId);
+    return {
+      status: 'success',
+      message: 'Social account unlinked successfully',
+    };
+  }
 }

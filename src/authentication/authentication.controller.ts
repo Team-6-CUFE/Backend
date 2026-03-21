@@ -48,6 +48,8 @@ import {
   ApiFacebookCallback,
   ApiCompleteOAuth,
 } from './authentication.swagger';
+import { GoogleLinkGuard } from './guards/google-link.guard';
+import { FacebookLinkGuard } from './guards/facebook-link.guard';
 
 @ApiTags('Authentication')
 @Controller('auth')
@@ -221,5 +223,34 @@ export class AuthenticationController {
     @Res({ passthrough: true }) response: Response
   ) {
     return this.authenticationService.handleOAuthCallback(facebookUser, response);
+  }
+
+  @UseGuards(GoogleLinkGuard)
+  @Get('google/link')
+  googleLink() {}
+
+  @UseGuards(GoogleLinkGuard)
+  @Get('google/link/callback')
+  async googleLinkCallback(@CurrentUser() profile: OAuthProfile & { userId: string }) {
+    return this.authenticationService.linkSocialAccount(profile.userId, profile);
+  }
+
+  @UseGuards(FacebookLinkGuard)
+  @Get('facebook/link')
+  facebookLink() {}
+
+  @UseGuards(FacebookLinkGuard)
+  @Get('facebook/link/callback')
+  async facebookLinkCallback(@CurrentUser() profile: OAuthProfile & { userId: string }) {
+    return this.authenticationService.linkSocialAccount(profile.userId, profile);
+  }
+
+  @Delete('unlink-social/:provider/:providerId')
+  unlinkSocialAccount(
+    @CurrentUser('sub') userId: string,
+    @Param('provider') provider: string,
+    @Param('providerId') providerId: string
+  ) {
+    return this.authenticationService.unlinkSocialAccount(userId, provider, providerId);
   }
 }

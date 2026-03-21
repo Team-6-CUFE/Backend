@@ -111,8 +111,7 @@ export class CreateUsersTable1773368321367 implements MigrationInterface {
         provider_email VARCHAR(255),
         created_at     TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         updated_at     TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        PRIMARY KEY (provider, provider_id),
-        CONSTRAINT unique_user_provider UNIQUE(user_id, provider)
+        PRIMARY KEY (provider, provider_id)
       );
     `);
 

@@ -21,6 +21,10 @@ import { UserEmail } from '../user/entities/user-email.entity';
 import { PendingOAuthToken } from './entities/pending-oauth.entity';
 import { GoogleStrategy } from './strategies/google.strategy';
 import { FacebookStrategy } from './strategies/facebook.strategy';
+import { GoogleLinkGuard } from './guards/google-link.guard';
+import { FacebookLinkGuard } from './guards/facebook-link.guard';
+import { GoogleLinkStrategy } from './strategies/google-link.strategy';
+import { FacebookLinkStrategy } from './strategies/facebook-link.strategy';
 
 @Module({
   imports: [
@@ -59,6 +63,10 @@ import { FacebookStrategy } from './strategies/facebook.strategy';
     RefreshAuthGuard,
     GoogleStrategy,
     FacebookStrategy,
+    GoogleLinkStrategy,
+    GoogleLinkGuard,
+    FacebookLinkStrategy,
+    FacebookLinkGuard,
   ],
   exports: [AuthenticationService, JwtModule],
 })
