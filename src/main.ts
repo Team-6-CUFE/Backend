@@ -2,12 +2,34 @@ import { NestFactory } from '@nestjs/core';
 import { ValidationPipe } from '@nestjs/common';
 import cookieParser from 'cookie-parser';
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
+import session from 'express-session';
+import { ConfigService } from '@nestjs/config';
 import { AppModule } from './app.module';
+import { createRedisSessionStore } from './redis/redis-session.store';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
+  const configService = app.get(ConfigService);
 
   app.use(cookieParser());
+
+  const sessionStore = await createRedisSessionStore(configService.get<string>('REDIS_URL')!);
+
+  app.use(
+    session({
+      store: sessionStore,
+      secret: configService.get<string>('SESSION_SECRET')!,
+      resave: false,
+      saveUninitialized: false,
+      name: 'sc.sid',
+      cookie: {
+        httpOnly: true,
+        secure: configService.get<string>('NODE_ENV') === 'production',
+        sameSite: 'strict',
+        maxAge: 5 * 60 * 1000, // 5 minutes
+      },
+    })
+  );
 
   const config = new DocumentBuilder()
     .setTitle('Harmonica Documentation')

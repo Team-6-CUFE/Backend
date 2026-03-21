@@ -9,8 +9,10 @@ import {
   NotFoundException,
   UnauthorizedException,
   ForbiddenException,
+  Inject,
 } from '@nestjs/common';
 import * as crypto from 'crypto';
+import { RedisClientType } from 'redis';
 import { RegisterDto } from './dto/register.dto';
 import { UserService } from '../user/user.service';
 import { MailService } from '../mail/mail.service';
@@ -29,6 +31,7 @@ import { OAuthProfile } from './types/oauth-profile.type';
 import { User } from '../user/entities/user.entity';
 import { CompleteOAuthProfileDto } from './dto/complete-oauth-profile.dto';
 import { OAuthUser } from './types/oauth-user.type';
+import { REDIS_CLIENT } from '../redis/redis.module';
 
 // Access token lifetime
 const ACCESS_TOKEN_EXPIRY = '15m';
@@ -40,7 +43,6 @@ const REFRESH_TOKEN_EXPIRY = '7d';
 const REFRESH_COOKIE_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000;
 
 const VERIFICATION_TOKEN_EXPIRY_MINUTES = 24 * 60;
-const MAX_RESEND_ATTEMPTS = 3;
 
 const VERIFICATION_CODE_EXPIRY_MINUTES = 5;
 
@@ -52,7 +54,8 @@ export class AuthenticationService {
     private readonly mailService: MailService,
     private readonly authRepository: AuthenticationRepository,
     private readonly jwtService: JwtService,
-    private readonly configService: ConfigService
+    private readonly configService: ConfigService,
+    @Inject(REDIS_CLIENT) private readonly redis: RedisClientType
   ) {}
 
   async register(registerDto: RegisterDto) {
@@ -110,6 +113,13 @@ export class AuthenticationService {
   }
 
   async sendVerificationEmail(email: string, token: string) {
+    const attempts = await this.redis.incr(`rate:verify:${email}`);
+    await this.redis.expire(`rate:verify:${email}`, 300); // auto-expire in 5 min
+    if (attempts > 3)
+      throw new HttpException(
+        'Too many verification emails sent. Please try again in 5 minutes.',
+        HttpStatus.TOO_MANY_REQUESTS
+      );
     await this.mailService.sendEmailVerification(email, token);
   }
 
@@ -317,14 +327,7 @@ export class AuthenticationService {
     if (useremail.is_verified) {
       throw new BadRequestException(`Email ${email} is already verified.`);
     }
-    // rate limits//
-    const exceededRateLimit = await this.authRepository.countRecentVerificationTokens(email);
-    if (exceededRateLimit >= MAX_RESEND_ATTEMPTS) {
-      throw new HttpException(
-        'Too many verification emails sent. Please try again in 5 minutes.',
-        HttpStatus.TOO_MANY_REQUESTS
-      );
-    }
+
     // delete any existing token for this email//
     await this.authRepository.deleteExistingTokens(email);
     // genetate new token and save
@@ -471,6 +474,13 @@ export class AuthenticationService {
     }
 
     await this.authRepository.deleteExistingVerificationCodes(userId); // for resending code
+    const attempts = await this.redis.incr(`rate:set-primary:${email}`);
+    await this.redis.expire(`rate:set-primary:${email}`, 300); // auto-expire in 5 min
+    if (attempts > 3)
+      throw new HttpException(
+        'Too many verification codes sent. Please try again in 5 minutes.',
+        HttpStatus.TOO_MANY_REQUESTS
+      );
 
     const verificationCode = generateSixDigitCode();
     const expiryDate = getExpiryDate(VERIFICATION_CODE_EXPIRY_MINUTES);
@@ -537,6 +547,13 @@ export class AuthenticationService {
       expiryDate,
       TokenType.PASSWORD_RESET
     );
+    const attempts = await this.redis.incr(`rate:change-password:${userId}`);
+    await this.redis.expire(`rate:change-password:${userId}`, 300); // auto-expire in 5 min
+    if (attempts > 3)
+      throw new HttpException(
+        'Too many change password requests sent. Please try again in 5 minutes.',
+        HttpStatus.TOO_MANY_REQUESTS
+      );
     await this.mailService.sendPasswordReset(verifiedPrimaryEmail, verificationToken);
     return {
       status: 'success',
@@ -577,7 +594,21 @@ export class AuthenticationService {
   async forgotPassword(email: string) {
     const useremail = await this.userService.findEmailRecord(email);
     if (!useremail || !useremail.is_verified) {
-      throw new NotFoundException(`No verified account found with email ${email}.`);
+      const attempts = await this.redis.incr(`rate:forgot-password:${email}`);
+      await this.redis.expire(`rate:forgot-password:${email}`, 300); // auto-expire in 5 min
+      if (attempts > 3)
+        throw new HttpException(
+          'Too many forgot password requests sent. Please try again in 5 minutes.',
+          HttpStatus.TOO_MANY_REQUESTS
+        );
+      return {
+        status: 'success',
+        message: `Password reset link sent to your email address ${email}`,
+        data: {
+          email_sent: true,
+          sent_to: `${email}`,
+        },
+      };
     }
     const userId = useremail.user_id;
     const verificationToken = generateVerificationToken();
@@ -589,6 +620,13 @@ export class AuthenticationService {
       expiryDate,
       TokenType.PASSWORD_RESET
     );
+    const attempts = await this.redis.incr(`rate:forgot-password:${userId}`);
+    await this.redis.expire(`rate:forgot-password:${userId}`, 300); // auto-expire in 5 min
+    if (attempts > 3)
+      throw new HttpException(
+        'Too many forgot password requests sent. Please try again in 5 minutes.',
+        HttpStatus.TOO_MANY_REQUESTS
+      );
     await this.mailService.sendPasswordReset(email, verificationToken);
     return {
       status: 'success',
@@ -721,6 +759,81 @@ export class AuthenticationService {
       status: 'success',
       message: 'Profile completed and logged in successfully',
       data: this.buildUserResponse(user),
+    };
+  }
+
+  async linkSocialAccount(userId: string, profile: OAuthProfile) {
+    // Check if this social account is already linked to anyone
+    const existingSocialAccount = await this.userService.findSocialAccount(
+      profile.provider,
+      profile.providerId
+    );
+
+    if (existingSocialAccount) {
+      if (existingSocialAccount.user_id === userId) {
+        throw new BadRequestException(
+          `This ${profile.provider} account is already linked to your account`
+        );
+      }
+      throw new BadRequestException(
+        `This ${profile.provider} account is already linked to another user`
+      );
+    }
+
+    await this.userService.createSocialAccount(
+      userId,
+      profile.provider,
+      profile.providerId,
+      profile.email
+    );
+
+    return {
+      status: 'success',
+      message: `${profile.provider} account linked successfully`,
+      data: {
+        provider: profile.provider,
+        provider_email: profile.email,
+        linked_at: new Date(),
+      },
+    };
+  }
+
+  async unlinkSocialAccount(userId: string, provider: string, providerId: string) {
+    const socialAccount = await this.userService.findSocialAccount(provider, providerId);
+
+    if (!socialAccount) {
+      throw new NotFoundException('Social account not found');
+    }
+    if (socialAccount.user_id !== userId) {
+      throw new ForbiddenException('You are not allowed to unlink this social account');
+    }
+    await this.userService.deleteSocialAccount(provider, providerId);
+    return {
+      status: 'success',
+      message: 'Social account unlinked successfully',
+    };
+  }
+
+  async getSocialAccounts(userId: string) {
+    // we need to return display_name + all data from social accounts
+    const user = await this.userService.findById(userId);
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+    const socialAccounts = await this.userService.getSocialAccounts(userId);
+    return {
+      status: 'success',
+      data: {
+        display_name: user.display_name,
+        social_accounts: socialAccounts.map(
+          (acc: { provider_id: any; provider: any; provider_email: any; created_at: any }) => ({
+            providerid: acc.provider_id,
+            provider: acc.provider,
+            provider_email: acc.provider_email,
+            linked_at: acc.created_at,
+          })
+        ),
+      },
     };
   }
 }

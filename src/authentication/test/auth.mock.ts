@@ -12,6 +12,18 @@ export const mockAccessToken = 'mock.access.token';
 export const mockRefreshToken = 'mock.refresh.token';
 export const mockPassword = 'SecurePassword123!';
 
+export const mockRedisClient = () => ({
+  get: jest.fn(),
+  set: jest.fn(),
+  del: jest.fn(),
+  incr: jest.fn(),
+  expire: jest.fn(),
+  lPush: jest.fn(),
+  lTrim: jest.fn(),
+  zIncrBy: jest.fn(),
+  zRange: jest.fn(),
+});
+
 export const mockRegisterDto = () => ({
   email: mockEmail,
   password: mockPassword,
@@ -172,6 +184,8 @@ export const mockUserService = () => ({
   findSocialAccount: jest.fn(),
   createSocialAccount: jest.fn(),
   createOAuthUser: jest.fn(),
+  deleteSocialAccount: jest.fn(),
+  getSocialAccounts: jest.fn(),
 });
 
 export const mockMailService = () => ({
@@ -217,6 +231,9 @@ export const mockAuthenticationService = () => ({
   changePasswordRequest: jest.fn(),
   changePassword: jest.fn(),
   forgotPassword: jest.fn(),
+  linkSocialAccount: jest.fn(),
+  unlinkSocialAccount: jest.fn(),
+  getSocialAccounts: jest.fn(),
 });
 
 export const mockVerificationCode = '123456';

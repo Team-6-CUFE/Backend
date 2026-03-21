@@ -1,5 +1,5 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { BadRequestException, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ForbiddenException, NotFoundException } from '@nestjs/common';
 import { AuthenticationController } from './authentication.controller';
 import { AuthenticationService } from './authentication.service';
 import {
@@ -18,6 +18,8 @@ import {
   mockOAuthProfile,
   mockPendingToken,
   mockCompleteOAuthProfileDto,
+  mockProviderId,
+  mockUsername,
 } from './test/auth.mock';
 
 describe('AuthenticationController', () => {
@@ -786,6 +788,227 @@ describe('AuthenticationController', () => {
       await expect(
         controller.facebookCallback(mockOAuthProfile() as any, mockResponseWithCookie() as any)
       ).rejects.toThrow('OAuth error');
+    });
+  });
+  // ─── googleLink ───────────────────────────────────────────────────────────────
+
+  describe('googleLink', () => {
+    it('should return undefined — Passport handles the redirect', () => {
+      const result = controller.googleLink();
+      expect(result).toBeUndefined();
+    });
+  });
+
+  // ─── googleLinkCallback ───────────────────────────────────────────────────────
+
+  describe('googleLinkCallback', () => {
+    const mockProfileWithUserId = {
+      ...mockOAuthProfile(),
+      userId: mockUserId,
+    };
+
+    it('should delegate to linkSocialAccount with userId and profile', async () => {
+      service.linkSocialAccount.mockResolvedValue({
+        status: 'success',
+        message: 'google account linked successfully',
+        data: { provider: 'google', provider_email: mockEmail, linked_at: new Date() },
+      });
+
+      await controller.googleLinkCallback(mockProfileWithUserId as any);
+
+      expect(service.linkSocialAccount).toHaveBeenCalledWith(mockUserId, mockProfileWithUserId);
+      expect(service.linkSocialAccount).toHaveBeenCalledTimes(1);
+    });
+
+    it('should return the service response as is', async () => {
+      const mockServiceResponse = {
+        status: 'success',
+        message: 'google account linked successfully',
+        data: { provider: 'google', provider_email: mockEmail, linked_at: new Date() },
+      };
+      service.linkSocialAccount.mockResolvedValue(mockServiceResponse);
+
+      const result = await controller.googleLinkCallback(mockProfileWithUserId as any);
+
+      expect(result).toEqual(mockServiceResponse);
+    });
+
+    it('should propagate exception thrown by service', async () => {
+      service.linkSocialAccount.mockRejectedValue(
+        new BadRequestException('This google account is already linked to another user')
+      );
+
+      await expect(controller.googleLinkCallback(mockProfileWithUserId as any)).rejects.toThrow(
+        BadRequestException
+      );
+    });
+  });
+
+  // ─── facebookLink ─────────────────────────────────────────────────────────────
+
+  describe('facebookLink', () => {
+    it('should return undefined — Passport handles the redirect', () => {
+      const result = controller.facebookLink();
+      expect(result).toBeUndefined();
+    });
+  });
+
+  // ─── facebookLinkCallback ─────────────────────────────────────────────────────
+
+  describe('facebookLinkCallback', () => {
+    const mockFacebookProfileWithUserId = {
+      provider: 'facebook',
+      providerId: 'fb-123',
+      email: mockEmail,
+      firstName: 'Yara',
+      lastName: 'Senousy',
+      userId: mockUserId,
+    };
+
+    it('should delegate to linkSocialAccount with userId and profile', async () => {
+      service.linkSocialAccount.mockResolvedValue({
+        status: 'success',
+        message: 'facebook account linked successfully',
+        data: { provider: 'facebook', provider_email: mockEmail, linked_at: new Date() },
+      });
+
+      await controller.facebookLinkCallback(mockFacebookProfileWithUserId as any);
+
+      expect(service.linkSocialAccount).toHaveBeenCalledWith(
+        mockUserId,
+        mockFacebookProfileWithUserId
+      );
+      expect(service.linkSocialAccount).toHaveBeenCalledTimes(1);
+    });
+
+    it('should return the service response as is', async () => {
+      const mockServiceResponse = {
+        status: 'success',
+        message: 'facebook account linked successfully',
+        data: { provider: 'facebook', provider_email: mockEmail, linked_at: new Date() },
+      };
+      service.linkSocialAccount.mockResolvedValue(mockServiceResponse);
+
+      const result = await controller.facebookLinkCallback(mockFacebookProfileWithUserId as any);
+
+      expect(result).toEqual(mockServiceResponse);
+    });
+
+    it('should propagate exception thrown by service', async () => {
+      service.linkSocialAccount.mockRejectedValue(
+        new BadRequestException('This facebook account is already linked to another user')
+      );
+
+      await expect(
+        controller.facebookLinkCallback(mockFacebookProfileWithUserId as any)
+      ).rejects.toThrow(BadRequestException);
+    });
+  });
+
+  // ─── unlinkSocialAccount ──────────────────────────────────────────────────────
+
+  describe('unlinkSocialAccount', () => {
+    it('should delegate to service with userId, provider and providerId', async () => {
+      service.unlinkSocialAccount.mockResolvedValue({
+        status: 'success',
+        message: 'Social account unlinked successfully',
+      });
+
+      await controller.unlinkSocialAccount(mockUserId, 'google', mockProviderId);
+
+      expect(service.unlinkSocialAccount).toHaveBeenCalledWith(
+        mockUserId,
+        'google',
+        mockProviderId
+      );
+      expect(service.unlinkSocialAccount).toHaveBeenCalledTimes(1);
+    });
+
+    it('should return the service response as is', async () => {
+      const mockServiceResponse = {
+        status: 'success',
+        message: 'Social account unlinked successfully',
+      };
+      service.unlinkSocialAccount.mockResolvedValue(mockServiceResponse);
+
+      const result = await controller.unlinkSocialAccount(mockUserId, 'google', mockProviderId);
+
+      expect(result).toEqual(mockServiceResponse);
+    });
+
+    it('should propagate NotFoundException if account not found', async () => {
+      service.unlinkSocialAccount.mockRejectedValue(
+        new NotFoundException('Social account not found')
+      );
+
+      await expect(
+        controller.unlinkSocialAccount(mockUserId, 'google', mockProviderId)
+      ).rejects.toThrow(NotFoundException);
+    });
+
+    it('should propagate ForbiddenException if account belongs to another user', async () => {
+      service.unlinkSocialAccount.mockRejectedValue(
+        new ForbiddenException('You are not allowed to unlink this social account')
+      );
+
+      await expect(
+        controller.unlinkSocialAccount(mockUserId, 'google', mockProviderId)
+      ).rejects.toThrow(ForbiddenException);
+    });
+  });
+
+  // ─── getSocialAccounts ────────────────────────────────────────────────────────
+
+  describe('getSocialAccounts', () => {
+    it('should delegate to service with userId', async () => {
+      service.getSocialAccounts.mockResolvedValue({
+        status: 'success',
+        data: { display_name: mockUsername, social_accounts: [] },
+      });
+
+      await controller.getSocialAccounts(mockUserId);
+
+      expect(service.getSocialAccounts).toHaveBeenCalledWith(mockUserId);
+      expect(service.getSocialAccounts).toHaveBeenCalledTimes(1);
+    });
+
+    it('should return the service response as is', async () => {
+      const mockServiceResponse = {
+        status: 'success',
+        data: {
+          display_name: mockUsername,
+          social_accounts: [
+            {
+              providerid: mockProviderId,
+              provider: 'google',
+              provider_email: mockEmail,
+              linked_at: new Date(),
+            },
+          ],
+        },
+      };
+      service.getSocialAccounts.mockResolvedValue(mockServiceResponse);
+
+      const result = await controller.getSocialAccounts(mockUserId);
+
+      expect(result).toEqual(mockServiceResponse);
+    });
+
+    it('should return empty social_accounts array when none linked', async () => {
+      service.getSocialAccounts.mockResolvedValue({
+        status: 'success',
+        data: { display_name: mockUsername, social_accounts: [] },
+      });
+
+      const result = await controller.getSocialAccounts(mockUserId);
+
+      expect(result.data.social_accounts).toEqual([]);
+    });
+
+    it('should propagate NotFoundException if user not found', async () => {
+      service.getSocialAccounts.mockRejectedValue(new NotFoundException('User not found'));
+
+      await expect(controller.getSocialAccounts(mockUserId)).rejects.toThrow(NotFoundException);
     });
   });
 });

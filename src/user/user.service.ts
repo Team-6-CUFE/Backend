@@ -95,4 +95,12 @@ export class UserService {
   async findSocialAccount(provider: string, providerId: string) {
     return this.userRepository.findSocialAccount(provider, providerId);
   }
+
+  async deleteSocialAccount(provider: string, providerId: string) {
+    return this.userRepository.deleteSocialAccount(provider, providerId);
+  }
+
+  async getSocialAccounts(userId: string) {
+    return this.userRepository.getSocialAccounts(userId);
+  }
 }

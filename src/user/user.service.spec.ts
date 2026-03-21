@@ -36,12 +36,52 @@ const mockCreateUserDto = () => ({
   country: 'Egypt',
 });
 
+const mockSocialAccount = () => ({
+  provider: 'google',
+  provider_id: 'google-provider-id-123',
+  user_id: mockUserId,
+  email: mockEmail,
+});
+
+const mockOAuthUser = () => ({
+  email: mockEmail,
+  username: mockUsername,
+  first_name: 'Yara',
+  last_name: 'Senousy',
+  display_name: 'Yara Senousy',
+  birthdate: '1995-06-15',
+  gender: 'female',
+});
+
+const mockSecondaryEmail = 'secondary@example.com';
+
+const mockNewEmailRecord = () => ({
+  email: mockSecondaryEmail,
+  is_primary: false,
+  is_verified: false,
+  user_id: mockUserId,
+  created_at: new Date(),
+  updated_at: new Date(),
+});
+
 const mockUserRepository = () => ({
   findByEmail: jest.fn(),
   findByUsername: jest.fn(),
   findEmailRecord: jest.fn(),
   createUser: jest.fn(),
   delete: jest.fn(),
+  findById: jest.fn(),
+  createOAuthUser: jest.fn(),
+  addEmail: jest.fn(),
+  removeEmail: jest.fn(),
+  getEmails: jest.fn(),
+  setPrimaryEmail: jest.fn(),
+  getPrimaryEmail: jest.fn(),
+  updatePassword: jest.fn(),
+  createSocialAccount: jest.fn(),
+  findSocialAccount: jest.fn(),
+  deleteSocialAccount: jest.fn(),
+  getSocialAccounts: jest.fn(),
 });
 
 const mockUsernameAvailabilityService = () => ({
@@ -343,6 +383,384 @@ describe('UserService', () => {
       userRepo.delete.mockRejectedValue(new Error('DB error'));
 
       await expect(service.remove(mockUserId)).rejects.toThrow('DB error');
+    });
+  });
+
+  describe('findById', () => {
+    it('should return user if found', async () => {
+      userRepo.findById.mockResolvedValue(mockUser());
+
+      const result = await service.findById(mockUserId);
+
+      expect(result).toEqual(mockUser());
+    });
+
+    it('should return null if user not found', async () => {
+      userRepo.findById.mockResolvedValue(null);
+
+      const result = await service.findById(mockUserId);
+
+      expect(result).toBeNull();
+    });
+
+    it('should call findById with correct id', async () => {
+      userRepo.findById.mockResolvedValue(null);
+
+      await service.findById(mockUserId);
+
+      expect(userRepo.findById).toHaveBeenCalledWith(mockUserId);
+      expect(userRepo.findById).toHaveBeenCalledTimes(1);
+    });
+
+    it('should propagate error if repository throws', async () => {
+      userRepo.findById.mockRejectedValue(new Error('DB error'));
+
+      await expect(service.findById(mockUserId)).rejects.toThrow('DB error');
+    });
+  });
+
+  describe('createOAuthUser', () => {
+    beforeEach(() => {
+      userRepo.createOAuthUser.mockResolvedValue(mockUser());
+    });
+
+    it('should call createOAuthUser on repository and return result', async () => {
+      const result = await service.createOAuthUser(mockOAuthUser() as any);
+
+      expect(userRepo.createOAuthUser).toHaveBeenCalledTimes(1);
+      expect(result.user_id).toBe(mockUserId);
+    });
+
+    it('should call addToFilter with the username', async () => {
+      await service.createOAuthUser(mockOAuthUser() as any);
+
+      expect(usernameAvailability.addToFilter).toHaveBeenCalledWith(mockUsername);
+      expect(usernameAvailability.addToFilter).toHaveBeenCalledTimes(1);
+    });
+
+    it('should call addToFilter before calling repository createOAuthUser', async () => {
+      const callOrder: string[] = [];
+      usernameAvailability.addToFilter.mockImplementation(() => {
+        callOrder.push('addToFilter');
+      });
+      userRepo.createOAuthUser.mockImplementation(async () => {
+        callOrder.push('createOAuthUser');
+        return mockUser();
+      });
+
+      await service.createOAuthUser(mockOAuthUser() as any);
+
+      expect(callOrder[0]).toBe('addToFilter');
+      expect(callOrder[1]).toBe('createOAuthUser');
+    });
+
+    it('should pass the full OAuth user object to repository', async () => {
+      await service.createOAuthUser(mockOAuthUser() as any);
+
+      expect(userRepo.createOAuthUser).toHaveBeenCalledWith(mockOAuthUser());
+    });
+
+    it('should propagate error if repository throws', async () => {
+      userRepo.createOAuthUser.mockRejectedValue(new Error('DB error'));
+
+      await expect(service.createOAuthUser(mockOAuthUser() as any)).rejects.toThrow('DB error');
+    });
+  });
+
+  describe('addEmail', () => {
+    it('should call addEmail on repository with correct args', async () => {
+      userRepo.addEmail.mockResolvedValue(mockNewEmailRecord());
+
+      await service.addEmail(mockUserId, mockSecondaryEmail);
+
+      expect(userRepo.addEmail).toHaveBeenCalledWith(mockUserId, mockSecondaryEmail);
+      expect(userRepo.addEmail).toHaveBeenCalledTimes(1);
+    });
+
+    it('should return the new email record', async () => {
+      userRepo.addEmail.mockResolvedValue(mockNewEmailRecord());
+
+      const result = await service.addEmail(mockUserId, mockSecondaryEmail);
+
+      expect(result.email).toBe(mockSecondaryEmail);
+      expect(result.is_primary).toBe(false);
+      expect(result.is_verified).toBe(false);
+    });
+
+    it('should propagate error if repository throws', async () => {
+      userRepo.addEmail.mockRejectedValue(new Error('DB error'));
+
+      await expect(service.addEmail(mockUserId, mockSecondaryEmail)).rejects.toThrow('DB error');
+    });
+  });
+
+  describe('removeEmail', () => {
+    it('should call removeEmail on repository with correct args', async () => {
+      userRepo.removeEmail.mockResolvedValue(undefined);
+
+      await service.removeEmail(mockUserId, mockSecondaryEmail);
+
+      expect(userRepo.removeEmail).toHaveBeenCalledWith(mockUserId, mockSecondaryEmail);
+      expect(userRepo.removeEmail).toHaveBeenCalledTimes(1);
+    });
+
+    it('should propagate error if repository throws', async () => {
+      userRepo.removeEmail.mockRejectedValue(new Error('DB error'));
+
+      await expect(service.removeEmail(mockUserId, mockSecondaryEmail)).rejects.toThrow('DB error');
+    });
+  });
+
+  describe('getEmails', () => {
+    it('should call getEmails on repository with correct userId', async () => {
+      userRepo.getEmails.mockResolvedValue([mockUserEmail()]);
+
+      await service.getEmails(mockUserId);
+
+      expect(userRepo.getEmails).toHaveBeenCalledWith(mockUserId);
+      expect(userRepo.getEmails).toHaveBeenCalledTimes(1);
+    });
+
+    it('should return array of emails', async () => {
+      userRepo.getEmails.mockResolvedValue([mockUserEmail()]);
+
+      const result = await service.getEmails(mockUserId);
+
+      expect(Array.isArray(result)).toBe(true);
+      expect(result[0].email).toBe(mockEmail);
+    });
+
+    it('should return empty array if user has no emails', async () => {
+      userRepo.getEmails.mockResolvedValue([]);
+
+      const result = await service.getEmails(mockUserId);
+
+      expect(result).toEqual([]);
+    });
+
+    it('should propagate error if repository throws', async () => {
+      userRepo.getEmails.mockRejectedValue(new Error('DB error'));
+
+      await expect(service.getEmails(mockUserId)).rejects.toThrow('DB error');
+    });
+  });
+
+  describe('setPrimaryEmail', () => {
+    it('should call setPrimaryEmail on repository with correct args', async () => {
+      userRepo.setPrimaryEmail.mockResolvedValue(undefined);
+
+      await service.setPrimaryEmail(mockUserId, mockSecondaryEmail);
+
+      expect(userRepo.setPrimaryEmail).toHaveBeenCalledWith(mockUserId, mockSecondaryEmail);
+      expect(userRepo.setPrimaryEmail).toHaveBeenCalledTimes(1);
+    });
+
+    it('should propagate error if repository throws', async () => {
+      userRepo.setPrimaryEmail.mockRejectedValue(new Error('DB error'));
+
+      await expect(service.setPrimaryEmail(mockUserId, mockSecondaryEmail)).rejects.toThrow(
+        'DB error'
+      );
+    });
+  });
+
+  describe('getPrimaryEmail', () => {
+    it('should return primary email if found', async () => {
+      userRepo.getPrimaryEmail.mockResolvedValue(mockEmail);
+
+      const result = await service.getPrimaryEmail(mockUserId);
+
+      expect(result).toBe(mockEmail);
+    });
+
+    it('should return null if no primary email found', async () => {
+      userRepo.getPrimaryEmail.mockResolvedValue(null);
+
+      const result = await service.getPrimaryEmail(mockUserId);
+
+      expect(result).toBeNull();
+    });
+
+    it('should call getPrimaryEmail with correct userId', async () => {
+      userRepo.getPrimaryEmail.mockResolvedValue(mockEmail);
+
+      await service.getPrimaryEmail(mockUserId);
+
+      expect(userRepo.getPrimaryEmail).toHaveBeenCalledWith(mockUserId);
+      expect(userRepo.getPrimaryEmail).toHaveBeenCalledTimes(1);
+    });
+
+    it('should propagate error if repository throws', async () => {
+      userRepo.getPrimaryEmail.mockRejectedValue(new Error('DB error'));
+
+      await expect(service.getPrimaryEmail(mockUserId)).rejects.toThrow('DB error');
+    });
+  });
+
+  describe('updatePassword', () => {
+    it('should call updatePassword on repository with hashed password not raw', async () => {
+      userRepo.updatePassword.mockResolvedValue(undefined);
+
+      await service.updatePassword(mockUserId, 'NewPassword123!');
+
+      const [calledUserId, calledHash] = userRepo.updatePassword.mock.calls[0];
+      expect(calledUserId).toBe(mockUserId);
+      expect(calledHash).not.toBe('NewPassword123!');
+      expect(calledHash).toMatch(/^\$2b\$10\$/);
+    });
+
+    it('should call updatePassword with correct userId', async () => {
+      userRepo.updatePassword.mockResolvedValue(undefined);
+
+      await service.updatePassword(mockUserId, 'NewPassword123!');
+
+      expect(userRepo.updatePassword).toHaveBeenCalledTimes(1);
+      expect(userRepo.updatePassword.mock.calls[0][0]).toBe(mockUserId);
+    });
+
+    it('should hash the password before passing to repository', async () => {
+      userRepo.updatePassword.mockResolvedValue(undefined);
+
+      await service.updatePassword(mockUserId, 'NewPassword123!');
+
+      const [, hashedPassword] = userRepo.updatePassword.mock.calls[0];
+      const isValid = await bcrypt.compare('NewPassword123!', hashedPassword);
+      expect(isValid).toBe(true);
+    });
+
+    it('should propagate error if repository throws', async () => {
+      userRepo.updatePassword.mockRejectedValue(new Error('DB error'));
+
+      await expect(service.updatePassword(mockUserId, 'NewPassword123!')).rejects.toThrow(
+        'DB error'
+      );
+    });
+  });
+
+  describe('createSocialAccount', () => {
+    it('should call createSocialAccount on repository with correct args', async () => {
+      userRepo.createSocialAccount.mockResolvedValue(mockSocialAccount());
+
+      await service.createSocialAccount(mockUserId, 'google', 'provider-id-123', mockEmail);
+
+      expect(userRepo.createSocialAccount).toHaveBeenCalledWith(
+        mockUserId,
+        'google',
+        'provider-id-123',
+        mockEmail
+      );
+      expect(userRepo.createSocialAccount).toHaveBeenCalledTimes(1);
+    });
+
+    it('should return the created social account', async () => {
+      userRepo.createSocialAccount.mockResolvedValue(mockSocialAccount());
+
+      const result = await service.createSocialAccount(
+        mockUserId,
+        'google',
+        'provider-id-123',
+        mockEmail
+      );
+
+      expect(result.provider).toBe('google');
+      expect(result.user_id).toBe(mockUserId);
+    });
+
+    it('should propagate error if repository throws', async () => {
+      userRepo.createSocialAccount.mockRejectedValue(new Error('DB error'));
+
+      await expect(
+        service.createSocialAccount(mockUserId, 'google', 'provider-id-123', mockEmail)
+      ).rejects.toThrow('DB error');
+    });
+  });
+
+  describe('findSocialAccount', () => {
+    it('should return social account if found', async () => {
+      userRepo.findSocialAccount.mockResolvedValue(mockSocialAccount());
+
+      const result = await service.findSocialAccount('google', 'provider-id-123');
+
+      expect(result).toEqual(mockSocialAccount());
+    });
+
+    it('should return null if social account not found', async () => {
+      userRepo.findSocialAccount.mockResolvedValue(null);
+
+      const result = await service.findSocialAccount('google', 'provider-id-123');
+
+      expect(result).toBeNull();
+    });
+
+    it('should call findSocialAccount with correct args', async () => {
+      userRepo.findSocialAccount.mockResolvedValue(null);
+
+      await service.findSocialAccount('google', 'provider-id-123');
+
+      expect(userRepo.findSocialAccount).toHaveBeenCalledWith('google', 'provider-id-123');
+      expect(userRepo.findSocialAccount).toHaveBeenCalledTimes(1);
+    });
+
+    it('should propagate error if repository throws', async () => {
+      userRepo.findSocialAccount.mockRejectedValue(new Error('DB error'));
+
+      await expect(service.findSocialAccount('google', 'provider-id-123')).rejects.toThrow(
+        'DB error'
+      );
+    });
+  });
+
+  describe('deleteSocialAccount', () => {
+    it('should call deleteSocialAccount on repository with correct args', async () => {
+      userRepo.deleteSocialAccount.mockResolvedValue(undefined);
+
+      await service.deleteSocialAccount('google', 'provider-id-123');
+
+      expect(userRepo.deleteSocialAccount).toHaveBeenCalledWith('google', 'provider-id-123');
+      expect(userRepo.deleteSocialAccount).toHaveBeenCalledTimes(1);
+    });
+
+    it('should propagate error if repository throws', async () => {
+      userRepo.deleteSocialAccount.mockRejectedValue(new Error('DB error'));
+
+      await expect(service.deleteSocialAccount('google', 'provider-id-123')).rejects.toThrow(
+        'DB error'
+      );
+    });
+  });
+
+  describe('getSocialAccounts', () => {
+    it('should call getSocialAccounts on repository with correct userId', async () => {
+      userRepo.getSocialAccounts.mockResolvedValue([mockSocialAccount()]);
+
+      await service.getSocialAccounts(mockUserId);
+
+      expect(userRepo.getSocialAccounts).toHaveBeenCalledWith(mockUserId);
+      expect(userRepo.getSocialAccounts).toHaveBeenCalledTimes(1);
+    });
+
+    it('should return array of social accounts', async () => {
+      userRepo.getSocialAccounts.mockResolvedValue([mockSocialAccount()]);
+
+      const result = await service.getSocialAccounts(mockUserId);
+
+      expect(Array.isArray(result)).toBe(true);
+      expect(result[0].provider).toBe('google');
+      expect(result[0].user_id).toBe(mockUserId);
+    });
+
+    it('should return empty array if user has no social accounts', async () => {
+      userRepo.getSocialAccounts.mockResolvedValue([]);
+
+      const result = await service.getSocialAccounts(mockUserId);
+
+      expect(result).toEqual([]);
+    });
+
+    it('should propagate error if repository throws', async () => {
+      userRepo.getSocialAccounts.mockRejectedValue(new Error('DB error'));
+
+      await expect(service.getSocialAccounts(mockUserId)).rejects.toThrow('DB error');
     });
   });
 });
