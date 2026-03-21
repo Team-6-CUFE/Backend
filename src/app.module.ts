@@ -9,6 +9,7 @@ import { GenreModule } from './genre/genre.module';
 import { AuthenticationModule } from './authentication/authentication.module';
 import { MailModule } from './mail/mail.module';
 import { FollowersModule } from './followers/followers.module';
+import { RedisModule } from './redis/redis.module';
 
 @Module({
   imports: [
@@ -17,6 +18,8 @@ import { FollowersModule } from './followers/followers.module';
       isGlobal: true,
       envFilePath: '.env',
     }),
+
+    RedisModule,
 
     // Database connection
     TypeOrmModule.forRootAsync({
