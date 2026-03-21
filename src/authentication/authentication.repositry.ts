@@ -158,15 +158,6 @@ export class AuthenticationRepository {
     await this.tokenRepository.delete({ email });
   }
 
-  async countRecentVerificationTokens(email: string): Promise<number> {
-    return this.tokenRepository.count({
-      where: {
-        email,
-        created_at: MoreThanOrEqual(new Date(Date.now() - 60 * 60 * 1000)), // last 1 hour
-      },
-    });
-  }
-
   async findPasswordResetToken(token: string): Promise<EmailVerificationToken | null> {
     return this.tokenRepository.findOne({
       where: {
