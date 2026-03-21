@@ -945,7 +945,6 @@ export function ApiFacebookCallback() {
 }
 
 // ─── Complete OAuth Profile ───────────────────────────────────────────────────
-
 export function ApiCompleteOAuth() {
   return applyDecorators(
     ApiOperation({
@@ -989,6 +988,238 @@ export function ApiCompleteOAuth() {
         example: {
           statusCode: 404,
           message: 'Invalid or expired pending token',
+        },
+      },
+    }),
+    ApiResponse({ status: 500, description: 'Unexpected server error' })
+  );
+}
+export function ApiUnlinkSocialAccount() {
+  return applyDecorators(
+    ApiCookieAuth('access_token'),
+    ApiOperation({
+      summary: 'Unlink a social account',
+      description:
+        'Removes the link between a social account (Google/Facebook) and the authenticated user. The user must have a password set before unlinking to avoid being locked out.',
+    }),
+    ApiParam({
+      name: 'provider',
+      description: 'Social provider to unlink',
+      example: 'google',
+      enum: ['google', 'facebook'],
+    }),
+    ApiParam({
+      name: 'providerId',
+      description: 'The provider-specific user ID',
+      example: '109801234567890123456',
+    }),
+    ApiResponse({
+      status: 200,
+      description: 'Social account unlinked successfully',
+      schema: {
+        example: {
+          status: 'success',
+          message: 'Google account unlinked successfully',
+        },
+      },
+    }),
+    ApiResponse({
+      status: 400,
+      description: 'Cannot unlink — no password set',
+      schema: {
+        example: {
+          statusCode: 400,
+          message: 'Cannot unlink social account. Please set a password first.',
+        },
+      },
+    }),
+    ApiResponse({ status: 401, description: 'Unauthorized' }),
+    ApiResponse({
+      status: 404,
+      description: 'Social account not linked',
+      schema: {
+        example: {
+          statusCode: 404,
+          message: 'Social account not linked',
+        },
+      },
+    }),
+    ApiResponse({ status: 500, description: 'Unexpected server error' })
+  );
+}
+export function ApiGetSocialAccounts() {
+  return applyDecorators(
+    ApiCookieAuth('access_token'),
+    ApiOperation({
+      summary: 'Get linked social accounts',
+      description:
+        'Returns all social accounts (Google, Facebook) linked to the authenticated user.',
+    }),
+    ApiResponse({
+      status: 200,
+      description: 'Social accounts retrieved successfully',
+      schema: {
+        example: {
+          status: 'success',
+          data: {
+            social_accounts: [
+              {
+                provider: 'google',
+                provider_id: '109801234567890123456',
+                provider_email: 'yara@gmail.com',
+                linked_at: '2025-03-20T13:00:00.000Z',
+              },
+              {
+                provider: 'facebook',
+                provider_id: '123456789012345',
+                provider_email: 'yara@facebook.com',
+                linked_at: '2025-03-21T09:00:00.000Z',
+              },
+            ],
+          },
+        },
+      },
+    }),
+    ApiResponse({
+      status: 200,
+      description: 'No social accounts linked',
+      schema: {
+        example: {
+          status: 'success',
+          data: {
+            social_accounts: [],
+          },
+        },
+      },
+    }),
+    ApiResponse({ status: 401, description: 'Unauthorized' }),
+    ApiResponse({
+      status: 404,
+      description: 'User not found',
+      schema: {
+        example: {
+          statusCode: 404,
+          message: 'User not found',
+        },
+      },
+    }),
+    ApiResponse({ status: 500, description: 'Unexpected server error' })
+  );
+}
+export function ApiGoogleLink() {
+  return applyDecorators(
+    ApiCookieAuth('access_token'),
+    ApiOperation({
+      summary: 'Initiate Google account linking',
+      description:
+        'Redirects the authenticated user to Google OAuth consent screen to link their Google account. Browser-only — cannot be called directly from Postman.',
+    }),
+    ApiResponse({ status: 302, description: 'Redirect to Google OAuth consent screen' }),
+    ApiResponse({ status: 401, description: 'Unauthorized' }),
+    ApiResponse({ status: 500, description: 'Unexpected server error' })
+  );
+}
+export function ApiGoogleLinkCallback() {
+  return applyDecorators(
+    ApiCookieAuth('access_token'),
+    ApiOperation({
+      summary: 'Google account link callback',
+      description:
+        'Handles the OAuth callback from Google after the user approves linking. Links the Google account to the authenticated user.',
+    }),
+    ApiResponse({
+      status: 200,
+      description: 'Google account linked successfully',
+      schema: {
+        example: {
+          status: 'success',
+          message: 'Google account linked successfully',
+          data: {
+            provider: 'google',
+            provider_email: 'yara@gmail.com',
+            linked_at: '2025-03-20T13:00:00.000Z',
+          },
+        },
+      },
+    }),
+    ApiResponse({
+      status: 400,
+      description: 'Google account already linked to another user',
+      schema: {
+        example: {
+          statusCode: 400,
+          message: 'This Google account is already linked to another user',
+        },
+      },
+    }),
+    ApiResponse({ status: 401, description: 'Unauthorized' }),
+    ApiResponse({
+      status: 409,
+      description: 'Provider already linked to this account',
+      schema: {
+        example: {
+          statusCode: 409,
+          message: 'You already have a Google account linked',
+        },
+      },
+    }),
+    ApiResponse({ status: 500, description: 'Unexpected server error' })
+  );
+}
+export function ApiFacebookLink() {
+  return applyDecorators(
+    ApiCookieAuth('access_token'),
+    ApiOperation({
+      summary: 'Initiate Facebook account linking',
+      description:
+        'Redirects the authenticated user to Facebook OAuth dialog to link their Facebook account. Browser-only — cannot be called directly from Postman.',
+    }),
+    ApiResponse({ status: 302, description: 'Redirect to Facebook OAuth dialog' }),
+    ApiResponse({ status: 401, description: 'Unauthorized' }),
+    ApiResponse({ status: 500, description: 'Unexpected server error' })
+  );
+}
+export function ApiFacebookLinkCallback() {
+  return applyDecorators(
+    ApiCookieAuth('access_token'),
+    ApiOperation({
+      summary: 'Facebook account link callback',
+      description:
+        'Handles the OAuth callback from Facebook after the user approves linking. Links the Facebook account to the authenticated user.',
+    }),
+    ApiResponse({
+      status: 200,
+      description: 'Facebook account linked successfully',
+      schema: {
+        example: {
+          status: 'success',
+          message: 'Facebook account linked successfully',
+          data: {
+            provider: 'facebook',
+            provider_email: 'yara@facebook.com',
+            linked_at: '2025-03-20T13:00:00.000Z',
+          },
+        },
+      },
+    }),
+    ApiResponse({
+      status: 400,
+      description: 'Facebook account already linked to another user',
+      schema: {
+        example: {
+          statusCode: 400,
+          message: 'This Facebook account is already linked to another user',
+        },
+      },
+    }),
+    ApiResponse({ status: 401, description: 'Unauthorized' }),
+    ApiResponse({
+      status: 409,
+      description: 'Provider already linked to this account',
+      schema: {
+        example: {
+          statusCode: 409,
+          message: 'You already have a Facebook account linked',
         },
       },
     }),

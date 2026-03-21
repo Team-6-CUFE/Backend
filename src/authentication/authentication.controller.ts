@@ -47,6 +47,12 @@ import {
   ApiFacebookLogin,
   ApiFacebookCallback,
   ApiCompleteOAuth,
+  ApiUnlinkSocialAccount,
+  ApiGetSocialAccounts,
+  ApiGoogleLink,
+  ApiGoogleLinkCallback,
+  ApiFacebookLink,
+  ApiFacebookLinkCallback,
 } from './authentication.swagger';
 import { GoogleLinkGuard } from './guards/google-link.guard';
 import { FacebookLinkGuard } from './guards/facebook-link.guard';
@@ -225,26 +231,31 @@ export class AuthenticationController {
     return this.authenticationService.handleOAuthCallback(facebookUser, response);
   }
 
+  @ApiGoogleLink()
   @UseGuards(GoogleLinkGuard)
   @Get('google/link')
   googleLink() {}
 
+  @ApiGoogleLinkCallback()
   @UseGuards(GoogleLinkGuard)
   @Get('google/link/callback')
   async googleLinkCallback(@CurrentUser() profile: OAuthProfile & { userId: string }) {
     return this.authenticationService.linkSocialAccount(profile.userId, profile);
   }
 
+  @ApiFacebookLink()
   @UseGuards(FacebookLinkGuard)
   @Get('facebook/link')
   facebookLink() {}
 
+  @ApiFacebookLinkCallback()
   @UseGuards(FacebookLinkGuard)
   @Get('facebook/link/callback')
   async facebookLinkCallback(@CurrentUser() profile: OAuthProfile & { userId: string }) {
     return this.authenticationService.linkSocialAccount(profile.userId, profile);
   }
 
+  @ApiUnlinkSocialAccount()
   @Delete('unlink-social/:provider/:providerId')
   unlinkSocialAccount(
     @CurrentUser('sub') userId: string,
@@ -254,6 +265,7 @@ export class AuthenticationController {
     return this.authenticationService.unlinkSocialAccount(userId, provider, providerId);
   }
 
+  @ApiGetSocialAccounts()
   @Get('social-accounts')
   getSocialAccounts(@CurrentUser('sub') userId: string) {
     return this.authenticationService.getSocialAccounts(userId);
