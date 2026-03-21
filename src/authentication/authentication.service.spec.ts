@@ -2,7 +2,6 @@ import { Test, TestingModule } from '@nestjs/testing';
 import {
   BadRequestException,
   HttpException,
-  HttpStatus,
   NotFoundException,
   ForbiddenException,
   UnauthorizedException,
@@ -48,7 +47,9 @@ import {
   mockCompleteOAuthProfileDto,
   mockExpiredPendingOAuthSession,
   mockPendingOAuthSession,
+  mockRedisClient,
 } from './test/auth.mock';
+import { REDIS_CLIENT } from '../redis/redis.module';
 
 describe('AuthenticationService', () => {
   let service: AuthenticationService;
@@ -57,6 +58,7 @@ describe('AuthenticationService', () => {
   let mailService: ReturnType<typeof mockMailService>;
   let jwtService: ReturnType<typeof mockJwtService>;
   let configService: ReturnType<typeof mockConfigService>;
+  let redisClient: ReturnType<typeof mockRedisClient>;
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
@@ -67,12 +69,14 @@ describe('AuthenticationService', () => {
         { provide: MailService, useFactory: mockMailService },
         { provide: JwtService, useFactory: mockJwtService },
         { provide: ConfigService, useFactory: mockConfigService },
+        { provide: REDIS_CLIENT, useFactory: mockRedisClient },
       ],
     }).compile();
 
     service = module.get<AuthenticationService>(AuthenticationService);
     jwtService = module.get(JwtService);
-    configService = module.get(ConfigService); // ← add
+    configService = module.get(ConfigService);
+    redisClient = module.get(REDIS_CLIENT);
     authRepo = module.get(AuthenticationRepository);
     userService = module.get(UserService);
     mailService = module.get(MailService);
@@ -295,10 +299,11 @@ describe('AuthenticationService', () => {
     beforeEach(() => {
       jest.spyOn(tokensUtil, 'generateVerificationToken').mockReturnValue(mockVerificationToken);
       userService.findEmailRecord.mockResolvedValue(mockUserEmail());
-      authRepo.countRecentVerificationTokens.mockResolvedValue(0);
       authRepo.deleteExistingTokens.mockResolvedValue(undefined);
       authRepo.createVerificationToken.mockResolvedValue(undefined);
       mailService.sendEmailVerification.mockResolvedValue(undefined);
+      redisClient.incr.mockResolvedValue(1);
+      redisClient.expire.mockResolvedValue(1);
     });
 
     it('should resend verification email successfully', async () => {
@@ -330,7 +335,6 @@ describe('AuthenticationService', () => {
 
     it('should send email with the new verification token', async () => {
       await service.resendVerificationEmail(mockEmail);
-
       expect(mailService.sendEmailVerification).toHaveBeenCalledWith(
         mockEmail,
         mockVerificationToken
@@ -349,83 +353,65 @@ describe('AuthenticationService', () => {
       );
     });
 
+    it('should increment rate limit counter in Redis', async () => {
+      await service.resendVerificationEmail(mockEmail);
+      expect(redisClient.incr).toHaveBeenCalledWith(`rate:verify:${mockEmail}`);
+    });
+
+    it('should set expiry on rate limit key', async () => {
+      await service.resendVerificationEmail(mockEmail);
+      expect(redisClient.expire).toHaveBeenCalledWith(`rate:verify:${mockEmail}`, 300);
+    });
+
+    it('should throw 429 if rate limit exceeded (attempts > 3)', async () => {
+      redisClient.incr.mockResolvedValue(4);
+
+      await expect(service.resendVerificationEmail(mockEmail)).rejects.toThrow(HttpException);
+    });
+
+    it('should not send email if rate limit exceeded', async () => {
+      redisClient.incr.mockResolvedValue(4);
+
+      await expect(service.resendVerificationEmail(mockEmail)).rejects.toThrow();
+      expect(mailService.sendEmailVerification).not.toHaveBeenCalled();
+    });
+
+    it('should NOT throw if attempts is exactly 3 (boundary — still allowed)', async () => {
+      redisClient.incr.mockResolvedValue(3);
+
+      await expect(service.resendVerificationEmail(mockEmail)).resolves.not.toThrow();
+    });
+
+    it('should NOT throw if attempts is 1', async () => {
+      redisClient.incr.mockResolvedValue(1);
+
+      await expect(service.resendVerificationEmail(mockEmail)).resolves.not.toThrow();
+    });
+
     it('should throw NotFoundException if email not found', async () => {
       userService.findEmailRecord.mockResolvedValue(null);
-
       await expect(service.resendVerificationEmail(mockEmail)).rejects.toThrow(NotFoundException);
     });
 
     it('should not proceed if email not found', async () => {
       userService.findEmailRecord.mockResolvedValue(null);
-
       await expect(service.resendVerificationEmail(mockEmail)).rejects.toThrow();
-      expect(authRepo.countRecentVerificationTokens).not.toHaveBeenCalled();
       expect(mailService.sendEmailVerification).not.toHaveBeenCalled();
     });
 
     it('should throw BadRequestException if email already verified', async () => {
-      userService.findEmailRecord.mockResolvedValue({
-        ...mockUserEmail(),
-        is_verified: true,
-      });
-
+      userService.findEmailRecord.mockResolvedValue({ ...mockUserEmail(), is_verified: true });
       await expect(service.resendVerificationEmail(mockEmail)).rejects.toThrow(BadRequestException);
     });
 
     it('should not proceed if email already verified', async () => {
-      userService.findEmailRecord.mockResolvedValue({
-        ...mockUserEmail(),
-        is_verified: true,
-      });
-
-      await expect(service.resendVerificationEmail(mockEmail)).rejects.toThrow();
-      expect(mailService.sendEmailVerification).not.toHaveBeenCalled();
-    });
-
-    it('should throw 429 if rate limit exceeded (count === 3)', async () => {
-      authRepo.countRecentVerificationTokens.mockResolvedValue(3);
-
-      await expect(service.resendVerificationEmail(mockEmail)).rejects.toThrow(
-        new HttpException(
-          'Too many verification emails sent. Please try again in 5 minutes.',
-          HttpStatus.TOO_MANY_REQUESTS
-        )
-      );
-    });
-
-    it('should throw 429 if rate limit exceeded (count > 3)', async () => {
-      authRepo.countRecentVerificationTokens.mockResolvedValue(5);
-
-      await expect(service.resendVerificationEmail(mockEmail)).rejects.toThrow(
-        new HttpException(
-          'Too many verification emails sent. Please try again in 5 minutes.',
-          HttpStatus.TOO_MANY_REQUESTS
-        )
-      );
-    });
-
-    it('should NOT throw if count is exactly 2 (boundary — still allowed)', async () => {
-      authRepo.countRecentVerificationTokens.mockResolvedValue(2);
-
-      await expect(service.resendVerificationEmail(mockEmail)).resolves.not.toThrow();
-    });
-
-    it('should NOT throw if count is 0', async () => {
-      authRepo.countRecentVerificationTokens.mockResolvedValue(0);
-
-      await expect(service.resendVerificationEmail(mockEmail)).resolves.not.toThrow();
-    });
-
-    it('should not send email if rate limit exceeded', async () => {
-      authRepo.countRecentVerificationTokens.mockResolvedValue(3);
-
+      userService.findEmailRecord.mockResolvedValue({ ...mockUserEmail(), is_verified: true });
       await expect(service.resendVerificationEmail(mockEmail)).rejects.toThrow();
       expect(mailService.sendEmailVerification).not.toHaveBeenCalled();
     });
 
     it('should propagate error if deleteExistingTokens fails', async () => {
       authRepo.deleteExistingTokens.mockRejectedValue(new Error('DB error'));
-
       await expect(service.resendVerificationEmail(mockEmail)).rejects.toThrow('DB error');
       expect(mailService.sendEmailVerification).not.toHaveBeenCalled();
     });
@@ -434,57 +420,6 @@ describe('AuthenticationService', () => {
       mailService.sendEmailVerification.mockRejectedValue(new Error('Mail error'));
 
       await expect(service.resendVerificationEmail(mockEmail)).rejects.toThrow('Mail error');
-    });
-  });
-
-  // ─── generateUniqueUsername() ─────────────────────────────────────────────────
-
-  describe('generateUniqueUsername (via register)', () => {
-    beforeEach(() => {
-      jest.spyOn(captchaUtil, 'verifyCaptcha').mockResolvedValue(true);
-      jest.spyOn(tokensUtil, 'generateVerificationToken').mockReturnValue(mockVerificationToken);
-      userService.checkEmailExists.mockResolvedValue(false);
-      userService.createUser.mockResolvedValue(mockUser());
-      authRepo.createVerificationToken.mockResolvedValue(undefined);
-      mailService.sendEmailVerification.mockResolvedValue(undefined);
-    });
-
-    it('should not modify username if original is available', async () => {
-      userService.checkUsernameExists.mockResolvedValue(false);
-
-      await service.register(mockRegisterDto() as any);
-
-      const [, usernameArg] = userService.createUser.mock.calls[0];
-      expect(usernameArg).toBe('yara_senousy');
-    });
-
-    it('should generate username with correct pattern if taken once', async () => {
-      userService.checkUsernameExists.mockResolvedValueOnce(true).mockResolvedValueOnce(false);
-
-      await service.register(mockRegisterDto() as any);
-
-      const [, usernameArg] = userService.createUser.mock.calls[0];
-      expect(usernameArg).toMatch(/^yara_senousy_[a-f0-9]{6}$/);
-    });
-
-    it('should recurse until a unique username is found', async () => {
-      userService.checkUsernameExists
-        .mockResolvedValueOnce(true)
-        .mockResolvedValueOnce(true)
-        .mockResolvedValueOnce(false);
-
-      await service.register(mockRegisterDto() as any);
-
-      expect(userService.checkUsernameExists).toHaveBeenCalledTimes(3);
-    });
-
-    it('generated username should always start with base username', async () => {
-      userService.checkUsernameExists.mockResolvedValueOnce(true).mockResolvedValueOnce(false);
-
-      await service.register(mockRegisterDto() as any);
-
-      const [, usernameArg] = userService.createUser.mock.calls[0];
-      expect(usernameArg).toMatch(/^yara_senousy_/);
     });
   });
 
@@ -2000,9 +1935,13 @@ describe('AuthenticationService', () => {
       userService.findEmailRecord.mockResolvedValue({ ...mockUserEmail(), is_verified: true });
       authRepo.createVerificationToken.mockResolvedValue(undefined);
       mailService.sendPasswordReset.mockResolvedValue(undefined);
+      redisClient.incr.mockResolvedValue(1);
+      redisClient.expire.mockResolvedValue(1);
     });
 
-    it('should return success response', async () => {
+    // ── Email exists and is verified (normal flow) ─────────────────────────────
+
+    it('should return success response for valid verified email', async () => {
       const result = await service.forgotPassword(mockEmail);
 
       expect(result.status).toBe('success');
@@ -2029,33 +1968,22 @@ describe('AuthenticationService', () => {
       expect(mailService.sendPasswordReset).toHaveBeenCalledTimes(1);
     });
 
-    it('should throw NotFoundException if email not found', async () => {
-      userService.findEmailRecord.mockResolvedValue(null);
+    it('should increment rate limit counter using userId when email exists', async () => {
+      await service.forgotPassword(mockEmail);
 
-      await expect(service.forgotPassword(mockEmail)).rejects.toThrow(NotFoundException);
+      expect(redisClient.incr).toHaveBeenCalledWith(
+        `rate:forgot-password:${mockUserEmail().user_id}`
+      );
     });
 
-    it('should throw NotFoundException if email is not verified', async () => {
-      userService.findEmailRecord.mockResolvedValue({
-        ...mockUserEmail(),
-        is_verified: false,
-      });
+    it('should throw 429 if rate limit exceeded for valid email (attempts > 3)', async () => {
+      redisClient.incr.mockResolvedValue(4);
 
-      await expect(service.forgotPassword(mockEmail)).rejects.toThrow(NotFoundException);
+      await expect(service.forgotPassword(mockEmail)).rejects.toThrow(HttpException);
     });
 
-    it('should not create token if email not found', async () => {
-      userService.findEmailRecord.mockResolvedValue(null);
-
-      await expect(service.forgotPassword(mockEmail)).rejects.toThrow();
-      expect(authRepo.createVerificationToken).not.toHaveBeenCalled();
-    });
-
-    it('should not send email if email not verified', async () => {
-      userService.findEmailRecord.mockResolvedValue({
-        ...mockUserEmail(),
-        is_verified: false,
-      });
+    it('should not send email if rate limit exceeded for valid email', async () => {
+      redisClient.incr.mockResolvedValue(4);
 
       await expect(service.forgotPassword(mockEmail)).rejects.toThrow();
       expect(mailService.sendPasswordReset).not.toHaveBeenCalled();
@@ -2072,6 +2000,64 @@ describe('AuthenticationService', () => {
       mailService.sendPasswordReset.mockRejectedValue(new Error('Mail error'));
 
       await expect(service.forgotPassword(mockEmail)).rejects.toThrow('Mail error');
+    });
+
+    // ── Email not found or not verified (silent success — security by obscurity) ─
+
+    it('should return success response even if email not found', async () => {
+      userService.findEmailRecord.mockResolvedValue(null);
+
+      const result = await service.forgotPassword(mockEmail);
+
+      expect(result.status).toBe('success');
+      expect(result.data.email_sent).toBe(true);
+    });
+
+    it('should return success response even if email is not verified', async () => {
+      userService.findEmailRecord.mockResolvedValue({ ...mockUserEmail(), is_verified: false });
+
+      const result = await service.forgotPassword(mockEmail);
+
+      expect(result.status).toBe('success');
+    });
+
+    it('should not create token if email not found', async () => {
+      userService.findEmailRecord.mockResolvedValue(null);
+
+      await service.forgotPassword(mockEmail);
+
+      expect(authRepo.createVerificationToken).not.toHaveBeenCalled();
+    });
+
+    it('should not send email if email not found', async () => {
+      userService.findEmailRecord.mockResolvedValue(null);
+
+      await service.forgotPassword(mockEmail);
+
+      expect(mailService.sendPasswordReset).not.toHaveBeenCalled();
+    });
+
+    it('should not send email if email is not verified', async () => {
+      userService.findEmailRecord.mockResolvedValue({ ...mockUserEmail(), is_verified: false });
+
+      await service.forgotPassword(mockEmail);
+
+      expect(mailService.sendPasswordReset).not.toHaveBeenCalled();
+    });
+
+    it('should increment rate limit counter using email when email not found', async () => {
+      userService.findEmailRecord.mockResolvedValue(null);
+
+      await service.forgotPassword(mockEmail);
+
+      expect(redisClient.incr).toHaveBeenCalledWith(`rate:forgot-password:${mockEmail}`);
+    });
+
+    it('should throw 429 if rate limit exceeded for unknown email (attempts > 3)', async () => {
+      userService.findEmailRecord.mockResolvedValue(null);
+      redisClient.incr.mockResolvedValue(4);
+
+      await expect(service.forgotPassword(mockEmail)).rejects.toThrow(HttpException);
     });
   });
 

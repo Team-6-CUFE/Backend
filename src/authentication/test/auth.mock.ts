@@ -12,6 +12,18 @@ export const mockAccessToken = 'mock.access.token';
 export const mockRefreshToken = 'mock.refresh.token';
 export const mockPassword = 'SecurePassword123!';
 
+export const mockRedisClient = () => ({
+  get: jest.fn(),
+  set: jest.fn(),
+  del: jest.fn(),
+  incr: jest.fn(),
+  expire: jest.fn(),
+  lPush: jest.fn(),
+  lTrim: jest.fn(),
+  zIncrBy: jest.fn(),
+  zRange: jest.fn(),
+});
+
 export const mockRegisterDto = () => ({
   email: mockEmail,
   password: mockPassword,
