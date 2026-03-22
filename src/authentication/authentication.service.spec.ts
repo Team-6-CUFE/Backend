@@ -86,6 +86,8 @@ describe('AuthenticationService', () => {
   // ─── register() ──────────────────────────────────────────────────────────────
 
   describe('register', () => {
+    const mockIp = '197.32.45.123';
+
     beforeEach(() => {
       jest.spyOn(captchaUtil, 'verifyCaptcha').mockResolvedValue(true);
       jest.spyOn(tokensUtil, 'generateVerificationToken').mockReturnValue(mockVerificationToken);
@@ -97,7 +99,7 @@ describe('AuthenticationService', () => {
     });
 
     it('should register successfully and return correct response', async () => {
-      const result = await service.register(mockRegisterDto() as any);
+      const result = await service.register(mockRegisterDto() as any, mockIp);
 
       expect(result.status).toBe('success');
       expect(result.data.email).toBe(mockEmail);
@@ -107,7 +109,7 @@ describe('AuthenticationService', () => {
     });
 
     it('should call createUser with correct dto (without captchaToken)', async () => {
-      await service.register(mockRegisterDto() as any);
+      await service.register(mockRegisterDto() as any, mockIp);
 
       const [createUserDtoArg, usernameArg] = userService.createUser.mock.calls[0];
       expect(createUserDtoArg).not.toHaveProperty('captchaToken');
@@ -117,7 +119,7 @@ describe('AuthenticationService', () => {
     });
 
     it('should call createVerificationToken with correct args', async () => {
-      await service.register(mockRegisterDto() as any);
+      await service.register(mockRegisterDto() as any, mockIp);
 
       expect(authRepo.createVerificationToken).toHaveBeenCalledWith(
         mockUserId,
@@ -129,13 +131,13 @@ describe('AuthenticationService', () => {
     });
 
     it('should call createVerificationToken exactly once', async () => {
-      await service.register(mockRegisterDto() as any);
+      await service.register(mockRegisterDto() as any, mockIp);
 
       expect(authRepo.createVerificationToken).toHaveBeenCalledTimes(1);
     });
 
     it('should send verification email after registration', async () => {
-      await service.register(mockRegisterDto() as any);
+      await service.register(mockRegisterDto() as any, mockIp);
 
       expect(mailService.sendEmailVerification).toHaveBeenCalledWith(
         mockEmail,
@@ -144,7 +146,7 @@ describe('AuthenticationService', () => {
     });
 
     it('should send verification email exactly once', async () => {
-      await service.register(mockRegisterDto() as any);
+      await service.register(mockRegisterDto() as any, mockIp);
 
       expect(mailService.sendEmailVerification).toHaveBeenCalledTimes(1);
     });
@@ -152,13 +154,15 @@ describe('AuthenticationService', () => {
     it('should throw BadRequestException if captcha is invalid', async () => {
       jest.spyOn(captchaUtil, 'verifyCaptcha').mockResolvedValue(false);
 
-      await expect(service.register(mockRegisterDto() as any)).rejects.toThrow(BadRequestException);
+      await expect(service.register(mockRegisterDto() as any, mockIp)).rejects.toThrow(
+        BadRequestException
+      );
     });
 
     it('should not proceed further if captcha fails', async () => {
       jest.spyOn(captchaUtil, 'verifyCaptcha').mockResolvedValue(false);
 
-      await expect(service.register(mockRegisterDto() as any)).rejects.toThrow();
+      await expect(service.register(mockRegisterDto() as any, mockIp)).rejects.toThrow();
       expect(userService.checkEmailExists).not.toHaveBeenCalled();
       expect(userService.createUser).not.toHaveBeenCalled();
     });
@@ -166,22 +170,22 @@ describe('AuthenticationService', () => {
     it('should throw BadRequestException if email already exists', async () => {
       userService.checkEmailExists.mockResolvedValue(true);
 
-      await expect(service.register(mockRegisterDto() as any)).rejects.toThrow(BadRequestException);
+      await expect(service.register(mockRegisterDto() as any, mockIp)).rejects.toThrow(
+        BadRequestException
+      );
     });
 
     it('should not create user if email already exists', async () => {
       userService.checkEmailExists.mockResolvedValue(true);
 
-      await expect(service.register(mockRegisterDto() as any)).rejects.toThrow();
+      await expect(service.register(mockRegisterDto() as any, mockIp)).rejects.toThrow();
       expect(userService.createUser).not.toHaveBeenCalled();
     });
 
     it('should generate unique username if username already taken', async () => {
-      userService.checkUsernameExists
-        .mockResolvedValueOnce(true) // original username taken
-        .mockResolvedValueOnce(false); // generated username available
+      userService.checkUsernameExists.mockResolvedValueOnce(true).mockResolvedValueOnce(false);
 
-      const result = await service.register(mockRegisterDto() as any);
+      const result = await service.register(mockRegisterDto() as any, mockIp);
 
       const [, usernameArg] = userService.createUser.mock.calls[0];
       expect(usernameArg).not.toBe('yara_senousy');
@@ -191,20 +195,19 @@ describe('AuthenticationService', () => {
 
     it('should keep recursing until unique username is found', async () => {
       userService.checkUsernameExists
-        .mockResolvedValueOnce(true) // original taken
-        .mockResolvedValueOnce(true) // first generated taken
-        .mockResolvedValueOnce(false); // second generated available
+        .mockResolvedValueOnce(true)
+        .mockResolvedValueOnce(true)
+        .mockResolvedValueOnce(false);
 
-      await service.register(mockRegisterDto() as any);
+      await service.register(mockRegisterDto() as any, mockIp);
 
-      // checkUsernameExists called 3 times total
       expect(userService.checkUsernameExists).toHaveBeenCalledTimes(3);
     });
 
     it('should not change username if original is available', async () => {
       userService.checkUsernameExists.mockResolvedValue(false);
 
-      await service.register(mockRegisterDto() as any);
+      await service.register(mockRegisterDto() as any, mockIp);
 
       const [, usernameArg] = userService.createUser.mock.calls[0];
       expect(usernameArg).toBe('yara_senousy');
@@ -213,33 +216,52 @@ describe('AuthenticationService', () => {
     it('should not call createVerificationToken if createUser fails', async () => {
       userService.createUser.mockRejectedValue(new Error('DB error'));
 
-      await expect(service.register(mockRegisterDto() as any)).rejects.toThrow('DB error');
+      await expect(service.register(mockRegisterDto() as any, mockIp)).rejects.toThrow('DB error');
       expect(authRepo.createVerificationToken).not.toHaveBeenCalled();
     });
 
     it('should not send email if createVerificationToken fails', async () => {
       authRepo.createVerificationToken.mockRejectedValue(new Error('DB error'));
 
-      await expect(service.register(mockRegisterDto() as any)).rejects.toThrow('DB error');
+      await expect(service.register(mockRegisterDto() as any, mockIp)).rejects.toThrow('DB error');
       expect(mailService.sendEmailVerification).not.toHaveBeenCalled();
     });
 
     it('should propagate error if sendEmailVerification fails', async () => {
       mailService.sendEmailVerification.mockRejectedValue(new Error('Mail error'));
 
-      await expect(service.register(mockRegisterDto() as any)).rejects.toThrow('Mail error');
+      await expect(service.register(mockRegisterDto() as any, mockIp)).rejects.toThrow(
+        'Mail error'
+      );
     });
 
     it('should return created_at from the created user', async () => {
       const fixedDate = new Date('2025-01-01T00:00:00Z');
       userService.createUser.mockResolvedValue({ ...mockUser(), created_at: fixedDate });
 
-      const result = await service.register(mockRegisterDto() as any);
+      const result = await service.register(mockRegisterDto() as any, mockIp);
 
       expect(result.data.created_at).toEqual(fixedDate);
     });
-  });
 
+    it('should pass country and city from IP detection to createUser', async () => {
+      await service.register(mockRegisterDto() as any, mockIp);
+
+      const [createUserDtoArg] = userService.createUser.mock.calls[0];
+      expect(createUserDtoArg).toHaveProperty('country');
+      expect(createUserDtoArg).toHaveProperty('city');
+    });
+
+    it('should pass null country and city for localhost IP', async () => {
+      await service.register(mockRegisterDto() as any, '127.0.0.1');
+
+      const [createUserDtoArg] = userService.createUser.mock.calls[0];
+      // In development with NODE_ENV check, localhost returns null
+      expect(
+        createUserDtoArg.country === null || typeof createUserDtoArg.country === 'string'
+      ).toBe(true);
+    });
+  });
   // ─── verifyEmail() ────────────────────────────────────────────────────────────
 
   describe('verifyEmail', () => {

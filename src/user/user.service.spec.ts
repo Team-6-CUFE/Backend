@@ -239,28 +239,50 @@ describe('UserService', () => {
     });
 
     it('should call createUser on repository and return the result', async () => {
-      const result = await service.createUser(mockCreateUserDto() as any, mockUsername);
+      const result = await service.createUser(
+        mockCreateUserDto() as any,
+        mockUsername,
+        'Cairo',
+        'EG'
+      );
 
       expect(userRepo.createUser).toHaveBeenCalledTimes(1);
       expect(result.user_id).toBe(mockUserId);
     });
 
     it('should not pass raw password to repository', async () => {
-      await service.createUser(mockCreateUserDto() as any, mockUsername);
+      await service.createUser(mockCreateUserDto() as any, mockUsername, 'Cairo', 'EG');
 
       const [, hashedPassword] = userRepo.createUser.mock.calls[0];
       expect(hashedPassword).not.toBe('SecurePassword123!');
     });
 
     it('should pass a valid bcrypt hash to repository', async () => {
-      await service.createUser(mockCreateUserDto() as any, mockUsername);
+      await service.createUser(mockCreateUserDto() as any, mockUsername, 'Cairo', 'EG');
 
       const [, hashedPassword] = userRepo.createUser.mock.calls[0];
       expect(hashedPassword).toMatch(/^\$2b\$10\$/);
     });
 
+    it('should pass city and country to repository', async () => {
+      await service.createUser(mockCreateUserDto() as any, mockUsername, 'Cairo', 'EG');
+
+      const [, , usernameArg, cityArg, countryArg] = userRepo.createUser.mock.calls[0];
+      expect(usernameArg).toBe(mockUsername);
+      expect(cityArg).toBe('Cairo');
+      expect(countryArg).toBe('EG');
+    });
+
+    it('should pass null city and country to repository when not detected', async () => {
+      await service.createUser(mockCreateUserDto() as any, mockUsername, null, null);
+
+      const [, , , cityArg, countryArg] = userRepo.createUser.mock.calls[0];
+      expect(cityArg).toBeNull();
+      expect(countryArg).toBeNull();
+    });
+
     it('should call addToFilter with the username after creating user', async () => {
-      await service.createUser(mockCreateUserDto() as any, mockUsername);
+      await service.createUser(mockCreateUserDto() as any, mockUsername, 'Cairo', 'EG');
 
       expect(usernameAvailability.addToFilter).toHaveBeenCalledWith(mockUsername);
       expect(usernameAvailability.addToFilter).toHaveBeenCalledTimes(1);
@@ -276,7 +298,7 @@ describe('UserService', () => {
         return mockUser();
       });
 
-      await service.createUser(mockCreateUserDto() as any, mockUsername);
+      await service.createUser(mockCreateUserDto() as any, mockUsername, 'Cairo', 'EG');
 
       expect(callOrder[0]).toBe('addToFilter');
       expect(callOrder[1]).toBe('createUser');
@@ -285,9 +307,9 @@ describe('UserService', () => {
     it('should propagate error if repository createUser fails', async () => {
       userRepo.createUser.mockRejectedValue(new Error('DB error'));
 
-      await expect(service.createUser(mockCreateUserDto() as any, mockUsername)).rejects.toThrow(
-        'DB error'
-      );
+      await expect(
+        service.createUser(mockCreateUserDto() as any, mockUsername, 'Cairo', 'EG')
+      ).rejects.toThrow('DB error');
     });
   });
 

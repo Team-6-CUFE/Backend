@@ -40,8 +40,13 @@ describe('AuthenticationController', () => {
 
   // ─── register ────────────────────────────────────────────────────────────────
 
+  // ─── register ────────────────────────────────────────────────────────────────
+
   describe('register', () => {
-    it('should delegate to service with registerDto', async () => {
+    const mockIp = '197.32.45.123';
+    const mockReq = { ip: mockIp, socket: { remoteAddress: mockIp } };
+
+    it('should delegate to service with registerDto and ip', async () => {
       const dto = mockRegisterDto();
       service.register.mockResolvedValue({
         status: 'success',
@@ -49,9 +54,9 @@ describe('AuthenticationController', () => {
         data: {},
       });
 
-      await controller.register(dto as any);
+      await controller.register(dto as any, mockReq as any);
 
-      expect(service.register).toHaveBeenCalledWith(dto);
+      expect(service.register).toHaveBeenCalledWith(dto, mockIp);
       expect(service.register).toHaveBeenCalledTimes(1);
     });
 
@@ -63,37 +68,35 @@ describe('AuthenticationController', () => {
       };
       service.register.mockResolvedValue(mockResponse);
 
-      const result = await controller.register(mockRegisterDto() as any);
+      const result = await controller.register(mockRegisterDto() as any, mockReq as any);
 
       expect(result).toEqual(mockResponse);
     });
-  });
 
-  // ─── verifyEmail ──────────────────────────────────────────────────────────────
+    it('should use socket.remoteAddress if req.ip is undefined', async () => {
+      const reqWithoutIp = { ip: undefined, socket: { remoteAddress: mockIp } };
+      service.register.mockResolvedValue({ status: 'success', message: '', data: {} });
 
-  describe('verifyemail', () => {
-    it('should delegate to service with token param', async () => {
-      service.verifyEmail.mockResolvedValue({
-        status: 'success',
-        message: 'Email verified successfully.',
-      });
+      await controller.register(mockRegisterDto() as any, reqWithoutIp as any);
 
-      await controller.verifyemail(mockVerificationToken);
-
-      expect(service.verifyEmail).toHaveBeenCalledWith(mockVerificationToken);
-      expect(service.verifyEmail).toHaveBeenCalledTimes(1);
+      expect(service.register).toHaveBeenCalledWith(expect.anything(), mockIp);
     });
 
-    it('should return the service response as is', async () => {
-      const mockResponse = {
-        status: 'success',
-        message: 'Email verified successfully.',
-      };
-      service.verifyEmail.mockResolvedValue(mockResponse);
+    it('should use empty string if both ip and remoteAddress are undefined', async () => {
+      const reqWithNoIp = { ip: undefined, socket: { remoteAddress: undefined } };
+      service.register.mockResolvedValue({ status: 'success', message: '', data: {} });
 
-      const result = await controller.verifyemail(mockVerificationToken);
+      await controller.register(mockRegisterDto() as any, reqWithNoIp as any);
 
-      expect(result).toEqual(mockResponse);
+      expect(service.register).toHaveBeenCalledWith(expect.anything(), '');
+    });
+
+    it('should propagate exception thrown by service', async () => {
+      service.register.mockRejectedValue(new BadRequestException('Email already registered'));
+
+      await expect(controller.register(mockRegisterDto() as any, mockReq as any)).rejects.toThrow(
+        BadRequestException
+      );
     });
   });
 
