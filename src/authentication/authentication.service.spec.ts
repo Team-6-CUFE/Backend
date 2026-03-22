@@ -881,6 +881,23 @@ describe('AuthenticationService', () => {
       expect(res.cookie).not.toHaveBeenCalled();
     });
 
+    it('should throw UnauthorizedException if findById returns null after finding user', async () => {
+      userService.findByEmail.mockResolvedValue(mockUser());
+      userService.findById.mockResolvedValue(null); // ← findById returns null
+
+      await expect(service.login(mockLoginDto() as any, res as any)).rejects.toThrow(
+        UnauthorizedException
+      );
+    });
+
+    it('should not set cookies if findById returns null', async () => {
+      userService.findByEmail.mockResolvedValue(mockUser());
+      userService.findById.mockResolvedValue(null);
+
+      await expect(service.login(mockLoginDto() as any, res as any)).rejects.toThrow();
+      expect(res.cookie).not.toHaveBeenCalled();
+    });
+
     // ── DB failure ─────────────────────────────────────────────────────────────
 
     it('should propagate error if saveRefreshToken fails', async () => {
@@ -1406,6 +1423,44 @@ describe('AuthenticationService', () => {
       await expect(service.addEmail(mockUserId, mockSecondaryEmail)).rejects.toThrow('DB error');
       expect(mailService.sendEmailVerification).not.toHaveBeenCalled();
     });
+
+    it('should use empty string for notification if user has no primary email', async () => {
+      userService.findById.mockResolvedValue({
+        ...mockUser(),
+        emails: [], // ← no emails at all, find returns undefined
+      });
+      userService.addEmail.mockResolvedValue(mockNewEmailRecord());
+      authRepo.createVerificationToken.mockResolvedValue(undefined);
+      mailService.sendEmailAddedNotification.mockResolvedValue(undefined);
+      mailService.sendEmailVerification.mockResolvedValue(undefined);
+
+      await service.addEmail(mockUserId, mockSecondaryEmail);
+
+      expect(mailService.sendEmailAddedNotification).toHaveBeenCalledWith(
+        '', // ← empty string fallback
+        mockSecondaryEmail,
+        mockUser().display_name
+      );
+    });
+
+    it('should use empty string when no email has is_primary true', async () => {
+      userService.findById.mockResolvedValue({
+        ...mockUser(),
+        emails: [{ email: mockEmail, is_primary: false, is_verified: true, user_id: mockUserId }],
+      });
+      userService.addEmail.mockResolvedValue(mockNewEmailRecord());
+      authRepo.createVerificationToken.mockResolvedValue(undefined);
+      mailService.sendEmailAddedNotification.mockResolvedValue(undefined);
+      mailService.sendEmailVerification.mockResolvedValue(undefined);
+
+      await service.addEmail(mockUserId, mockSecondaryEmail);
+
+      expect(mailService.sendEmailAddedNotification).toHaveBeenCalledWith(
+        '',
+        mockSecondaryEmail,
+        mockUser().display_name
+      );
+    });
   });
 
   // ─── removeEmail() ────────────────────────────────────────────────────────────
@@ -1648,6 +1703,27 @@ describe('AuthenticationService', () => {
       );
       expect(mailService.sendPrimaryEmailChangeCode).not.toHaveBeenCalled();
     });
+
+    it('should throw 429 if rate limit exceeded in setPrimaryEmail (attempts > 3)', async () => {
+      redisClient.incr.mockResolvedValue(4);
+
+      await expect(service.setPrimaryEmail(mockUserId, mockSecondaryEmail)).rejects.toThrow(
+        HttpException
+      );
+    });
+
+    it('should not send code if rate limit exceeded in setPrimaryEmail', async () => {
+      redisClient.incr.mockResolvedValue(4);
+
+      await expect(service.setPrimaryEmail(mockUserId, mockSecondaryEmail)).rejects.toThrow();
+      expect(mailService.sendPrimaryEmailChangeCode).not.toHaveBeenCalled();
+    });
+
+    it('should NOT throw if attempts is exactly 3 in setPrimaryEmail (boundary)', async () => {
+      redisClient.incr.mockResolvedValue(3);
+
+      await expect(service.setPrimaryEmail(mockUserId, mockSecondaryEmail)).resolves.not.toThrow();
+    });
   });
 
   // ─── verifyPrimaryEmailChange() ───────────────────────────────────────────────
@@ -1824,6 +1900,37 @@ describe('AuthenticationService', () => {
       mailService.sendPasswordReset.mockRejectedValue(new Error('Mail error'));
 
       await expect(service.changePasswordRequest(mockUserId)).rejects.toThrow('Mail error');
+    });
+
+    it('should increment rate limit counter in Redis', async () => {
+      await service.changePasswordRequest(mockUserId);
+
+      expect(redisClient.incr).toHaveBeenCalledWith(`rate:change-password:${mockUserId}`);
+    });
+
+    it('should set expiry on rate limit key', async () => {
+      await service.changePasswordRequest(mockUserId);
+
+      expect(redisClient.expire).toHaveBeenCalledWith(`rate:change-password:${mockUserId}`, 300);
+    });
+
+    it('should throw 429 if rate limit exceeded in changePasswordRequest (attempts > 3)', async () => {
+      redisClient.incr.mockResolvedValue(4);
+
+      await expect(service.changePasswordRequest(mockUserId)).rejects.toThrow(HttpException);
+    });
+
+    it('should not send email if rate limit exceeded in changePasswordRequest', async () => {
+      redisClient.incr.mockResolvedValue(4);
+
+      await expect(service.changePasswordRequest(mockUserId)).rejects.toThrow();
+      expect(mailService.sendPasswordReset).not.toHaveBeenCalled();
+    });
+
+    it('should NOT throw if attempts is exactly 3 in changePasswordRequest (boundary)', async () => {
+      redisClient.incr.mockResolvedValue(3);
+
+      await expect(service.changePasswordRequest(mockUserId)).resolves.not.toThrow();
     });
   });
 
@@ -2287,6 +2394,9 @@ describe('AuthenticationService', () => {
         .mockReturnValue('mocked-token')
         .mockReturnValueOnce(mockAccessToken)
         .mockReturnValueOnce(mockRefreshToken);
+      jest
+        .spyOn(geoipUtil, 'getLocationFromIp')
+        .mockReturnValue({ country: 'Egypt', city: 'Cairo' });
     });
 
     it('should return success response after completing profile', async () => {
@@ -2370,6 +2480,48 @@ describe('AuthenticationService', () => {
 
       const callArg = userService.createOAuthUser.mock.calls[0][0];
       expect(callArg.username).toMatch(/^yara_senousy_[a-f0-9]{6}$/);
+    });
+
+    it('should pass city and country from IP to createOAuthUser', async () => {
+      jest
+        .spyOn(geoipUtil, 'getLocationFromIp')
+        .mockReturnValue({ country: 'Egypt', city: 'Cairo' });
+
+      await service.completeOAuthProfile(mockCompleteOAuthProfileDto() as any, res as any, mockIp);
+
+      expect(userService.createOAuthUser).toHaveBeenCalledWith(
+        expect.objectContaining({ city: 'Cairo', country: 'Egypt' })
+      );
+    });
+
+    it('should pass empty string for city when getLocationFromIp returns null city', async () => {
+      jest.spyOn(geoipUtil, 'getLocationFromIp').mockReturnValue({ country: 'Egypt', city: null });
+
+      await service.completeOAuthProfile(mockCompleteOAuthProfileDto() as any, res as any, mockIp);
+
+      expect(userService.createOAuthUser).toHaveBeenCalledWith(
+        expect.objectContaining({ city: '', country: 'Egypt' })
+      );
+    });
+
+    it('should pass empty string for country when getLocationFromIp returns null country', async () => {
+      jest.spyOn(geoipUtil, 'getLocationFromIp').mockReturnValue({ country: null, city: 'Cairo' });
+
+      await service.completeOAuthProfile(mockCompleteOAuthProfileDto() as any, res as any, mockIp);
+
+      expect(userService.createOAuthUser).toHaveBeenCalledWith(
+        expect.objectContaining({ city: 'Cairo', country: '' })
+      );
+    });
+
+    it('should pass empty strings for both when getLocationFromIp returns null', async () => {
+      jest.spyOn(geoipUtil, 'getLocationFromIp').mockReturnValue({ country: null, city: null });
+
+      await service.completeOAuthProfile(mockCompleteOAuthProfileDto() as any, res as any, mockIp);
+
+      expect(userService.createOAuthUser).toHaveBeenCalledWith(
+        expect.objectContaining({ city: '', country: '' })
+      );
     });
 
     // ── Invalid token ──────────────────────────────────────────────────────────

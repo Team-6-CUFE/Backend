@@ -719,6 +719,48 @@ describe('AuthenticationController', () => {
         )
       ).rejects.toThrow(NotFoundException);
     });
+
+    it('should use socket.remoteAddress if req.ip is undefined', async () => {
+      const reqWithoutIp = { ip: undefined, socket: { remoteAddress: mockIp } };
+      service.completeOAuthProfile.mockResolvedValue({
+        status: 'success',
+        message: 'Profile completed and logged in successfully',
+        data: {},
+      });
+
+      await controller.completeOAuth(
+        mockCompleteOAuthProfileDto() as any,
+        mockResponseWithCookie() as any,
+        reqWithoutIp as any
+      );
+
+      expect(service.completeOAuthProfile).toHaveBeenCalledWith(
+        expect.anything(),
+        expect.anything(),
+        mockIp
+      );
+    });
+
+    it('should use empty string if both ip and remoteAddress are undefined', async () => {
+      const reqWithNoIp = { ip: undefined, socket: { remoteAddress: undefined } };
+      service.completeOAuthProfile.mockResolvedValue({
+        status: 'success',
+        message: 'Profile completed and logged in successfully',
+        data: {},
+      });
+
+      await controller.completeOAuth(
+        mockCompleteOAuthProfileDto() as any,
+        mockResponseWithCookie() as any,
+        reqWithNoIp as any
+      );
+
+      expect(service.completeOAuthProfile).toHaveBeenCalledWith(
+        expect.anything(),
+        expect.anything(),
+        ''
+      );
+    });
   });
   // ─── facebookCallback ─────────────────────────────────────────────────────────
 
@@ -1017,6 +1059,51 @@ describe('AuthenticationController', () => {
       service.getSocialAccounts.mockRejectedValue(new NotFoundException('User not found'));
 
       await expect(controller.getSocialAccounts(mockUserId)).rejects.toThrow(NotFoundException);
+    });
+  });
+
+  describe('verifyemail', () => {
+    it('should delegate to service with token param', async () => {
+      service.verifyEmail.mockResolvedValue({
+        status: 'success',
+        message: 'Email verified successfully.',
+      });
+
+      await controller.verifyemail(mockVerificationToken);
+
+      expect(service.verifyEmail).toHaveBeenCalledWith(mockVerificationToken);
+      expect(service.verifyEmail).toHaveBeenCalledTimes(1);
+    });
+
+    it('should return the service response as is', async () => {
+      const mockResponse = { status: 'success', message: 'Email verified successfully.' };
+      service.verifyEmail.mockResolvedValue(mockResponse);
+
+      const result = await controller.verifyemail(mockVerificationToken);
+
+      expect(result).toEqual(mockResponse);
+    });
+
+    it('should propagate exception thrown by service', async () => {
+      service.verifyEmail.mockRejectedValue(new BadRequestException('Invalid token'));
+
+      await expect(controller.verifyemail(mockVerificationToken)).rejects.toThrow(
+        BadRequestException
+      );
+    });
+  });
+
+  describe('facebookLogin', () => {
+    it('should return undefined — Passport handles the redirect', () => {
+      const result = controller.facebookLogin();
+      expect(result).toBeUndefined();
+    });
+  });
+
+  describe('googleLogin', () => {
+    it('should return undefined — Passport handles the redirect', () => {
+      const result = controller.googleLogin();
+      expect(result).toBeUndefined();
     });
   });
 });
