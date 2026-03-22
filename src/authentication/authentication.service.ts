@@ -32,6 +32,7 @@ import { User } from '../user/entities/user.entity';
 import { CompleteOAuthProfileDto } from './dto/complete-oauth-profile.dto';
 import { OAuthUser } from './types/oauth-user.type';
 import { REDIS_CLIENT } from '../redis/redis.module';
+import { getLocationFromIp } from '../common/utilities/geolocation.util';
 
 // Access token lifetime
 const ACCESS_TOKEN_EXPIRY = '15m';
@@ -58,8 +59,10 @@ export class AuthenticationService {
     @Inject(REDIS_CLIENT) private readonly redis: RedisClientType
   ) {}
 
-  async register(registerDto: RegisterDto) {
+  async register(registerDto: RegisterDto, ip: string) {
     const { email } = registerDto;
+    const { city, country } = await getLocationFromIp(ip);
+    console.log(`Geolocation for IP ${ip}: city=${city}, country=${country}`);
     const isValidCaptcha = await verifyCaptcha(registerDto.captcha_token);
     if (!isValidCaptcha) {
       throw new BadRequestException('Captcha verification failed. Please try again.');
@@ -74,7 +77,12 @@ export class AuthenticationService {
     }
     const { captcha_token: captchaToken, ...createUserDto } = registerDto;
     console.log(captchaToken);
-    const createdUser = await this.userService.createUser(createUserDto, username);
+    const createdUser = await this.userService.createUser(
+      createUserDto,
+      username,
+      city ?? '',
+      country ?? ''
+    );
     const verificationToken = generateVerificationToken();
     const expiryDate = getExpiryDate(VERIFICATION_TOKEN_EXPIRY_MINUTES);
     await this.authRepository.createVerificationToken(

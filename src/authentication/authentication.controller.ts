@@ -76,8 +76,9 @@ export class AuthenticationController {
   @ApiRegister()
   @Public()
   @Post('register')
-  register(@Body() registerDto: RegisterDto) {
-    return this.authenticationService.register(registerDto);
+  register(@Body() registerDto: RegisterDto, @Req() req: Request) {
+    const ip = req.ip ?? req.socket.remoteAddress ?? '';
+    return this.authenticationService.register(registerDto, ip);
   }
 
   @ApiLogin()
