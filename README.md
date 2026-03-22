@@ -27,25 +27,25 @@ git clone <repository-url>
 cd soundcloud-backend
 ```
 
-2. Install dependencies
-```bash
-npm install
-```
+    2. Install dependencies
+    ```bash
+    npm install
+    ```
 
-3. Set up environment variables
-```bash
-cp .env.example .env
-# Edit .env with your configuration
-```
+    3. Set up environment variables
+    ```bash
+    cp .env.example .env
+    # Edit .env with your configuration
+    ```
 
-4. Set up database
-```bash
-# Create database
-createdb soundcloud_db
+    4. Set up database
+    ```bash
+    # Create database
+    createdb soundcloud_db
 
-# Run migrations (TODO: after Phase 2)
-# npm run migrate
-```
+    # Run migrations (TODO: after Phase 2)
+    # npm run migrate
+    ```
 
 5. Start Redis
 
@@ -80,6 +80,10 @@ redis-cli ping  # → PONG
 ```bash
 npm run dev
 ```
+    5. Start development server
+    ```bash
+    npm run dev
+    ```
 
 
 ## Project Structure
