@@ -4,12 +4,13 @@ import {
   IsEmail,
   IsEnum,
   IsNotEmpty,
+  IsOptional,
   IsString,
   Matches,
   MaxLength,
   MinLength,
 } from 'class-validator';
-import { ApiProperty } from '@nestjs/swagger';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
 export enum Gender {
   MALE = 'male',
@@ -52,28 +53,6 @@ export class CreateUserDto {
   display_name!: string;
 
   @ApiProperty({
-    description: 'First name (max 100 characters)',
-    example: 'Yara',
-    maxLength: 100,
-  })
-  @IsString()
-  @IsNotEmpty({ message: 'First name is required' })
-  @MaxLength(100, { message: 'First name must be at most 100 characters' })
-  @Transform(({ value }) => value.trim())
-  first_name!: string;
-
-  @ApiProperty({
-    description: 'Last name (max 100 characters)',
-    example: 'Senousy',
-    maxLength: 100,
-  })
-  @IsString()
-  @IsNotEmpty({ message: 'Last name is required' })
-  @MaxLength(100, { message: 'Last name must be at most 100 characters' })
-  @Transform(({ value }) => value.trim())
-  last_name!: string;
-
-  @ApiProperty({
     description: 'Date of birth in YYYY-MM-DD format. Must be at least 13 years old.',
     example: '1995-06-15',
     type: String,
@@ -93,14 +72,19 @@ export class CreateUserDto {
   @IsNotEmpty({ message: 'Gender is required' })
   gender!: Gender;
 
-  @ApiProperty({
-    description: 'Country name (max 100 characters)',
-    example: 'Egypt',
-    maxLength: 100,
+  @ApiPropertyOptional({
+    description: 'Country code auto-detected from IP address (e.g. EG)',
+    example: 'EG',
   })
   @IsString()
-  @IsNotEmpty({ message: 'Country is required' })
-  @MaxLength(100, { message: 'Country must be at most 100 characters' })
-  @Transform(({ value }) => value.trim())
-  country!: string;
+  @IsOptional()
+  country?: string | null;
+
+  @ApiPropertyOptional({
+    description: 'City auto-detected from IP address (e.g. Cairo)',
+    example: 'Cairo',
+  })
+  @IsString()
+  @IsOptional()
+  city?: string | null;
 }

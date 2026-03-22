@@ -47,7 +47,36 @@ createdb soundcloud_db
 # npm run migrate
 ```
 
-5. Start development server
+5. Start Redis
+
+**Option A — Docker**
+```bash
+docker run -d --name redis -p 6379:6379 redis:alpine
+
+# Verify Redis is running
+docker exec -it redis redis-cli ping  # → PONG
+```
+
+**Option B — WSL (Windows)**
+```bash
+# Open WSL terminal
+sudo apt update && sudo apt install redis-server
+sudo service redis-server start
+
+# Verify Redis is running
+redis-cli ping  # → PONG
+```
+
+**Option C — macOS**
+```bash
+brew install redis
+brew services start redis
+
+# Verify Redis is running
+redis-cli ping  # → PONG
+```
+
+6. Start development server
 ```bash
 npm run dev
 ```

@@ -38,10 +38,15 @@ export class UserService {
     return this.userRepository.findById(id);
   }
 
-  async createUser(createUserDto: CreateUserDto, username: string): Promise<User> {
+  async createUser(
+    createUserDto: CreateUserDto,
+    username: string,
+    city: string | null,
+    country: string | null
+  ): Promise<User> {
     const hashedPassword = await this.hash_password(createUserDto.password);
     this.usernameAvailabilityService.addToFilter(username);
-    return this.userRepository.createUser(createUserDto, hashedPassword, username);
+    return this.userRepository.createUser(createUserDto, hashedPassword, username, city, country);
   }
 
   async createOAuthUser(createOAuthUser: OAuthUser): Promise<User> {

@@ -81,18 +81,19 @@ export class UserRepository {
   async createUser(
     createUserDto: CreateUserDto,
     hashedPassword: string,
-    username: string
+    username: string,
+    city: string | null,
+    country: string | null
   ): Promise<User> {
     // Step 1 — Create user record
     const user = this.repository.create({
       username,
       password_hash: hashedPassword,
-      first_name: createUserDto.first_name,
-      last_name: createUserDto.last_name,
       display_name: createUserDto.display_name,
       birthdate: createUserDto.birthdate,
       gender: createUserDto.gender,
-      country: createUserDto.country,
+      city: city ?? undefined,
+      country: country ?? undefined,
     });
 
     const savedUser = await this.repository.save(user);
@@ -117,6 +118,8 @@ export class UserRepository {
       display_name: createOAuthUser.display_name,
       birthdate: createOAuthUser.birthdate,
       gender: createOAuthUser.gender,
+      city: createOAuthUser.city ?? undefined,
+      country: createOAuthUser.country ?? undefined,
     });
 
     const savedUser = await this.repository.save(user);
