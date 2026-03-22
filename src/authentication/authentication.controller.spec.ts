@@ -673,6 +673,9 @@ describe('AuthenticationController', () => {
   // ─── completeOAuthProfile ─────────────────────────────────────────────────────
 
   describe('completeOAuthProfile', () => {
+    const mockIp = '197.32.45.123';
+    const mockReq = { ip: mockIp, socket: { remoteAddress: mockIp } };
+
     it('should delegate to service with dto and response', async () => {
       const dto = mockCompleteOAuthProfileDto();
       const res = mockResponseWithCookie();
@@ -682,9 +685,9 @@ describe('AuthenticationController', () => {
         data: {},
       });
 
-      await controller.completeOAuth(dto as any, res as any);
+      await controller.completeOAuth(dto as any, res as any, mockReq as any);
 
-      expect(service.completeOAuthProfile).toHaveBeenCalledWith(dto, res);
+      expect(service.completeOAuthProfile).toHaveBeenCalledWith(dto, res, mockIp);
       expect(service.completeOAuthProfile).toHaveBeenCalledTimes(1);
     });
 
@@ -698,7 +701,8 @@ describe('AuthenticationController', () => {
 
       const result = await controller.completeOAuth(
         mockCompleteOAuthProfileDto() as any,
-        mockResponseWithCookie() as any
+        mockResponseWithCookie() as any,
+        mockReq as any
       );
 
       expect(result).toEqual(mockServiceResponse);
@@ -710,7 +714,8 @@ describe('AuthenticationController', () => {
       await expect(
         controller.completeOAuth(
           mockCompleteOAuthProfileDto() as any,
-          mockResponseWithCookie() as any
+          mockResponseWithCookie() as any,
+          mockReq as any
         )
       ).rejects.toThrow(NotFoundException);
     });

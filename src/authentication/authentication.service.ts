@@ -62,7 +62,7 @@ export class AuthenticationService {
   async register(registerDto: RegisterDto, ip: string) {
     const { email } = registerDto;
     const { city, country } = await getLocationFromIp(ip);
-    console.log(`Geolocation for IP ${ip}: city=${city}, country=${country}`);
+
     const isValidCaptcha = await verifyCaptcha(registerDto.captcha_token);
     if (!isValidCaptcha) {
       throw new BadRequestException('Captcha verification failed. Please try again.');
@@ -70,7 +70,7 @@ export class AuthenticationService {
     if (await this.userService.checkEmailExists(email)) {
       throw new BadRequestException(`Email ${email} is already registered.`);
     }
-    // const newregisterDto = { ...registerDto };
+
     let username = registerDto.display_name.toLowerCase().replace(/\s+/g, '_');
     if (await this.userService.checkUsernameExists(username)) {
       username = await this.generateUniqueUsername(username);
@@ -728,7 +728,7 @@ export class AuthenticationService {
     };
   }
 
-  async completeOAuthProfile(oauthData: CompleteOAuthProfileDto, response: Response) {
+  async completeOAuthProfile(oauthData: CompleteOAuthProfileDto, response: Response, ip: string) {
     const pendingToken = await this.authRepository.findPendingToken(oauthData.pending_token);
     if (!pendingToken) {
       throw new NotFoundException('Invalid or expired pending token');
@@ -736,6 +736,9 @@ export class AuthenticationService {
     if (pendingToken.expires_at < new Date()) {
       throw new BadRequestException('Pending token has expired');
     }
+
+    const { city, country } = getLocationFromIp(ip);
+
     let username = oauthData.display_name.toLowerCase().replace(/\s+/g, '_');
     if (await this.userService.checkUsernameExists(username)) {
       username = await this.generateUniqueUsername(username);
@@ -749,6 +752,8 @@ export class AuthenticationService {
       birthdate: oauthData.birthdate,
       gender: oauthData.gender,
       display_name: oauthData.display_name,
+      city: city ?? '',
+      country: country ?? '',
     };
     const user = await this.userService.createOAuthUser(createOAuthUser);
 

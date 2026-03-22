@@ -8,4 +8,6 @@ export interface OAuthUser {
   birthdate: Date;
   gender: Gender;
   display_name: string;
+  city: string | null;
+  country: string | null;
 }

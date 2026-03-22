@@ -189,9 +189,11 @@ export class AuthenticationController {
   @Post('oauth/complete')
   completeOAuth(
     @Body() oauthData: CompleteOAuthProfileDto,
-    @Res({ passthrough: true }) response: Response
+    @Res({ passthrough: true }) response: Response,
+    @Req() req: Request
   ) {
-    return this.authenticationService.completeOAuthProfile(oauthData, response);
+    const ip = req.ip ?? req.socket.remoteAddress ?? '';
+    return this.authenticationService.completeOAuthProfile(oauthData, response, ip);
   }
 
   @ApiGoogleLogin()

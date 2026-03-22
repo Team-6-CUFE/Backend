@@ -28,11 +28,8 @@ export const mockRegisterDto = () => ({
   email: mockEmail,
   password: mockPassword,
   display_name: 'Yara Senousy',
-  first_name: 'Yara',
-  last_name: 'Senousy',
   birthdate: new Date('1995-06-15'),
   gender: 'female',
-  country: 'Egypt',
   captcha_token: 'valid-captcha-token',
 });
 

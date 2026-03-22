@@ -14,6 +14,7 @@ import { UserService } from '../user/user.service';
 import { MailService } from '../mail/mail.service';
 import * as captchaUtil from '../common/utilities/captcha.util';
 import * as tokensUtil from '../common/utilities/tokens.util';
+import * as geoipUtil from '../common/utilities/geolocation.util';
 import {
   mockAuthenticationRepository,
   mockUserService,
@@ -96,6 +97,10 @@ describe('AuthenticationService', () => {
       userService.createUser.mockResolvedValue(mockUser());
       authRepo.createVerificationToken.mockResolvedValue(undefined);
       mailService.sendEmailVerification.mockResolvedValue(undefined);
+      jest.spyOn(geoipUtil, 'getLocationFromIp').mockReturnValue({
+        country: 'Egypt',
+        city: 'Cairo',
+      });
     });
 
     it('should register successfully and return correct response', async () => {
@@ -245,21 +250,40 @@ describe('AuthenticationService', () => {
     });
 
     it('should pass country and city from IP detection to createUser', async () => {
+      jest.spyOn(geoipUtil, 'getLocationFromIp').mockReturnValue({
+        country: 'Egypt',
+        city: 'Cairo',
+      });
+
       await service.register(mockRegisterDto() as any, mockIp);
 
-      const [createUserDtoArg] = userService.createUser.mock.calls[0];
-      expect(createUserDtoArg).toHaveProperty('country');
-      expect(createUserDtoArg).toHaveProperty('city');
+      const [, , cityArg, countryArg] = userService.createUser.mock.calls[0];
+      expect(cityArg).toBe('Cairo');
+      expect(countryArg).toBe('Egypt');
     });
 
-    it('should pass null country and city for localhost IP', async () => {
+    it('should pass empty strings for localhost IP (resolves to test IP)', async () => {
+      jest.spyOn(geoipUtil, 'getLocationFromIp').mockReturnValue({
+        country: null,
+        city: null,
+      });
+
       await service.register(mockRegisterDto() as any, '127.0.0.1');
 
-      const [createUserDtoArg] = userService.createUser.mock.calls[0];
-      // In development with NODE_ENV check, localhost returns null
-      expect(
-        createUserDtoArg.country === null || typeof createUserDtoArg.country === 'string'
-      ).toBe(true);
+      const [, , cityArg, countryArg] = userService.createUser.mock.calls[0];
+      expect(cityArg).toBe('');
+      expect(countryArg).toBe('');
+    });
+
+    it('should call getLocationFromIp with the provided IP', async () => {
+      const spy = jest.spyOn(geoipUtil, 'getLocationFromIp').mockReturnValue({
+        country: 'Egypt',
+        city: 'Cairo',
+      });
+
+      await service.register(mockRegisterDto() as any, mockIp);
+
+      expect(spy).toHaveBeenCalledWith(mockIp);
     });
   });
   // ─── verifyEmail() ────────────────────────────────────────────────────────────
@@ -2248,6 +2272,7 @@ describe('AuthenticationService', () => {
 
   describe('completeOAuthProfile', () => {
     let res: ReturnType<typeof mockResponseWithCookie>;
+    const mockIp = '197.32.45.123';
 
     beforeEach(() => {
       res = mockResponseWithCookie();
@@ -2267,7 +2292,8 @@ describe('AuthenticationService', () => {
     it('should return success response after completing profile', async () => {
       const result = await service.completeOAuthProfile(
         mockCompleteOAuthProfileDto() as any,
-        res as any
+        res as any,
+        mockIp
       );
 
       expect(result.status).toBe('success');
@@ -2275,7 +2301,7 @@ describe('AuthenticationService', () => {
     });
 
     it('should create user with correct data from pending session and form', async () => {
-      await service.completeOAuthProfile(mockCompleteOAuthProfileDto() as any, res as any);
+      await service.completeOAuthProfile(mockCompleteOAuthProfileDto() as any, res as any, mockIp);
 
       expect(userService.createOAuthUser).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -2290,7 +2316,7 @@ describe('AuthenticationService', () => {
     });
 
     it('should create social account after creating user', async () => {
-      await service.completeOAuthProfile(mockCompleteOAuthProfileDto() as any, res as any);
+      await service.completeOAuthProfile(mockCompleteOAuthProfileDto() as any, res as any, mockIp);
 
       expect(userService.createSocialAccount).toHaveBeenCalledWith(
         mockUserId,
@@ -2310,28 +2336,28 @@ describe('AuthenticationService', () => {
         callOrder.push('createSocialAccount');
       });
 
-      await service.completeOAuthProfile(mockCompleteOAuthProfileDto() as any, res as any);
+      await service.completeOAuthProfile(mockCompleteOAuthProfileDto() as any, res as any, mockIp);
 
       expect(callOrder[0]).toBe('createOAuthUser');
       expect(callOrder[1]).toBe('createSocialAccount');
     });
 
     it('should delete pending token after creating user', async () => {
-      await service.completeOAuthProfile(mockCompleteOAuthProfileDto() as any, res as any);
+      await service.completeOAuthProfile(mockCompleteOAuthProfileDto() as any, res as any, mockIp);
 
       expect(authRepo.deletePendingToken).toHaveBeenCalledWith(mockPendingToken);
       expect(authRepo.deletePendingToken).toHaveBeenCalledTimes(1);
     });
 
     it('should issue tokens after completing profile', async () => {
-      await service.completeOAuthProfile(mockCompleteOAuthProfileDto() as any, res as any);
+      await service.completeOAuthProfile(mockCompleteOAuthProfileDto() as any, res as any, mockIp);
 
       expect(res.cookie).toHaveBeenCalledTimes(2);
       expect(authRepo.saveRefreshToken).toHaveBeenCalledTimes(1);
     });
 
     it('should generate username from display_name', async () => {
-      await service.completeOAuthProfile(mockCompleteOAuthProfileDto() as any, res as any);
+      await service.completeOAuthProfile(mockCompleteOAuthProfileDto() as any, res as any, mockIp);
 
       const callArg = userService.createOAuthUser.mock.calls[0][0];
       expect(callArg.username).toMatch(/^yara_senousy/);
@@ -2340,7 +2366,7 @@ describe('AuthenticationService', () => {
     it('should generate unique username if display_name based username is taken', async () => {
       userService.checkUsernameExists.mockResolvedValueOnce(true).mockResolvedValueOnce(false);
 
-      await service.completeOAuthProfile(mockCompleteOAuthProfileDto() as any, res as any);
+      await service.completeOAuthProfile(mockCompleteOAuthProfileDto() as any, res as any, mockIp);
 
       const callArg = userService.createOAuthUser.mock.calls[0][0];
       expect(callArg.username).toMatch(/^yara_senousy_[a-f0-9]{6}$/);
@@ -2352,7 +2378,7 @@ describe('AuthenticationService', () => {
       authRepo.findPendingToken.mockResolvedValue(null);
 
       await expect(
-        service.completeOAuthProfile(mockCompleteOAuthProfileDto() as any, res as any)
+        service.completeOAuthProfile(mockCompleteOAuthProfileDto() as any, res as any, mockIp)
       ).rejects.toThrow(NotFoundException);
     });
 
@@ -2360,7 +2386,7 @@ describe('AuthenticationService', () => {
       authRepo.findPendingToken.mockResolvedValue(null);
 
       await expect(
-        service.completeOAuthProfile(mockCompleteOAuthProfileDto() as any, res as any)
+        service.completeOAuthProfile(mockCompleteOAuthProfileDto() as any, res as any, mockIp)
       ).rejects.toThrow();
       expect(userService.createOAuthUser).not.toHaveBeenCalled();
     });
@@ -2371,7 +2397,7 @@ describe('AuthenticationService', () => {
       authRepo.findPendingToken.mockResolvedValue(mockExpiredPendingOAuthSession());
 
       await expect(
-        service.completeOAuthProfile(mockCompleteOAuthProfileDto() as any, res as any)
+        service.completeOAuthProfile(mockCompleteOAuthProfileDto() as any, res as any, mockIp)
       ).rejects.toThrow(BadRequestException);
     });
 
@@ -2379,7 +2405,7 @@ describe('AuthenticationService', () => {
       authRepo.findPendingToken.mockResolvedValue(mockExpiredPendingOAuthSession());
 
       await expect(
-        service.completeOAuthProfile(mockCompleteOAuthProfileDto() as any, res as any)
+        service.completeOAuthProfile(mockCompleteOAuthProfileDto() as any, res as any, mockIp)
       ).rejects.toThrow();
       expect(userService.createOAuthUser).not.toHaveBeenCalled();
     });
@@ -2388,7 +2414,7 @@ describe('AuthenticationService', () => {
       authRepo.findPendingToken.mockResolvedValue(mockExpiredPendingOAuthSession());
 
       await expect(
-        service.completeOAuthProfile(mockCompleteOAuthProfileDto() as any, res as any)
+        service.completeOAuthProfile(mockCompleteOAuthProfileDto() as any, res as any, mockIp)
       ).rejects.toThrow();
       expect(res.cookie).not.toHaveBeenCalled();
     });
@@ -2399,7 +2425,7 @@ describe('AuthenticationService', () => {
       userService.createOAuthUser.mockRejectedValue(new Error('DB error'));
 
       await expect(
-        service.completeOAuthProfile(mockCompleteOAuthProfileDto() as any, res as any)
+        service.completeOAuthProfile(mockCompleteOAuthProfileDto() as any, res as any, mockIp)
       ).rejects.toThrow('DB error');
     });
 
@@ -2407,7 +2433,7 @@ describe('AuthenticationService', () => {
       userService.createSocialAccount.mockRejectedValue(new Error('DB error'));
 
       await expect(
-        service.completeOAuthProfile(mockCompleteOAuthProfileDto() as any, res as any)
+        service.completeOAuthProfile(mockCompleteOAuthProfileDto() as any, res as any, mockIp)
       ).rejects.toThrow('DB error');
       expect(res.cookie).not.toHaveBeenCalled();
     });

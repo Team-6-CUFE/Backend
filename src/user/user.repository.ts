@@ -118,6 +118,8 @@ export class UserRepository {
       display_name: createOAuthUser.display_name,
       birthdate: createOAuthUser.birthdate,
       gender: createOAuthUser.gender,
+      city: createOAuthUser.city ?? undefined,
+      country: createOAuthUser.country ?? undefined,
     });
 
     const savedUser = await this.repository.save(user);
