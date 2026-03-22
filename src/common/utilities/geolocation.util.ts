@@ -5,7 +5,7 @@ export function getLocationFromIp(ip: string): {
   city: string | null;
 } {
   // Use a real Egyptian IP for local development testing
-  const testIp = '41.33.0.1'; // Cairo, Egypt
+  const testIp = '41.33.0.1'; // Giza, Egypt
   const resolvedIp = ip === '127.0.0.1' || ip === '::1' ? testIp : ip.replace(/^::ffff:/, '');
 
   const geo = geoip.lookup(resolvedIp);
