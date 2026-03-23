@@ -24,7 +24,7 @@ jobs:
           context: .
           dockerfile: Docker/Dockerfile.prod
           push: true
-          tags: ${{ secrets.DOCKERHUB_USERNAME }}/soundcloud-backend:latest
+          tags: ${{ secrets.DOCKERHUB_USERNAME }}/harmonica-backend:latest
 
       - name: Deploy on EC2
         uses: appleboy/ssh-action@v1.0.3
@@ -34,5 +34,7 @@ jobs:
           key: ${{ secrets.EC2_SSH_KEY }}
           script: |
             cd ~/app
-            docker pull ${{ secrets.DOCKERHUB_USERNAME }}/soundcloud-backend:latest
-            docker compose -f docker-compose.yml -f docker-compose.prod.yml --env-file .env.prod up
+            docker compose -f docker-compose.prod.yml --env-file .env.prod down --remove-orphans
+            docker network prune -f
+            docker pull ${{ secrets.DOCKERHUB_USERNAME }}/harmonica-backend:latest
+            docker compose -f docker-compose.prod.yml --env-file .env.prod up -d
