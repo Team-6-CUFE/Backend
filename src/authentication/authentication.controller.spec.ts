@@ -1,0 +1,1109 @@
+import { Test, TestingModule } from '@nestjs/testing';
+import { BadRequestException, ForbiddenException, NotFoundException } from '@nestjs/common';
+import { AuthenticationController } from './authentication.controller';
+import { AuthenticationService } from './authentication.service';
+import {
+  mockAuthenticationService,
+  mockRegisterDto,
+  mockLoginDto,
+  mockLoginDtoWithUsername,
+  mockUserId,
+  mockEmail,
+  mockVerificationToken,
+  mockRefreshToken,
+  mockResponseWithCookie,
+  mockRequest,
+  mockSecondaryEmail,
+  mockVerificationCode,
+  mockOAuthProfile,
+  mockPendingToken,
+  mockCompleteOAuthProfileDto,
+  mockProviderId,
+  mockUsername,
+} from './test/auth.mock';
+
+describe('AuthenticationController', () => {
+  let controller: AuthenticationController;
+  let service: ReturnType<typeof mockAuthenticationService>;
+
+  beforeEach(async () => {
+    const module: TestingModule = await Test.createTestingModule({
+      controllers: [AuthenticationController],
+      providers: [{ provide: AuthenticationService, useFactory: mockAuthenticationService }],
+    }).compile();
+
+    controller = module.get(AuthenticationController);
+    service = module.get(AuthenticationService);
+  });
+
+  afterEach(() => jest.clearAllMocks());
+
+  // ─── register ────────────────────────────────────────────────────────────────
+
+  // ─── register ────────────────────────────────────────────────────────────────
+
+  describe('register', () => {
+    const mockIp = '197.32.45.123';
+    const mockReq = { ip: mockIp, socket: { remoteAddress: mockIp } };
+
+    it('should delegate to service with registerDto and ip', async () => {
+      const dto = mockRegisterDto();
+      service.register.mockResolvedValue({
+        status: 'success',
+        message: 'Registration successful. Please check your email to verify your account.',
+        data: {},
+      });
+
+      await controller.register(dto as any, mockReq as any);
+
+      expect(service.register).toHaveBeenCalledWith(dto, mockIp);
+      expect(service.register).toHaveBeenCalledTimes(1);
+    });
+
+    it('should return the service response as is', async () => {
+      const mockResponse = {
+        status: 'success',
+        message: 'Registration successful. Please check your email to verify your account.',
+        data: { email: mockEmail },
+      };
+      service.register.mockResolvedValue(mockResponse);
+
+      const result = await controller.register(mockRegisterDto() as any, mockReq as any);
+
+      expect(result).toEqual(mockResponse);
+    });
+
+    it('should use socket.remoteAddress if req.ip is undefined', async () => {
+      const reqWithoutIp = { ip: undefined, socket: { remoteAddress: mockIp } };
+      service.register.mockResolvedValue({ status: 'success', message: '', data: {} });
+
+      await controller.register(mockRegisterDto() as any, reqWithoutIp as any);
+
+      expect(service.register).toHaveBeenCalledWith(expect.anything(), mockIp);
+    });
+
+    it('should use empty string if both ip and remoteAddress are undefined', async () => {
+      const reqWithNoIp = { ip: undefined, socket: { remoteAddress: undefined } };
+      service.register.mockResolvedValue({ status: 'success', message: '', data: {} });
+
+      await controller.register(mockRegisterDto() as any, reqWithNoIp as any);
+
+      expect(service.register).toHaveBeenCalledWith(expect.anything(), '');
+    });
+
+    it('should propagate exception thrown by service', async () => {
+      service.register.mockRejectedValue(new BadRequestException('Email already registered'));
+
+      await expect(controller.register(mockRegisterDto() as any, mockReq as any)).rejects.toThrow(
+        BadRequestException
+      );
+    });
+  });
+
+  // ─── resendVerificationEmail ──────────────────────────────────────────────────
+
+  describe('resendVerificationEmail', () => {
+    it('should delegate to service with email', async () => {
+      service.resendVerificationEmail.mockResolvedValue({
+        status: 'success',
+        message: 'Verification email resent. Please check your email.',
+      });
+
+      await controller.resendVerificationEmail(mockEmail);
+
+      expect(service.resendVerificationEmail).toHaveBeenCalledWith(mockEmail);
+      expect(service.resendVerificationEmail).toHaveBeenCalledTimes(1);
+    });
+
+    it('should return the service response as is', async () => {
+      const mockResponse = {
+        status: 'success',
+        message: 'Verification email resent. Please check your email.',
+      };
+      service.resendVerificationEmail.mockResolvedValue(mockResponse);
+
+      const result = await controller.resendVerificationEmail(mockEmail);
+
+      expect(result).toEqual(mockResponse);
+    });
+  });
+
+  describe('login', () => {
+    it('should delegate to service with loginDto and response', async () => {
+      const dto = mockLoginDto();
+      const res = mockResponseWithCookie();
+      service.login.mockResolvedValue({ status: 'success', message: 'Login successful', data: {} });
+
+      await controller.login(dto as any, res as any);
+
+      expect(service.login).toHaveBeenCalledWith(dto, res);
+      expect(service.login).toHaveBeenCalledTimes(1);
+    });
+
+    it('should return the service response as is', async () => {
+      const mockServiceResponse = {
+        status: 'success',
+        message: 'Login successful',
+        data: { user_id: mockUserId, email: mockEmail },
+      };
+      service.login.mockResolvedValue(mockServiceResponse);
+
+      const result = await controller.login(mockLoginDto() as any, mockResponseWithCookie() as any);
+
+      expect(result).toEqual(mockServiceResponse);
+    });
+
+    it('should work with username identifier', async () => {
+      const dto = mockLoginDtoWithUsername();
+      service.login.mockResolvedValue({ status: 'success', message: 'Login successful', data: {} });
+
+      await controller.login(dto as any, mockResponseWithCookie() as any);
+
+      expect(service.login).toHaveBeenCalledWith(dto, expect.anything());
+    });
+
+    it('should propagate exception thrown by service', async () => {
+      service.login.mockRejectedValue(new Error('Invalid credentials'));
+
+      await expect(
+        controller.login(mockLoginDto() as any, mockResponseWithCookie() as any)
+      ).rejects.toThrow('Invalid credentials');
+    });
+  });
+
+  describe('logout', () => {
+    it('should extract refresh_token from cookies and pass to service', async () => {
+      const req = mockRequest(mockRefreshToken);
+      const res = mockResponseWithCookie();
+      service.logout.mockResolvedValue({ status: 'success', message: 'Logged out successfully' });
+
+      await controller.logout(req as any, res as any);
+
+      expect(service.logout).toHaveBeenCalledWith(res, mockRefreshToken);
+      expect(service.logout).toHaveBeenCalledTimes(1);
+    });
+
+    it('should return the service response as is', async () => {
+      const mockServiceResponse = { status: 'success', message: 'Logged out successfully' };
+      service.logout.mockResolvedValue(mockServiceResponse);
+
+      const result = await controller.logout(mockRequest() as any, mockResponseWithCookie() as any);
+
+      expect(result).toEqual(mockServiceResponse);
+    });
+
+    it('should pass undefined if no refresh_token cookie is present', async () => {
+      const req = { cookies: {} }; // no refresh_token key
+      const res = mockResponseWithCookie();
+      service.logout.mockResolvedValue({ status: 'success', message: 'Logged out successfully' });
+
+      await controller.logout(req as any, res as any);
+
+      expect(service.logout).toHaveBeenCalledWith(res, undefined);
+    });
+
+    it('should propagate exception thrown by service', async () => {
+      service.logout.mockRejectedValue(new Error('Logout failed'));
+
+      await expect(
+        controller.logout(mockRequest() as any, mockResponseWithCookie() as any)
+      ).rejects.toThrow('Logout failed');
+    });
+  });
+
+  describe('refresh', () => {
+    const mockJwtUser = {
+      sub: mockUserId,
+      email: mockEmail,
+      role: 'listener' as const,
+      plan: 'free' as const,
+      refreshToken: mockRefreshToken,
+    };
+
+    it('should delegate to service with all fields from jwt user', async () => {
+      const res = mockResponseWithCookie();
+      service.refreshTokens.mockResolvedValue({
+        status: 'success',
+        message: 'Token refreshed successfully',
+      });
+
+      await controller.refresh(mockJwtUser as any, res as any);
+
+      expect(service.refreshTokens).toHaveBeenCalledWith(
+        mockUserId,
+        mockEmail,
+        'listener',
+        'free',
+        mockRefreshToken,
+        res
+      );
+      expect(service.refreshTokens).toHaveBeenCalledTimes(1);
+    });
+
+    it('should return the service response as is', async () => {
+      const mockServiceResponse = { status: 'success', message: 'Token refreshed successfully' };
+      service.refreshTokens.mockResolvedValue(mockServiceResponse);
+
+      const result = await controller.refresh(mockJwtUser as any, mockResponseWithCookie() as any);
+
+      expect(result).toEqual(mockServiceResponse);
+    });
+
+    it('should propagate exception thrown by service', async () => {
+      service.refreshTokens.mockRejectedValue(new Error('Token revoked'));
+
+      await expect(
+        controller.refresh(mockJwtUser as any, mockResponseWithCookie() as any)
+      ).rejects.toThrow('Token revoked');
+    });
+  });
+
+  describe('remove', () => {
+    it('should extract userId from jwt and refresh_token from cookies then delegate to service', async () => {
+      const req = mockRequest(mockRefreshToken);
+      const res = mockResponseWithCookie();
+      service.removeUser.mockResolvedValue({
+        status: 'success',
+        message: 'Your account has been deleted successfully.',
+      });
+
+      await controller.remove(mockUserId, req as any, res as any);
+
+      expect(service.removeUser).toHaveBeenCalledWith(mockUserId, res, mockRefreshToken);
+      expect(service.removeUser).toHaveBeenCalledTimes(1);
+    });
+
+    it('should return the service response as is', async () => {
+      const mockServiceResponse = {
+        status: 'success',
+        message: 'Your account has been deleted successfully.',
+      };
+      service.removeUser.mockResolvedValue(mockServiceResponse);
+
+      const result = await controller.remove(
+        mockUserId,
+        mockRequest() as any,
+        mockResponseWithCookie() as any
+      );
+
+      expect(result).toEqual(mockServiceResponse);
+    });
+
+    it('should pass undefined refresh token if cookie is absent', async () => {
+      const req = { cookies: {} };
+      const res = mockResponseWithCookie();
+      service.removeUser.mockResolvedValue({ status: 'success', message: '' });
+
+      await controller.remove(mockUserId, req as any, res as any);
+
+      expect(service.removeUser).toHaveBeenCalledWith(mockUserId, res, undefined);
+    });
+
+    it('should propagate exception thrown by service', async () => {
+      service.removeUser.mockRejectedValue(new Error('Delete failed'));
+
+      await expect(
+        controller.remove(mockUserId, mockRequest() as any, mockResponseWithCookie() as any)
+      ).rejects.toThrow('Delete failed');
+    });
+  });
+
+  // ─── addEmail ────────────────────────────────────────────────────────────────
+
+  describe('addEmail', () => {
+    it('should delegate to service with userId and email', async () => {
+      const dto = { email: mockSecondaryEmail };
+      service.addEmail.mockResolvedValue({ status: 'success', message: 'Email added', data: {} });
+
+      await controller.addEmail(mockUserId, dto as any);
+
+      expect(service.addEmail).toHaveBeenCalledWith(mockUserId, mockSecondaryEmail);
+      expect(service.addEmail).toHaveBeenCalledTimes(1);
+    });
+
+    it('should return the service response as is', async () => {
+      const mockServiceResponse = { status: 'success', message: 'Email added', data: {} };
+      service.addEmail.mockResolvedValue(mockServiceResponse);
+
+      const result = await controller.addEmail(mockUserId, { email: mockSecondaryEmail } as any);
+
+      expect(result).toEqual(mockServiceResponse);
+    });
+
+    it('should propagate exception thrown by service', async () => {
+      service.addEmail.mockRejectedValue(new BadRequestException('Email already exists'));
+
+      await expect(
+        controller.addEmail(mockUserId, { email: mockSecondaryEmail } as any)
+      ).rejects.toThrow(BadRequestException);
+    });
+  });
+
+  // ─── removeEmail ─────────────────────────────────────────────────────────────
+
+  describe('removeEmail', () => {
+    it('should delegate to service with userId and email param', async () => {
+      service.removeEmail.mockResolvedValue({ status: 'success', message: 'Email removed' });
+
+      await controller.removeEmail(mockUserId, mockSecondaryEmail);
+
+      expect(service.removeEmail).toHaveBeenCalledWith(mockUserId, mockSecondaryEmail);
+      expect(service.removeEmail).toHaveBeenCalledTimes(1);
+    });
+
+    it('should return the service response as is', async () => {
+      const mockServiceResponse = { status: 'success', message: 'Email removed successfully' };
+      service.removeEmail.mockResolvedValue(mockServiceResponse);
+
+      const result = await controller.removeEmail(mockUserId, mockSecondaryEmail);
+
+      expect(result).toEqual(mockServiceResponse);
+    });
+
+    it('should propagate exception thrown by service', async () => {
+      service.removeEmail.mockRejectedValue(new BadRequestException('Cannot delete primary email'));
+
+      await expect(controller.removeEmail(mockUserId, mockSecondaryEmail)).rejects.toThrow(
+        BadRequestException
+      );
+    });
+  });
+
+  // ─── getEmails ────────────────────────────────────────────────────────────────
+
+  describe('getEmails', () => {
+    it('should delegate to service with userId from jwt', async () => {
+      service.getEmails.mockResolvedValue({ status: 'success', emails: [] });
+
+      await controller.getEmails(mockUserId);
+
+      expect(service.getEmails).toHaveBeenCalledWith(mockUserId);
+      expect(service.getEmails).toHaveBeenCalledTimes(1);
+    });
+
+    it('should return the service response as is', async () => {
+      const mockServiceResponse = {
+        status: 'success',
+        emails: [{ email: mockEmail, is_primary: true, is_verified: true }],
+      };
+      service.getEmails.mockResolvedValue(mockServiceResponse);
+
+      const result = await controller.getEmails(mockUserId);
+
+      expect(result).toEqual(mockServiceResponse);
+    });
+
+    it('should propagate exception thrown by service', async () => {
+      service.getEmails.mockRejectedValue(new NotFoundException('User not found'));
+
+      await expect(controller.getEmails(mockUserId)).rejects.toThrow(NotFoundException);
+    });
+  });
+
+  // ─── setPrimaryEmail ──────────────────────────────────────────────────────────
+
+  describe('setPrimaryEmail', () => {
+    it('should delegate to service with userId and email param', async () => {
+      service.setPrimaryEmail.mockResolvedValue({
+        status: 'success',
+        message: 'Verification code sent',
+        data: {},
+      });
+
+      await controller.setPrimaryEmail(mockUserId, mockSecondaryEmail);
+
+      expect(service.setPrimaryEmail).toHaveBeenCalledWith(mockUserId, mockSecondaryEmail);
+      expect(service.setPrimaryEmail).toHaveBeenCalledTimes(1);
+    });
+
+    it('should return the service response as is', async () => {
+      const mockServiceResponse = {
+        status: 'success',
+        message: 'Verification code sent to your current primary email.',
+        data: {
+          verification_required: true,
+          code_sent_to: mockEmail,
+          new_primary_email: mockSecondaryEmail,
+          expires_in: 600,
+        },
+      };
+      service.setPrimaryEmail.mockResolvedValue(mockServiceResponse);
+
+      const result = await controller.setPrimaryEmail(mockUserId, mockSecondaryEmail);
+
+      expect(result).toEqual(mockServiceResponse);
+    });
+
+    it('should propagate exception thrown by service', async () => {
+      service.setPrimaryEmail.mockRejectedValue(
+        new BadRequestException('Email is already primary')
+      );
+
+      await expect(controller.setPrimaryEmail(mockUserId, mockSecondaryEmail)).rejects.toThrow(
+        BadRequestException
+      );
+    });
+  });
+
+  // ─── verifyPrimaryEmailChange ─────────────────────────────────────────────────
+
+  describe('verifyPrimaryEmailChange', () => {
+    it('should delegate to service with userId and code from body', async () => {
+      service.verifyPrimaryEmailChange.mockResolvedValue({
+        status: 'success',
+        message: 'Primary email changed successfully',
+        data: {},
+      });
+
+      await controller.verifyPrimaryEmailChange(mockUserId, mockVerificationCode);
+
+      expect(service.verifyPrimaryEmailChange).toHaveBeenCalledWith(
+        mockUserId,
+        mockVerificationCode
+      );
+      expect(service.verifyPrimaryEmailChange).toHaveBeenCalledTimes(1);
+    });
+
+    it('should return the service response as is', async () => {
+      const mockServiceResponse = {
+        status: 'success',
+        message: 'Primary email changed successfully',
+        data: { new_primary: mockSecondaryEmail },
+      };
+      service.verifyPrimaryEmailChange.mockResolvedValue(mockServiceResponse);
+
+      const result = await controller.verifyPrimaryEmailChange(mockUserId, mockVerificationCode);
+
+      expect(result).toEqual(mockServiceResponse);
+    });
+
+    it('should propagate exception thrown by service', async () => {
+      service.verifyPrimaryEmailChange.mockRejectedValue(
+        new BadRequestException('Invalid or expired verification code')
+      );
+
+      await expect(
+        controller.verifyPrimaryEmailChange(mockUserId, mockVerificationCode)
+      ).rejects.toThrow(BadRequestException);
+    });
+  });
+  // ─── changePasswordRequest ────────────────────────────────────────────────────
+
+  describe('changePasswordRequest', () => {
+    it('should delegate to service with userId from JWT', async () => {
+      service.changePasswordRequest.mockResolvedValue({
+        status: 'success',
+        message: 'Password reset link sent to your primary email address.',
+        data: { email_sent: true, sent_to: mockEmail },
+      });
+
+      await controller.changePasswordRequest(mockUserId);
+
+      expect(service.changePasswordRequest).toHaveBeenCalledWith(mockUserId);
+      expect(service.changePasswordRequest).toHaveBeenCalledTimes(1);
+    });
+
+    it('should return the service response as is', async () => {
+      const mockServiceResponse = {
+        status: 'success',
+        message: 'Password reset link sent to your primary email address.',
+        data: { email_sent: true, sent_to: mockEmail },
+      };
+      service.changePasswordRequest.mockResolvedValue(mockServiceResponse);
+
+      const result = await controller.changePasswordRequest(mockUserId);
+
+      expect(result).toEqual(mockServiceResponse);
+    });
+
+    it('should propagate exception thrown by service', async () => {
+      service.changePasswordRequest.mockRejectedValue(
+        new BadRequestException('No verified primary email found.')
+      );
+
+      await expect(controller.changePasswordRequest(mockUserId)).rejects.toThrow(
+        BadRequestException
+      );
+    });
+  });
+
+  // ─── changePassword ───────────────────────────────────────────────────────────
+
+  describe('changePassword', () => {
+    const mockChangePasswordDto = {
+      token: mockVerificationToken,
+      newPassword: 'NewSecurePassword123!',
+    };
+
+    it('should delegate to service with token and newPassword', async () => {
+      service.changePassword.mockResolvedValue({
+        status: 'success',
+        message: 'Password has been changed successfully.',
+        data: { password_changed: true, reset_at: new Date() },
+      });
+
+      await controller.changePassword(mockChangePasswordDto as any);
+
+      expect(service.changePassword).toHaveBeenCalledWith(
+        mockChangePasswordDto.token,
+        mockChangePasswordDto.newPassword
+      );
+      expect(service.changePassword).toHaveBeenCalledTimes(1);
+    });
+
+    it('should return the service response as is', async () => {
+      const mockServiceResponse = {
+        status: 'success',
+        message: 'Password has been changed successfully.',
+        data: { password_changed: true, reset_at: new Date() },
+      };
+      service.changePassword.mockResolvedValue(mockServiceResponse);
+
+      const result = await controller.changePassword(mockChangePasswordDto as any);
+
+      expect(result).toEqual(mockServiceResponse);
+    });
+
+    it('should propagate exception if token is invalid', async () => {
+      service.changePassword.mockRejectedValue(
+        new BadRequestException('Invalid or expired password reset token.')
+      );
+
+      await expect(controller.changePassword(mockChangePasswordDto as any)).rejects.toThrow(
+        BadRequestException
+      );
+    });
+
+    it('should propagate exception if same password', async () => {
+      service.changePassword.mockRejectedValue(
+        new BadRequestException('New password must be different from current password.')
+      );
+
+      await expect(controller.changePassword(mockChangePasswordDto as any)).rejects.toThrow(
+        BadRequestException
+      );
+    });
+  });
+
+  // ─── forgotPassword ───────────────────────────────────────────────────────────
+
+  describe('forgotPassword', () => {
+    it('should delegate to service with email', async () => {
+      service.forgotPassword.mockResolvedValue({
+        status: 'success',
+        message: 'Password reset link sent.',
+        data: { email_sent: true, sent_to: mockEmail },
+      });
+
+      await controller.forgotPassword(mockEmail);
+
+      expect(service.forgotPassword).toHaveBeenCalledWith(mockEmail);
+      expect(service.forgotPassword).toHaveBeenCalledTimes(1);
+    });
+
+    it('should return the service response as is', async () => {
+      const mockServiceResponse = {
+        status: 'success',
+        message: 'Password reset link sent.',
+        data: { email_sent: true, sent_to: mockEmail },
+      };
+      service.forgotPassword.mockResolvedValue(mockServiceResponse);
+
+      const result = await controller.forgotPassword(mockEmail);
+
+      expect(result).toEqual(mockServiceResponse);
+    });
+
+    it('should propagate exception if email not found', async () => {
+      service.forgotPassword.mockRejectedValue(new NotFoundException('No verified account found.'));
+
+      await expect(controller.forgotPassword(mockEmail)).rejects.toThrow(NotFoundException);
+    });
+
+    it('should propagate exception if email not verified', async () => {
+      service.forgotPassword.mockRejectedValue(new NotFoundException('No verified account found.'));
+
+      await expect(controller.forgotPassword(mockEmail)).rejects.toThrow(NotFoundException);
+    });
+  });
+
+  // ─── googleCallback ───────────────────────────────────────────────────────────
+
+  describe('googleCallback', () => {
+    it('should delegate to handleOAuthCallback with profile and response', async () => {
+      const profile = mockOAuthProfile();
+      const res = mockResponseWithCookie();
+      service.handleOAuthCallback.mockResolvedValue({
+        status: 'success',
+        type: 'login',
+        data: {},
+      });
+
+      await controller.googleCallback(profile as any, res as any);
+
+      expect(service.handleOAuthCallback).toHaveBeenCalledWith(profile, res);
+      expect(service.handleOAuthCallback).toHaveBeenCalledTimes(1);
+    });
+
+    it('should return the service response as is', async () => {
+      const mockServiceResponse = {
+        status: 'success',
+        type: 'registration_incomplete',
+        data: { pending_token: mockPendingToken, prefill: {} },
+      };
+      service.handleOAuthCallback.mockResolvedValue(mockServiceResponse);
+
+      const result = await controller.googleCallback(
+        mockOAuthProfile() as any,
+        mockResponseWithCookie() as any
+      );
+
+      expect(result).toEqual(mockServiceResponse);
+    });
+
+    it('should propagate exception thrown by service', async () => {
+      service.handleOAuthCallback.mockRejectedValue(new Error('OAuth error'));
+
+      await expect(
+        controller.googleCallback(mockOAuthProfile() as any, mockResponseWithCookie() as any)
+      ).rejects.toThrow('OAuth error');
+    });
+  });
+
+  // ─── completeOAuthProfile ─────────────────────────────────────────────────────
+
+  describe('completeOAuthProfile', () => {
+    const mockIp = '197.32.45.123';
+    const mockReq = { ip: mockIp, socket: { remoteAddress: mockIp } };
+
+    it('should delegate to service with dto and response', async () => {
+      const dto = mockCompleteOAuthProfileDto();
+      const res = mockResponseWithCookie();
+      service.completeOAuthProfile.mockResolvedValue({
+        status: 'success',
+        message: 'Profile completed and logged in successfully',
+        data: {},
+      });
+
+      await controller.completeOAuth(dto as any, res as any, mockReq as any);
+
+      expect(service.completeOAuthProfile).toHaveBeenCalledWith(dto, res, mockIp);
+      expect(service.completeOAuthProfile).toHaveBeenCalledTimes(1);
+    });
+
+    it('should return the service response as is', async () => {
+      const mockServiceResponse = {
+        status: 'success',
+        message: 'Profile completed and logged in successfully',
+        data: { user_id: mockUserId },
+      };
+      service.completeOAuthProfile.mockResolvedValue(mockServiceResponse);
+
+      const result = await controller.completeOAuth(
+        mockCompleteOAuthProfileDto() as any,
+        mockResponseWithCookie() as any,
+        mockReq as any
+      );
+
+      expect(result).toEqual(mockServiceResponse);
+    });
+
+    it('should propagate exception thrown by service', async () => {
+      service.completeOAuthProfile.mockRejectedValue(new NotFoundException('Invalid token'));
+
+      await expect(
+        controller.completeOAuth(
+          mockCompleteOAuthProfileDto() as any,
+          mockResponseWithCookie() as any,
+          mockReq as any
+        )
+      ).rejects.toThrow(NotFoundException);
+    });
+
+    it('should use socket.remoteAddress if req.ip is undefined', async () => {
+      const reqWithoutIp = { ip: undefined, socket: { remoteAddress: mockIp } };
+      service.completeOAuthProfile.mockResolvedValue({
+        status: 'success',
+        message: 'Profile completed and logged in successfully',
+        data: {},
+      });
+
+      await controller.completeOAuth(
+        mockCompleteOAuthProfileDto() as any,
+        mockResponseWithCookie() as any,
+        reqWithoutIp as any
+      );
+
+      expect(service.completeOAuthProfile).toHaveBeenCalledWith(
+        expect.anything(),
+        expect.anything(),
+        mockIp
+      );
+    });
+
+    it('should use empty string if both ip and remoteAddress are undefined', async () => {
+      const reqWithNoIp = { ip: undefined, socket: { remoteAddress: undefined } };
+      service.completeOAuthProfile.mockResolvedValue({
+        status: 'success',
+        message: 'Profile completed and logged in successfully',
+        data: {},
+      });
+
+      await controller.completeOAuth(
+        mockCompleteOAuthProfileDto() as any,
+        mockResponseWithCookie() as any,
+        reqWithNoIp as any
+      );
+
+      expect(service.completeOAuthProfile).toHaveBeenCalledWith(
+        expect.anything(),
+        expect.anything(),
+        ''
+      );
+    });
+  });
+  // ─── facebookCallback ─────────────────────────────────────────────────────────
+
+  describe('facebookCallback', () => {
+    it('should delegate to handleOAuthCallback with profile and response', async () => {
+      const profile = mockOAuthProfile();
+      const res = mockResponseWithCookie();
+      service.handleOAuthCallback.mockResolvedValue({
+        status: 'success',
+        type: 'login',
+        data: {},
+      });
+
+      await controller.facebookCallback(profile as any, res as any);
+
+      expect(service.handleOAuthCallback).toHaveBeenCalledWith(profile, res);
+      expect(service.handleOAuthCallback).toHaveBeenCalledTimes(1);
+    });
+
+    it('should return the service response as is', async () => {
+      const mockServiceResponse = {
+        status: 'success',
+        type: 'registration_incomplete',
+        data: { pending_token: mockPendingToken, prefill: {} },
+      };
+      service.handleOAuthCallback.mockResolvedValue(mockServiceResponse);
+
+      const result = await controller.facebookCallback(
+        mockOAuthProfile() as any,
+        mockResponseWithCookie() as any
+      );
+
+      expect(result).toEqual(mockServiceResponse);
+    });
+
+    it('should return login type when user already exists', async () => {
+      service.handleOAuthCallback.mockResolvedValue({
+        status: 'success',
+        type: 'login',
+        data: { user_id: mockUserId, email: mockEmail },
+      });
+
+      const result = await controller.facebookCallback(
+        mockOAuthProfile() as any,
+        mockResponseWithCookie() as any
+      );
+
+      expect(result.type).toBe('login');
+    });
+
+    it('should return registration_incomplete type for new user', async () => {
+      service.handleOAuthCallback.mockResolvedValue({
+        status: 'success',
+        type: 'registration_incomplete',
+        data: {
+          pending_token: mockPendingToken,
+          prefill: { display_name: 'John Doe', email: mockEmail },
+        },
+      });
+
+      const result = await controller.facebookCallback(
+        mockOAuthProfile() as any,
+        mockResponseWithCookie() as any
+      );
+
+      expect(result.type).toBe('registration_incomplete');
+      // ← use type assertion to tell TypeScript which type it is
+      const data = result.data as { pending_token: string; prefill: object };
+      expect(data.pending_token).toBe(mockPendingToken);
+    });
+
+    it('should propagate exception thrown by service', async () => {
+      service.handleOAuthCallback.mockRejectedValue(new Error('OAuth error'));
+
+      await expect(
+        controller.facebookCallback(mockOAuthProfile() as any, mockResponseWithCookie() as any)
+      ).rejects.toThrow('OAuth error');
+    });
+  });
+  // ─── googleLink ───────────────────────────────────────────────────────────────
+
+  describe('googleLink', () => {
+    it('should return undefined — Passport handles the redirect', () => {
+      const result = controller.googleLink();
+      expect(result).toBeUndefined();
+    });
+  });
+
+  // ─── googleLinkCallback ───────────────────────────────────────────────────────
+
+  describe('googleLinkCallback', () => {
+    const mockProfileWithUserId = {
+      ...mockOAuthProfile(),
+      userId: mockUserId,
+    };
+
+    it('should delegate to linkSocialAccount with userId and profile', async () => {
+      service.linkSocialAccount.mockResolvedValue({
+        status: 'success',
+        message: 'google account linked successfully',
+        data: { provider: 'google', provider_email: mockEmail, linked_at: new Date() },
+      });
+
+      await controller.googleLinkCallback(mockProfileWithUserId as any);
+
+      expect(service.linkSocialAccount).toHaveBeenCalledWith(mockUserId, mockProfileWithUserId);
+      expect(service.linkSocialAccount).toHaveBeenCalledTimes(1);
+    });
+
+    it('should return the service response as is', async () => {
+      const mockServiceResponse = {
+        status: 'success',
+        message: 'google account linked successfully',
+        data: { provider: 'google', provider_email: mockEmail, linked_at: new Date() },
+      };
+      service.linkSocialAccount.mockResolvedValue(mockServiceResponse);
+
+      const result = await controller.googleLinkCallback(mockProfileWithUserId as any);
+
+      expect(result).toEqual(mockServiceResponse);
+    });
+
+    it('should propagate exception thrown by service', async () => {
+      service.linkSocialAccount.mockRejectedValue(
+        new BadRequestException('This google account is already linked to another user')
+      );
+
+      await expect(controller.googleLinkCallback(mockProfileWithUserId as any)).rejects.toThrow(
+        BadRequestException
+      );
+    });
+  });
+
+  // ─── facebookLink ─────────────────────────────────────────────────────────────
+
+  describe('facebookLink', () => {
+    it('should return undefined — Passport handles the redirect', () => {
+      const result = controller.facebookLink();
+      expect(result).toBeUndefined();
+    });
+  });
+
+  // ─── facebookLinkCallback ─────────────────────────────────────────────────────
+
+  describe('facebookLinkCallback', () => {
+    const mockFacebookProfileWithUserId = {
+      provider: 'facebook',
+      providerId: 'fb-123',
+      email: mockEmail,
+      firstName: 'Yara',
+      lastName: 'Senousy',
+      userId: mockUserId,
+    };
+
+    it('should delegate to linkSocialAccount with userId and profile', async () => {
+      service.linkSocialAccount.mockResolvedValue({
+        status: 'success',
+        message: 'facebook account linked successfully',
+        data: { provider: 'facebook', provider_email: mockEmail, linked_at: new Date() },
+      });
+
+      await controller.facebookLinkCallback(mockFacebookProfileWithUserId as any);
+
+      expect(service.linkSocialAccount).toHaveBeenCalledWith(
+        mockUserId,
+        mockFacebookProfileWithUserId
+      );
+      expect(service.linkSocialAccount).toHaveBeenCalledTimes(1);
+    });
+
+    it('should return the service response as is', async () => {
+      const mockServiceResponse = {
+        status: 'success',
+        message: 'facebook account linked successfully',
+        data: { provider: 'facebook', provider_email: mockEmail, linked_at: new Date() },
+      };
+      service.linkSocialAccount.mockResolvedValue(mockServiceResponse);
+
+      const result = await controller.facebookLinkCallback(mockFacebookProfileWithUserId as any);
+
+      expect(result).toEqual(mockServiceResponse);
+    });
+
+    it('should propagate exception thrown by service', async () => {
+      service.linkSocialAccount.mockRejectedValue(
+        new BadRequestException('This facebook account is already linked to another user')
+      );
+
+      await expect(
+        controller.facebookLinkCallback(mockFacebookProfileWithUserId as any)
+      ).rejects.toThrow(BadRequestException);
+    });
+  });
+
+  // ─── unlinkSocialAccount ──────────────────────────────────────────────────────
+
+  describe('unlinkSocialAccount', () => {
+    it('should delegate to service with userId, provider and providerId', async () => {
+      service.unlinkSocialAccount.mockResolvedValue({
+        status: 'success',
+        message: 'Social account unlinked successfully',
+      });
+
+      await controller.unlinkSocialAccount(mockUserId, 'google', mockProviderId);
+
+      expect(service.unlinkSocialAccount).toHaveBeenCalledWith(
+        mockUserId,
+        'google',
+        mockProviderId
+      );
+      expect(service.unlinkSocialAccount).toHaveBeenCalledTimes(1);
+    });
+
+    it('should return the service response as is', async () => {
+      const mockServiceResponse = {
+        status: 'success',
+        message: 'Social account unlinked successfully',
+      };
+      service.unlinkSocialAccount.mockResolvedValue(mockServiceResponse);
+
+      const result = await controller.unlinkSocialAccount(mockUserId, 'google', mockProviderId);
+
+      expect(result).toEqual(mockServiceResponse);
+    });
+
+    it('should propagate NotFoundException if account not found', async () => {
+      service.unlinkSocialAccount.mockRejectedValue(
+        new NotFoundException('Social account not found')
+      );
+
+      await expect(
+        controller.unlinkSocialAccount(mockUserId, 'google', mockProviderId)
+      ).rejects.toThrow(NotFoundException);
+    });
+
+    it('should propagate ForbiddenException if account belongs to another user', async () => {
+      service.unlinkSocialAccount.mockRejectedValue(
+        new ForbiddenException('You are not allowed to unlink this social account')
+      );
+
+      await expect(
+        controller.unlinkSocialAccount(mockUserId, 'google', mockProviderId)
+      ).rejects.toThrow(ForbiddenException);
+    });
+  });
+
+  // ─── getSocialAccounts ────────────────────────────────────────────────────────
+
+  describe('getSocialAccounts', () => {
+    it('should delegate to service with userId', async () => {
+      service.getSocialAccounts.mockResolvedValue({
+        status: 'success',
+        data: { display_name: mockUsername, social_accounts: [] },
+      });
+
+      await controller.getSocialAccounts(mockUserId);
+
+      expect(service.getSocialAccounts).toHaveBeenCalledWith(mockUserId);
+      expect(service.getSocialAccounts).toHaveBeenCalledTimes(1);
+    });
+
+    it('should return the service response as is', async () => {
+      const mockServiceResponse = {
+        status: 'success',
+        data: {
+          display_name: mockUsername,
+          social_accounts: [
+            {
+              providerid: mockProviderId,
+              provider: 'google',
+              provider_email: mockEmail,
+              linked_at: new Date(),
+            },
+          ],
+        },
+      };
+      service.getSocialAccounts.mockResolvedValue(mockServiceResponse);
+
+      const result = await controller.getSocialAccounts(mockUserId);
+
+      expect(result).toEqual(mockServiceResponse);
+    });
+
+    it('should return empty social_accounts array when none linked', async () => {
+      service.getSocialAccounts.mockResolvedValue({
+        status: 'success',
+        data: { display_name: mockUsername, social_accounts: [] },
+      });
+
+      const result = await controller.getSocialAccounts(mockUserId);
+
+      expect(result.data.social_accounts).toEqual([]);
+    });
+
+    it('should propagate NotFoundException if user not found', async () => {
+      service.getSocialAccounts.mockRejectedValue(new NotFoundException('User not found'));
+
+      await expect(controller.getSocialAccounts(mockUserId)).rejects.toThrow(NotFoundException);
+    });
+  });
+
+  describe('verifyemail', () => {
+    it('should delegate to service with token param', async () => {
+      service.verifyEmail.mockResolvedValue({
+        status: 'success',
+        message: 'Email verified successfully.',
+      });
+
+      await controller.verifyemail(mockVerificationToken);
+
+      expect(service.verifyEmail).toHaveBeenCalledWith(mockVerificationToken);
+      expect(service.verifyEmail).toHaveBeenCalledTimes(1);
+    });
+
+    it('should return the service response as is', async () => {
+      const mockResponse = { status: 'success', message: 'Email verified successfully.' };
+      service.verifyEmail.mockResolvedValue(mockResponse);
+
+      const result = await controller.verifyemail(mockVerificationToken);
+
+      expect(result).toEqual(mockResponse);
+    });
+
+    it('should propagate exception thrown by service', async () => {
+      service.verifyEmail.mockRejectedValue(new BadRequestException('Invalid token'));
+
+      await expect(controller.verifyemail(mockVerificationToken)).rejects.toThrow(
+        BadRequestException
+      );
+    });
+  });
+
+  describe('facebookLogin', () => {
+    it('should return undefined — Passport handles the redirect', () => {
+      const result = controller.facebookLogin();
+      expect(result).toBeUndefined();
+    });
+  });
+
+  describe('googleLogin', () => {
+    it('should return undefined — Passport handles the redirect', () => {
+      const result = controller.googleLogin();
+      expect(result).toBeUndefined();
+    });
+  });
+});
