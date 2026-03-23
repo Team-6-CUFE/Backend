@@ -1,8 +1,12 @@
+// src/ormconfig.ts
 import { DataSource, DataSourceOptions } from 'typeorm';
 import { SeederOptions } from 'typeorm-extension';
 import { config } from 'dotenv';
-
 config();
+
+const isProd = process.env.NODE_ENV === 'production';
+const ext = isProd ? 'js' : 'ts';
+const base = isProd ? 'dist' : 'src';
 
 const options: DataSourceOptions & SeederOptions = {
   type: 'postgres',
@@ -11,12 +15,12 @@ const options: DataSourceOptions & SeederOptions = {
   username: process.env.DB_USERNAME || 'postgres',
   password: process.env.DB_PASSWORD,
   database: process.env.DB_DATABASE,
-  entities: ['src/**/*.entity{.ts,.js}'],
-  migrations: ['src/database/migrations/*{.ts,.js}'],
+  entities: [`${base}/**/*.entity.${ext}`],
+  migrations: [`${base}/database/migrations/*.${ext}`],
   synchronize: false,
-  logging: process.env.NODE_ENV === 'development',
-  seeds: ['src/database/seeds/**/*{.ts,.js}'],
-  factories: ['src/database/factories/**/*{.ts,.js}'],
+  logging: !isProd,
+  seeds: [`${base}/database/seeds/**/*.${ext}`],
+  factories: [`${base}/database/factories/**/*.${ext}`],
 };
 
 export default new DataSource(options);

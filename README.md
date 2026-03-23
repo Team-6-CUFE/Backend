@@ -19,33 +19,37 @@ Backend API for SoundCloud-like application built with Node.js, NestJS, TypeScri
 - Redis >= 7.x
 - AWS Account (for S3)
 
-## Setup
+# 🚀 Dockerized Development Setup
 
-1. Clone the repository
+This guide will help you set up the project locally using **Docker** and **Docker Compose v2**.
+
+---
+
+## 📦 Prerequisites
+
+Before starting, make sure you have:
+
+- Git
+- A Linux-based system (or WSL for Windows)
+
+---
+
+## 🐳 1. Install Docker
+
+### Ubuntu / Debian
+
 ```bash
-git clone <repository-url>
-cd soundcloud-backend
-```
+sudo apt update
+sudo apt install -y docker.io
 
-2. Install dependencies
-```bash
-npm install
-```
+sudo systemctl enable docker
+sudo systemctl start docker
 
-3. Set up environment variables
-```bash
-cp .env.example .env
-# Edit .env with your configuration
-```
+### verify installation
 
-4. Set up database
-```bash
-# Create database
-createdb soundcloud_db
+If not:
 
-# Run migrations (TODO: after Phase 2)
-# npm run migrate
-```
+sudo apt install docker-compose-plugin
 
 5. Start Redis
 
@@ -80,6 +84,20 @@ redis-cli ping  # → PONG
 ```bash
 npm run dev
 ```
+    5. Start development server
+    ```bash
+    npm run dev
+    ```
+
+
+Run them using:
+
+npm run docker:dev
+
+or
+
+npm run docker:dev:build 
+## this rebuilds if u run into any build problems 
 
 
 ## Project Structure

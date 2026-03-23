@@ -18,10 +18,10 @@ async function bootstrap() {
 
   app.use(
     session({
-      store: sessionStore,
-      secret: configService.get<string>('SESSION_SECRET')!,
+      secret: process.env.SESSION_SECRET || 'fallback_secret_for_dev_only',
       resave: false,
       saveUninitialized: false,
+      store: sessionStore,
       name: 'sc.sid',
       cookie: {
         httpOnly: true,

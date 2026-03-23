@@ -1,0 +1,52 @@
+services:
+  db:
+    image: postgres:alpine
+    container_name: soundcloud_db
+    restart: always
+    environment:
+      POSTGRES_DB: ${DB_DATABASE}
+      POSTGRES_USER: ${DB_USERNAME}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+    volumes:
+      - pg_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USERNAME} -d ${DB_DATABASE}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:alpine
+    container_name: redis_soundcloud
+    restart: always
+    volumes:
+      - redis_data:/data
+
+  backend:
+    image: elhussienawad/harmonica-backend:latest
+    container_name: soundcloud_backend_prod
+    restart: always
+    env_file:
+      - .env.prod
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_started
+
+  nginx:
+    build:
+      context: .
+      dockerfile: Docker/nginx/Dockerfile.nginx
+    container_name: soundcloud_nginx
+    restart: always
+    ports:
+      - "80:80"
+    volumes:
+      - /var/www/static:/var/www/static:ro
+    depends_on:
+      - backend
+
+volumes:
+  pg_data:
+  redis_data:
