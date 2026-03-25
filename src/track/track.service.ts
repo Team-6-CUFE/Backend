@@ -1,26 +1,43 @@
-import { Injectable } from '@nestjs/common';
-import { CreateTrackDto } from './dto/create-track.dto';
-import { UpdateTrackDto } from './dto/update-track.dto';
+import {
+  BadRequestException,
+  ConflictException,
+  ForbiddenException,
+  Injectable,
+  UnauthorizedException,
+} from '@nestjs/common';
+import { TrackRepository } from './track.repository';
+import { UserService } from '../user/user.service';
 
 @Injectable()
 export class TrackService {
-  create(createTrackDto: CreateTrackDto) {
-    return `This action adds a new track: ${JSON.stringify(createTrackDto)}`;
-  }
+  constructor(
+    private readonly trackRepository: TrackRepository,
+    private readonly userService: UserService
+  ) {}
 
-  findAll() {
-    return `This action returns all track`;
-  }
+  async repostTrack(trackId: string, userId: string, caption?: string) {
+    const user = await this.userService.findById(userId);
+    if (!user) {
+      throw new UnauthorizedException('User not found');
+    }
 
-  findOne(id: number) {
-    return `This action returns a #${id} track`;
-  }
+    const track = await this.trackRepository.findById(trackId);
+    if (!track) {
+      throw new BadRequestException('Track not found');
+    }
 
-  update(id: number, updateTrackDto: UpdateTrackDto) {
-    return `This action updates a #${id} track: ${JSON.stringify(updateTrackDto)}`;
-  }
+    if (track.user_id === userId) {
+      throw new BadRequestException('You cannot repost your own track');
+    }
 
-  remove(id: number) {
-    return `This action removes a #${id} track`;
+    if (!track.is_public) {
+      throw new ForbiddenException('This track is private');
+    }
+
+    const alreadyReposted = await this.trackRepository.didUserRepostTrack(userId, trackId);
+    if (alreadyReposted) {
+      throw new ConflictException('You have already reposted this track');
+    }
+    return this.trackRepository.repostTrack(trackId, userId, caption);
   }
 }

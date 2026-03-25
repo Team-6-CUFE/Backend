@@ -1,34 +1,31 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete } from '@nestjs/common';
+import { Controller, Post, Body, Param, ParseUUIDPipe } from '@nestjs/common';
 import { TrackService } from './track.service';
-import { CreateTrackDto } from './dto/create-track.dto';
-import { UpdateTrackDto } from './dto/update-track.dto';
+import { ApiRepostTrack } from './track.swagger';
+import { CurrentUser } from '../authentication/decorators/current-user.decorator';
 
-@Controller('track')
+@Controller('tracks')
 export class TrackController {
   constructor(private readonly trackService: TrackService) {}
 
-  @Post()
-  create(@Body() createTrackDto: CreateTrackDto) {
-    return this.trackService.create(createTrackDto);
+  @ApiRepostTrack()
+  @Post(':trackId/repost')
+  repostTrack(
+    @Param('trackId', ParseUUIDPipe) trackId: string,
+    @CurrentUser('sub') userId: string,
+    @Body('caption') caption: string
+  ) {
+    return this.trackService.repostTrack(trackId, userId, caption);
   }
 
-  @Get()
-  findAll() {
-    return this.trackService.findAll();
-  }
+  // @ApiGetTrackReposts()
+  // @Get(':track-id/reposts')
+  // getTrackReposts(@Param('track-id') trackId: string) {
+  //   return this.trackService.getTrackReposts(trackId);
+  // }
 
-  @Get(':id')
-  findOne(@Param('id') id: string) {
-    return this.trackService.findOne(+id);
-  }
-
-  @Patch(':id')
-  update(@Param('id') id: string, @Body() updateTrackDto: UpdateTrackDto) {
-    return this.trackService.update(+id, updateTrackDto);
-  }
-
-  @Delete(':id')
-  remove(@Param('id') id: string) {
-    return this.trackService.remove(+id);
-  }
+  // @ApiGetTrackRepostsCount()
+  // @Get(':track-id/reposts/count')
+  // getTrackRepostsCount(@Param('track-id') trackId: string) {
+  //   return this.trackService.getTrackRepostsCount(trackId);
+  // }
 }
