@@ -12,12 +12,7 @@ import { User } from '../../user/entities/user.entity';
 import { TrackLikes } from './track-likes.entity';
 import { TrackComment } from './track-comments.entity';
 import { TrackRepost } from './track-reposts.entity';
-
-export enum TrackStatus {
-  PROCESSING = 'processing',
-  FINISHED = 'finished',
-  FAILED = 'failed',
-}
+import { TrackStatus } from '../enums/track-status.enum';
 
 @Entity('tracks')
 export class Track extends BaseEntity {
