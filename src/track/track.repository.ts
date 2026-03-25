@@ -35,4 +35,10 @@ export class TrackRepository {
     });
     return !!repost;
   }
+
+  async getTrackRepostsCount(trackId: string): Promise<number> {
+    return this.trackRepostRepository.count({
+      where: { trackId },
+    });
+  }
 }

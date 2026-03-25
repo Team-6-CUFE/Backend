@@ -40,4 +40,20 @@ export class TrackService {
     }
     return this.trackRepository.repostTrack(trackId, userId, caption);
   }
+
+  async getTrackRepostsCount(trackId: string, userId: string) {
+    const track = await this.trackRepository.findById(trackId);
+    if (!track) {
+      throw new BadRequestException('Track not found');
+    }
+
+    if (!track.isPublic && track.userId !== userId) {
+      throw new ForbiddenException('This track is private');
+    }
+    const repostsCount = await this.trackRepository.getTrackRepostsCount(trackId);
+    return {
+      trackId,
+      repostsCount,
+    };
+  }
 }
