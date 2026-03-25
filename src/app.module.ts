@@ -10,6 +10,7 @@ import { AuthenticationModule } from './authentication/authentication.module';
 import { MailModule } from './mail/mail.module';
 import { FollowersModule } from './followers/followers.module';
 import { RedisModule } from './redis/redis.module';
+import { PlaylistModule } from './playlist/playlist.module';
 
 @Module({
   imports: [
@@ -45,6 +46,8 @@ import { RedisModule } from './redis/redis.module';
     MailModule,
 
     FollowersModule,
+
+    PlaylistModule,
   ],
 })
 export class AppModule {}
