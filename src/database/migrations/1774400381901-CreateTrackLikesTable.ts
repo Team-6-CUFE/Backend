@@ -23,7 +23,7 @@ export class CreateTrackLikesTable1774400381901 implements MigrationInterface {
 
     // Auto-increment likes_count on tracks when a like is added
     await queryRunner.query(`
-      CREATE FUNCTION increment_track_likes_count()
+      CREATE or replace FUNCTION increment_track_likes_count()
       RETURNS trigger LANGUAGE plpgsql AS $$
       BEGIN
         UPDATE tracks SET likes_count = likes_count + 1
@@ -42,7 +42,7 @@ export class CreateTrackLikesTable1774400381901 implements MigrationInterface {
 
     // Auto-decrement likes_count on tracks when a like is removed
     await queryRunner.query(`
-      CREATE FUNCTION decrement_track_likes_count()
+      CREATE or replace FUNCTION decrement_track_likes_count()
       RETURNS trigger LANGUAGE plpgsql AS $$
       BEGIN
         UPDATE tracks SET likes_count = GREATEST(likes_count - 1, 0)

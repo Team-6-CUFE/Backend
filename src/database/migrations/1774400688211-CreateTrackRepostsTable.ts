@@ -24,7 +24,7 @@ export class CreateTrackRepostsTable1774400688211 implements MigrationInterface 
 
     // Auto-increment reposts_count on tracks when a repost is added
     await queryRunner.query(`
-      CREATE FUNCTION increment_track_reposts_count()
+      CREATE or replace FUNCTION increment_track_reposts_count()
       RETURNS trigger LANGUAGE plpgsql AS $$
       BEGIN
         UPDATE tracks SET reposts_count = reposts_count + 1
@@ -43,7 +43,7 @@ export class CreateTrackRepostsTable1774400688211 implements MigrationInterface 
 
     // Auto-decrement reposts_count on tracks when a repost is removed
     await queryRunner.query(`
-      CREATE FUNCTION decrement_track_reposts_count()
+      CREATE or replace FUNCTION decrement_track_reposts_count()
       RETURNS trigger LANGUAGE plpgsql AS $$
       BEGIN
         UPDATE tracks SET reposts_count = GREATEST(reposts_count - 1, 0)

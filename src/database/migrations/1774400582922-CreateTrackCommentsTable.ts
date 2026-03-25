@@ -30,7 +30,7 @@ export class CreateTrackCommentsTable1774400582922 implements MigrationInterface
     `);
 
     await queryRunner.query(`
-      CREATE FUNCTION update_track_comments_updated_at()
+      CREATE or replace FUNCTION update_track_comments_updated_at()
       RETURNS trigger LANGUAGE plpgsql AS $$
       BEGIN
         NEW.updated_at = NOW();
@@ -48,7 +48,7 @@ export class CreateTrackCommentsTable1774400582922 implements MigrationInterface
 
     // Auto-increment comments_count on tracks when a comment is added
     await queryRunner.query(`
-      CREATE FUNCTION increment_track_comments_count()
+      CREATE or replace FUNCTION increment_track_comments_count()
       RETURNS trigger LANGUAGE plpgsql AS $$
       BEGIN
         UPDATE tracks SET comments_count = comments_count + 1
@@ -67,7 +67,7 @@ export class CreateTrackCommentsTable1774400582922 implements MigrationInterface
 
     // Auto-decrement comments_count on tracks when a comment is deleted
     await queryRunner.query(`
-      CREATE FUNCTION decrement_track_comments_count()
+      CREATE or replace  FUNCTION decrement_track_comments_count()
       RETURNS trigger LANGUAGE plpgsql AS $$
       BEGIN
         UPDATE tracks SET comments_count = GREATEST(comments_count - 1, 0)

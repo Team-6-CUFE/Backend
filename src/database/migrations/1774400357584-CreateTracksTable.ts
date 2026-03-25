@@ -51,7 +51,7 @@ export class CreateTracksTable1774400357584 implements MigrationInterface {
     `);
 
     await queryRunner.query(`
-      CREATE FUNCTION update_tracks_updated_at()
+      CREATE  or replace FUNCTION update_tracks_updated_at()
       RETURNS trigger LANGUAGE plpgsql AS $$
       BEGIN
         NEW.updated_at = NOW();

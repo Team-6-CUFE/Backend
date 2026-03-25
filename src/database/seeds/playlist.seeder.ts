@@ -69,17 +69,26 @@ export class PlaylistSeeder implements Seeder {
     }
 
     // 2. Generate 30 random playlists using the factory
+    // 2. Generate 30 random playlists using the factory
     console.log('  Generating 30 random playlists...');
 
-    // We will generate them manually through the factory but assign random real users
-    const randomPlaylistsToMake = await playlistFactory.saveMany(30);
+    for (let i = 0; i < 30; i++) {
+      // Create the fake playlist object in memory
+      const randomPlaylist = await playlistFactory.make();
 
-    for (const randomPlaylist of randomPlaylistsToMake) {
       // Pick a random user to own this playlist
       const randomOwner = users[Math.floor(Math.random() * users.length)];
-      randomPlaylist.user_id = randomOwner.user_id;
 
-      const savedPlaylist = await playlistRepository.save(randomPlaylist);
+      // THE FIX: Use repository.create() to properly bind the relationship
+      // This forces TypeORM to recognize both the raw ID and the relation object
+      const playlistToSave = playlistRepository.create({
+        ...randomPlaylist,
+        user_id: randomOwner.user_id,
+        user: randomOwner,
+      });
+
+      // Save the complete playlist to the database
+      const savedPlaylist = await playlistRepository.save(playlistToSave);
       allCreatedPlaylists.push(savedPlaylist);
     }
 
