@@ -10,6 +10,7 @@ import { AuthenticationModule } from './authentication/authentication.module';
 import { MailModule } from './mail/mail.module';
 import { FollowersModule } from './followers/followers.module';
 import { RedisModule } from './redis/redis.module';
+import { PlaylistModule } from './playlist/playlist.module';
 import { TrackModule } from './track/track.module';
 
 @Module({
@@ -46,6 +47,8 @@ import { TrackModule } from './track/track.module';
     MailModule,
 
     FollowersModule,
+
+    PlaylistModule,
 
     TrackModule,
   ],
