@@ -41,4 +41,11 @@ export class TrackRepository {
       where: { trackId },
     });
   }
+
+  async removeTrackRepost(trackId: string, userId: string): Promise<void> {
+    await this.trackRepostRepository.delete({
+      trackId,
+      userId,
+    });
+  }
 }

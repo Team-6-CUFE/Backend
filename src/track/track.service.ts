@@ -56,4 +56,15 @@ export class TrackService {
       repostsCount,
     };
   }
+
+  async removeTrackRepost(trackId: string, userId: string) {
+    const checkRepost = await this.trackRepository.didUserRepostTrack(userId, trackId);
+    if (!checkRepost) {
+      throw new BadRequestException('You have not reposted this track');
+    }
+    await this.trackRepository.removeTrackRepost(trackId, userId);
+    return {
+      message: 'Repost successfully removed',
+    };
+  }
 }

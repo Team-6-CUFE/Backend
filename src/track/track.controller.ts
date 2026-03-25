@@ -1,6 +1,6 @@
-import { Controller, Post, Body, Param, ParseUUIDPipe, Get } from '@nestjs/common';
+import { Controller, Post, Body, Param, ParseUUIDPipe, Get, Delete } from '@nestjs/common';
 import { TrackService } from './track.service';
-import { ApiGetTrackRepostsCount, ApiRepostTrack } from './track.swagger';
+import { ApiGetTrackRepostsCount, ApiRemoveTrackRepost, ApiRepostTrack } from './track.swagger';
 import { CurrentUser } from '../authentication/decorators/current-user.decorator';
 
 @Controller('tracks')
@@ -30,5 +30,14 @@ export class TrackController {
     @CurrentUser('sub') userId: string
   ) {
     return this.trackService.getTrackRepostsCount(trackId, userId);
+  }
+
+  @ApiRemoveTrackRepost()
+  @Delete(':trackId/repost')
+  removeTrackRepost(
+    @Param('trackId', ParseUUIDPipe) trackId: string,
+    @CurrentUser('sub') userId: string
+  ) {
+    return this.trackService.removeTrackRepost(trackId, userId);
   }
 }
