@@ -1,16 +1,13 @@
-import { Entity, Column, ManyToOne, JoinColumn, PrimaryGeneratedColumn, Relation } from 'typeorm';
+import { Entity, Column, ManyToOne, JoinColumn, PrimaryColumn, Relation } from 'typeorm';
 import { User } from '../../user/entities/user.entity';
 import { Playlist } from './playlist.entity';
 
 @Entity('playlist_likes')
 export class PlaylistLike {
-  @PrimaryGeneratedColumn('uuid')
-  id!: string;
-
-  @Column({ type: 'uuid' })
+  @PrimaryColumn({ type: 'uuid' })
   playlist_id!: string;
 
-  @Column({ type: 'uuid' })
+  @PrimaryColumn({ type: 'uuid' })
   user_id!: string;
 
   @Column({ type: 'timestamp', default: () => 'CURRENT_TIMESTAMP' })
