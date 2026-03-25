@@ -42,6 +42,9 @@ export class TrackSeeder implements Seeder {
     const repostFactory = factoryManager.get(TrackRepost);
     const commentFactory = factoryManager.get(TrackComment);
 
+    let totalTracksCreated = 0;
+    let totalCommentsCreated = 0;
+
     // 5. Generate tracks for each artist
     for (const artist of artists) {
       // Each artist gets between 2 and 8 tracks
@@ -54,11 +57,13 @@ export class TrackSeeder implements Seeder {
         user: artist,
       });
 
+      totalTracksCreated += tracks.length;
+
       // 6. Generate Engagement for each track
       for (const track of tracks) {
         // --- A. Seed Likes ---
         // 20% to 60% of users like each track
-        const likers = allUsers
+        const likers = [...allUsers]
           .sort(() => 0.5 - Math.random())
           .slice(0, Math.floor(allUsers.length * (Math.random() * 0.4 + 0.2)));
 
@@ -72,7 +77,7 @@ export class TrackSeeder implements Seeder {
 
         // --- B. Seed Reposts ---
         // 5% to 15% of users repost each track
-        const reposters = allUsers
+        const reposters = [...allUsers]
           .sort(() => 0.5 - Math.random())
           .slice(0, Math.floor(allUsers.length * (Math.random() * 0.1 + 0.05)));
 
@@ -85,30 +90,24 @@ export class TrackSeeder implements Seeder {
         }
 
         // --- C. Seed Comments ---
-        // Random number of comments (2 to 10)
         const commentCount = Math.floor(Math.random() * 9) + 2;
         for (let i = 0; i < commentCount; i++) {
           const randomUser = allUsers[Math.floor(Math.random() * allUsers.length)];
           const comment = await commentFactory.make({
             user_id: randomUser.user_id,
             track_id: track.track_id,
-            // Ensure comment timestamp is within track duration
-            timestamp_seconds: Math.floor(Math.random() * track.duration_seconds),
+            timestamp_seconds: Math.floor(Math.random() * (track.duration_seconds || 300)),
           });
           await commentRepository.save(comment);
+          totalCommentsCreated++;
         }
-
-        // --- D. Update Track Counters ---
-        // Normally, these would be updated via subscribers/hooks in the app,
-        // but for seeding, we sync them manually.
-        await trackRepository.update(track.track_id, {
-          likes_count: likers.length,
-          reposts_count: reposters.length,
-          comments_count: commentCount,
-        });
       }
     }
-
-    console.log('Tracks and engagements seeded successfully!');
+    console.log('Tracks seeded successfully!');
+    console.log(`   - Created ${totalTracksCreated} total tracks across ${artists.length} artists`);
+    console.log(`   - Created ${totalCommentsCreated} total comments`);
+    console.log(
+      `   - Random likes and reposts generated (Database triggers should have updated the counts!)`
+    );
   }
 }
