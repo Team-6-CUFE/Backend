@@ -16,14 +16,14 @@ export class TrackRepository {
 
   async findById(trackId: string): Promise<Track | null> {
     return this.trackRepository.findOne({
-      where: { track_id: trackId },
+      where: { trackId },
     });
   }
 
   async repostTrack(trackId: string, userId: string, caption?: string): Promise<TrackRepost> {
     const trackRepost = this.trackRepostRepository.create({
-      track_id: trackId,
-      user_id: userId,
+      trackId,
+      userId,
       caption,
     });
     return this.trackRepostRepository.save(trackRepost);
@@ -31,7 +31,7 @@ export class TrackRepository {
 
   async didUserRepostTrack(userId: string, trackId: string): Promise<boolean> {
     const repost = await this.trackRepostRepository.findOne({
-      where: { user_id: userId, track_id: trackId },
+      where: { userId, trackId },
     });
     return !!repost;
   }

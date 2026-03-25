@@ -26,11 +26,11 @@ export class TrackService {
       throw new BadRequestException('Track not found');
     }
 
-    if (track.user_id === userId) {
+    if (track.userId === userId) {
       throw new BadRequestException('You cannot repost your own track');
     }
 
-    if (!track.is_public) {
+    if (!track.isPublic) {
       throw new ForbiddenException('This track is private');
     }
 
