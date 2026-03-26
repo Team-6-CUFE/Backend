@@ -41,3 +41,7 @@ export function ApiGetTrackRepostsCount() {
 export function ApiGetUserTrackReposts() {
   return applyDecorators();
 }
+
+export function ApiEditTrackRepost() {
+  return applyDecorators();
+}

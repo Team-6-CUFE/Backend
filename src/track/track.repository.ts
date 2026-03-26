@@ -48,4 +48,19 @@ export class TrackRepository {
       userId,
     });
   }
+
+  async editTrackRepost(
+    trackId: string,
+    userId: string,
+    caption: string
+  ): Promise<TrackRepost | null> {
+    const repost = await this.trackRepostRepository.findOne({
+      where: { trackId, userId },
+    });
+    if (!repost) {
+      return null;
+    }
+    repost.caption = caption;
+    return this.trackRepostRepository.save(repost);
+  }
 }

@@ -67,4 +67,12 @@ export class TrackService {
       message: 'Repost successfully removed',
     };
   }
+
+  async editTrackRepost(trackId: string, userId: string, caption: string) {
+    const updatedRepost = await this.trackRepository.editTrackRepost(trackId, userId, caption);
+    if (!updatedRepost) {
+      throw new BadRequestException('You have not reposted this track');
+    }
+    return updatedRepost;
+  }
 }
