@@ -63,4 +63,16 @@ export class TrackRepository {
     repost.caption = caption;
     return this.trackRepostRepository.save(repost);
   }
+
+  async getTrackReposts(trackId: string, page: number, limit: number): Promise<[any[], number]> {
+    const skip = (page - 1) * limit;
+    const [reposts, total] = await this.trackRepostRepository.findAndCount({
+      where: { trackId },
+      relations: ['user'],
+      order: { createdAt: 'DESC' },
+      skip,
+      take: limit,
+    });
+    return [reposts, total];
+  }
 }

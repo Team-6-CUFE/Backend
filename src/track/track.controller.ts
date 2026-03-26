@@ -1,7 +1,18 @@
-import { Controller, Post, Body, Param, ParseUUIDPipe, Get, Delete, Patch } from '@nestjs/common';
+import {
+  Controller,
+  Post,
+  Body,
+  Param,
+  ParseUUIDPipe,
+  Get,
+  Delete,
+  Patch,
+  Query,
+} from '@nestjs/common';
 import { TrackService } from './track.service';
 import {
   ApiEditTrackRepost,
+  ApiGetTrackReposts,
   ApiGetTrackRepostsCount,
   ApiRemoveTrackRepost,
   ApiRepostTrack,
@@ -54,5 +65,16 @@ export class TrackController {
     @Body('caption') caption: string
   ) {
     return this.trackService.editTrackRepost(trackId, userId, caption);
+  }
+
+  @ApiGetTrackReposts()
+  @Get(':trackId/reposts')
+  getTrackReposts(
+    @Param('trackId', ParseUUIDPipe) trackId: string,
+    @CurrentUser('sub') userId: string,
+    @Query('page') page: number,
+    @Query('limit') limit: number
+  ) {
+    return this.trackService.getTrackReposts(trackId, userId, page, limit);
   }
 }

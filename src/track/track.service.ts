@@ -7,6 +7,7 @@ import {
 } from '@nestjs/common';
 import { TrackRepository } from './track.repository';
 import { UserService } from '../user/user.service';
+import { buildPaginationResponse } from '../common/utilities/pagination.util';
 
 @Injectable()
 export class TrackService {
@@ -74,5 +75,27 @@ export class TrackService {
       throw new BadRequestException('You have not reposted this track');
     }
     return updatedRepost;
+  }
+
+  async getTrackReposts(trackId: string, userId: string, page: number = 1, limit: number = 20) {
+    const track = await this.trackRepository.findById(trackId);
+    if (!track) {
+      throw new BadRequestException('Track not found');
+    }
+
+    if (!track.isPublic && track.userId !== userId) {
+      throw new ForbiddenException('This track is private');
+    }
+
+    const [reposts, total] = await this.trackRepository.getTrackReposts(trackId, page, limit);
+    const mappedReposters = reposts.map((repost) => ({
+      userId: repost.user.user_id,
+      username: repost.user.username,
+      displayName: repost.user.display_name,
+      avatarUrl: repost.user.avatar_url,
+      caption: repost.caption,
+      repostedAt: repost.createdAt,
+    }));
+    return buildPaginationResponse(mappedReposters, total, page, limit);
   }
 }
