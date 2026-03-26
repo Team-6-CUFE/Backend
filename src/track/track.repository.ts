@@ -75,4 +75,22 @@ export class TrackRepository {
     });
     return [reposts, total];
   }
+
+  async getUserTrackReposts(
+    userId: string,
+    page: number,
+    limit: number
+  ): Promise<[TrackRepost[], number]> {
+    const skip = (page - 1) * limit;
+
+    return this.trackRepostRepository
+      .createQueryBuilder('repost')
+      .innerJoinAndSelect('repost.track', 'track')
+      .innerJoinAndSelect('track.user', 'artist')
+      .where('repost.userId = :userId', { userId })
+      .orderBy('repost.createdAt', 'DESC')
+      .skip(skip)
+      .take(limit)
+      .getManyAndCount();
+  }
 }

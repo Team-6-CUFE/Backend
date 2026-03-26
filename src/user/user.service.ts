@@ -1,4 +1,10 @@
-import { Injectable } from '@nestjs/common';
+import {
+  ForbiddenException,
+  forwardRef,
+  Inject,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import * as bcrypt from 'bcrypt';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UserRepository } from './user.repository';
@@ -6,12 +12,17 @@ import { User } from './entities/user.entity';
 import { UserEmail } from './entities/user-email.entity';
 import { UsernameAvailabilityService } from './username-availability.service';
 import { OAuthUser } from '../authentication/types/oauth-user.type';
+import { buildPaginationResponse } from '../common/utilities/pagination.util';
+// eslint-disable-next-line import/no-cycle
+import { TrackService } from '../track/track.service';
 
 @Injectable()
 export class UserService {
   constructor(
     private readonly userRepository: UserRepository,
-    private readonly usernameAvailabilityService: UsernameAvailabilityService
+    private readonly usernameAvailabilityService: UsernameAvailabilityService,
+    @Inject(forwardRef(() => TrackService))
+    private readonly trackService: TrackService
   ) {}
 
   async remove(id: string) {
@@ -107,5 +118,40 @@ export class UserService {
 
   async getSocialAccounts(userId: string) {
     return this.userRepository.getSocialAccounts(userId);
+  }
+
+  async getUserTrackReposts(
+    userId: string,
+    myUserId: string,
+    page: number = 1,
+    limit: number = 20
+  ) {
+    const user = await this.userRepository.findById(userId);
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+
+    if (!user.is_public && user.user_id !== myUserId) {
+      throw new ForbiddenException('This account is private');
+    }
+
+    const cappedLimit = Math.min(limit, 100); // Cap limit to 100
+    const [reposts, total] = await this.trackService.getUserTrackReposts(userId, page, cappedLimit);
+    const mappedReposts = reposts.map((repost) => ({
+      trackId: repost.track.trackId,
+      title: repost.track.title,
+      coverImage: repost.track.coverImage,
+      durationSeconds: repost.track.durationSeconds,
+      playCount: repost.track.playCount,
+      repostsCount: repost.track.repostsCount,
+      artist: {
+        userId: repost.track.user.user_id,
+        username: repost.track.user.username,
+        displayName: repost.track.user.display_name,
+      },
+      caption: repost.caption,
+      repostedAt: repost.createdAt,
+    }));
+    return buildPaginationResponse(mappedReposts, total, page, limit);
   }
 }

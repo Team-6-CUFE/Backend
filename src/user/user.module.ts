@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { forwardRef, Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { UserService } from './user.service';
 import { ProfileController } from './profile.controller';
@@ -12,13 +12,17 @@ import { FavoriteGenre } from './entities/favorite-genre.entity';
 import { GenreModule } from '../genre/genre.module';
 import { UsernameAvailabilityService } from './username-availability.service';
 import { ExternalProfileRepository } from './external-profile.repository';
+import { UserController } from './user.controller';
+// eslint-disable-next-line import/no-cycle
+import { TrackModule } from '../track/track.module';
 
 @Module({
   imports: [
     TypeOrmModule.forFeature([User, UserEmail, ExternalProfile, SocialAccount, FavoriteGenre]),
     GenreModule,
+    forwardRef(() => TrackModule),
   ],
-  controllers: [ProfileController],
+  controllers: [ProfileController, UserController],
   providers: [
     UserService,
     UserRepository,

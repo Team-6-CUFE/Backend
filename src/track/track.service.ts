@@ -2,10 +2,14 @@ import {
   BadRequestException,
   ConflictException,
   ForbiddenException,
+  forwardRef,
+  Inject,
   Injectable,
+  NotFoundException,
   UnauthorizedException,
 } from '@nestjs/common';
 import { TrackRepository } from './track.repository';
+// eslint-disable-next-line import/no-cycle
 import { UserService } from '../user/user.service';
 import { buildPaginationResponse } from '../common/utilities/pagination.util';
 
@@ -13,6 +17,7 @@ import { buildPaginationResponse } from '../common/utilities/pagination.util';
 export class TrackService {
   constructor(
     private readonly trackRepository: TrackRepository,
+    @Inject(forwardRef(() => UserService))
     private readonly userService: UserService
   ) {}
 
@@ -24,7 +29,7 @@ export class TrackService {
 
     const track = await this.trackRepository.findById(trackId);
     if (!track) {
-      throw new BadRequestException('Track not found');
+      throw new NotFoundException('Track not found');
     }
 
     if (track.userId === userId) {
@@ -45,7 +50,7 @@ export class TrackService {
   async getTrackRepostsCount(trackId: string, userId: string) {
     const track = await this.trackRepository.findById(trackId);
     if (!track) {
-      throw new BadRequestException('Track not found');
+      throw new NotFoundException('Track not found');
     }
 
     if (!track.isPublic && track.userId !== userId) {
@@ -80,14 +85,16 @@ export class TrackService {
   async getTrackReposts(trackId: string, userId: string, page: number = 1, limit: number = 20) {
     const track = await this.trackRepository.findById(trackId);
     if (!track) {
-      throw new BadRequestException('Track not found');
+      throw new NotFoundException('Track not found');
     }
 
     if (!track.isPublic && track.userId !== userId) {
       throw new ForbiddenException('This track is private');
     }
 
-    const [reposts, total] = await this.trackRepository.getTrackReposts(trackId, page, limit);
+    const cappedLimit = Math.min(limit, 100); // Cap limit to 100
+
+    const [reposts, total] = await this.trackRepository.getTrackReposts(trackId, page, cappedLimit);
     const mappedReposters = reposts.map((repost) => ({
       userId: repost.user.user_id,
       username: repost.user.username,
@@ -97,5 +104,13 @@ export class TrackService {
       repostedAt: repost.createdAt,
     }));
     return buildPaginationResponse(mappedReposters, total, page, limit);
+  }
+
+  async getUserTrackReposts(
+    userId: string,
+    page: number = 1,
+    limit: number = 20
+  ): Promise<[any[], number]> {
+    return this.trackRepository.getUserTrackReposts(userId, page, limit);
   }
 }
