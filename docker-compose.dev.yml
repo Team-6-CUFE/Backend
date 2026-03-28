@@ -20,6 +20,7 @@ services:
       - "6379:6379"
 
   backend:
+    container_name: soundcloud_backend_dev
     build:
       context: .
       dockerfile: Docker/Dockerfile.dev
@@ -35,3 +36,16 @@ services:
         condition: service_healthy
       redis:
         condition: service_started
+
+  frontend:
+    build:
+      context: ../Frontend
+      dockerfile: Docker/Dockerfile.dev
+    container_name: soundcloud_frontend_dev
+    volumes:
+      - ../Frontend:/app
+      - /app/node_modules
+    ports:
+      - "5173:5173"
+    depends_on:
+      - backend
