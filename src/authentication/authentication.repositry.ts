@@ -147,7 +147,7 @@ export class AuthenticationRepository {
     // mark verified//
     await this.userEmailRepository.update(
       { email: record.email },
-      { is_verified: true, verified_at: new Date() }
+      { isVerified: true, verifiedAt: new Date() }
     );
     // delete token
     await this.tokenRepository.delete(record.id);

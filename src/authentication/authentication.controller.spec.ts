@@ -1052,7 +1052,7 @@ describe('AuthenticationController', () => {
 
       const result = await controller.getSocialAccounts(mockUserId);
 
-      expect(result.data.social_accounts).toEqual([]);
+      expect(result.data.socialAccounts).toEqual([]);
     });
 
     it('should propagate NotFoundException if user not found', async () => {

@@ -113,9 +113,9 @@ export class UserRepository {
     // Step 1 — Create user record
     const user = this.repository.create({
       username: createOAuthUser.username,
-      firstName: createOAuthUser.firstName,
-      lastName: createOAuthUser.lastName,
-      displayName: createOAuthUser.displayName,
+      firstName: createOAuthUser.first_name,
+      lastName: createOAuthUser.last_name,
+      displayName: createOAuthUser.display_name,
       birthdate: createOAuthUser.birthdate,
       gender: createOAuthUser.gender,
       city: createOAuthUser.city ?? undefined,

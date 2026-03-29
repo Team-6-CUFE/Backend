@@ -108,9 +108,9 @@ describe('AuthenticationService', () => {
 
       expect(result.status).toBe('success');
       expect(result.data.email).toBe(mockEmail);
-      expect(result.data.user_id).toBe(mockUserId);
-      expect(result.data.email_verified).toBe(false);
-      expect(result.data.verification_email_sent).toBe(true);
+      expect(result.data.userId).toBe(mockUserId);
+      expect(result.data.emailVerified).toBe(false);
+      expect(result.data.verificationEmailSent).toBe(true);
     });
 
     it('should call createUser with correct dto (without captchaToken)', async () => {
@@ -246,7 +246,7 @@ describe('AuthenticationService', () => {
 
       const result = await service.register(mockRegisterDto() as any, mockIp);
 
-      expect(result.data.created_at).toEqual(fixedDate);
+      expect(result.data.createdAt).toEqual(fixedDate);
     });
 
     it('should pass country and city from IP detection to createUser', async () => {
@@ -391,7 +391,7 @@ describe('AuthenticationService', () => {
       await service.resendVerificationEmail(mockEmail);
 
       expect(authRepo.createVerificationToken).toHaveBeenCalledWith(
-        mockUserEmail().user_id,
+        mockUserEmail().userId,
         mockVerificationToken,
         mockEmail,
         expect.any(Date),
@@ -492,7 +492,7 @@ describe('AuthenticationService', () => {
       const result = await service.login(mockLoginDto() as any, res as any);
 
       expect(result.status).toBe('success');
-      expect(result.data.user_id).toBe(mockUserId);
+      expect(result.data.userId).toBe(mockUserId);
       expect(result.data.email).toBe(mockEmail);
       expect(result.data.username).toBe(mockUsername);
     });
@@ -1331,8 +1331,8 @@ describe('AuthenticationService', () => {
 
       expect(result.status).toBe('success');
       expect(result.data.email).toBe(mockSecondaryEmail);
-      expect(result.data.is_verified).toBe(false);
-      expect(result.data.verification_sent).toBe(true);
+      expect(result.data.isVerified).toBe(false);
+      expect(result.data.verificationSent).toBe(true);
     });
 
     it('should call addEmail on userService with correct args', async () => {
@@ -1369,7 +1369,7 @@ describe('AuthenticationService', () => {
       expect(mailService.sendEmailAddedNotification).toHaveBeenCalledWith(
         mockEmail, // primary email
         mockSecondaryEmail,
-        mockUser().display_name
+        mockUser().displayName
       );
     });
 
@@ -1439,7 +1439,7 @@ describe('AuthenticationService', () => {
       expect(mailService.sendEmailAddedNotification).toHaveBeenCalledWith(
         '', // ← empty string fallback
         mockSecondaryEmail,
-        mockUser().display_name
+        mockUser().displayName
       );
     });
 
@@ -1458,7 +1458,7 @@ describe('AuthenticationService', () => {
       expect(mailService.sendEmailAddedNotification).toHaveBeenCalledWith(
         '',
         mockSecondaryEmail,
-        mockUser().display_name
+        mockUser().displayName
       );
     });
   });
@@ -1629,7 +1629,7 @@ describe('AuthenticationService', () => {
       expect(mailService.sendPrimaryEmailChangeCode).toHaveBeenCalledWith(
         mockEmail, // current primary — code is sent here
         mockVerificationCode,
-        mockUser().display_name,
+        mockUser().displayName,
         mockSecondaryEmail // new primary — for context in the email
       );
     });
@@ -2106,7 +2106,7 @@ describe('AuthenticationService', () => {
       await service.forgotPassword(mockEmail);
 
       expect(authRepo.createVerificationToken).toHaveBeenCalledWith(
-        mockUserEmail().user_id,
+        mockUserEmail().userId,
         mockVerificationToken,
         mockEmail,
         expect.any(Date),
@@ -2125,7 +2125,7 @@ describe('AuthenticationService', () => {
       await service.forgotPassword(mockEmail);
 
       expect(redisClient.incr).toHaveBeenCalledWith(
-        `rate:forgot-password:${mockUserEmail().user_id}`
+        `rate:forgot-password:${mockUserEmail().userId}`
       );
     });
 
@@ -2805,14 +2805,14 @@ describe('AuthenticationService', () => {
       const result = await service.getSocialAccounts(mockUserId);
 
       expect(result.status).toBe('success');
-      expect(result.data.display_name).toBe(mockUsername);
-      expect(result.data.social_accounts).toHaveLength(2);
+      expect(result.data.displayName).toBe(mockUsername);
+      expect(result.data.socialAccounts).toHaveLength(2);
     });
 
     it('should map social accounts with correct fields', async () => {
       const result = await service.getSocialAccounts(mockUserId);
 
-      expect(result.data.social_accounts[0]).toEqual({
+      expect(result.data.socialAccounts[0]).toEqual({
         providerid: mockProviderId,
         provider: 'google',
         provider_email: mockEmail,
@@ -2839,7 +2839,7 @@ describe('AuthenticationService', () => {
 
       const result = await service.getSocialAccounts(mockUserId);
 
-      expect(result.data.social_accounts).toEqual([]);
+      expect(result.data.socialAccounts).toEqual([]);
     });
 
     it('should throw NotFoundException if user not found', async () => {
