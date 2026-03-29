@@ -13,17 +13,17 @@ export class UpdateProfileReqDto {
   @IsOptional()
   @IsString()
   @MaxLength(100)
-  first_name?: string;
+  firstName?: string;
 
   @IsOptional()
   @IsString()
   @MaxLength(100)
-  last_name?: string;
+  lastName?: string;
 
   @IsOptional()
   @IsString()
   @MaxLength(150)
-  display_name?: string;
+  displayName?: string;
 
   @IsOptional()
   @IsString()
@@ -46,20 +46,20 @@ export class UpdateProfileReqDto {
   city?: string;
 
   @IsOptional()
-  @IsIn(['male', 'female', 'other', 'prefer_not_to_say'])
+  @IsIn(['male', 'female', 'other', 'preferNotToSay'])
   gender?: string;
 
   @IsOptional()
   @IsArray()
   @IsString({ each: true })
   @ArrayMaxSize(10, { message: 'Maximum 10 genres allowed' })
-  favorite_genres?: string[];
+  favoriteGenres?: string[];
 
   @IsOptional()
-  @IsUrl({}, { message: 'support_link must be a valid URL' })
-  support_link?: string;
+  @IsUrl({}, { message: 'supportLink must be a valid URL' })
+  supportLink?: string;
 
   @IsOptional()
   @IsBoolean()
-  is_public?: boolean;
+  isPublic?: boolean;
 }

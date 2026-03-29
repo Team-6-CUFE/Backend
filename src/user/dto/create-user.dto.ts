@@ -50,7 +50,7 @@ export class CreateUserDto {
   @IsNotEmpty({ message: 'Display name is required' })
   @MaxLength(100, { message: 'Display name must be at most 100 characters' })
   @Transform(({ value }) => value.trim())
-  display_name!: string;
+  displayName!: string;
 
   @ApiProperty({
     description: 'Date of birth in YYYY-MM-DD format. Must be at least 13 years old.',

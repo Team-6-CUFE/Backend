@@ -95,11 +95,11 @@ export class ProfileController {
 
   @Put('me/avatar')
   async updateAvatar(@CurrentUser('sub') userId: string, @Body() updateAvatarDto: UpdateAvatarDto) {
-    return this.profileService.updateAvatar(userId, updateAvatarDto.avatar_url);
+    return this.profileService.updateAvatar(userId, updateAvatarDto.avatarUrl);
   }
 
   @Put('me/cover')
   async updateCover(@CurrentUser('sub') userId: string, @Body() updateCoverDto: UpdateCoverDto) {
-    return this.profileService.updateCover(userId, updateCoverDto.cover_photo);
+    return this.profileService.updateCover(userId, updateCoverDto.coverPhoto);
   }
 }

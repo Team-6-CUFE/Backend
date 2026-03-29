@@ -7,17 +7,17 @@ export class UserEmail extends BaseEntity {
   @PrimaryColumn({ type: 'varchar', length: 255, unique: true })
   email!: string;
 
-  @Column({ type: 'uuid' })
-  user_id!: string;
+  @Column({ type: 'uuid', name: 'user_id' })
+  userId!: string;
 
-  @Column({ type: 'boolean', default: false })
-  is_primary!: boolean;
+  @Column({ type: 'boolean', default: false, name: 'is_primary' })
+  isPrimary!: boolean;
 
-  @Column({ type: 'boolean', default: false })
-  is_verified!: boolean;
+  @Column({ type: 'boolean', default: false, name: 'is_verified' })
+  isVerified!: boolean;
 
-  @Column({ type: 'timestamp', nullable: true })
-  verified_at!: Date | null;
+  @Column({ type: 'timestamp', nullable: true, name: 'verified_at' })
+  verifiedAt!: Date | null;
 
   // Relationship
   @ManyToOne(() => User, (user) => user.emails, { onDelete: 'CASCADE' })
