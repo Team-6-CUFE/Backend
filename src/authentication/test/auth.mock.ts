@@ -44,34 +44,34 @@ export const mockLoginDtoWithUsername = () => ({
 });
 
 export const mockUser = (): Partial<User> => ({
-  user_id: mockUserId,
+  userId: mockUserId,
   username: mockUsername,
-  display_name: mockUsername,
-  first_name: 'Yara',
-  last_name: 'Senousy',
-  password_hash: 'hashed_password',
+  displayName: mockUsername,
+  firstName: 'Yara',
+  lastName: 'Senousy',
+  passwordHash: 'hashedPassword',
   role: 'listener',
   plan: 'free',
-  is_suspended: false,
-  is_public: true,
-  avatar_url: '',
-  created_at: new Date(),
-  updated_at: new Date(),
+  isSuspended: false,
+  isPublic: true,
+  avatarUrl: '',
+  createdAt: new Date(),
+  updatedAt: new Date(),
   emails: [
     {
       email: mockEmail,
-      is_primary: true,
-      is_verified: true,
-      user_id: mockUserId,
+      isPrimary: true,
+      isVerified: true,
+      userId: mockUserId,
     } as UserEmail,
   ],
 });
 
 export const mockUserEmail = (): Partial<UserEmail> => ({
   email: mockEmail,
-  user_id: mockUserId,
-  is_primary: true,
-  is_verified: false,
+  userId: mockUserId,
+  isPrimary: true,
+  isVerified: false,
 });
 
 export const mockStoredRefreshToken = (): Partial<RefreshToken> => ({
@@ -240,15 +240,15 @@ export const mockUserWithMultipleEmails = (): Partial<User> => ({
   emails: [
     {
       email: mockEmail,
-      is_primary: true,
-      is_verified: true,
-      user_id: mockUserId,
+      isPrimary: true,
+      isVerified: true,
+      userId: mockUserId,
     } as UserEmail,
     {
       email: mockSecondaryEmail,
-      is_primary: false,
-      is_verified: true,
-      user_id: mockUserId,
+      isPrimary: false,
+      isVerified: true,
+      userId: mockUserId,
     } as UserEmail,
   ],
 });
