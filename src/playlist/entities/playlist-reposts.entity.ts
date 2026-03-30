@@ -11,7 +11,7 @@ export class PlaylistRepost {
   @PrimaryColumn({ type: 'uuid', name: 'user_id' })
   userId!: string;
 
-  @Column({ type: 'timestamp', name: 'createdAt', default: () => 'CURRENT_TIMESTAMP' })
+  @Column({ type: 'timestamp', name: 'created_at', default: () => 'CURRENT_TIMESTAMP' })
   createdAt!: Date;
 
   // Relationship
