@@ -3,7 +3,6 @@ import * as bcrypt from 'bcrypt';
 import { UserService } from './user.service';
 import { UserRepository } from './user.repository';
 import { UsernameAvailabilityService } from './username-availability.service';
-import { TrackService } from '../track/track.service';
 
 const mockUserId = '550e8400-e29b-41d4-a716-446655440001';
 const mockEmail = 'yara@example.com';
@@ -90,10 +89,6 @@ const mockUsernameAvailabilityService = () => ({
   addToFilter: jest.fn(),
 });
 
-const mockTrackService = () => ({
-  getUserTrackReposts: jest.fn(),
-});
-
 describe('UserService', () => {
   let service: UserService;
   let userRepo: ReturnType<typeof mockUserRepository>;
@@ -105,7 +100,6 @@ describe('UserService', () => {
         UserService,
         { provide: UserRepository, useFactory: mockUserRepository },
         { provide: UsernameAvailabilityService, useFactory: mockUsernameAvailabilityService },
-        { provide: TrackService, useFactory: mockTrackService },
       ],
     }).compile();
 
