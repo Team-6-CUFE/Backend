@@ -95,25 +95,17 @@ export class ProfileService {
     return { status: 'Success', message: 'Profile updated successfully', data };
   }
 
-  // TODO: switch out mock counts for service function call
   async findProfile(username: string): Promise<{ status: string; data: PublicProfileDataDto }> {
     const user = await this.userRepository.findByUsername(username);
     if (!user) throw new NotFoundException('User not found');
     const raw: PublicProfileDataDto = {
       ...user,
       favoriteGenres: user.favoriteGenres?.map((fg) => fg.genre.name) ?? [],
-      favoritesCount: 0,
-      playlistCount: 0,
-      trackCount: 0,
-      followingsCount: 0,
-      followersCount: 0,
-      repostsCount: 0,
     };
     const data = plainToInstance(PublicProfileDataDto, raw, { excludeExtraneousValues: true });
     return { status: 'Success', data };
   }
 
-  // TODO: switch out mock counts for service function call
   async findMyProfile(userId: string): Promise<{ status: string; data: MyProfileDataDto }> {
     const user = await this.userRepository.findById(userId);
     if (!user) throw new NotFoundException('User not found');
@@ -122,12 +114,6 @@ export class ProfileService {
       email: user.emails.find((e) => e.isPrimary)?.email ?? null,
       birthdate: user.birthdate ? new Date(user.birthdate).toISOString().split('T')[0] : null,
       favoriteGenres: user.favoriteGenres?.map((fg) => fg.genre.name) ?? [],
-      favoritesCount: 0,
-      playlistCount: 0,
-      trackCount: 0,
-      followingsCount: 0,
-      followersCount: 0,
-      repostsCount: 0,
     };
     const data = plainToInstance(MyProfileDataDto, raw, { excludeExtraneousValues: true });
     return { status: 'Success', data };
