@@ -5,14 +5,14 @@ import type { Playlist } from './playlist.entity';
 @Entity('playlist_reposts')
 export class PlaylistRepost {
   // primary key is combination of playlist_id and user_id
-  @PrimaryColumn({ type: 'uuid' })
-  playlist_id!: string;
+  @PrimaryColumn({ type: 'uuid', name: 'playlist_id' })
+  playlistId!: string;
 
-  @PrimaryColumn({ type: 'uuid' })
-  user_id!: string;
+  @PrimaryColumn({ type: 'uuid', name: 'user_id' })
+  userId!: string;
 
-  @Column({ type: 'timestamp', default: () => 'CURRENT_TIMESTAMP' })
-  created_at!: Date;
+  @Column({ type: 'timestamp', name: 'createdAt', default: () => 'CURRENT_TIMESTAMP' })
+  createdAt!: Date;
 
   // Relationship
   @ManyToOne('Playlist', { onDelete: 'CASCADE' })

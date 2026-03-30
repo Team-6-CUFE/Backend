@@ -33,7 +33,7 @@ export class Playlist extends BaseEntity {
   likesCount!: number;
 
   @Column({ type: 'int', default: 0, name: 'reposts_count' })
-  reposts_count!: number;
+  repostsCount!: number;
 
   @Column({ type: 'uuid', name: 'user_id' })
   userId!: string;
