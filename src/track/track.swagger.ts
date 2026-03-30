@@ -17,10 +17,13 @@ export function ApiRepostTrack() {
       description: 'Track reposted successfully',
       schema: {
         example: {
-          trackId: '123e4567-e89b-12d3-a456-426614174000',
-          userId: '123e4567-e89b-12d3-a456-426614174001',
-          caption: 'Check out this track!',
-          createdAt: '2024-06-01T12:00:00Z',
+          status: 'success',
+          data: {
+            trackId: '123e4567-e89b-12d3-a456-426614174000',
+            userId: '123e4567-e89b-12d3-a456-426614174001',
+            caption: 'Check out this track!',
+            createdAt: '2024-06-01T12:00:00Z',
+          },
         },
       },
     }),
@@ -84,6 +87,7 @@ export function ApiGetTrackReposts() {
       description: 'Paginated list of reposters',
       schema: {
         example: {
+          status: 'success',
           data: [
             {
               userId: '550e8400-e29b-41d4-a716-446655440001',
@@ -136,7 +140,7 @@ export function ApiRemoveTrackRepost() {
       status: 200,
       description: 'Repost removed successfully',
       schema: {
-        example: { message: 'Repost successfully removed' },
+        example: { status: 'success', message: 'Repost successfully removed' },
       },
     }),
     ApiResponse({
@@ -166,8 +170,11 @@ export function ApiGetTrackRepostsCount() {
       description: 'Repost count returned successfully',
       schema: {
         example: {
-          trackId: '123e4567-e89b-12d3-a456-426614174000',
-          repostsCount: 42,
+          status: 'success',
+          data: {
+            trackId: '123e4567-e89b-12d3-a456-426614174000',
+            repostsCount: 42,
+          },
         },
       },
     }),
@@ -217,6 +224,7 @@ export function ApiGetUserTrackReposts() {
       description: 'Paginated list of reposted tracks',
       schema: {
         example: {
+          status: 'success',
           data: [
             {
               trackId: '123e4567-e89b-12d3-a456-426614174000',
@@ -277,10 +285,13 @@ export function ApiEditTrackRepost() {
       description: 'Repost updated successfully',
       schema: {
         example: {
-          trackId: '123e4567-e89b-12d3-a456-426614174000',
-          userId: '123e4567-e89b-12d3-a456-426614174001',
-          caption: 'Updated caption!',
-          createdAt: '2024-06-01T12:00:00Z',
+          status: 'success',
+          data: {
+            trackId: '123e4567-e89b-12d3-a456-426614174000',
+            userId: '123e4567-e89b-12d3-a456-426614174001',
+            caption: 'Updated caption!',
+            createdAt: '2024-06-01T12:00:00Z',
+          },
         },
       },
     }),
