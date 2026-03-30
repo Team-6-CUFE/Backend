@@ -45,7 +45,7 @@ export class PlaylistSeeder implements Seeder {
         title: 'Late Night Lo-Fi Beats',
         description: 'Chill beats to study and relax to.',
         is_public: true,
-        user_id: artist1.user_id,
+        user_id: artist1.userId,
       });
       allCreatedPlaylists.push(await playlistRepository.save(playlist1));
 
@@ -53,7 +53,7 @@ export class PlaylistSeeder implements Seeder {
         title: 'Unreleased Demos (Private)',
         description: 'WIP tracks.',
         is_public: false, // Private playlist
-        user_id: artist1.user_id,
+        user_id: artist1.userId,
       });
       allCreatedPlaylists.push(await playlistRepository.save(playlist2));
     }
@@ -63,7 +63,7 @@ export class PlaylistSeeder implements Seeder {
         title: 'Summer Festival Mix',
         description: 'High energy EDM and House.',
         is_public: true,
-        user_id: artist2.user_id,
+        user_id: artist2.userId,
       });
       allCreatedPlaylists.push(await playlistRepository.save(playlist3));
     }
@@ -83,7 +83,7 @@ export class PlaylistSeeder implements Seeder {
       // This forces TypeORM to recognize both the raw ID and the relation object
       const playlistToSave = playlistRepository.create({
         ...randomPlaylist,
-        user_id: randomOwner.user_id,
+        user_id: randomOwner.userId,
         user: randomOwner,
       });
 
@@ -107,7 +107,7 @@ export class PlaylistSeeder implements Seeder {
       for (const liker of likers) {
         await playlistLikeRepository.save({
           playlist_id: playlist.playlist_id,
-          user_id: liker.user_id,
+          user_id: liker.userId,
         });
       }
 
@@ -118,7 +118,7 @@ export class PlaylistSeeder implements Seeder {
       for (const reposter of reposters) {
         await playlistRepostRepository.save({
           playlist_id: playlist.playlist_id,
-          user_id: reposter.user_id,
+          user_id: reposter.userId,
         });
       }
     }

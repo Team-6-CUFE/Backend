@@ -13,20 +13,20 @@ export class ExternalProfileRepository {
 
   async findAllByUserId(userId: string): Promise<ExternalProfile[]> {
     return this.repo.find({
-      where: { user_id: userId },
-      order: { created_at: 'ASC' },
+      where: { userId },
+      order: { createdAt: 'ASC' },
     });
   }
 
   async findById(userId: string, profileId: string): Promise<ExternalProfile | null> {
     return this.repo.findOne({
-      where: { id: profileId, user_id: userId },
+      where: { id: profileId, userId },
     });
   }
 
   async create(userId: string, createDto: CreateExternalProfileDto): Promise<ExternalProfile> {
     const profile = this.repo.create({
-      user_id: userId,
+      userId,
       ...createDto,
     });
     return this.repo.save(profile);
@@ -43,7 +43,7 @@ export class ExternalProfileRepository {
 
   async countUserProfiles(userId: string): Promise<number> {
     return this.repo.count({
-      where: { user_id: userId },
+      where: { userId },
     });
   }
 
@@ -54,8 +54,8 @@ export class ExternalProfileRepository {
   ): Promise<ExternalProfile | null> {
     return this.repo.findOne({
       where: [
-        { user_id: userId, name },
-        { user_id: userId, url },
+        { userId, name },
+        { userId, url },
       ],
     });
   }

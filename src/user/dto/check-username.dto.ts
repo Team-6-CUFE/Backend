@@ -1,6 +1,14 @@
+import { ApiProperty } from '@nestjs/swagger';
 import { IsString, IsNotEmpty, Matches, MaxLength, MinLength } from 'class-validator';
 
 export class CheckUsernameDto {
+  @ApiProperty({
+    description:
+      'Username to check. Must start with a letter, 3–50 characters, letters/numbers/underscores only, no consecutive underscores.',
+    example: 'moaaz_dev',
+    minLength: 3,
+    maxLength: 50,
+  })
   @IsNotEmpty({ message: 'Username parameter is required' })
   @IsString({ message: 'Username must be a string' })
   @MinLength(3, { message: 'Username must be between 3 and 50 characters' })

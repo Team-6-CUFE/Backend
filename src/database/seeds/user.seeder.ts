@@ -39,22 +39,22 @@ export class UserSeeder implements Seeder {
     console.log('  Creating admin user...');
     const admin = userRepository.create({
       username: 'admin',
-      password_hash: await bcrypt.hash('Admin123', 10),
-      first_name: 'Admin',
-      last_name: 'User',
-      display_name: 'Administrator',
+      passwordHash: await bcrypt.hash('Admin123', 10),
+      firstName: 'Admin',
+      lastName: 'User',
+      displayName: 'Administrator',
       role: 'admin',
       plan: 'go+',
-      is_public: true,
+      isPublic: true,
     });
     await userRepository.save(admin);
 
     const adminEmail = emailRepository.create({
-      user_id: admin.user_id,
+      userId: admin.userId,
       email: 'admin@soundcloud.com',
-      is_primary: true,
-      is_verified: true,
-      verified_at: new Date(),
+      isPrimary: true,
+      isVerified: true,
+      verifiedAt: new Date(),
     });
     await emailRepository.save(adminEmail);
 
@@ -64,41 +64,41 @@ export class UserSeeder implements Seeder {
       {
         username: 'artist1',
         email: 'artist1@test.com',
-        first_name: 'John',
-        last_name: 'Doe',
+        firstName: 'John',
+        lastName: 'Doe',
         role: 'artist',
         plan: 'pro',
       },
       {
         username: 'artist2',
         email: 'artist2@test.com',
-        first_name: 'Jane',
-        last_name: 'Smith',
+        firstName: 'Jane',
+        lastName: 'Smith',
         role: 'artist',
         plan: 'go+',
       },
       {
         username: 'listener1',
         email: 'listener1@test.com',
-        first_name: 'Mike',
-        last_name: 'Johnson',
+        firstName: 'Mike',
+        lastName: 'Johnson',
         role: 'listener',
         plan: 'free',
       },
       {
         username: 'listener2',
         email: 'listener2@test.com',
-        first_name: 'Emily',
-        last_name: 'Johnson',
+        firstName: 'Emily',
+        lastName: 'Johnson',
         role: 'listener',
         plan: 'free',
-        is_suspended: true,
+        isSuspended: true,
       },
       {
         username: 'listener3',
         email: 'listener3@test.com',
-        first_name: 'Ann',
-        last_name: 'Michael',
+        firstName: 'Ann',
+        lastName: 'Michael',
         role: 'listener',
         plan: 'free',
       },
@@ -107,25 +107,25 @@ export class UserSeeder implements Seeder {
     for (const testUserData of testUsers) {
       const user = userRepository.create({
         username: testUserData.username,
-        password_hash: await bcrypt.hash('Password123', 10),
-        first_name: testUserData.first_name,
-        last_name: testUserData.last_name,
-        display_name: `${testUserData.first_name} ${testUserData.last_name}`,
+        passwordHash: await bcrypt.hash('Password123', 10),
+        firstName: testUserData.firstName,
+        lastName: testUserData.lastName,
+        displayName: `${testUserData.firstName} ${testUserData.lastName}`,
         role: testUserData.role,
         plan: testUserData.plan,
         bio: `Test ${testUserData.role} account`,
-        is_public: true,
-        is_suspended: testUserData.is_suspended || false,
+        isPublic: true,
+        isSuspended: testUserData.isSuspended || false,
       });
       await userRepository.save(user);
 
       // Create primary email
       const email = emailRepository.create({
-        user_id: user.user_id,
+        userId: user.userId,
         email: testUserData.email,
-        is_primary: true,
-        is_verified: testUserData.first_name !== 'Ann',
-        verified_at: new Date(),
+        isPrimary: true,
+        isVerified: testUserData.firstName !== 'Ann',
+        verifiedAt: new Date(),
       });
       await emailRepository.save(email);
 
@@ -136,8 +136,8 @@ export class UserSeeder implements Seeder {
 
       for (const genre of randomGenres) {
         await favoriteGenreRepository.save({
-          user_id: user.user_id,
-          genre_id: genre.genre_id,
+          userId: user.userId,
+          genreId: genre.genreId,
         });
       }
     }
@@ -150,19 +150,19 @@ export class UserSeeder implements Seeder {
     for (const user of randomUsers) {
       // Create primary email
       const primaryEmail = await emailFactory.make({
-        user_id: user.user_id,
-        is_primary: true,
-        is_verified: true,
-        verified_at: new Date(),
+        userId: user.userId,
+        isPrimary: true,
+        isVerified: true,
+        verifiedAt: new Date(),
       });
       await emailRepository.save(primaryEmail);
 
       // 30% chance of having a secondary email
       if (Math.random() < 0.3) {
         const secondaryEmail = await emailFactory.make({
-          user_id: user.user_id,
-          is_primary: false,
-          is_verified: Math.random() < 0.5,
+          userId: user.userId,
+          isPrimary: false,
+          isVerified: Math.random() < 0.5,
         });
         await emailRepository.save(secondaryEmail);
       }
@@ -187,7 +187,7 @@ export class UserSeeder implements Seeder {
 
         for (const platformName of selectedPlatforms) {
           const profile = await externalProfileFactory.make({
-            user_id: user.user_id,
+            userId: user.userId,
             name: platformName,
           });
           await externalProfileRepository.save(profile);
@@ -197,7 +197,7 @@ export class UserSeeder implements Seeder {
       // 20% chance of having a social account
       if (Math.random() < 0.2) {
         const account = await socialAccountFactory.make({
-          user_id: user.user_id,
+          userId: user.userId,
         });
         await socialAccountRepository.save(account);
       }
@@ -209,8 +209,8 @@ export class UserSeeder implements Seeder {
 
       for (const genre of randomGenres) {
         await favoriteGenreRepository.save({
-          user_id: user.user_id,
-          genre_id: genre.genre_id,
+          userId: user.userId,
+          genreId: genre.genreId,
         });
       }
     }

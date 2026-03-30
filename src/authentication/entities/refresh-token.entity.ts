@@ -6,14 +6,14 @@ export class RefreshToken {
   @PrimaryGeneratedColumn('uuid')
   id!: string;
 
-  @Column({ type: 'uuid' })
-  user_id!: string;
+  @Column({ name: 'user_id', type: 'uuid' })
+  userId!: string;
 
   @Column({ type: 'varchar', length: 255, unique: true })
   token!: string;
 
-  @Column({ type: 'timestamp' })
-  expires_at!: Date;
+  @Column({ name: 'expires_at', type: 'timestamp' })
+  expiresAt!: Date;
 
   // Relationship
   @ManyToOne(() => User, { onDelete: 'CASCADE' })

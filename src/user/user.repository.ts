@@ -30,13 +30,13 @@ export class UserRepository {
 
   async findById(id: string): Promise<User | null> {
     return this.repository.findOne({
-      where: { user_id: id },
+      where: { userId: id },
       relations: [
         'emails',
-        'external_profiles',
-        'social_accounts',
-        'favorite_genres',
-        'favorite_genres.genre',
+        'externalProfiles',
+        'socialAccounts',
+        'favoriteGenres',
+        'favoriteGenres.genre',
       ],
     });
   }
@@ -46,10 +46,10 @@ export class UserRepository {
       where: { username },
       relations: [
         'emails',
-        'external_profiles',
-        'social_accounts',
-        'favorite_genres',
-        'favorite_genres.genre',
+        'externalProfiles',
+        'socialAccounts',
+        'favoriteGenres',
+        'favoriteGenres.genre',
       ],
     });
   }
@@ -64,9 +64,9 @@ export class UserRepository {
   }
 
   async updateFavoriteGenres(userId: string, genres: Genre[]): Promise<void> {
-    await this.favoriteGenreRepository.delete({ user_id: userId });
+    await this.favoriteGenreRepository.delete({ userId });
     const newEntries = genres.map((genre) =>
-      this.favoriteGenreRepository.create({ user_id: userId, genre_id: genre.genre_id })
+      this.favoriteGenreRepository.create({ userId, genreId: genre.genreId })
     );
     await this.favoriteGenreRepository.save(newEntries);
   }
@@ -88,8 +88,8 @@ export class UserRepository {
     // Step 1 — Create user record
     const user = this.repository.create({
       username,
-      password_hash: hashedPassword,
-      display_name: createUserDto.display_name,
+      passwordHash: hashedPassword,
+      displayName: createUserDto.displayName,
       birthdate: createUserDto.birthdate,
       gender: createUserDto.gender,
       city: city ?? undefined,
@@ -101,9 +101,9 @@ export class UserRepository {
     // Step 2 — Create email record linked to user
     const userEmail = this.userEmailRepo.create({
       email: createUserDto.email,
-      user_id: savedUser.user_id,
-      is_primary: true,
-      is_verified: false,
+      userId: savedUser.userId,
+      isPrimary: true,
+      isVerified: false,
     });
     await this.userEmailRepo.save(userEmail);
     return savedUser;
@@ -113,9 +113,9 @@ export class UserRepository {
     // Step 1 — Create user record
     const user = this.repository.create({
       username: createOAuthUser.username,
-      first_name: createOAuthUser.first_name,
-      last_name: createOAuthUser.last_name,
-      display_name: createOAuthUser.display_name,
+      firstName: createOAuthUser.firstName,
+      lastName: createOAuthUser.lastName,
+      displayName: createOAuthUser.displayName,
       birthdate: createOAuthUser.birthdate,
       gender: createOAuthUser.gender,
       city: createOAuthUser.city ?? undefined,
@@ -127,9 +127,9 @@ export class UserRepository {
     // Step 2 — Create email record linked to user
     const userEmail = this.userEmailRepo.create({
       email: createOAuthUser.email,
-      user_id: savedUser.user_id,
-      is_primary: true,
-      is_verified: true,
+      userId: savedUser.userId,
+      isPrimary: true,
+      isVerified: true,
     });
 
     await this.userEmailRepo.save(userEmail);
@@ -176,12 +176,12 @@ export class UserRepository {
       .getRawOne<Record<keyof UserCounts | 'user_id', string>>();
 
     const zero: UserCounts = {
-      favorites_count: 0,
-      playlist_count: 0,
-      track_count: 0,
-      followings_count: 0,
-      followers_count: 0,
-      reposts_count: 0,
+      favoritesCount: 0,
+      playlistCount: 0,
+      trackCount: 0,
+      followingsCount: 0,
+      followersCount: 0,
+      repostsCount: 0,
     };
 
     if (!result) return zero;
@@ -194,49 +194,49 @@ export class UserRepository {
   async addEmail(userId: string, email: string): Promise<UserEmail> {
     const newEmail = this.userEmailRepo.create({
       email,
-      user_id: userId,
-      is_primary: false,
-      is_verified: false,
+      userId,
+      isPrimary: false,
+      isVerified: false,
     });
     return this.userEmailRepo.save(newEmail);
   }
 
   async removeEmail(userId: string, email: string): Promise<void> {
-    await this.userEmailRepo.delete({ user_id: userId, email });
+    await this.userEmailRepo.delete({ userId, email });
   }
 
   async getEmails(userId: string): Promise<UserEmail[]> {
-    return this.userEmailRepo.find({ where: { user_id: userId } });
+    return this.userEmailRepo.find({ where: { userId } });
   }
 
   async setPrimaryEmail(userId: string, email: string): Promise<void> {
     // Unset current primary email
-    await this.userEmailRepo.update({ user_id: userId, is_primary: true }, { is_primary: false });
+    await this.userEmailRepo.update({ userId, isPrimary: true }, { isPrimary: false });
     // Set new primary email
-    await this.userEmailRepo.update({ user_id: userId, email }, { is_primary: true });
+    await this.userEmailRepo.update({ userId, email }, { isPrimary: true });
   }
 
   async getPrimaryEmail(userId: string): Promise<string | null> {
     const emailRecord = await this.userEmailRepo.findOne({
       where: {
-        user_id: userId,
-        is_primary: true,
-        is_verified: true,
+        userId,
+        isPrimary: true,
+        isVerified: true,
       },
     });
     return emailRecord?.email ?? null;
   }
 
   async updatePassword(userId: string, newPasswordHash: string): Promise<void> {
-    await this.repository.update(userId, { password_hash: newPasswordHash });
+    await this.repository.update(userId, { passwordHash: newPasswordHash });
   }
 
-  async createSocialAccount(user_id: string, provider: string, provider_id: string, email: string) {
+  async createSocialAccount(userId: string, provider: string, providerId: string, email: string) {
     const socialAccount = this.socialAccountRepo.create({
-      provider_id,
-      user_id,
+      providerId,
+      userId,
       provider,
-      provider_email: email,
+      providerEmail: email,
     });
 
     const savedSocialAccount = await this.socialAccountRepo.save(socialAccount);
@@ -245,15 +245,15 @@ export class UserRepository {
 
   async findSocialAccount(provider: string, providerId: string) {
     return this.socialAccountRepo.findOne({
-      where: { provider, provider_id: providerId },
+      where: { provider, providerId },
     });
   }
 
   async deleteSocialAccount(provider: string, providerId: string) {
-    return this.socialAccountRepo.delete({ provider, provider_id: providerId });
+    return this.socialAccountRepo.delete({ provider, providerId });
   }
 
   async getSocialAccounts(userId: string) {
-    return this.socialAccountRepo.find({ where: { user_id: userId } });
+    return this.socialAccountRepo.find({ where: { userId } });
   }
 }

@@ -7,8 +7,8 @@ export class EmailVerificationCode extends BaseEntity {
   @PrimaryGeneratedColumn('uuid')
   id!: string;
 
-  @Column({ type: 'uuid' })
-  user_id!: string;
+  @Column({ name: 'user_id', type: 'uuid' })
+  userId!: string;
 
   @Column({ type: 'varchar', length: 6 })
   code!: string;
@@ -16,8 +16,8 @@ export class EmailVerificationCode extends BaseEntity {
   @Column({ type: 'varchar', length: 255 })
   email!: string;
 
-  @Column({ type: 'timestamp' })
-  expires_at!: Date;
+  @Column({ name: 'expires_at', type: 'timestamp' })
+  expiresAt!: Date;
 
   // Relationship
   @ManyToOne(() => User, { onDelete: 'CASCADE' })
