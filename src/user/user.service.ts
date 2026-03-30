@@ -44,7 +44,7 @@ export class UserService {
     city: string | null,
     country: string | null
   ): Promise<User> {
-    const hashedPassword = await this.hash_password(createUserDto.password);
+    const hashedPassword = await this.hashPassword(createUserDto.password);
     this.usernameAvailabilityService.addToFilter(username);
     return this.userRepository.createUser(createUserDto, hashedPassword, username, city, country);
   }
@@ -54,7 +54,7 @@ export class UserService {
     return this.userRepository.createOAuthUser(createOAuthUser);
   }
 
-  async hash_password(password: string): Promise<string> {
+  async hashPassword(password: string): Promise<string> {
     const saltrounds = 10;
     const hashedPassword = await bcrypt.hash(password, saltrounds);
     return hashedPassword;
@@ -89,12 +89,12 @@ export class UserService {
   }
 
   async updatePassword(userId: string, newPassword: string): Promise<void> {
-    const hashedPassword = await this.hash_password(newPassword);
+    const hashedPassword = await this.hashPassword(newPassword);
     await this.userRepository.updatePassword(userId, hashedPassword);
   }
 
-  async createSocialAccount(user_id: string, provider: string, provider_id: string, email: string) {
-    return this.userRepository.createSocialAccount(user_id, provider, provider_id, email);
+  async createSocialAccount(userId: string, provider: string, providerId: string, email: string) {
+    return this.userRepository.createSocialAccount(userId, provider, providerId, email);
   }
 
   async findSocialAccount(provider: string, providerId: string) {

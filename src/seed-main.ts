@@ -3,6 +3,8 @@ import { DataSource } from 'typeorm';
 import { runSeeder } from 'typeorm-extension';
 import { AppModule } from './app.module';
 import { UserSeeder } from './database/seeds/user.seeder';
+import { PlaylistSeeder } from './database/seeds/playlist.seeder';
+import { TrackSeeder } from './database/seeds/track.seeder';
 
 async function bootstrap() {
   // Create an application context (no web server started)
@@ -14,6 +16,8 @@ async function bootstrap() {
 
     console.log('Starting database seeding...');
     await runSeeder(dataSource, UserSeeder);
+    await runSeeder(dataSource, TrackSeeder);
+    await runSeeder(dataSource, PlaylistSeeder);
     console.log('Seeding complete!');
   } catch (error) {
     console.error('Seeding failed:');

@@ -38,11 +38,11 @@ export class AuthenticationRepository {
     const pendingOauthToken = this.pendingOauthRepository.create({
       token,
       provider,
-      provider_id: providerId,
+      providerId,
       email,
-      first_name: firstName,
-      last_name: lastName,
-      expires_at: expiresAt,
+      firstName,
+      lastName,
+      expiresAt,
     });
     return this.pendingOauthRepository.save(pendingOauthToken);
   }
@@ -65,9 +65,9 @@ export class AuthenticationRepository {
     type: TokenType
   ): Promise<EmailVerificationToken> {
     const verificationToken = this.tokenRepository.create({
-      user_id: userId,
+      userId,
       token,
-      expires_at: expiryDate,
+      expiresAt: expiryDate,
       email,
       type,
     });
@@ -81,9 +81,9 @@ export class AuthenticationRepository {
     expiryDate: Date
   ): Promise<EmailVerificationCode> {
     const verificationCode = this.codeRepository.create({
-      user_id: userId,
+      userId,
       code,
-      expires_at: expiryDate,
+      expiresAt: expiryDate,
       email,
     });
     return this.codeRepository.save(verificationCode);
@@ -95,7 +95,7 @@ export class AuthenticationRepository {
   ): Promise<EmailVerificationCode | null> {
     return this.codeRepository.findOne({
       where: {
-        user_id: userId,
+        userId,
         code,
       },
     });
@@ -106,14 +106,14 @@ export class AuthenticationRepository {
   }
 
   async deleteExistingVerificationCodes(userId: string): Promise<void> {
-    await this.codeRepository.delete({ user_id: userId });
+    await this.codeRepository.delete({ userId });
   }
 
   async saveRefreshToken(userId: string, token: string, expiresAt: Date): Promise<void> {
     const entity = this.refreshTokenRepository.create({
-      user_id: userId,
+      userId,
       token,
-      expires_at: expiresAt,
+      expiresAt,
     });
     await this.refreshTokenRepository.save(entity);
   }
@@ -131,7 +131,7 @@ export class AuthenticationRepository {
 
   /** Hard-delete all tokens for a user (logout-all-devices) */
   async revokeAllForUser(userId: string): Promise<void> {
-    await this.refreshTokenRepository.delete({ user_id: userId });
+    await this.refreshTokenRepository.delete({ userId });
   }
 
   async verifyEmail(token: string): Promise<{ status: boolean; message: string }> {
@@ -140,14 +140,14 @@ export class AuthenticationRepository {
     if (!record) {
       return { status: false, message: 'Invalid verification token.' };
     }
-    if (record.expires_at < new Date()) {
-      console.log('token expired at', record.expires_at, 'current time', new Date());
+    if (record.expiresAt < new Date()) {
+      console.log('token expired at', record.expiresAt, 'current time', new Date());
       return { status: false, message: 'Verification token has expired.' };
     }
     // mark verified//
     await this.userEmailRepository.update(
       { email: record.email },
-      { is_verified: true, verified_at: new Date() }
+      { isVerified: true, verifiedAt: new Date() }
     );
     // delete token
     await this.tokenRepository.delete(record.id);
@@ -163,7 +163,7 @@ export class AuthenticationRepository {
       where: {
         token,
         type: TokenType.PASSWORD_RESET,
-        expires_at: MoreThanOrEqual(new Date()), // only return if not expired
+        expiresAt: MoreThanOrEqual(new Date()), // only return if not expired
       },
     });
   }
