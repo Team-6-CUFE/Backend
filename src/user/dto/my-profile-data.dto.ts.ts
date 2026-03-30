@@ -12,7 +12,7 @@ export class MyProfileDataDto extends BaseProfileDataDto {
 
   @Expose() plan!: string;
 
-  @Expose() updated_at!: Date;
+  @Expose() updatedAt!: Date;
 
-  @Expose() external_profiles!: (ExternalProfileDto & { id: string })[];
+  @Expose() externalProfiles!: (ExternalProfileDto & { id: string })[];
 }

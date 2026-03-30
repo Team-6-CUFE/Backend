@@ -52,12 +52,12 @@ describe('ProfileService', () => {
   afterEach(() => jest.clearAllMocks());
 
   describe('findMyProfile', () => {
-    it('should handle null favorite_genres', async () => {
-      userRepo.findById.mockResolvedValue({ ...mockUser(), favorite_genres: null as any });
+    it('should handle null favoriteGenres', async () => {
+      userRepo.findById.mockResolvedValue({ ...mockUser(), favoriteGenres: null as any });
 
       const result = await service.findMyProfile(mockUserId);
 
-      expect(result.data.favorite_genres).toEqual([]);
+      expect(result.data.favoriteGenres).toEqual([]);
     });
     it('should return shaped profile data for existing user', async () => {
       userRepo.findById.mockResolvedValue(mockUser());
@@ -65,9 +65,9 @@ describe('ProfileService', () => {
       const result = await service.findMyProfile(mockUserId);
 
       expect(result.status).toBe('Success');
-      expect(result.data.user_id).toBe(mockUserId);
+      expect(result.data.userId).toBe(mockUserId);
       expect(result.data.email).toBe('john@example.com');
-      expect(result.data.favorite_genres).toEqual(['Rock']);
+      expect(result.data.favoriteGenres).toEqual(['Rock']);
       expect(result.data.birthdate).toBe('1998-01-01');
       expect(userRepo.findById).toHaveBeenCalledWith(mockUserId);
       expect(userRepo.findById).toHaveBeenCalledTimes(1);
@@ -93,14 +93,14 @@ describe('ProfileService', () => {
       expect(result.data.birthdate).toBeNull();
     });
 
-    it('should return empty favorite_genres if none exist', async () => {
+    it('should return empty favoriteGenres if none exist', async () => {
       const user = mockUser();
-      user.favorite_genres = [];
+      user.favoriteGenres = [];
       userRepo.findById.mockResolvedValue(user);
 
       const result = await service.findMyProfile(mockUserId);
 
-      expect(result.data.favorite_genres).toEqual([]);
+      expect(result.data.favoriteGenres).toEqual([]);
     });
 
     it('should throw NotFoundException if user does not exist', async () => {
@@ -113,12 +113,12 @@ describe('ProfileService', () => {
   });
 
   describe('findProfile', () => {
-    it('should handle null favorite_genres', async () => {
-      userRepo.findByUsername.mockResolvedValue({ ...mockUser(), favorite_genres: null as any });
+    it('should handle null favoriteGenres', async () => {
+      userRepo.findByUsername.mockResolvedValue({ ...mockUser(), favoriteGenres: null as any });
 
       const result = await service.findProfile(mockUsername);
 
-      expect(result.data.favorite_genres).toEqual([]);
+      expect(result.data.favoriteGenres).toEqual([]);
     });
     it('should return public profile data for existing username', async () => {
       userRepo.findByUsername.mockResolvedValue(mockUser());
@@ -127,7 +127,7 @@ describe('ProfileService', () => {
 
       expect(result.status).toBe('Success');
       expect(result.data.username).toBe(mockUsername);
-      expect(result.data.favorite_genres).toEqual(['Rock']);
+      expect(result.data.favoriteGenres).toEqual(['Rock']);
       expect(userRepo.findByUsername).toHaveBeenCalledWith(mockUsername);
     });
 
@@ -139,40 +139,40 @@ describe('ProfileService', () => {
   });
 
   describe('updateProfile', () => {
-    const dto = { display_name: 'New Name', favorite_genres: ['Jazz'] };
+    const dto = { displayName: 'New Name', favoriteGenres: ['Jazz'] };
 
-    it('should handle null favorite_genres on updated user', async () => {
+    it('should handle null favoriteGenres on updated user', async () => {
       const user = mockUser();
       userRepo.findById.mockResolvedValue(user);
-      userRepo.update.mockResolvedValue({ ...mockUser(), favorite_genres: null as any });
+      userRepo.update.mockResolvedValue({ ...mockUser(), favoriteGenres: null as any });
 
-      const result = await service.updateProfile(mockUserId, { display_name: 'Test' });
+      const result = await service.updateProfile(mockUserId, { displayName: 'Test' });
 
-      expect(result.data.favorite_genres).toEqual([]);
+      expect(result.data.favoriteGenres).toEqual([]);
     });
     it('should update profile and return shaped response', async () => {
       const user = mockUser();
       userRepo.findById.mockResolvedValue(user);
-      genreRepo.findByNames.mockResolvedValue([{ genre_id: 'g1', name: 'Jazz' }]);
+      genreRepo.findByNames.mockResolvedValue([{ genreId: 'g1', name: 'Jazz' }]);
       userRepo.updateFavoriteGenres.mockResolvedValue(undefined);
       userRepo.update.mockResolvedValue({
         ...user,
-        display_name: 'New Name',
-        favorite_genres: [{ genre: { name: 'Jazz' } }],
+        displayName: 'New Name',
+        favoriteGenres: [{ genre: { name: 'Jazz' } }],
       });
 
       const result = await service.updateProfile(mockUserId, dto);
 
       expect(result.status).toBe('Success');
-      expect(result.data.display_name).toBe('New Name');
+      expect(result.data.displayName).toBe('New Name');
       expect(userRepo.updateFavoriteGenres).toHaveBeenCalledTimes(1);
     });
 
-    it('should NOT call updateFavoriteGenres if favorite_genres not in dto', async () => {
+    it('should NOT call updateFavoriteGenres if favoriteGenres not in dto', async () => {
       userRepo.findById.mockResolvedValue(mockUser());
       userRepo.update.mockResolvedValue(mockUser());
 
-      await service.updateProfile(mockUserId, { display_name: 'Only Name' });
+      await service.updateProfile(mockUserId, { displayName: 'Only Name' });
 
       expect(userRepo.updateFavoriteGenres).not.toHaveBeenCalled();
     });
@@ -216,7 +216,7 @@ describe('ProfileService', () => {
       expect(result.status).toBe('Success');
       expect(result.data.birthdate).toBe(`${birthYear}-06-15`);
       expect(result.data.age).toBe(25);
-      expect(result.data.updated_at).toBeInstanceOf(Date);
+      expect(result.data.updatedAt).toBeInstanceOf(Date);
     });
 
     it('should throw NotFoundException if user not found', async () => {
@@ -249,18 +249,18 @@ describe('ProfileService', () => {
 
   describe('updateMyPrivacy', () => {
     it('should return updated privacy setting', async () => {
-      userRepo.update.mockResolvedValue({ ...mockUser(), is_public: false });
+      userRepo.update.mockResolvedValue({ ...mockUser(), isPublic: false });
 
-      const result = await service.updateMyPrivacy(mockUserId, { is_public: false });
+      const result = await service.updateMyPrivacy(mockUserId, { isPublic: false });
 
       expect(result.status).toBe('Success');
-      expect(result.data.is_public).toBe(false);
+      expect(result.data.isPublic).toBe(false);
     });
 
     it('should throw NotFoundException if user not found', async () => {
       userRepo.update.mockResolvedValue(null);
 
-      await expect(service.updateMyPrivacy(mockUserId, { is_public: true })).rejects.toThrow(
+      await expect(service.updateMyPrivacy(mockUserId, { isPublic: true })).rejects.toThrow(
         NotFoundException
       );
     });
@@ -383,11 +383,11 @@ describe('ProfileService', () => {
     const newAvatar = 'https://s3.aws.com/my-avatar.png';
 
     it('should successfully update avatar', async () => {
-      userRepo.update.mockResolvedValue({ updated_at: new Date() });
+      userRepo.update.mockResolvedValue({ updatedAt: new Date() });
 
       const result = await service.updateAvatar(mockUserId, newAvatar);
       expect(result.status).toBe('Success');
-      expect(result.data.avatar_url).toBe(newAvatar);
+      expect(result.data.avatarUrl).toBe(newAvatar);
     });
 
     it('should throw 404 if user not found', async () => {
@@ -405,11 +405,11 @@ describe('ProfileService', () => {
     const newCover = 'https://s3.aws.com/my-cover.png';
 
     it('should successfully update cover photo', async () => {
-      userRepo.update.mockResolvedValue({ updated_at: new Date() });
+      userRepo.update.mockResolvedValue({ updatedAt: new Date() });
 
       const result = await service.updateCover(mockUserId, newCover);
       expect(result.status).toBe('Success');
-      expect(result.data.cover_photo).toBe(newCover);
+      expect(result.data.coverPhoto).toBe(newCover);
     });
 
     it('should throw 404 if user not found', async () => {

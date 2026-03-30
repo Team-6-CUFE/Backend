@@ -33,7 +33,7 @@ export class ProfileService {
     return {
       status: 'Success',
       message: 'Privacy settings updated successfully',
-      data: { is_public: updated.is_public, updated_at: updated.updated_at },
+      data: { isPublic: updated.isPublic, updatedAt: updated.updatedAt },
     };
   }
 
@@ -44,7 +44,7 @@ export class ProfileService {
     return {
       status: 'Success',
       message: 'Gender updated successfully',
-      data: { gender: updated.gender, updated_at: updated.updated_at },
+      data: { gender: updated.gender, updatedAt: updated.updatedAt },
     };
   }
 
@@ -57,7 +57,7 @@ export class ProfileService {
     data: {
       birthdate: string;
       age: number;
-      updated_at: Date;
+      updatedAt: Date;
     };
   }> {
     const userData: Partial<User> = { birthdate: new Date(updateBirthdateReqDto.birthdate) };
@@ -69,7 +69,7 @@ export class ProfileService {
       data: {
         birthdate: new Date(updated.birthdate).toISOString().split('T')[0],
         age: new Date().getFullYear() - new Date(updated.birthdate).getFullYear(),
-        updated_at: updated.updated_at,
+        updatedAt: updated.updatedAt,
       },
     };
   }
@@ -77,7 +77,7 @@ export class ProfileService {
   async updateProfile(userId: string, updateProfileReqDto: UpdateProfileReqDto) {
     const exists = await this.userRepository.findById(userId);
     if (!exists) throw new NotFoundException('User not found');
-    const { favorite_genres: favoriteGenres, ...rest } = updateProfileReqDto;
+    const { favoriteGenres, ...rest } = updateProfileReqDto;
     const userData: Partial<User> = { ...rest };
     if (favoriteGenres !== undefined) {
       const genres = await this.genreRepository.findByNames(favoriteGenres);
@@ -86,7 +86,7 @@ export class ProfileService {
     const updated = await this.userRepository.update(userId, userData);
     const raw = {
       ...updated!,
-      favorite_genres: updated!.favorite_genres?.map((fg) => fg.genre.name) ?? [],
+      favoriteGenres: updated!.favoriteGenres?.map((fg) => fg.genre.name) ?? [],
     };
     if (updateProfileReqDto.username && updated) {
       this.usernameAvailabilityService.addToFilter(updateProfileReqDto.username);
@@ -101,13 +101,13 @@ export class ProfileService {
     if (!user) throw new NotFoundException('User not found');
     const raw: PublicProfileDataDto = {
       ...user,
-      favorite_genres: user.favorite_genres?.map((fg) => fg.genre.name) ?? [],
-      favorites_count: 0,
-      playlist_count: 0,
-      track_count: 0,
-      followings_count: 0,
-      followers_count: 0,
-      reposts_count: 0,
+      favoriteGenres: user.favoriteGenres?.map((fg) => fg.genre.name) ?? [],
+      favoritesCount: 0,
+      playlistCount: 0,
+      trackCount: 0,
+      followingsCount: 0,
+      followersCount: 0,
+      repostsCount: 0,
     };
     const data = plainToInstance(PublicProfileDataDto, raw, { excludeExtraneousValues: true });
     return { status: 'Success', data };
@@ -119,15 +119,15 @@ export class ProfileService {
     if (!user) throw new NotFoundException('User not found');
     const raw: MyProfileDataDto = {
       ...user,
-      email: user.emails.find((e) => e.is_primary)?.email ?? null,
+      email: user.emails.find((e) => e.isPrimary)?.email ?? null,
       birthdate: user.birthdate ? new Date(user.birthdate).toISOString().split('T')[0] : null,
-      favorite_genres: user.favorite_genres?.map((fg) => fg.genre.name) ?? [],
-      favorites_count: 0,
-      playlist_count: 0,
-      track_count: 0,
-      followings_count: 0,
-      followers_count: 0,
-      reposts_count: 0,
+      favoriteGenres: user.favoriteGenres?.map((fg) => fg.genre.name) ?? [],
+      favoritesCount: 0,
+      playlistCount: 0,
+      trackCount: 0,
+      followingsCount: 0,
+      followersCount: 0,
+      repostsCount: 0,
     };
     const data = plainToInstance(MyProfileDataDto, raw, { excludeExtraneousValues: true });
     return { status: 'Success', data };
@@ -270,7 +270,7 @@ export class ProfileService {
 
   async updateAvatar(userId: string, avatarUrl: string) {
     // We match your existing pattern of using Partial<User>
-    const userData: Partial<User> = { avatar_url: avatarUrl } as any;
+    const userData: Partial<User> = { avatarUrl } as any;
     const updated = await this.userRepository.update(userId, userData);
 
     if (!updated) throw new NotFoundException('User not found');
@@ -279,14 +279,14 @@ export class ProfileService {
       status: 'Success',
       message: 'Profile picture updated successfully',
       data: {
-        avatar_url: avatarUrl,
-        updated_at: updated.updated_at,
+        avatarUrl,
+        updatedAt: updated.updatedAt,
       },
     };
   }
 
   async updateCover(userId: string, coverPhotoUrl: string) {
-    const userData: Partial<User> = { cover_photo: coverPhotoUrl } as any;
+    const userData: Partial<User> = { coverPhoto: coverPhotoUrl } as any;
     const updated = await this.userRepository.update(userId, userData);
 
     if (!updated) throw new NotFoundException('User not found');
@@ -295,8 +295,8 @@ export class ProfileService {
       status: 'Success',
       message: 'Cover photo updated successfully',
       data: {
-        cover_photo: coverPhotoUrl,
-        updated_at: updated.updated_at,
+        coverPhoto: coverPhotoUrl,
+        updatedAt: updated.updatedAt,
       },
     };
   }

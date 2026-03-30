@@ -7,8 +7,8 @@ export class ExternalProfile extends BaseEntity {
   @PrimaryGeneratedColumn('uuid')
   id!: string;
 
-  @Column({ type: 'uuid' })
-  user_id!: string;
+  @Column({ type: 'uuid', name: 'user_id' })
+  userId!: string;
 
   @Column({ type: 'varchar', length: 50 })
   name!: string; // 'instagram', 'twitter', etc.
@@ -17,7 +17,7 @@ export class ExternalProfile extends BaseEntity {
   url!: string; // The actual link
 
   // Relationship
-  @ManyToOne(() => User, (user) => user.external_profiles, { onDelete: 'CASCADE' })
+  @ManyToOne(() => User, (user) => user.externalProfiles, { onDelete: 'CASCADE' })
   @JoinColumn({ name: 'user_id' })
   user!: Relation<User>;
 }
