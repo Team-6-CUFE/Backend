@@ -4,6 +4,13 @@ import { UserEmail } from './user-email.entity';
 import { ExternalProfile } from './external-profile.entity';
 import { SocialAccount } from './social-account.entity';
 import { FavoriteGenre } from './favorite-genre.entity';
+import { Playlist } from '../../playlist/entities/playlist.entity';
+import { PlaylistLike } from '../../playlist/entities/playlist-likes.entity';
+import { PlaylistRepost } from '../../playlist/entities/playlist-reposts.entity';
+import { TrackLikes } from '../../track/entities/track-likes.entity';
+import { Track } from '../../track/entities/track.entity';
+import { TrackComment } from '../../track/entities/track-comments.entity';
+import { TrackRepost } from '../../track/entities/track-reposts.entity';
 
 @Entity('users')
 export class User extends BaseEntity {
@@ -76,4 +83,25 @@ export class User extends BaseEntity {
 
   @OneToMany(() => FavoriteGenre, (favorite) => favorite.user)
   favoriteGenres!: FavoriteGenre[];
+
+  @OneToMany(() => Playlist, (playlist) => playlist.user)
+  playlists!: Playlist[];
+
+  @OneToMany(() => PlaylistLike, (like) => like.user)
+  liked_playlists!: PlaylistLike[];
+
+  @OneToMany(() => PlaylistRepost, (repost) => repost.user)
+  reposted_playlists!: PlaylistRepost[];
+
+  @OneToMany(() => TrackLikes, (trackLikes) => trackLikes.user)
+  trackLikes!: TrackLikes[];
+
+  @OneToMany(() => Track, (track) => track.user)
+  tracks!: Track[];
+
+  @OneToMany(() => TrackComment, (comment) => comment.user)
+  trackComments!: TrackComment[];
+
+  @OneToMany(() => TrackRepost, (repost) => repost.user)
+  trackReposts!: TrackRepost[];
 }

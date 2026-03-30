@@ -11,6 +11,8 @@ import { MailModule } from './mail/mail.module';
 import { FollowersModule } from './followers/followers.module';
 import { RedisModule } from './redis/redis.module';
 import { AudioStorageModule } from './audio_storage/audio_storage.module';
+import { PlaylistModule } from './playlist/playlist.module';
+import { TrackModule } from './track/track.module';
 
 @Module({
   imports: [
@@ -48,6 +50,10 @@ import { AudioStorageModule } from './audio_storage/audio_storage.module';
     FollowersModule,
 
     AudioStorageModule,
+
+    PlaylistModule,
+
+    TrackModule,
   ],
 })
 export class AppModule {}
