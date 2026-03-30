@@ -9,14 +9,14 @@ export class UserFollow {
   @PrimaryColumn({ type: 'uuid' })
   followed!: string;
 
-  @Column({ type: 'timestamp', default: () => 'CURRENT_TIMESTAMP' })
-  created_at!: Date;
+  @Column({ type: 'timestamp', default: () => 'CURRENT_TIMESTAMP', name: 'created_at' })
+  createdAt!: Date;
 
   @ManyToOne(() => User, { onDelete: 'CASCADE' })
   @JoinColumn({ name: 'follower' })
-  follower_user!: Relation<User>;
+  followerUser!: Relation<User>;
 
   @ManyToOne(() => User, { onDelete: 'CASCADE' })
   @JoinColumn({ name: 'followed' })
-  followed_user!: Relation<User>;
+  followedUser!: Relation<User>;
 }
