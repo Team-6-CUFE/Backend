@@ -15,7 +15,7 @@ export class GenreRepository {
   }
 
   async findById(id: string): Promise<Genre | null> {
-    return this.repository.findOne({ where: { genre_id: id } });
+    return this.repository.findOne({ where: { genreId: id } });
   }
 
   async findByNames(names: string[]): Promise<Genre[]> {

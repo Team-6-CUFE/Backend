@@ -18,12 +18,12 @@ export function ApiRegister() {
           status: 'success',
           message: 'Registration successful. Please check your email to verify your account.',
           data: {
-            user_id: '550e8400-e29b-41d4-a716-446655440001',
+            userId: '550e8400-e29b-41d4-a716-446655440001',
             email: 'yara@example.com',
             username: 'yara_senousy',
-            email_verified: false,
-            verification_email_sent: true,
-            created_at: '2025-03-20T10:00:00.000Z',
+            emailVerified: false,
+            verificationEmailSent: true,
+            createdAt: '2025-03-20T10:00:00.000Z',
           },
         },
       },
@@ -74,11 +74,11 @@ export function ApiLogin() {
           status: 'success',
           message: 'Login successful',
           data: {
-            user_id: '550e8400-e29b-41d4-a716-446655440001',
+            userId: '550e8400-e29b-41d4-a716-446655440001',
             email: 'yara@example.com',
             username: 'yara_senousy',
-            display_name: 'Yara Senousy',
-            avatar_url: 'https://s3.amazonaws.com/avatars/user_123.jpg',
+            displayName: 'Yara Senousy',
+            avatarUrl: 'https://s3.amazonaws.com/avatars/user_123.jpg',
             role: 'listener',
             plan: 'free',
           },
@@ -106,7 +106,7 @@ export function ApiLogin() {
               value: {
                 statusCode: 403,
                 message: 'Please verify your email address before logging in',
-                email_verified: false,
+                emailVerified: false,
                 email: 'yara@example.com',
               },
             },
@@ -227,8 +227,8 @@ export function ApiVerifyEmail() {
           status: 'success',
           message: 'Email verified successfully.',
           data: {
-            email_verified: true,
-            verified_at: '2025-03-20T10:30:00.000Z',
+            emailVerified: true,
+            verifiedAt: '2025-03-20T10:30:00.000Z',
           },
         },
       },
@@ -375,17 +375,17 @@ export function ApiGetEmails() {
           emails: [
             {
               email: 'yara@example.com',
-              is_primary: true,
-              is_verified: true,
-              created_at: '2025-03-19T11:12:20.662Z',
-              updated_at: '2025-03-19T11:56:13.786Z',
+              isPrimary: true,
+              isVerified: true,
+              createdAt: '2025-03-19T11:12:20.662Z',
+              updatedAt: '2025-03-19T11:56:13.786Z',
             },
             {
               email: 'yara.work@company.com',
-              is_primary: false,
-              is_verified: false,
-              created_at: '2025-03-20T12:04:41.375Z',
-              updated_at: '2025-03-20T12:04:41.375Z',
+              isPrimary: false,
+              isVerified: false,
+              createdAt: '2025-03-20T12:04:41.375Z',
+              updatedAt: '2025-03-20T12:04:41.375Z',
             },
           ],
         },
@@ -435,11 +435,11 @@ export function ApiAddEmail() {
           message: 'Email added successfully. Please check your inbox to verify.',
           data: {
             email: 'yara.work@company.com',
-            is_primary: false,
-            is_verified: false,
-            verification_sent: true,
-            notification_sent_to_primary: false,
-            created_at: '2025-03-20T12:00:00.000Z',
+            isPrimary: false,
+            isVerified: false,
+            verificationSent: true,
+            notificationSentToPrimary: false,
+            createdAt: '2025-03-20T12:00:00.000Z',
           },
         },
       },
@@ -551,10 +551,10 @@ export function ApiSetPrimaryEmail() {
           message:
             'Verification code sent to your current primary email. Please verify to complete the change.',
           data: {
-            verification_required: true,
-            code_sent_to: 'yara@example.com',
-            new_primary_email: 'yara.work@company.com',
-            expires_in: 600,
+            verificationRequired: true,
+            codeSentTo: 'yara@example.com',
+            newPrimaryEmail: 'yara.work@company.com',
+            expiresIn: 600,
           },
         },
       },
@@ -633,8 +633,8 @@ export function ApiVerifyPrimaryEmailChange() {
           status: 'success',
           message: 'Primary email changed successfully',
           data: {
-            new_primary: 'yara.work@company.com',
-            changed_at: 1742478000000,
+            newPrimary: 'yara.work@company.com',
+            changedAt: 1742478000000,
           },
         },
       },
@@ -672,8 +672,8 @@ export function ApiChangePasswordRequest() {
           status: 'success',
           message: 'Password reset link sent to your primary email address yara@example.com',
           data: {
-            email_sent: true,
-            sent_to: 'yara@example.com',
+            emailSent: true,
+            sentTo: 'yara@example.com',
           },
         },
       },
@@ -710,8 +710,8 @@ export function ApiResetPassword() {
           status: 'success',
           message: 'Password has been changed successfully. Please log in with your new password.',
           data: {
-            password_changed: true,
-            reset_at: '2025-03-20T13:00:00.000Z',
+            passwordChanged: true,
+            resetAt: '2025-03-20T13:00:00.000Z',
           },
         },
       },
@@ -774,8 +774,8 @@ export function ApiForgotPassword() {
           status: 'success',
           message: 'Password reset link sent to your email address yara@example.com',
           data: {
-            email_sent: true,
-            sent_to: 'yara@example.com',
+            emailSent: true,
+            sentTo: 'yara@example.com',
           },
         },
       },
@@ -813,7 +813,7 @@ export function ApiGoogleCallback() {
     ApiOperation({
       summary: 'Google OAuth callback',
       description:
-        'Handles the OAuth callback from Google. Returns `type: login` for existing users or `type: registration_incomplete` for new users who need to complete their profile.',
+        'Handles the OAuth callback from Google. Returns `type: login` for existing users or `type: registrationIncomplete` for new users who need to complete their profile.',
     }),
     ApiResponse({
       status: 200,
@@ -827,11 +827,11 @@ export function ApiGoogleCallback() {
                 status: 'success',
                 type: 'login',
                 data: {
-                  user_id: '550e8400-e29b-41d4-a716-446655440001',
+                  userId: '550e8400-e29b-41d4-a716-446655440001',
                   email: 'yara@gmail.com',
                   username: 'yara_senousy',
-                  display_name: 'Yara Senousy',
-                  avatar_url: 'https://lh3.googleusercontent.com/photo.jpg',
+                  displayName: 'Yara Senousy',
+                  avatarUrl: 'https://lh3.googleusercontent.com/photo.jpg',
                   role: 'listener',
                   plan: 'free',
                 },
@@ -841,11 +841,11 @@ export function ApiGoogleCallback() {
               summary: 'New user — redirect to complete profile screen',
               value: {
                 status: 'success',
-                type: 'registration_incomplete',
+                type: 'registrationIncomplete',
                 data: {
-                  pending_token: 'a1e4ae8b90f6cd13291249...',
+                  pendingToken: 'a1e4ae8b90f6cd13291249...',
                   prefill: {
-                    display_name: 'Yara Senousy',
+                    displayName: 'Yara Senousy',
                     email: 'yara@gmail.com',
                   },
                 },
@@ -902,11 +902,11 @@ export function ApiFacebookCallback() {
                 status: 'success',
                 type: 'login',
                 data: {
-                  user_id: '550e8400-e29b-41d4-a716-446655440001',
+                  userId: '550e8400-e29b-41d4-a716-446655440001',
                   email: 'yara@example.com',
                   username: 'yara_senousy',
-                  display_name: 'Yara Senousy',
-                  avatar_url: 'https://graph.facebook.com/photo.jpg',
+                  displayName: 'Yara Senousy',
+                  avatarUrl: 'https://graph.facebook.com/photo.jpg',
                   role: 'listener',
                   plan: 'free',
                 },
@@ -916,11 +916,11 @@ export function ApiFacebookCallback() {
               summary: 'New user — redirect to complete profile screen',
               value: {
                 status: 'success',
-                type: 'registration_incomplete',
+                type: 'registrationIncomplete',
                 data: {
-                  pending_token: 'a1e4ae8b90f6cd13291249...',
+                  pendingToken: 'a1e4ae8b90f6cd13291249...',
                   prefill: {
-                    display_name: 'Yara Senousy',
+                    displayName: 'Yara Senousy',
                     email: 'yara@facebook.com',
                   },
                 },
@@ -950,7 +950,7 @@ export function ApiCompleteOAuth() {
     ApiOperation({
       summary: 'Complete OAuth registration',
       description:
-        'Called after receiving `registration_incomplete` from the OAuth callback. Submits the pending token along with missing profile fields. The pending token is single-use and expires after 10 minutes.',
+        'Called after receiving `registrationIncomplete` from the OAuth callback. Submits the pending token along with missing profile fields. The pending token is single-use and expires after 10 minutes.',
     }),
     ApiResponse({
       status: 201,
@@ -960,11 +960,11 @@ export function ApiCompleteOAuth() {
           status: 'success',
           message: 'Profile completed and logged in successfully',
           data: {
-            user_id: '550e8400-e29b-41d4-a716-446655440001',
+            userId: '550e8400-e29b-41d4-a716-446655440001',
             email: 'yara@gmail.com',
             username: 'yara_senousy',
-            display_name: 'Yara Senousy',
-            avatar_url: 'https://lh3.googleusercontent.com/photo.jpg',
+            displayName: 'Yara Senousy',
+            avatarUrl: 'https://lh3.googleusercontent.com/photo.jpg',
             role: 'listener',
             plan: 'free',
           },
@@ -1062,18 +1062,18 @@ export function ApiGetSocialAccounts() {
         example: {
           status: 'success',
           data: {
-            social_accounts: [
+            socialAccounts: [
               {
                 provider: 'google',
-                provider_id: '109801234567890123456',
-                provider_email: 'yara@gmail.com',
-                linked_at: '2025-03-20T13:00:00.000Z',
+                providerId: '109801234567890123456',
+                providerEmail: 'yara@gmail.com',
+                linkedAt: '2025-03-20T13:00:00.000Z',
               },
               {
                 provider: 'facebook',
-                provider_id: '123456789012345',
-                provider_email: 'yara@facebook.com',
-                linked_at: '2025-03-21T09:00:00.000Z',
+                providerId: '123456789012345',
+                providerEmail: 'yara@facebook.com',
+                linkedAt: '2025-03-21T09:00:00.000Z',
               },
             ],
           },
@@ -1087,7 +1087,7 @@ export function ApiGetSocialAccounts() {
         example: {
           status: 'success',
           data: {
-            social_accounts: [],
+            socialAccounts: [],
           },
         },
       },
@@ -1136,8 +1136,8 @@ export function ApiGoogleLinkCallback() {
           message: 'Google account linked successfully',
           data: {
             provider: 'google',
-            provider_email: 'yara@gmail.com',
-            linked_at: '2025-03-20T13:00:00.000Z',
+            providerEmail: 'yara@gmail.com',
+            linkedAt: '2025-03-20T13:00:00.000Z',
           },
         },
       },
@@ -1196,8 +1196,8 @@ export function ApiFacebookLinkCallback() {
           message: 'Facebook account linked successfully',
           data: {
             provider: 'facebook',
-            provider_email: 'yara@facebook.com',
-            linked_at: '2025-03-20T13:00:00.000Z',
+            providerEmail: 'yara@facebook.com',
+            linkedAt: '2025-03-20T13:00:00.000Z',
           },
         },
       },

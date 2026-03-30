@@ -61,13 +61,13 @@ export class MailService {
   /**
    * Send notification when new email is added
    */
-  async sendEmailAddedNotification(primaryEmail: string, newEmail: string, display_name: string) {
+  async sendEmailAddedNotification(primaryEmail: string, newEmail: string, displayName: string) {
     await this.mailerService.sendMail({
       to: primaryEmail,
       subject: 'New Email Added to Your Account',
       template: 'email-added',
       context: {
-        display_name,
+        display_name: displayName,
         newEmail,
         year: new Date().getFullYear(),
       },
@@ -80,17 +80,17 @@ export class MailService {
   async sendPrimaryEmailChangeCode(
     email: string,
     code: string,
-    display_name: string,
-    new_primary_email: string
+    displayName: string,
+    newPrimaryEmail: string
   ) {
     await this.mailerService.sendMail({
       to: email,
       subject: 'Verify Primary Email Change',
       template: 'primary-email-change',
       context: {
-        display_name,
+        display_name: displayName,
         code,
-        new_primary_email,
+        new_primary_email: newPrimaryEmail,
       },
     });
   }

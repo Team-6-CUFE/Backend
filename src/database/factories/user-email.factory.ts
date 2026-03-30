@@ -6,9 +6,9 @@ export default setSeederFactory(UserEmail, async () => {
   const email = new UserEmail();
 
   email.email = faker.internet.email().toLowerCase();
-  email.is_primary = true;
-  email.is_verified = faker.helpers.arrayElement([true, true, true, false]);
-  email.verified_at = email.is_verified ? faker.date.past() : null;
+  email.isPrimary = true;
+  email.isVerified = faker.helpers.arrayElement([true, true, true, false]);
+  email.verifiedAt = email.isVerified ? faker.date.past() : null;
 
   return email;
 });

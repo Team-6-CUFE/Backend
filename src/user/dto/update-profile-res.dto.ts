@@ -2,15 +2,15 @@ import { Expose, Exclude } from 'class-transformer';
 
 @Exclude()
 export class UpdateProfileResDto {
-  @Expose() user_id!: string;
+  @Expose() userId!: string;
 
   @Expose() username!: string;
 
-  @Expose() first_name?: string | null;
+  @Expose() firstName?: string | null;
 
-  @Expose() last_name?: string | null;
+  @Expose() lastName?: string | null;
 
-  @Expose() display_name?: string | null;
+  @Expose() displayName?: string | null;
 
   @Expose() bio?: string | null;
 
@@ -20,11 +20,11 @@ export class UpdateProfileResDto {
 
   @Expose() gender?: string | null;
 
-  @Expose() favorite_genres!: string[];
+  @Expose() favoriteGenres!: string[];
 
-  @Expose() support_link?: string | null;
+  @Expose() supportLink?: string | null;
 
-  @Expose() is_public!: boolean;
+  @Expose() isPublic!: boolean;
 
-  @Expose() updated_at!: Date;
+  @Expose() updatedAt!: Date;
 }
