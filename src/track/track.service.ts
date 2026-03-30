@@ -82,10 +82,10 @@ export class TrackService {
 
     const [reposts, total] = await this.trackRepository.getTrackReposts(trackId, page, cappedLimit);
     const mappedReposters = reposts.map((repost) => ({
-      userId: repost.user.user_id,
+      userId: repost.user.userId,
       username: repost.user.username,
-      displayName: repost.user.display_name,
-      avatarUrl: repost.user.avatar_url,
+      displayName: repost.user.displayName,
+      avatarUrl: repost.user.avatarUrl,
       caption: repost.caption,
       repostedAt: repost.createdAt,
     }));

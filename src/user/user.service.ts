@@ -137,9 +137,9 @@ export class UserService {
       playCount: repost.track.playCount,
       repostsCount: repost.track.repostsCount,
       artist: {
-        userId: repost.track.user.user_id,
+        userId: repost.track.user.userId,
         username: repost.track.user.username,
-        displayName: repost.track.user.display_name,
+        displayName: repost.track.user.displayName,
       },
       caption: repost.caption,
       repostedAt: repost.createdAt,
