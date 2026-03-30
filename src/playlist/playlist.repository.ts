@@ -22,19 +22,19 @@ export class PlaylistRepository {
     playlistId: string
   ): Promise<PlaylistRepost | null> {
     return this.playlistRepostRepository.findOne({
-      where: { user_id: userId, playlist_id: playlistId },
+      where: { userId, playlistId },
     });
   }
 
   async createRepost(userId: string, playlistId: string): Promise<PlaylistRepost> {
     const repost = this.playlistRepostRepository.create({
-      user_id: userId,
-      playlist_id: playlistId,
+      userId,
+      playlistId,
     });
     return this.playlistRepostRepository.save(repost);
   }
 
   async removeRepost(userId: string, playlistId: string) {
-    await this.playlistRepostRepository.delete({ user_id: userId, playlist_id: playlistId });
+    await this.playlistRepostRepository.delete({ userId, playlistId });
   }
 }
