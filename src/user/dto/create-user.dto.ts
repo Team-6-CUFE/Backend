@@ -11,6 +11,7 @@ import {
   MinLength,
 } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { IsAdult } from '../decorators/is-adult.decorator';
 
 export enum Gender {
   MALE = 'male',
@@ -60,6 +61,7 @@ export class CreateUserDto {
   })
   @IsDate({ message: 'Birthdate must be a valid date' })
   @IsNotEmpty({ message: 'Birthdate is required' })
+  @IsAdult({ message: 'You must be at least 13 years old to register' })
   @Type(() => Date)
   birthdate!: Date;
 
