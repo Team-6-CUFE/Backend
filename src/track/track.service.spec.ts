@@ -105,7 +105,7 @@ describe('TrackService', () => {
       const result = await service.repostTrack(mockTrackId, mockUserId, mockCaption);
 
       expect(trackRepo.repostTrack).toHaveBeenCalledWith(mockTrackId, mockUserId, mockCaption);
-      expect(result).toEqual(repost);
+      expect(result).toEqual({ status: 'success', data: repost });
     });
 
     it('should work without caption (caption is optional)', async () => {
@@ -178,7 +178,10 @@ describe('TrackService', () => {
 
       const result = await service.getTrackRepostsCount(mockTrackId, mockUserId);
 
-      expect(result).toEqual({ trackId: mockTrackId, repostsCount: 5 });
+      expect(result).toEqual({
+        status: 'success',
+        data: { trackId: mockTrackId, repostsCount: 5 },
+      });
     });
 
     it('should allow access to own private track (userId === track.userId)', async () => {
@@ -187,7 +190,10 @@ describe('TrackService', () => {
 
       const result = await service.getTrackRepostsCount(mockTrackId, mockUserId);
 
-      expect(result).toEqual({ trackId: mockTrackId, repostsCount: 3 });
+      expect(result).toEqual({
+        status: 'success',
+        data: { trackId: mockTrackId, repostsCount: 3 },
+      });
     });
 
     it('should throw NotFoundException when track not found', async () => {
@@ -234,7 +240,7 @@ describe('TrackService', () => {
 
       const result = await service.removeTrackRepost(mockTrackId, mockUserId);
 
-      expect(result).toEqual({ message: 'Repost successfully removed' });
+      expect(result).toEqual({ status: 'success', message: 'Repost successfully removed' });
     });
 
     it('should call removeTrackRepost on repo with correct args', async () => {
@@ -280,7 +286,7 @@ describe('TrackService', () => {
 
       const result = await service.editTrackRepost(mockTrackId, mockUserId, mockCaption);
 
-      expect(result).toBe(updated);
+      expect(result).toEqual({ status: 'success', data: updated });
     });
 
     it('should throw BadRequestException when repost not found (repo returns null)', async () => {
@@ -305,7 +311,7 @@ describe('TrackService', () => {
 
       const result = await service.editTrackRepost(mockTrackId, mockUserId, 'Updated caption');
 
-      expect(result).toBe(repoResult);
+      expect(result).toEqual({ status: 'success', data: repoResult });
     });
   });
 
@@ -320,6 +326,7 @@ describe('TrackService', () => {
       const result = await service.getTrackReposts(mockTrackId, mockUserId, 1, 20);
 
       expect(result).toEqual({
+        status: 'success',
         data: [
           {
             userId: mockOtherUserId,

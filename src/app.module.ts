@@ -13,6 +13,7 @@ import { RedisModule } from './redis/redis.module';
 import { AudioStorageModule } from './audio_storage/audio_storage.module';
 import { PlaylistModule } from './playlist/playlist.module';
 import { TrackModule } from './track/track.module';
+import { LegalModule } from './legal/legal.module';
 
 @Module({
   imports: [
@@ -54,6 +55,8 @@ import { TrackModule } from './track/track.module';
     PlaylistModule,
 
     TrackModule,
+
+    LegalModule,
   ],
 })
 export class AppModule {}

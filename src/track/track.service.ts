@@ -34,7 +34,10 @@ export class TrackService {
     if (alreadyReposted) {
       throw new ConflictException('You have already reposted this track');
     }
-    return this.trackRepository.repostTrack(trackId, userId, caption);
+    return {
+      status: 'success',
+      data: await this.trackRepository.repostTrack(trackId, userId, caption),
+    };
   }
 
   async getTrackRepostsCount(trackId: string, userId: string) {
@@ -48,8 +51,8 @@ export class TrackService {
     }
     const repostsCount = await this.trackRepository.getTrackRepostsCount(trackId);
     return {
-      trackId,
-      repostsCount,
+      status: 'success',
+      data: { trackId, repostsCount },
     };
   }
 
@@ -60,6 +63,7 @@ export class TrackService {
     }
     await this.trackRepository.removeTrackRepost(trackId, userId);
     return {
+      status: 'success',
       message: 'Repost successfully removed',
     };
   }
@@ -69,7 +73,7 @@ export class TrackService {
     if (!updatedRepost) {
       throw new BadRequestException('You have not reposted this track');
     }
-    return updatedRepost;
+    return { status: 'success', data: updatedRepost };
   }
 
   async getTrackReposts(trackId: string, userId: string, page: number = 1, limit: number = 20) {
@@ -93,7 +97,7 @@ export class TrackService {
       caption: repost.caption,
       repostedAt: repost.createdAt,
     }));
-    return buildPaginationResponse(mappedReposters, total, page, limit);
+    return { status: 'success', ...buildPaginationResponse(mappedReposters, total, page, limit) };
   }
 
   async getUserTrackReposts(
@@ -132,6 +136,6 @@ export class TrackService {
       caption: repost.caption,
       repostedAt: repost.createdAt,
     }));
-    return buildPaginationResponse(mappedReposts, total, page, limit);
+    return { status: 'success', ...buildPaginationResponse(mappedReposts, total, page, limit) };
   }
 }

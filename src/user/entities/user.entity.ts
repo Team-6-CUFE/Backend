@@ -71,6 +71,24 @@ export class User extends BaseEntity {
   @Column({ type: 'varchar', length: 500, nullable: true, name: 'support_link' })
   supportLink!: string;
 
+  @Column({ type: 'int', default: 0, name: 'playlist_count' })
+  playlistCount!: number;
+
+  @Column({ type: 'int', default: 0, name: 'track_count' })
+  trackCount!: number;
+
+  @Column({ type: 'int', default: 0, name: 'followers_count' })
+  followersCount!: number;
+
+  @Column({ type: 'int', default: 0, name: 'followings_count' })
+  followingsCount!: number;
+
+  @Column({ type: 'int', default: 0, name: 'reposts_count' })
+  repostsCount!: number;
+
+  @Column({ type: 'int', default: 0, name: 'favorites_count' })
+  favoritesCount!: number;
+
   // Relationships
   @OneToMany(() => UserEmail, (email) => email.user)
   emails!: UserEmail[];
