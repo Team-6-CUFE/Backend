@@ -141,40 +141,7 @@ export class UserRepository {
     return this.userEmailRepo.findOne({ where: { email } });
   }
 
-  // IMPORTANT: tables used in this query dont exist yet, dont use this function yet
   async getUserCounts(userId: string): Promise<UserCounts> {
-    const result = await this.repository
-      .createQueryBuilder('u')
-      .select('u.user_id', 'user_id')
-      .addSelect(
-        (qb) => qb.select('COUNT(*)').from('track_likes', 'tl').where('tl.user_id = u.user_id'),
-        'favorites_count'
-      )
-      .addSelect(
-        (qb) => qb.select('COUNT(*)').from('playlists', 'pl').where('pl.user_id = u.user_id'),
-        'playlist_count'
-      )
-      .addSelect(
-        (qb) => qb.select('COUNT(*)').from('tracks', 'tr').where('tr.user_id = u.user_id'),
-        'track_count'
-      )
-      .addSelect(
-        (qb) =>
-          qb.select('COUNT(*)').from('user_follows', 'uf_ing').where('uf_ing.follower = u.user_id'),
-        'followings_count'
-      )
-      .addSelect(
-        (qb) =>
-          qb.select('COUNT(*)').from('user_follows', 'uf_ed').where('uf_ed.followed = u.user_id'),
-        'followers_count'
-      )
-      .addSelect(
-        (qb) => qb.select('COUNT(*)').from('track_reposts', 'rp').where('rp.user_id = u.user_id'),
-        'reposts_count'
-      )
-      .where('u.user_id = :userId', { userId })
-      .getRawOne<Record<keyof UserCounts | 'user_id', string>>();
-
     const zero: UserCounts = {
       favoritesCount: 0,
       playlistCount: 0,
@@ -184,11 +151,29 @@ export class UserRepository {
       repostsCount: 0,
     };
 
-    if (!result) return zero;
+    const user = await this.repository.findOne({
+      where: { userId },
+      select: {
+        userId: true,
+        favoritesCount: true,
+        playlistCount: true,
+        trackCount: true,
+        followingsCount: true,
+        followersCount: true,
+        repostsCount: true,
+      },
+    });
 
-    return Object.fromEntries(
-      (Object.keys(zero) as (keyof UserCounts)[]).map((k) => [k, parseInt(result[k], 10)])
-    ) as UserCounts;
+    if (!user) return zero;
+
+    return {
+      favoritesCount: user.favoritesCount,
+      playlistCount: user.playlistCount,
+      trackCount: user.trackCount,
+      followingsCount: user.followingsCount,
+      followersCount: user.followersCount,
+      repostsCount: user.repostsCount,
+    };
   }
 
   async addEmail(userId: string, email: string): Promise<UserEmail> {
