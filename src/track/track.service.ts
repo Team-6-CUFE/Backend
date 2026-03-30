@@ -6,11 +6,15 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { TrackRepository } from './track.repository';
+import { UserRepository } from '../user/user.repository';
 import { buildPaginationResponse } from '../common/utilities/pagination.util';
 
 @Injectable()
 export class TrackService {
-  constructor(private readonly trackRepository: TrackRepository) {}
+  constructor(
+    private readonly trackRepository: TrackRepository,
+    private readonly userRepository: UserRepository
+  ) {}
 
   async repostTrack(trackId: string, userId: string, caption?: string) {
     const track = await this.trackRepository.findById(trackId);
@@ -94,9 +98,40 @@ export class TrackService {
 
   async getUserTrackReposts(
     userId: string,
+    myUserId: string,
     page: number = 1,
     limit: number = 20
-  ): Promise<[any[], number]> {
-    return this.trackRepository.getUserTrackReposts(userId, page, limit);
+  ) {
+    const user = await this.userRepository.findById(userId);
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+
+    if (!user.isPublic && user.userId !== myUserId) {
+      throw new ForbiddenException('This account is private');
+    }
+
+    const cappedLimit = Math.min(limit, 100);
+    const [reposts, total] = await this.trackRepository.getUserTrackReposts(
+      userId,
+      page,
+      cappedLimit
+    );
+    const mappedReposts = reposts.map((repost) => ({
+      trackId: repost.track.trackId,
+      title: repost.track.title,
+      coverImage: repost.track.coverImage,
+      durationSeconds: repost.track.durationSeconds,
+      playCount: repost.track.playCount,
+      repostsCount: repost.track.repostsCount,
+      artist: {
+        userId: repost.track.user.userId,
+        username: repost.track.user.username,
+        displayName: repost.track.user.displayName,
+      },
+      caption: repost.caption,
+      repostedAt: repost.createdAt,
+    }));
+    return buildPaginationResponse(mappedReposts, total, page, limit);
   }
 }

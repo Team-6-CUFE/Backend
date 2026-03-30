@@ -12,16 +12,13 @@ import { FavoriteGenre } from './entities/favorite-genre.entity';
 import { GenreModule } from '../genre/genre.module';
 import { UsernameAvailabilityService } from './username-availability.service';
 import { ExternalProfileRepository } from './external-profile.repository';
-import { UserController } from './user.controller';
-import { TrackModule } from '../track/track.module';
 
 @Module({
   imports: [
     TypeOrmModule.forFeature([User, UserEmail, ExternalProfile, SocialAccount, FavoriteGenre]),
     GenreModule,
-    TrackModule,
   ],
-  controllers: [ProfileController, UserController],
+  controllers: [ProfileController],
   providers: [
     UserService,
     UserRepository,
