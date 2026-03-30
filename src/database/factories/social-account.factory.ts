@@ -6,8 +6,8 @@ export default setSeederFactory(SocialAccount, async () => {
   const account = new SocialAccount();
 
   account.provider = faker.helpers.arrayElement(['google', 'facebook']);
-  account.provider_id = faker.string.uuid();
-  account.provider_email = faker.internet.email().toLowerCase();
+  account.providerId = faker.string.uuid();
+  account.providerEmail = faker.internet.email().toLowerCase();
 
   return account;
 });

@@ -2,21 +2,21 @@ import { Expose, Exclude } from 'class-transformer';
 
 @Exclude()
 export class BaseProfileDataDto {
-  @Expose() user_id!: string;
+  @Expose() userId!: string;
 
   @Expose() username!: string;
 
-  @Expose() first_name!: string | null;
+  @Expose() firstName!: string | null;
 
-  @Expose() last_name!: string | null;
+  @Expose() lastName!: string | null;
 
-  @Expose() display_name!: string | null;
+  @Expose() displayName!: string | null;
 
   @Expose() bio!: string | null;
 
-  @Expose() avatar_url!: string | null;
+  @Expose() avatarUrl!: string | null;
 
-  @Expose() cover_photo!: string | null;
+  @Expose() coverPhoto!: string | null;
 
   @Expose() country!: string | null;
 
@@ -24,23 +24,23 @@ export class BaseProfileDataDto {
 
   @Expose() role!: string;
 
-  @Expose() is_public!: boolean;
+  @Expose() isPublic!: boolean;
 
-  @Expose() favorite_genres!: string[];
+  @Expose() favoriteGenres!: string[];
 
-  @Expose() support_link!: string | null;
+  @Expose() supportLink!: string | null;
 
-  @Expose() created_at!: Date;
+  @Expose() createdAt!: Date;
 
-  @Expose() favorites_count!: number;
+  @Expose() favoritesCount!: number;
 
-  @Expose() playlist_count!: number;
+  @Expose() playlistCount!: number;
 
-  @Expose() track_count!: number;
+  @Expose() trackCount!: number;
 
-  @Expose() followings_count!: number;
+  @Expose() followingsCount!: number;
 
-  @Expose() followers_count!: number;
+  @Expose() followersCount!: number;
 
-  @Expose() reposts_count!: number;
+  @Expose() repostsCount!: number;
 }

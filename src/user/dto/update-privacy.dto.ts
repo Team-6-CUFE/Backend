@@ -1,6 +1,11 @@
+import { ApiProperty } from '@nestjs/swagger';
 import { IsBoolean } from 'class-validator';
 
 export class UpdatePrivacyReqDto {
-  @IsBoolean({ message: 'is_public must be a boolean' })
-  is_public!: boolean;
+  @ApiProperty({
+    description: 'Set to true for a public account, false for private',
+    example: false,
+  })
+  @IsBoolean({ message: 'isPublic must be a boolean' })
+  isPublic!: boolean;
 }

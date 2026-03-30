@@ -36,7 +36,7 @@ describe('ProfileController', () => {
   });
 
   it('updateMyProfile → delegates to service with userId and dto', async () => {
-    const dto = { display_name: 'Test' };
+    const dto = { displayName: 'Test' };
     service.updateProfile.mockResolvedValue({ status: 'Success', message: '', data: {} });
 
     await controller.updateMyProfile(mockUserId, dto as any);
@@ -63,7 +63,7 @@ describe('ProfileController', () => {
   });
 
   it('updateMyPrivacy → delegates correctly', async () => {
-    const dto = { is_public: false };
+    const dto = { isPublic: false };
     service.updateMyPrivacy.mockResolvedValue({ status: 'Success', message: '', data: {} });
 
     await controller.updateMyPrivacy(mockUserId, dto);

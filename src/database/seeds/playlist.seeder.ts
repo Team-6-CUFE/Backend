@@ -44,16 +44,16 @@ export class PlaylistSeeder implements Seeder {
       const playlist1 = playlistRepository.create({
         title: 'Late Night Lo-Fi Beats',
         description: 'Chill beats to study and relax to.',
-        isPublic: true,
-        userId: artist1.user_id,
+        is_public: true,
+        user_id: artist1.userId,
       });
       allCreatedPlaylists.push(await playlistRepository.save(playlist1));
 
       const playlist2 = playlistRepository.create({
         title: 'Unreleased Demos (Private)',
         description: 'WIP tracks.',
-        isPublic: false, // Private playlist
-        userId: artist1.user_id,
+        is_public: false, // Private playlist
+        user_id: artist1.userId,
       });
       allCreatedPlaylists.push(await playlistRepository.save(playlist2));
     }
@@ -62,8 +62,8 @@ export class PlaylistSeeder implements Seeder {
       const playlist3 = playlistRepository.create({
         title: 'Summer Festival Mix',
         description: 'High energy EDM and House.',
-        isPublic: true,
-        userId: artist2.user_id,
+        is_public: true,
+        user_id: artist2.userId,
       });
       allCreatedPlaylists.push(await playlistRepository.save(playlist3));
     }
@@ -83,7 +83,7 @@ export class PlaylistSeeder implements Seeder {
       // This forces TypeORM to recognize both the raw ID and the relation object
       const playlistToSave = playlistRepository.create({
         ...randomPlaylist,
-        userId: randomOwner.user_id,
+        user_id: randomOwner.userId,
         user: randomOwner,
       });
 
@@ -106,8 +106,8 @@ export class PlaylistSeeder implements Seeder {
 
       for (const liker of likers) {
         await playlistLikeRepository.save({
-          playlist_id: playlist.playlistId,
-          user_id: liker.user_id,
+          playlist_id: playlist.playlist_id,
+          user_id: liker.userId,
         });
       }
 
@@ -117,8 +117,8 @@ export class PlaylistSeeder implements Seeder {
 
       for (const reposter of reposters) {
         await playlistRepostRepository.save({
-          playlist_id: playlist.playlistId,
-          user_id: reposter.user_id,
+          playlist_id: playlist.playlist_id,
+          user_id: reposter.userId,
         });
       }
     }

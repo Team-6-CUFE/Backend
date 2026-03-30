@@ -11,44 +11,44 @@ const mockDisplayName = 'Yara Senousy';
 const mockPasswordHash = '$2b$10$hashedpassword';
 
 const mockUser = () => ({
-  user_id: mockUserId,
+  userId: mockUserId,
   email: mockEmail,
   username: mockUsername,
-  password_hash: mockPasswordHash,
-  emails: [{ email: mockEmail, is_primary: true, is_verified: true, user_id: mockUserId }],
+  passwordHash: mockPasswordHash,
+  emails: [{ email: mockEmail, isPrimary: true, isVerified: true, userId: mockUserId }],
 });
 
 const mockUserEmail = () => ({
   id: 'email-001',
   email: mockEmail,
-  is_primary: true,
-  is_verified: false,
-  user_id: mockUserId,
+  isPrimary: true,
+  isVerified: false,
+  userId: mockUserId,
 });
 
 const mockCreateUserDto = () => ({
   email: mockEmail,
   password: 'SecurePassword123!',
-  display_name: mockDisplayName,
-  first_name: 'Yara',
-  last_name: 'Senousy',
+  displayName: mockDisplayName,
+  firstName: 'Yara',
+  lastName: 'Senousy',
   birthdate: '1995-06-15',
   country: 'Egypt',
 });
 
 const mockSocialAccount = () => ({
   provider: 'google',
-  provider_id: 'google-provider-id-123',
-  user_id: mockUserId,
+  providerId: 'google-provider-id-123',
+  userId: mockUserId,
   email: mockEmail,
 });
 
 const mockOAuthUser = () => ({
   email: mockEmail,
   username: mockUsername,
-  first_name: 'Yara',
-  last_name: 'Senousy',
-  display_name: 'Yara Senousy',
+  firstName: 'Yara',
+  lastName: 'Senousy',
+  displayName: 'Yara Senousy',
   birthdate: '1995-06-15',
   gender: 'female',
 });
@@ -57,11 +57,11 @@ const mockSecondaryEmail = 'secondary@example.com';
 
 const mockNewEmailRecord = () => ({
   email: mockSecondaryEmail,
-  is_primary: false,
-  is_verified: false,
-  user_id: mockUserId,
-  created_at: new Date(),
-  updated_at: new Date(),
+  isPrimary: false,
+  isVerified: false,
+  userId: mockUserId,
+  createdAt: new Date(),
+  updatedAt: new Date(),
 });
 
 const mockUserRepository = () => ({
@@ -170,29 +170,29 @@ describe('UserService', () => {
     });
   });
 
-  describe('hash_password', () => {
+  describe('hashPassword', () => {
     it('should return a string different from the original password', async () => {
-      const result = await service.hash_password('SecurePassword123!');
+      const result = await service.hashPassword('SecurePassword123!');
 
       expect(result).not.toBe('SecurePassword123!');
       expect(typeof result).toBe('string');
     });
 
     it('should return a valid bcrypt hash (starts with $2b$)', async () => {
-      const result = await service.hash_password('SecurePassword123!');
+      const result = await service.hashPassword('SecurePassword123!');
 
       expect(result).toMatch(/^\$2b\$10\$/);
     });
 
     it('should produce different hashes for the same password (salt is random)', async () => {
-      const hash1 = await service.hash_password('SecurePassword123!');
-      const hash2 = await service.hash_password('SecurePassword123!');
+      const hash1 = await service.hashPassword('SecurePassword123!');
+      const hash2 = await service.hashPassword('SecurePassword123!');
 
       expect(hash1).not.toBe(hash2);
     });
 
     it('should produce a hash that bcrypt can verify', async () => {
-      const hash = await service.hash_password('SecurePassword123!');
+      const hash = await service.hashPassword('SecurePassword123!');
       const isValid = await bcrypt.compare('SecurePassword123!', hash);
 
       expect(isValid).toBe(true);
@@ -247,7 +247,7 @@ describe('UserService', () => {
       );
 
       expect(userRepo.createUser).toHaveBeenCalledTimes(1);
-      expect(result.user_id).toBe(mockUserId);
+      expect(result.userId).toBe(mockUserId);
     });
 
     it('should not pass raw password to repository', async () => {
@@ -450,7 +450,7 @@ describe('UserService', () => {
       const result = await service.createOAuthUser(mockOAuthUser() as any);
 
       expect(userRepo.createOAuthUser).toHaveBeenCalledTimes(1);
-      expect(result.user_id).toBe(mockUserId);
+      expect(result.userId).toBe(mockUserId);
     });
 
     it('should call addToFilter with the username', async () => {
@@ -505,8 +505,8 @@ describe('UserService', () => {
       const result = await service.addEmail(mockUserId, mockSecondaryEmail);
 
       expect(result.email).toBe(mockSecondaryEmail);
-      expect(result.is_primary).toBe(false);
-      expect(result.is_verified).toBe(false);
+      expect(result.isPrimary).toBe(false);
+      expect(result.isVerified).toBe(false);
     });
 
     it('should propagate error if repository throws', async () => {
@@ -685,7 +685,7 @@ describe('UserService', () => {
       );
 
       expect(result.provider).toBe('google');
-      expect(result.user_id).toBe(mockUserId);
+      expect(result.userId).toBe(mockUserId);
     });
 
     it('should propagate error if repository throws', async () => {
@@ -768,7 +768,7 @@ describe('UserService', () => {
 
       expect(Array.isArray(result)).toBe(true);
       expect(result[0].provider).toBe('google');
-      expect(result[0].user_id).toBe(mockUserId);
+      expect(result[0].userId).toBe(mockUserId);
     });
 
     it('should return empty array if user has no social accounts', async () => {

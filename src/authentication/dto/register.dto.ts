@@ -9,5 +9,5 @@ export class RegisterDto extends CreateUserDto {
   })
   @IsString()
   @IsNotEmpty({ message: 'CAPTCHA token is required' })
-  captcha_token!: string;
+  captchaToken!: string;
 }

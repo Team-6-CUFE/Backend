@@ -6,7 +6,7 @@ export abstract class BaseEntity {
     default: () => 'CURRENT_TIMESTAMP',
     name: 'created_at',
   })
-  created_at!: Date;
+  createdAt!: Date;
 
   @UpdateDateColumn({
     type: 'timestamp',
@@ -14,5 +14,5 @@ export abstract class BaseEntity {
     onUpdate: 'CURRENT_TIMESTAMP',
     name: 'updated_at',
   })
-  updated_at!: Date;
+  updatedAt!: Date;
 }

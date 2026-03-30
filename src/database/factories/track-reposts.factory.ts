@@ -7,7 +7,7 @@ export default setSeederFactory(TrackRepost, async () => {
 
   // 30% chance of having a custom caption for the repost
   repost.caption = faker.helpers.maybe(() => faker.lorem.sentence(), { probability: 0.3 }) ?? '';
-  repost.created_at = faker.date.recent({ days: 60 });
+  repost.createdAt = faker.date.recent({ days: 60 });
 
   return repost;
 });

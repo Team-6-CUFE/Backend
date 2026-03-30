@@ -4,17 +4,17 @@ import { Track } from './track.entity';
 
 @Entity('track_reposts')
 export class TrackRepost {
-  @PrimaryColumn('uuid')
-  user_id!: string;
+  @PrimaryColumn({ name: 'user_id', type: 'uuid' })
+  userId!: string;
 
-  @PrimaryColumn('uuid')
-  track_id!: string;
+  @PrimaryColumn({ name: 'track_id', type: 'uuid' })
+  trackId!: string;
 
   @Column({ type: 'varchar', length: 500, nullable: true })
   caption!: string;
 
-  @Column({ type: 'timestamp', default: () => 'CURRENT_TIMESTAMP' })
-  created_at!: Date;
+  @Column({ name: 'created_at', type: 'timestamp', default: () => 'CURRENT_TIMESTAMP' })
+  createdAt!: Date;
 
   @ManyToOne(() => User, (user) => user.trackReposts, { onDelete: 'CASCADE' })
   @JoinColumn({ name: 'user_id' })

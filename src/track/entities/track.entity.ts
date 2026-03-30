@@ -16,11 +16,11 @@ import { TrackStatus } from '../enums/track-status.enum';
 
 @Entity('tracks')
 export class Track extends BaseEntity {
-  @PrimaryGeneratedColumn('uuid')
-  track_id!: string;
+  @PrimaryGeneratedColumn('uuid', { name: 'track_id' })
+  trackId!: string;
 
-  @Column({ type: 'uuid' })
-  user_id!: string;
+  @Column({ name: 'user_id', type: 'uuid' })
+  userId!: string;
 
   @Column({ type: 'varchar', length: 255 })
   title!: string;
@@ -28,44 +28,49 @@ export class Track extends BaseEntity {
   @Column({ type: 'text', nullable: true })
   description!: string;
 
-  @Column({ type: 'varchar', length: 500 })
-  audio_url!: string;
+  @Column({ name: 'audio_url', type: 'varchar', length: 500 })
+  audioUrl!: string;
 
-  @Column({ type: 'varchar', length: 255, nullable: true })
-  cover_image!: string;
+  @Column({ name: 'cover_image', type: 'varchar', length: 255, nullable: true })
+  coverImage!: string;
 
-  @Column({ type: 'int', default: 0 })
-  duration_seconds!: number;
+  @Column({ name: 'duration_seconds', type: 'int', default: 0 })
+  durationSeconds!: number;
 
-  @Column({ type: 'boolean', default: true })
-  is_public!: boolean;
+  @Column({ name: 'is_public', type: 'boolean', default: true })
+  isPublic!: boolean;
 
   @Column({ type: 'boolean', default: false })
   hidden!: boolean;
 
-  @Column({ type: 'enum', enum: TrackStatus, default: TrackStatus.PROCESSING })
-  track_status!: TrackStatus;
+  @Column({
+    name: 'track_status',
+    type: 'enum',
+    enum: TrackStatus,
+    default: TrackStatus.PROCESSING,
+  })
+  trackStatus!: TrackStatus;
 
-  @Column({ type: 'text', array: true, default: () => "'{}'" })
-  blocked_regions!: string[];
+  @Column({ name: 'blocked_regions', type: 'text', array: true, default: () => "'{}'" })
+  blockedRegions!: string[];
 
-  @Column({ type: 'varchar', length: 500, nullable: true })
-  preview_audio_url!: string;
+  @Column({ name: 'preview_audio_url', type: 'varchar', length: 500, nullable: true })
+  previewAudioUrl!: string;
 
-  @Column({ type: 'varchar', length: 500 })
-  waveform_url!: string;
+  @Column({ name: 'waveform_url', type: 'varchar', length: 500 })
+  waveformUrl!: string;
 
-  @Column({ type: 'int', default: 0 })
-  play_count!: number;
+  @Column({ name: 'play_count', type: 'int', default: 0 })
+  playCount!: number;
 
-  @Column({ type: 'int', default: 0 })
-  likes_count!: number;
+  @Column({ name: 'likes_count', type: 'int', default: 0 })
+  likesCount!: number;
 
-  @Column({ type: 'int', default: 0 })
-  reposts_count!: number;
+  @Column({ name: 'reposts_count', type: 'int', default: 0 })
+  repostsCount!: number;
 
-  @Column({ type: 'int', default: 0 })
-  comments_count!: number;
+  @Column({ name: 'comments_count', type: 'int', default: 0 })
+  commentsCount!: number;
 
   @ManyToOne(() => User, (user) => user.tracks, { onDelete: 'CASCADE' })
   @JoinColumn({ name: 'user_id' })

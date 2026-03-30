@@ -5,20 +5,20 @@ import { BaseEntity } from '../../common/entities/base.entity';
 
 @Entity('track_comments')
 export class TrackComment extends BaseEntity {
-  @PrimaryColumn('uuid')
-  comment_id!: string;
+  @PrimaryColumn({ name: 'comment_id', type: 'uuid' })
+  commentId!: string;
 
-  @Column('uuid')
-  user_id!: string;
+  @Column({ name: 'user_id', type: 'uuid' })
+  userId!: string;
 
-  @Column('uuid')
-  track_id!: string;
+  @Column({ name: 'track_id', type: 'uuid' })
+  trackId!: string;
 
   @Column('text')
   content!: string;
 
-  @Column({ type: 'int', default: 0 })
-  timestamp_seconds!: number;
+  @Column({ name: 'timestamp_seconds', type: 'int', default: 0 })
+  timestampSeconds!: number;
 
   @ManyToOne(() => User, (user) => user.trackComments, { onDelete: 'CASCADE' })
   @JoinColumn({ name: 'user_id' })

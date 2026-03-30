@@ -5,18 +5,18 @@ import { Genre } from '../../genre/entities/genre.entity';
 @Entity('favorite_genres')
 export class FavoriteGenre {
   // Composite primary key
-  @PrimaryColumn({ type: 'uuid' })
-  user_id!: string;
+  @PrimaryColumn({ type: 'uuid', name: 'user_id' })
+  userId!: string;
 
-  @PrimaryColumn({ type: 'uuid' })
-  genre_id!: string;
+  @PrimaryColumn({ type: 'uuid', name: 'genre_id' })
+  genreId!: string;
 
   // Relationships
-  @ManyToOne(() => User, (user) => user.favorite_genres, { onDelete: 'CASCADE' })
+  @ManyToOne(() => User, (user) => user.favoriteGenres, { onDelete: 'CASCADE' })
   @JoinColumn({ name: 'user_id' })
   user!: User;
 
-  @ManyToOne(() => Genre, (genre) => genre.favorited_by, { onDelete: 'CASCADE' })
+  @ManyToOne(() => Genre, (genre) => genre.favoritedBy, { onDelete: 'CASCADE' })
   @JoinColumn({ name: 'genre_id' })
   genre!: Relation<Genre>;
 }

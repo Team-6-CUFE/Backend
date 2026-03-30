@@ -1,26 +1,137 @@
-import { Injectable } from '@nestjs/common';
-import { CreateTrackDto } from './dto/create-track.dto';
-import { UpdateTrackDto } from './dto/update-track.dto';
+import {
+  BadRequestException,
+  ConflictException,
+  ForbiddenException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
+import { TrackRepository } from './track.repository';
+import { UserRepository } from '../user/user.repository';
+import { buildPaginationResponse } from '../common/utilities/pagination.util';
 
 @Injectable()
 export class TrackService {
-  create(createTrackDto: CreateTrackDto) {
-    return `This action adds a new track: ${JSON.stringify(createTrackDto)}`;
+  constructor(
+    private readonly trackRepository: TrackRepository,
+    private readonly userRepository: UserRepository
+  ) {}
+
+  async repostTrack(trackId: string, userId: string, caption?: string) {
+    const track = await this.trackRepository.findById(trackId);
+    if (!track) {
+      throw new NotFoundException('Track not found');
+    }
+
+    if (track.userId === userId) {
+      throw new BadRequestException('You cannot repost your own track');
+    }
+
+    if (!track.isPublic) {
+      throw new ForbiddenException('This track is private');
+    }
+
+    const alreadyReposted = await this.trackRepository.didUserRepostTrack(userId, trackId);
+    if (alreadyReposted) {
+      throw new ConflictException('You have already reposted this track');
+    }
+    return this.trackRepository.repostTrack(trackId, userId, caption);
   }
 
-  findAll() {
-    return `This action returns all track`;
+  async getTrackRepostsCount(trackId: string, userId: string) {
+    const track = await this.trackRepository.findById(trackId);
+    if (!track) {
+      throw new NotFoundException('Track not found');
+    }
+
+    if (!track.isPublic && track.userId !== userId) {
+      throw new ForbiddenException('This track is private');
+    }
+    const repostsCount = await this.trackRepository.getTrackRepostsCount(trackId);
+    return {
+      trackId,
+      repostsCount,
+    };
   }
 
-  findOne(id: number) {
-    return `This action returns a #${id} track`;
+  async removeTrackRepost(trackId: string, userId: string) {
+    const checkRepost = await this.trackRepository.didUserRepostTrack(userId, trackId);
+    if (!checkRepost) {
+      throw new BadRequestException('You have not reposted this track');
+    }
+    await this.trackRepository.removeTrackRepost(trackId, userId);
+    return {
+      message: 'Repost successfully removed',
+    };
   }
 
-  update(id: number, updateTrackDto: UpdateTrackDto) {
-    return `This action updates a #${id} track: ${JSON.stringify(updateTrackDto)}`;
+  async editTrackRepost(trackId: string, userId: string, caption: string) {
+    const updatedRepost = await this.trackRepository.editTrackRepost(trackId, userId, caption);
+    if (!updatedRepost) {
+      throw new BadRequestException('You have not reposted this track');
+    }
+    return updatedRepost;
   }
 
-  remove(id: number) {
-    return `This action removes a #${id} track`;
+  async getTrackReposts(trackId: string, userId: string, page: number = 1, limit: number = 20) {
+    const track = await this.trackRepository.findById(trackId);
+    if (!track) {
+      throw new NotFoundException('Track not found');
+    }
+
+    if (!track.isPublic && track.userId !== userId) {
+      throw new ForbiddenException('This track is private');
+    }
+
+    const cappedLimit = Math.min(limit, 100); // Cap limit to 100
+
+    const [reposts, total] = await this.trackRepository.getTrackReposts(trackId, page, cappedLimit);
+    const mappedReposters = reposts.map((repost) => ({
+      userId: repost.user.userId,
+      username: repost.user.username,
+      displayName: repost.user.displayName,
+      avatarUrl: repost.user.avatarUrl,
+      caption: repost.caption,
+      repostedAt: repost.createdAt,
+    }));
+    return buildPaginationResponse(mappedReposters, total, page, limit);
+  }
+
+  async getUserTrackReposts(
+    userId: string,
+    myUserId: string,
+    page: number = 1,
+    limit: number = 20
+  ) {
+    const user = await this.userRepository.findById(userId);
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+
+    if (!user.isPublic && user.userId !== myUserId) {
+      throw new ForbiddenException('This account is private');
+    }
+
+    const cappedLimit = Math.min(limit, 100);
+    const [reposts, total] = await this.trackRepository.getUserTrackReposts(
+      userId,
+      page,
+      cappedLimit
+    );
+    const mappedReposts = reposts.map((repost) => ({
+      trackId: repost.track.trackId,
+      title: repost.track.title,
+      coverImage: repost.track.coverImage,
+      durationSeconds: repost.track.durationSeconds,
+      playCount: repost.track.playCount,
+      repostsCount: repost.track.repostsCount,
+      artist: {
+        userId: repost.track.user.userId,
+        username: repost.track.user.username,
+        displayName: repost.track.user.displayName,
+      },
+      caption: repost.caption,
+      repostedAt: repost.createdAt,
+    }));
+    return buildPaginationResponse(mappedReposts, total, page, limit);
   }
 }

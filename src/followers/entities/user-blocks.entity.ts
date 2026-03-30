@@ -9,14 +9,14 @@ export class UserBlock {
   @PrimaryColumn({ type: 'uuid' })
   blocked!: string;
 
-  @Column({ type: 'timestamp', default: () => 'CURRENT_TIMESTAMP' })
-  created_at!: Date;
+  @Column({ type: 'timestamp', default: () => 'CURRENT_TIMESTAMP', name: 'created_at' })
+  createdAt!: Date;
 
   @ManyToOne(() => User, { onDelete: 'CASCADE' })
   @JoinColumn({ name: 'blocker' })
-  blocker_user!: Relation<User>;
+  blockerUser!: Relation<User>;
 
   @ManyToOne(() => User, { onDelete: 'CASCADE' })
   @JoinColumn({ name: 'blocked' })
-  blocked_user!: Relation<User>;
+  blockedUser!: Relation<User>;
 }
