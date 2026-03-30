@@ -131,7 +131,7 @@ export class UserService {
       throw new NotFoundException('User not found');
     }
 
-    if (!user.is_public && user.user_id !== myUserId) {
+    if (!user.isPublic && user.userId !== myUserId) {
       throw new ForbiddenException('This account is private');
     }
 
