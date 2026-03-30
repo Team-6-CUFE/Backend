@@ -16,7 +16,7 @@ export class PlaylistService {
     // if not, we create a new repost entry in the database
     const playlist = await this.playlistRepository.findPlaylistById(playlistId);
     if (!playlist) {
-      throw new BadRequestException({ status: 'error', message: 'playlist not found' });
+      throw new BadRequestException({ message: 'playlist not found' });
     }
     const alreadyReposted = await this.playlistRepository.findRepostByUserAndPlaylist(
       userId,
@@ -24,7 +24,6 @@ export class PlaylistService {
     );
     if (alreadyReposted) {
       throw new ConflictException({
-        status: 'error',
         message: 'You have already reposted this playlist',
       });
     }
@@ -32,51 +31,62 @@ export class PlaylistService {
     const isPrivate = playlist.isPublic;
     if (!isPrivate) {
       throw new ForbiddenException({
-        status: 'error',
         message: 'Cannot repost a private playlist',
       });
     }
     // check if user is the owner of the playlist
     if (playlist.userId === userId) {
       throw new BadRequestException({
-        status: 'error',
         message: 'You cannot repost your own playlist',
       });
     }
     await this.playlistRepository.createRepost(userId, playlistId);
     return {
-      status: 'success',
-      data: {
-        userId,
-        playlistId,
-        repostedAt: new Date(),
-      },
+      userId,
+      playlistId,
+      repostedAt: new Date(),
     };
   }
 
+  // this function removes a user's repost
   async removeRepost(playlistId: string, userId: string) {
     const playlist = await this.playlistRepository.findPlaylistById(playlistId);
     if (!playlist) {
-      throw new BadRequestException({ status: 'error', message: 'playlist not found' });
+      throw new BadRequestException({ message: 'playlist not found' });
     }
+    // check if user reposted this playlist or not
     const isReposted = await this.playlistRepository.findRepostByUserAndPlaylist(
       userId,
       playlistId
     );
     if (!isReposted) {
       throw new ForbiddenException({
-        status: 'error',
         message: 'you have not reposted this playlist',
       });
     }
     const { isPublic } = playlist;
     if (!isPublic) {
-      throw new ForbiddenException({ status: 'error', message: 'This Playlist is Private' });
+      throw new ForbiddenException({ message: 'This Playlist is Private' });
     }
     await this.playlistRepository.removeRepost(userId, playlistId);
     return {
-      status: 'success',
       message: 'Playlist repost successfully removed',
+    };
+  }
+
+  async getRepostsCount(playlistId: string) {
+    const playlist = await this.playlistRepository.findPlaylistById(playlistId);
+    if (!playlist) {
+      throw new BadRequestException({ message: 'playlist not found' });
+    }
+    const { isPublic } = playlist;
+    if (!isPublic) {
+      throw new ForbiddenException({ message: 'This Playlist is Private' });
+    }
+    const repostCount = playlist.repostsCount;
+    return {
+      playlistId,
+      repostCount,
     };
   }
 }
