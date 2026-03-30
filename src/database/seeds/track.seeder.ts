@@ -53,7 +53,7 @@ export class TrackSeeder implements Seeder {
       console.log(`  Generating ${trackCount} tracks for artist: ${artist.username}`);
 
       const tracks = await trackFactory.saveMany(trackCount, {
-        user_id: artist.user_id,
+        user_id: artist.userId,
         user: artist,
       });
 
@@ -69,7 +69,7 @@ export class TrackSeeder implements Seeder {
 
         for (const liker of likers) {
           const like = await likeFactory.make({
-            user_id: liker.user_id,
+            user_id: liker.userId,
             track_id: track.track_id,
           });
           await likesRepository.save(like);
@@ -83,7 +83,7 @@ export class TrackSeeder implements Seeder {
 
         for (const reposter of reposters) {
           const repost = await repostFactory.make({
-            user_id: reposter.user_id,
+            user_id: reposter.userId,
             track_id: track.track_id,
           });
           await repostRepository.save(repost);
@@ -94,7 +94,7 @@ export class TrackSeeder implements Seeder {
         for (let i = 0; i < commentCount; i++) {
           const randomUser = allUsers[Math.floor(Math.random() * allUsers.length)];
           const comment = await commentFactory.make({
-            user_id: randomUser.user_id,
+            user_id: randomUser.userId,
             track_id: track.track_id,
             timestamp_seconds: Math.floor(Math.random() * (track.duration_seconds || 300)),
           });
