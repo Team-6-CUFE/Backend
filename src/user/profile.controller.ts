@@ -12,28 +12,41 @@ import { CreateExternalProfileDto } from './dto/create-external-profile.dto';
 import { UpdateExternalProfileDto } from './dto/update-external-profile.dto';
 import { UpdateAvatarDto } from './dto/update-avatar.dto';
 import { UpdateCoverDto } from './dto/update-cover.dto';
+import {
+  ApiGetMyProfile,
+  ApiGetProfile,
+  ApiUpdateProfile,
+  ApiUpdateBirthdate,
+  ApiUpdateGender,
+  ApiUpdatePrivacy,
+  ApiCheckUsername,
+} from './profile.swagger';
 
 @ApiTags('Profile')
 @Controller('profile')
 export class ProfileController {
   constructor(private readonly profileService: ProfileService) {}
 
+  @ApiGetMyProfile()
   @Get('me')
   async findMyProfile(@CurrentUser('sub') userId: string) {
     return this.profileService.findMyProfile(userId);
   }
 
+  @ApiCheckUsername()
   @Get('check-username')
   async isUsernameTaken(@Query() checkUsernameDto: CheckUsernameDto) {
     return this.profileService.isUsernameTaken(checkUsernameDto.username);
   }
 
+  @ApiGetProfile()
   @Public()
   @Get(':username')
   async findProfile(@Param('username') username: string) {
     return this.profileService.findProfile(username);
   }
 
+  @ApiUpdateProfile()
   @Put('me')
   async updateMyProfile(
     @CurrentUser('sub') userId: string,
@@ -42,6 +55,7 @@ export class ProfileController {
     return this.profileService.updateProfile(userId, updateProfileReqDto);
   }
 
+  @ApiUpdateBirthdate()
   @Put('me/birthdate')
   async updateMyBirthdate(
     @CurrentUser('sub') userId: string,
@@ -50,6 +64,7 @@ export class ProfileController {
     return this.profileService.updateMyBirthdate(userId, updateBirthdateReqDto);
   }
 
+  @ApiUpdateGender()
   @Put('me/gender')
   async updateMyGender(
     @CurrentUser('sub') userId: string,
@@ -58,6 +73,7 @@ export class ProfileController {
     return this.profileService.updateMyGender(userId, updateGenderReqDto);
   }
 
+  @ApiUpdatePrivacy()
   @Put('me/privacy')
   async updateMyPrivacy(
     @CurrentUser('sub') userId: string,
