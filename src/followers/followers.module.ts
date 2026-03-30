@@ -8,11 +8,12 @@ import { UserModule } from '../user/user.module';
 import { FollowersRepository } from './followers.repository';
 import { NoBlockGuard } from './guards/no-block.guard';
 import { UserRepository } from '../user/user.repository';
+import { UserExistsGuard } from './guards/user-exists.guard';
 
 @Module({
   imports: [TypeOrmModule.forFeature([UserFollow, UserBlock]), UserModule],
   controllers: [FollowersController],
-  providers: [FollowersService, FollowersRepository, NoBlockGuard, UserRepository],
+  providers: [FollowersService, FollowersRepository, NoBlockGuard, UserRepository, UserExistsGuard],
   exports: [FollowersRepository, NoBlockGuard],
 })
 export class FollowersModule {}
