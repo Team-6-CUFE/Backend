@@ -2,31 +2,17 @@ import {
   BadRequestException,
   ConflictException,
   ForbiddenException,
-  forwardRef,
-  Inject,
   Injectable,
   NotFoundException,
-  UnauthorizedException,
 } from '@nestjs/common';
 import { TrackRepository } from './track.repository';
-// eslint-disable-next-line import/no-cycle
-import { UserService } from '../user/user.service';
 import { buildPaginationResponse } from '../common/utilities/pagination.util';
 
 @Injectable()
 export class TrackService {
-  constructor(
-    private readonly trackRepository: TrackRepository,
-    @Inject(forwardRef(() => UserService))
-    private readonly userService: UserService
-  ) {}
+  constructor(private readonly trackRepository: TrackRepository) {}
 
   async repostTrack(trackId: string, userId: string, caption?: string) {
-    const user = await this.userService.findById(userId);
-    if (!user) {
-      throw new UnauthorizedException('User not found');
-    }
-
     const track = await this.trackRepository.findById(trackId);
     if (!track) {
       throw new NotFoundException('Track not found');

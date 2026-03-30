@@ -1,10 +1,4 @@
-import {
-  ForbiddenException,
-  forwardRef,
-  Inject,
-  Injectable,
-  NotFoundException,
-} from '@nestjs/common';
+import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import * as bcrypt from 'bcrypt';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UserRepository } from './user.repository';
@@ -13,7 +7,6 @@ import { UserEmail } from './entities/user-email.entity';
 import { UsernameAvailabilityService } from './username-availability.service';
 import { OAuthUser } from '../authentication/types/oauth-user.type';
 import { buildPaginationResponse } from '../common/utilities/pagination.util';
-// eslint-disable-next-line import/no-cycle
 import { TrackService } from '../track/track.service';
 
 @Injectable()
@@ -21,7 +14,6 @@ export class UserService {
   constructor(
     private readonly userRepository: UserRepository,
     private readonly usernameAvailabilityService: UsernameAvailabilityService,
-    @Inject(forwardRef(() => TrackService))
     private readonly trackService: TrackService
   ) {}
 
