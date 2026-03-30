@@ -118,7 +118,6 @@ describe('AuthenticationService', () => {
 
       const [createUserDtoArg, usernameArg] = userService.createUser.mock.calls[0];
       expect(createUserDtoArg).not.toHaveProperty('captchaToken');
-      expect(createUserDtoArg).not.toHaveProperty('captcha_token');
       expect(createUserDtoArg.email).toBe(mockEmail);
       expect(usernameArg).toBe('yara_senousy');
     });
@@ -240,9 +239,9 @@ describe('AuthenticationService', () => {
       );
     });
 
-    it('should return created_at from the created user', async () => {
+    it('should return createdAt from the created user', async () => {
       const fixedDate = new Date('2025-01-01T00:00:00Z');
-      userService.createUser.mockResolvedValue({ ...mockUser(), created_at: fixedDate });
+      userService.createUser.mockResolvedValue({ ...mockUser(), createdAt: fixedDate });
 
       const result = await service.register(mockRegisterDto() as any, mockIp);
 
@@ -446,12 +445,12 @@ describe('AuthenticationService', () => {
     });
 
     it('should throw BadRequestException if email already verified', async () => {
-      userService.findEmailRecord.mockResolvedValue({ ...mockUserEmail(), is_verified: true });
+      userService.findEmailRecord.mockResolvedValue({ ...mockUserEmail(), isVerified: true });
       await expect(service.resendVerificationEmail(mockEmail)).rejects.toThrow(BadRequestException);
     });
 
     it('should not proceed if email already verified', async () => {
-      userService.findEmailRecord.mockResolvedValue({ ...mockUserEmail(), is_verified: true });
+      userService.findEmailRecord.mockResolvedValue({ ...mockUserEmail(), isVerified: true });
       await expect(service.resendVerificationEmail(mockEmail)).rejects.toThrow();
       expect(mailService.sendEmailVerification).not.toHaveBeenCalled();
     });
@@ -609,11 +608,11 @@ describe('AuthenticationService', () => {
     it('should throw ForbiddenException if email login used with unverified email', async () => {
       userService.findByEmail.mockResolvedValue({
         ...mockUser(),
-        emails: [{ email: mockEmail, is_primary: true, is_verified: false, user_id: mockUserId }],
+        emails: [{ email: mockEmail, isPrimary: true, isVerified: false, userId: mockUserId }],
       });
       userService.findById.mockResolvedValue({
         ...mockUser(),
-        emails: [{ email: mockEmail, is_primary: true, is_verified: false, user_id: mockUserId }],
+        emails: [{ email: mockEmail, isPrimary: true, isVerified: false, userId: mockUserId }],
       });
 
       await expect(service.login(mockLoginDto() as any, res as any)).rejects.toThrow(
@@ -625,11 +624,11 @@ describe('AuthenticationService', () => {
       userService.findByEmail.mockResolvedValue(null);
       userService.findByUsername.mockResolvedValue({
         ...mockUser(),
-        emails: [{ email: mockEmail, is_primary: true, is_verified: false, user_id: mockUserId }],
+        emails: [{ email: mockEmail, isPrimary: true, isVerified: false, userId: mockUserId }],
       });
       userService.findById.mockResolvedValue({
         ...mockUser(),
-        emails: [{ email: mockEmail, is_primary: true, is_verified: false, user_id: mockUserId }],
+        emails: [{ email: mockEmail, isPrimary: true, isVerified: false, userId: mockUserId }],
       });
 
       await expect(service.login(mockLoginDtoWithUsername() as any, res as any)).rejects.toThrow(
@@ -651,11 +650,11 @@ describe('AuthenticationService', () => {
       userService.findByEmail.mockResolvedValue(null);
       userService.findByUsername.mockResolvedValue({
         ...mockUser(),
-        emails: [{ email: mockEmail, is_primary: false, is_verified: true, user_id: mockUserId }],
+        emails: [{ email: mockEmail, isPrimary: false, isVerified: true, userId: mockUserId }],
       });
       userService.findById.mockResolvedValue({
         ...mockUser(),
-        emails: [{ email: mockEmail, is_primary: false, is_verified: true, user_id: mockUserId }],
+        emails: [{ email: mockEmail, isPrimary: false, isVerified: true, userId: mockUserId }],
       });
 
       await expect(service.login(mockLoginDtoWithUsername() as any, res as any)).rejects.toThrow(
@@ -666,8 +665,8 @@ describe('AuthenticationService', () => {
     // ── Suspended account ──────────────────────────────────────────────────────
 
     it('should throw ForbiddenException if account is suspended', async () => {
-      userService.findByEmail.mockResolvedValue({ ...mockUser(), is_suspended: true });
-      userService.findById.mockResolvedValue({ ...mockUser(), is_suspended: true });
+      userService.findByEmail.mockResolvedValue({ ...mockUser(), isSuspended: true });
+      userService.findById.mockResolvedValue({ ...mockUser(), isSuspended: true });
 
       await expect(service.login(mockLoginDto() as any, res as any)).rejects.toThrow(
         ForbiddenException
@@ -675,8 +674,8 @@ describe('AuthenticationService', () => {
     });
 
     it('should not verify password if account is suspended', async () => {
-      userService.findByEmail.mockResolvedValue({ ...mockUser(), is_suspended: true });
-      userService.findById.mockResolvedValue({ ...mockUser(), is_suspended: true });
+      userService.findByEmail.mockResolvedValue({ ...mockUser(), isSuspended: true });
+      userService.findById.mockResolvedValue({ ...mockUser(), isSuspended: true });
 
       await expect(service.login(mockLoginDto() as any, res as any)).rejects.toThrow();
       expect(userService.verifyPassword).not.toHaveBeenCalled();
@@ -712,24 +711,24 @@ describe('AuthenticationService', () => {
       userService.findByEmail.mockResolvedValue({
         ...mockUser(),
         emails: [
-          { email: mockEmail, is_primary: true, is_verified: true, user_id: mockUserId },
+          { email: mockEmail, isPrimary: true, isVerified: true, userId: mockUserId },
           {
             email: 'secondary@example.com',
-            is_primary: false,
-            is_verified: true,
-            user_id: mockUserId,
+            isPrimary: false,
+            isVerified: true,
+            userId: mockUserId,
           },
         ],
       });
       userService.findById.mockResolvedValue({
         ...mockUser(),
         emails: [
-          { email: mockEmail, is_primary: true, is_verified: true, user_id: mockUserId },
+          { email: mockEmail, isPrimary: true, isVerified: true, userId: mockUserId },
           {
             email: 'secondary@example.com',
-            is_primary: false,
-            is_verified: true,
-            user_id: mockUserId,
+            isPrimary: false,
+            isVerified: true,
+            userId: mockUserId,
           },
         ],
       });
@@ -746,24 +745,24 @@ describe('AuthenticationService', () => {
       userService.findByEmail.mockResolvedValue({
         ...mockUser(),
         emails: [
-          { email: mockEmail, is_primary: true, is_verified: true, user_id: mockUserId },
+          { email: mockEmail, isPrimary: true, isVerified: true, userId: mockUserId },
           {
             email: 'secondary@example.com',
-            is_primary: false,
-            is_verified: true,
-            user_id: mockUserId,
+            isPrimary: false,
+            isVerified: true,
+            userId: mockUserId,
           },
         ],
       });
       userService.findById.mockResolvedValue({
         ...mockUser(),
         emails: [
-          { email: mockEmail, is_primary: true, is_verified: true, user_id: mockUserId },
+          { email: mockEmail, isPrimary: true, isVerified: true, userId: mockUserId },
           {
             email: 'secondary@example.com',
-            is_primary: false,
-            is_verified: true,
-            user_id: mockUserId,
+            isPrimary: false,
+            isVerified: true,
+            userId: mockUserId,
           },
         ],
       });
@@ -782,24 +781,24 @@ describe('AuthenticationService', () => {
       userService.findByEmail.mockResolvedValue({
         ...mockUser(),
         emails: [
-          { email: mockEmail, is_primary: true, is_verified: true, user_id: mockUserId },
+          { email: mockEmail, isPrimary: true, isVerified: true, userId: mockUserId },
           {
             email: 'secondary@example.com',
-            is_primary: false,
-            is_verified: true,
-            user_id: mockUserId,
+            isPrimary: false,
+            isVerified: true,
+            userId: mockUserId,
           },
         ],
       });
       userService.findById.mockResolvedValue({
         ...mockUser(),
         emails: [
-          { email: mockEmail, is_primary: true, is_verified: true, user_id: mockUserId },
+          { email: mockEmail, isPrimary: true, isVerified: true, userId: mockUserId },
           {
             email: 'secondary@example.com',
-            is_primary: false,
-            is_verified: true,
-            user_id: mockUserId,
+            isPrimary: false,
+            isVerified: true,
+            userId: mockUserId,
           },
         ],
       });
@@ -816,24 +815,24 @@ describe('AuthenticationService', () => {
       userService.findByEmail.mockResolvedValue({
         ...mockUser(),
         emails: [
-          { email: mockEmail, is_primary: true, is_verified: true, user_id: mockUserId },
+          { email: mockEmail, isPrimary: true, isVerified: true, userId: mockUserId },
           {
             email: 'secondary@example.com',
-            is_primary: false,
-            is_verified: false,
-            user_id: mockUserId,
+            isPrimary: false,
+            isVerified: false,
+            userId: mockUserId,
           },
         ],
       });
       userService.findById.mockResolvedValue({
         ...mockUser(),
         emails: [
-          { email: mockEmail, is_primary: true, is_verified: true, user_id: mockUserId },
+          { email: mockEmail, isPrimary: true, isVerified: true, userId: mockUserId },
           {
             email: 'secondary@example.com',
-            is_primary: false,
-            is_verified: false,
-            user_id: mockUserId,
+            isPrimary: false,
+            isVerified: false,
+            userId: mockUserId,
           },
         ],
       });
@@ -850,24 +849,24 @@ describe('AuthenticationService', () => {
       userService.findByEmail.mockResolvedValue({
         ...mockUser(),
         emails: [
-          { email: mockEmail, is_primary: true, is_verified: true, user_id: mockUserId },
+          { email: mockEmail, isPrimary: true, isVerified: true, userId: mockUserId },
           {
             email: 'secondary@example.com',
-            is_primary: false,
-            is_verified: false,
-            user_id: mockUserId,
+            isPrimary: false,
+            isVerified: false,
+            userId: mockUserId,
           },
         ],
       });
       userService.findById.mockResolvedValue({
         ...mockUser(),
         emails: [
-          { email: mockEmail, is_primary: true, is_verified: true, user_id: mockUserId },
+          { email: mockEmail, isPrimary: true, isVerified: true, userId: mockUserId },
           {
             email: 'secondary@example.com',
-            is_primary: false,
-            is_verified: false,
-            user_id: mockUserId,
+            isPrimary: false,
+            isVerified: false,
+            userId: mockUserId,
           },
         ],
       });
@@ -924,7 +923,7 @@ describe('AuthenticationService', () => {
       expect(result.message).toBe('Logged out successfully');
     });
 
-    it('should clear access_token cookie', async () => {
+    it('should clear accessToken cookie', async () => {
       await service.logout(res as any, mockRefreshToken);
 
       expect(res.clearCookie).toHaveBeenCalledWith(
@@ -933,7 +932,7 @@ describe('AuthenticationService', () => {
       );
     });
 
-    it('should clear refresh_token cookie', async () => {
+    it('should clear refreshToken cookie', async () => {
       await service.logout(res as any, mockRefreshToken);
 
       expect(res.clearCookie).toHaveBeenCalledWith(
@@ -1443,10 +1442,10 @@ describe('AuthenticationService', () => {
       );
     });
 
-    it('should use empty string when no email has is_primary true', async () => {
+    it('should use empty string when no email has isPrimary true', async () => {
       userService.findById.mockResolvedValue({
         ...mockUser(),
-        emails: [{ email: mockEmail, is_primary: false, is_verified: true, user_id: mockUserId }],
+        emails: [{ email: mockEmail, isPrimary: false, isVerified: true, userId: mockUserId }],
       });
       userService.addEmail.mockResolvedValue(mockNewEmailRecord());
       authRepo.createVerificationToken.mockResolvedValue(undefined);
@@ -1542,16 +1541,16 @@ describe('AuthenticationService', () => {
       expect(userService.getEmails).toHaveBeenCalledTimes(1);
     });
 
-    it('should return mapped emails without user_id', async () => {
+    it('should return mapped emails without userId', async () => {
       const result = await service.getEmails(mockUserId);
 
       result.emails.forEach((e) => {
-        expect(e).not.toHaveProperty('user_id');
+        expect(e).not.toHaveProperty('userId');
         expect(e).toHaveProperty('email');
-        expect(e).toHaveProperty('is_primary');
-        expect(e).toHaveProperty('is_verified');
-        expect(e).toHaveProperty('created_at');
-        expect(e).toHaveProperty('updated_at');
+        expect(e).toHaveProperty('isPrimary');
+        expect(e).toHaveProperty('isVerified');
+        expect(e).toHaveProperty('createdAt');
+        expect(e).toHaveProperty('updatedAt');
       });
     });
 
@@ -1585,10 +1584,10 @@ describe('AuthenticationService', () => {
       const result = await service.setPrimaryEmail(mockUserId, mockSecondaryEmail);
 
       expect(result.status).toBe('success');
-      expect(result.data.verification_required).toBe(true);
-      expect(result.data.new_primary_email).toBe(mockSecondaryEmail);
-      expect(result.data.code_sent_to).toBe(mockEmail); // sent to current primary
-      expect(result.data.expires_in).toBe(600);
+      expect(result.data.verificationRequired).toBe(true);
+      expect(result.data.newPrimaryEmail).toBe(mockSecondaryEmail);
+      expect(result.data.codeSentTo).toBe(mockEmail); // sent to current primary
+      expect(result.data.expiresIn).toBe(600);
     });
 
     it('should delete existing verification codes before creating new one', async () => {
@@ -1658,8 +1657,8 @@ describe('AuthenticationService', () => {
       userService.findById.mockResolvedValue({
         ...mockUserWithMultipleEmails(),
         emails: [
-          { email: mockEmail, is_primary: true, is_verified: true, user_id: mockUserId },
-          { email: mockSecondaryEmail, is_primary: false, is_verified: false, user_id: mockUserId },
+          { email: mockEmail, isPrimary: true, isVerified: true, userId: mockUserId },
+          { email: mockSecondaryEmail, isPrimary: false, isVerified: false, userId: mockUserId },
         ],
       });
 
@@ -1672,8 +1671,8 @@ describe('AuthenticationService', () => {
       userService.findById.mockResolvedValue({
         ...mockUserWithMultipleEmails(),
         emails: [
-          { email: mockEmail, is_primary: true, is_verified: true, user_id: mockUserId },
-          { email: mockSecondaryEmail, is_primary: false, is_verified: false, user_id: mockUserId },
+          { email: mockEmail, isPrimary: true, isVerified: true, userId: mockUserId },
+          { email: mockSecondaryEmail, isPrimary: false, isVerified: false, userId: mockUserId },
         ],
       });
 
@@ -1685,8 +1684,8 @@ describe('AuthenticationService', () => {
       userService.findById.mockResolvedValue({
         ...mockUserWithMultipleEmails(),
         emails: [
-          { email: mockEmail, is_primary: false, is_verified: true, user_id: mockUserId },
-          { email: mockSecondaryEmail, is_primary: false, is_verified: true, user_id: mockUserId },
+          { email: mockEmail, isPrimary: false, isVerified: true, userId: mockUserId },
+          { email: mockSecondaryEmail, isPrimary: false, isVerified: true, userId: mockUserId },
         ],
       });
 
@@ -1740,7 +1739,7 @@ describe('AuthenticationService', () => {
 
       expect(result.status).toBe('success');
       expect(result.message).toBe('Primary email changed successfully');
-      expect(result.data.new_primary).toBe(mockSecondaryEmail);
+      expect(result.data.newPrimary).toBe(mockSecondaryEmail);
     });
 
     it('should call setPrimaryEmail with correct email from verification record', async () => {
@@ -1839,8 +1838,8 @@ describe('AuthenticationService', () => {
       const result = await service.changePasswordRequest(mockUserId);
 
       expect(result.status).toBe('success');
-      expect(result.data.email_sent).toBe(true);
-      expect(result.data.sent_to).toBe(mockEmail);
+      expect(result.data.emailSent).toBe(true);
+      expect(result.data.sentTo).toBe(mockEmail);
     });
 
     it('should call getPrimaryEmail with correct userId', async () => {
@@ -1939,10 +1938,10 @@ describe('AuthenticationService', () => {
   describe('changePassword', () => {
     const mockPasswordResetToken = {
       id: 'token-id-123',
-      user_id: mockUserId,
+      userId: mockUserId,
       token: mockVerificationToken,
       email: mockEmail,
-      expires_at: new Date(Date.now() + 60 * 60 * 1000), // 1 hour from now
+      expiresAt: new Date(Date.now() + 60 * 60 * 1000), // 1 hour from now
       type: 'password_reset',
     };
 
@@ -1959,8 +1958,8 @@ describe('AuthenticationService', () => {
       const result = await service.changePassword(mockVerificationToken, 'NewPassword123!');
 
       expect(result.status).toBe('success');
-      expect(result.data.password_changed).toBe(true);
-      expect(result.data.reset_at).toBeInstanceOf(Date);
+      expect(result.data.passwordChanged).toBe(true);
+      expect(result.data.resetAt).toBeInstanceOf(Date);
     });
 
     it('should call findPasswordResetToken with correct token', async () => {
@@ -2025,7 +2024,7 @@ describe('AuthenticationService', () => {
     it('should throw BadRequestException if token is expired', async () => {
       authRepo.findPasswordResetToken.mockResolvedValue({
         ...mockPasswordResetToken,
-        expires_at: new Date(Date.now() - 1000), // expired 1 second ago
+        expiresAt: new Date(Date.now() - 1000), // expired 1 second ago
       });
 
       await expect(
@@ -2036,7 +2035,7 @@ describe('AuthenticationService', () => {
     it('should not update password if token is expired', async () => {
       authRepo.findPasswordResetToken.mockResolvedValue({
         ...mockPasswordResetToken,
-        expires_at: new Date(Date.now() - 1000),
+        expiresAt: new Date(Date.now() - 1000),
       });
 
       await expect(
@@ -2085,7 +2084,7 @@ describe('AuthenticationService', () => {
   describe('forgotPassword', () => {
     beforeEach(() => {
       jest.spyOn(tokensUtil, 'generateVerificationToken').mockReturnValue(mockVerificationToken);
-      userService.findEmailRecord.mockResolvedValue({ ...mockUserEmail(), is_verified: true });
+      userService.findEmailRecord.mockResolvedValue({ ...mockUserEmail(), isVerified: true });
       authRepo.createVerificationToken.mockResolvedValue(undefined);
       mailService.sendPasswordReset.mockResolvedValue(undefined);
       redisClient.incr.mockResolvedValue(1);
@@ -2098,8 +2097,8 @@ describe('AuthenticationService', () => {
       const result = await service.forgotPassword(mockEmail);
 
       expect(result.status).toBe('success');
-      expect(result.data.email_sent).toBe(true);
-      expect(result.data.sent_to).toBe(mockEmail);
+      expect(result.data.emailSent).toBe(true);
+      expect(result.data.sentTo).toBe(mockEmail);
     });
 
     it('should create verification token with PASSWORD_RESET type', async () => {
@@ -2163,11 +2162,11 @@ describe('AuthenticationService', () => {
       const result = await service.forgotPassword(mockEmail);
 
       expect(result.status).toBe('success');
-      expect(result.data.email_sent).toBe(true);
+      expect(result.data.emailSent).toBe(true);
     });
 
     it('should return success response even if email is not verified', async () => {
-      userService.findEmailRecord.mockResolvedValue({ ...mockUserEmail(), is_verified: false });
+      userService.findEmailRecord.mockResolvedValue({ ...mockUserEmail(), isVerified: false });
 
       const result = await service.forgotPassword(mockEmail);
 
@@ -2191,7 +2190,7 @@ describe('AuthenticationService', () => {
     });
 
     it('should not send email if email is not verified', async () => {
-      userService.findEmailRecord.mockResolvedValue({ ...mockUserEmail(), is_verified: false });
+      userService.findEmailRecord.mockResolvedValue({ ...mockUserEmail(), isVerified: false });
 
       await service.forgotPassword(mockEmail);
 
@@ -2246,7 +2245,7 @@ describe('AuthenticationService', () => {
       expect(result.type).toBe('login');
     });
 
-    it('should call findById with user_id from social account', async () => {
+    it('should call findById with userId from social account', async () => {
       userService.findSocialAccount.mockResolvedValue(mockSocialAccount());
 
       await service.handleOAuthCallback(mockOAuthProfile(), res as any);
@@ -2319,20 +2318,20 @@ describe('AuthenticationService', () => {
 
     // ── Case 3: Brand new user ─────────────────────────────────────────────────
 
-    it('should return registration_incomplete for brand new user', async () => {
+    it('should return registrationIncomplete for brand new user', async () => {
       const result = await service.handleOAuthCallback(mockOAuthProfile(), res as any);
 
       expect(result.status).toBe('success');
-      expect(result.type).toBe('registration_incomplete');
+      expect(result.type).toBe('registrationIncomplete');
     });
 
-    it('should return pending_token in response for new user', async () => {
+    it('should return pendingToken in response for new user', async () => {
       const result = await service.handleOAuthCallback(mockOAuthProfile(), res as any);
 
-      if ('pending_token' in result.data) {
-        expect(result.data.pending_token).toBe(mockPendingToken);
+      if ('pendingToken' in result.data) {
+        expect(result.data.pendingToken).toBe(mockPendingToken);
       } else {
-        fail('pending_token not found in result.data');
+        fail('pendingToken not found in result.data');
       }
     });
 
@@ -2341,7 +2340,7 @@ describe('AuthenticationService', () => {
 
       if ('prefill' in result.data) {
         expect(result.data.prefill.email).toBe(mockEmail);
-        expect(result.data.prefill.display_name).toBe('Yara Senousy');
+        expect(result.data.prefill.displayName).toBe('Yara Senousy');
       } else {
         fail('prefill not found in result.data');
       }
@@ -2416,9 +2415,9 @@ describe('AuthenticationService', () => {
       expect(userService.createOAuthUser).toHaveBeenCalledWith(
         expect.objectContaining({
           email: mockEmail,
-          first_name: 'Yara',
-          last_name: 'Senousy',
-          display_name: 'Yara Senousy',
+          firstName: 'Yara',
+          lastName: 'Senousy',
+          displayName: 'Yara Senousy',
           birthdate: '1995-06-15',
           gender: 'female',
         })
@@ -2466,14 +2465,14 @@ describe('AuthenticationService', () => {
       expect(authRepo.saveRefreshToken).toHaveBeenCalledTimes(1);
     });
 
-    it('should generate username from display_name', async () => {
+    it('should generate username from displayName', async () => {
       await service.completeOAuthProfile(mockCompleteOAuthProfileDto() as any, res as any, mockIp);
 
       const callArg = userService.createOAuthUser.mock.calls[0][0];
       expect(callArg.username).toMatch(/^yara_senousy/);
     });
 
-    it('should generate unique username if display_name based username is taken', async () => {
+    it('should generate unique username if displayName based username is taken', async () => {
       userService.checkUsernameExists.mockResolvedValueOnce(true).mockResolvedValueOnce(false);
 
       await service.completeOAuthProfile(mockCompleteOAuthProfileDto() as any, res as any, mockIp);
@@ -2603,8 +2602,8 @@ describe('AuthenticationService', () => {
 
       expect(result.status).toBe('success');
       expect(result.data.provider).toBe('google');
-      expect(result.data.provider_email).toBe(mockEmail);
-      expect(result.data.linked_at).toBeInstanceOf(Date);
+      expect(result.data.providerEmail).toBe(mockEmail);
+      expect(result.data.linkedAt).toBeInstanceOf(Date);
     });
 
     it('should call createSocialAccount with correct args', async () => {
@@ -2638,7 +2637,7 @@ describe('AuthenticationService', () => {
     it('should throw BadRequestException if account already linked to this user', async () => {
       userService.findSocialAccount.mockResolvedValue({
         ...mockSocialAccount(),
-        user_id: mockUserId, // same user
+        userId: mockUserId, // same user
       });
 
       await expect(service.linkSocialAccount(mockUserId, mockOAuthProfile())).rejects.toThrow(
@@ -2649,7 +2648,7 @@ describe('AuthenticationService', () => {
     it('should not call createSocialAccount if already linked to this user', async () => {
       userService.findSocialAccount.mockResolvedValue({
         ...mockSocialAccount(),
-        user_id: mockUserId,
+        userId: mockUserId,
       });
 
       await expect(service.linkSocialAccount(mockUserId, mockOAuthProfile())).rejects.toThrow();
@@ -2659,7 +2658,7 @@ describe('AuthenticationService', () => {
     it('should throw BadRequestException if account already linked to another user', async () => {
       userService.findSocialAccount.mockResolvedValue({
         ...mockSocialAccount(),
-        user_id: 'different-user-id', // different user
+        userId: 'different-user-id', // different user
       });
 
       await expect(service.linkSocialAccount(mockUserId, mockOAuthProfile())).rejects.toThrow(
@@ -2670,7 +2669,7 @@ describe('AuthenticationService', () => {
     it('should not call createSocialAccount if already linked to another user', async () => {
       userService.findSocialAccount.mockResolvedValue({
         ...mockSocialAccount(),
-        user_id: 'different-user-id',
+        userId: 'different-user-id',
       });
 
       await expect(service.linkSocialAccount(mockUserId, mockOAuthProfile())).rejects.toThrow();
@@ -2749,7 +2748,7 @@ describe('AuthenticationService', () => {
     it('should throw ForbiddenException if account belongs to another user', async () => {
       userService.findSocialAccount.mockResolvedValue({
         ...mockSocialAccount(),
-        user_id: 'different-user-id',
+        userId: 'different-user-id',
       });
 
       await expect(
@@ -2760,7 +2759,7 @@ describe('AuthenticationService', () => {
     it('should not delete account if it belongs to another user', async () => {
       userService.findSocialAccount.mockResolvedValue({
         ...mockSocialAccount(),
-        user_id: 'different-user-id',
+        userId: 'different-user-id',
       });
 
       await expect(
@@ -2783,16 +2782,16 @@ describe('AuthenticationService', () => {
   describe('getSocialAccounts', () => {
     const mockAccounts = [
       {
-        provider_id: mockProviderId,
+        providerId: mockProviderId,
         provider: 'google',
-        provider_email: mockEmail,
-        created_at: new Date('2025-03-20T13:00:00.000Z'),
+        providerEmail: mockEmail,
+        createdAt: new Date('2025-03-20T13:00:00.000Z'),
       },
       {
-        provider_id: 'fb-123',
+        providerId: 'fb-123',
         provider: 'facebook',
-        provider_email: 'yara@facebook.com',
-        created_at: new Date('2025-03-21T09:00:00.000Z'),
+        providerEmail: 'yara@facebook.com',
+        createdAt: new Date('2025-03-21T09:00:00.000Z'),
       },
     ];
 
@@ -2815,8 +2814,8 @@ describe('AuthenticationService', () => {
       expect(result.data.socialAccounts[0]).toEqual({
         providerid: mockProviderId,
         provider: 'google',
-        provider_email: mockEmail,
-        linked_at: mockAccounts[0].created_at,
+        providerEmail: mockEmail,
+        linkedAt: mockAccounts[0].createdAt,
       });
     });
 

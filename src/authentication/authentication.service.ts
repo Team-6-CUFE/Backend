@@ -63,7 +63,7 @@ export class AuthenticationService {
     const { email } = registerDto;
     const { city, country } = await getLocationFromIp(ip);
 
-    const isValidCaptcha = await verifyCaptcha(registerDto.captcha_token);
+    const isValidCaptcha = await verifyCaptcha(registerDto.captchaToken);
     if (!isValidCaptcha) {
       throw new BadRequestException('Captcha verification failed. Please try again.');
     }
@@ -75,7 +75,7 @@ export class AuthenticationService {
     if (await this.userService.checkUsernameExists(username)) {
       username = await this.generateUniqueUsername(username);
     }
-    const { captcha_token: captchaToken, ...createUserDto } = registerDto;
+    const { captchaToken, ...createUserDto } = registerDto;
     console.log(captchaToken);
     const createdUser = await this.userService.createUser(
       createUserDto,
@@ -260,7 +260,7 @@ export class AuthenticationService {
     }
 
     // Check expiry
-    if (storedToken.expires_at < new Date()) {
+    if (storedToken.expiresAt < new Date()) {
       await this.authRepository.revokeRefreshToken(oldTokenHash);
       throw new UnauthorizedException('Refresh token has expired');
     }
@@ -505,10 +505,10 @@ export class AuthenticationService {
       message:
         'Verification code sent to your current primary email. Please verify to complete the change.',
       data: {
-        verification_required: true,
-        code_sent_to: currentPrimary.email,
-        new_primary_email: email,
-        expires_in: 600,
+        verificationRequired: true,
+        codeSentTo: currentPrimary.email,
+        newPrimaryEmail: email,
+        expiresIn: 600,
       },
     };
   }
@@ -519,7 +519,7 @@ export class AuthenticationService {
       throw new BadRequestException('Invalid or expired verification code');
     }
 
-    if (verificationRecord.expires_at < new Date()) {
+    if (verificationRecord.expiresAt < new Date()) {
       this.authRepository.deleteVerificationCode(verificationRecord.id).catch(() => null);
       throw new BadRequestException('Invalid or expired verification code');
     }
@@ -532,8 +532,8 @@ export class AuthenticationService {
       status: 'success',
       message: 'Primary email changed successfully',
       data: {
-        new_primary: emailToSetPrimary,
-        changed_at: Date.now(),
+        newPrimary: emailToSetPrimary,
+        changedAt: Date.now(),
       },
     };
   }
@@ -567,8 +567,8 @@ export class AuthenticationService {
       status: 'success',
       message: `Password reset link sent to your primary email address ${verifiedPrimaryEmail}`,
       data: {
-        email_sent: true,
-        sent_to: `${verifiedPrimaryEmail}`,
+        emailSent: true,
+        sentTo: `${verifiedPrimaryEmail}`,
       },
     };
   }
@@ -578,23 +578,23 @@ export class AuthenticationService {
     if (!record) {
       throw new BadRequestException('Invalid or expired password reset token.');
     }
-    if (record.expires_at < new Date()) {
+    if (record.expiresAt < new Date()) {
       throw new BadRequestException('Invalid or expired password reset token.');
     }
-    const user = await this.userService.findById(record.user_id);
+    const user = await this.userService.findById(record.userId);
     const isSamePassword = await this.userService.verifyPassword(newPassword, user!.passwordHash);
     if (isSamePassword) {
       throw new BadRequestException('New password must be different from current password.');
     }
-    await this.userService.updatePassword(record.user_id, newPassword);
+    await this.userService.updatePassword(record.userId, newPassword);
     await this.authRepository.deleteVerificationToken(record.id);
-    await this.authRepository.revokeAllForUser(record.user_id);
+    await this.authRepository.revokeAllForUser(record.userId);
     return {
       status: 'success',
       message: 'Password has been changed successfully. Please log in with your new password.',
       data: {
-        password_changed: true,
-        reset_at: new Date(),
+        passwordChanged: true,
+        resetAt: new Date(),
       },
     };
   }
@@ -613,8 +613,8 @@ export class AuthenticationService {
         status: 'success',
         message: `Password reset link sent to your email address ${email}`,
         data: {
-          email_sent: true,
-          sent_to: `${email}`,
+          emailSent: true,
+          sentTo: `${email}`,
         },
       };
     }
@@ -640,8 +640,8 @@ export class AuthenticationService {
       status: 'success',
       message: `Password reset link sent to your email address ${email}`,
       data: {
-        email_sent: true,
-        sent_to: `${email}`,
+        emailSent: true,
+        sentTo: `${email}`,
       },
     };
   }
@@ -689,11 +689,11 @@ export class AuthenticationService {
     const pendingToken = await this.createPendingOAuthSession(profile);
     return {
       status: 'success',
-      type: 'registration_incomplete',
+      type: 'registrationIncomplete',
       data: {
-        pending_token: pendingToken,
+        pendingToken,
         prefill: {
-          display_name: `${profile.firstName} ${profile.lastName}`,
+          displayName: `${profile.firstName} ${profile.lastName}`,
           email: profile.email,
         },
       },
@@ -729,17 +729,17 @@ export class AuthenticationService {
   }
 
   async completeOAuthProfile(oauthData: CompleteOAuthProfileDto, response: Response, ip: string) {
-    const pendingToken = await this.authRepository.findPendingToken(oauthData.pending_token);
+    const pendingToken = await this.authRepository.findPendingToken(oauthData.pendingToken);
     if (!pendingToken) {
       throw new NotFoundException('Invalid or expired pending token');
     }
-    if (pendingToken.expires_at < new Date()) {
+    if (pendingToken.expiresAt < new Date()) {
       throw new BadRequestException('Pending token has expired');
     }
 
     const { city, country } = getLocationFromIp(ip);
 
-    let username = oauthData.display_name.toLowerCase().replace(/\s+/g, '_');
+    let username = oauthData.displayName.toLowerCase().replace(/\s+/g, '_');
     if (await this.userService.checkUsernameExists(username)) {
       username = await this.generateUniqueUsername(username);
     }
@@ -747,11 +747,11 @@ export class AuthenticationService {
     const createOAuthUser: OAuthUser = {
       email: pendingToken.email,
       username,
-      first_name: pendingToken.first_name,
-      last_name: pendingToken.last_name,
+      firstName: pendingToken.firstName,
+      lastName: pendingToken.lastName,
       birthdate: oauthData.birthdate,
       gender: oauthData.gender,
-      display_name: oauthData.display_name,
+      displayName: oauthData.displayName,
       city: city ?? '',
       country: country ?? '',
     };
@@ -760,7 +760,7 @@ export class AuthenticationService {
     await this.userService.createSocialAccount(
       user.userId,
       pendingToken.provider,
-      pendingToken.provider_id,
+      pendingToken.providerId,
       pendingToken.email
     );
 
@@ -805,8 +805,8 @@ export class AuthenticationService {
       message: `${profile.provider} account linked successfully`,
       data: {
         provider: profile.provider,
-        provider_email: profile.email,
-        linked_at: new Date(),
+        providerEmail: profile.email,
+        linkedAt: new Date(),
       },
     };
   }
@@ -828,7 +828,7 @@ export class AuthenticationService {
   }
 
   async getSocialAccounts(userId: string) {
-    // we need to return display_name + all data from social accounts
+    // we need to return displayName + all data from social accounts
     const user = await this.userService.findById(userId);
     if (!user) {
       throw new NotFoundException('User not found');

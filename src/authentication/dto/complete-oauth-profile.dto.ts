@@ -10,7 +10,7 @@ export class CompleteOAuthProfileDto {
   })
   @IsString()
   @IsNotEmpty({ message: 'Pending token is required' })
-  pending_token!: string;
+  pendingToken!: string;
 
   @ApiProperty({
     description: 'Display name shown on the user profile',
@@ -18,7 +18,7 @@ export class CompleteOAuthProfileDto {
   })
   @IsString()
   @IsNotEmpty({ message: 'Display name is required' })
-  display_name!: string;
+  displayName!: string;
 
   @ApiProperty({
     description: 'Date of birth in YYYY-MM-DD format. Must be at least 13 years old.',

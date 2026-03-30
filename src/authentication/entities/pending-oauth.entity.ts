@@ -11,18 +11,18 @@ export class PendingOAuthToken extends BaseEntity {
   @Column({ type: 'varchar' })
   provider!: string;
 
-  @Column({ type: 'varchar' })
-  provider_id!: string;
+  @Column({ name: 'provider_id', type: 'varchar' })
+  providerId!: string;
 
   @Column({ type: 'varchar' })
   email!: string;
 
-  @Column({ type: 'varchar' })
-  first_name!: string;
+  @Column({ name: 'first_name', type: 'varchar' })
+  firstName!: string;
 
-  @Column({ type: 'varchar' })
-  last_name!: string;
+  @Column({ name: 'last_name', type: 'varchar' })
+  lastName!: string;
 
-  @Column({ type: 'timestamp' })
-  expires_at!: Date;
+  @Column({ name: 'expires_at', type: 'timestamp' })
+  expiresAt!: Date;
 }

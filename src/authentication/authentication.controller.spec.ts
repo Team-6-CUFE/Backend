@@ -144,7 +144,7 @@ describe('AuthenticationController', () => {
       const mockServiceResponse = {
         status: 'success',
         message: 'Login successful',
-        data: { user_id: mockUserId, email: mockEmail },
+        data: { userId: mockUserId, email: mockEmail },
       };
       service.login.mockResolvedValue(mockServiceResponse);
 
@@ -384,7 +384,7 @@ describe('AuthenticationController', () => {
     it('should return the service response as is', async () => {
       const mockServiceResponse = {
         status: 'success',
-        emails: [{ email: mockEmail, is_primary: true, is_verified: true }],
+        emails: [{ email: mockEmail, isPrimary: true, isVerified: true }],
       };
       service.getEmails.mockResolvedValue(mockServiceResponse);
 
@@ -421,10 +421,10 @@ describe('AuthenticationController', () => {
         status: 'success',
         message: 'Verification code sent to your current primary email.',
         data: {
-          verification_required: true,
-          code_sent_to: mockEmail,
-          new_primary_email: mockSecondaryEmail,
-          expires_in: 600,
+          verificationRequired: true,
+          codeSentTo: mockEmail,
+          newPrimaryEmail: mockSecondaryEmail,
+          expiresIn: 600,
         },
       };
       service.setPrimaryEmail.mockResolvedValue(mockServiceResponse);
@@ -468,7 +468,7 @@ describe('AuthenticationController', () => {
       const mockServiceResponse = {
         status: 'success',
         message: 'Primary email changed successfully',
-        data: { new_primary: mockSecondaryEmail },
+        data: { newPrimary: mockSecondaryEmail },
       };
       service.verifyPrimaryEmailChange.mockResolvedValue(mockServiceResponse);
 
@@ -494,7 +494,7 @@ describe('AuthenticationController', () => {
       service.changePasswordRequest.mockResolvedValue({
         status: 'success',
         message: 'Password reset link sent to your primary email address.',
-        data: { email_sent: true, sent_to: mockEmail },
+        data: { emailSent: true, sentTo: mockEmail },
       });
 
       await controller.changePasswordRequest(mockUserId);
@@ -507,7 +507,7 @@ describe('AuthenticationController', () => {
       const mockServiceResponse = {
         status: 'success',
         message: 'Password reset link sent to your primary email address.',
-        data: { email_sent: true, sent_to: mockEmail },
+        data: { emailSent: true, sentTo: mockEmail },
       };
       service.changePasswordRequest.mockResolvedValue(mockServiceResponse);
 
@@ -539,7 +539,7 @@ describe('AuthenticationController', () => {
       service.changePassword.mockResolvedValue({
         status: 'success',
         message: 'Password has been changed successfully.',
-        data: { password_changed: true, reset_at: new Date() },
+        data: { passwordChanged: true, resetAt: new Date() },
       });
 
       await controller.changePassword(mockChangePasswordDto as any);
@@ -555,7 +555,7 @@ describe('AuthenticationController', () => {
       const mockServiceResponse = {
         status: 'success',
         message: 'Password has been changed successfully.',
-        data: { password_changed: true, reset_at: new Date() },
+        data: { passwordChanged: true, resetAt: new Date() },
       };
       service.changePassword.mockResolvedValue(mockServiceResponse);
 
@@ -592,7 +592,7 @@ describe('AuthenticationController', () => {
       service.forgotPassword.mockResolvedValue({
         status: 'success',
         message: 'Password reset link sent.',
-        data: { email_sent: true, sent_to: mockEmail },
+        data: { emailSent: true, sentTo: mockEmail },
       });
 
       await controller.forgotPassword(mockEmail);
@@ -605,7 +605,7 @@ describe('AuthenticationController', () => {
       const mockServiceResponse = {
         status: 'success',
         message: 'Password reset link sent.',
-        data: { email_sent: true, sent_to: mockEmail },
+        data: { emailSent: true, sentTo: mockEmail },
       };
       service.forgotPassword.mockResolvedValue(mockServiceResponse);
 
@@ -648,8 +648,8 @@ describe('AuthenticationController', () => {
     it('should return the service response as is', async () => {
       const mockServiceResponse = {
         status: 'success',
-        type: 'registration_incomplete',
-        data: { pending_token: mockPendingToken, prefill: {} },
+        type: 'registrationIncomplete',
+        data: { pendingToken: mockPendingToken, prefill: {} },
       };
       service.handleOAuthCallback.mockResolvedValue(mockServiceResponse);
 
@@ -695,7 +695,7 @@ describe('AuthenticationController', () => {
       const mockServiceResponse = {
         status: 'success',
         message: 'Profile completed and logged in successfully',
-        data: { user_id: mockUserId },
+        data: { userId: mockUserId },
       };
       service.completeOAuthProfile.mockResolvedValue(mockServiceResponse);
 
@@ -783,8 +783,8 @@ describe('AuthenticationController', () => {
     it('should return the service response as is', async () => {
       const mockServiceResponse = {
         status: 'success',
-        type: 'registration_incomplete',
-        data: { pending_token: mockPendingToken, prefill: {} },
+        type: 'registrationIncomplete',
+        data: { pendingToken: mockPendingToken, prefill: {} },
       };
       service.handleOAuthCallback.mockResolvedValue(mockServiceResponse);
 
@@ -800,7 +800,7 @@ describe('AuthenticationController', () => {
       service.handleOAuthCallback.mockResolvedValue({
         status: 'success',
         type: 'login',
-        data: { user_id: mockUserId, email: mockEmail },
+        data: { userId: mockUserId, email: mockEmail },
       });
 
       const result = await controller.facebookCallback(
@@ -811,13 +811,13 @@ describe('AuthenticationController', () => {
       expect(result.type).toBe('login');
     });
 
-    it('should return registration_incomplete type for new user', async () => {
+    it('should return registrationIncomplete type for new user', async () => {
       service.handleOAuthCallback.mockResolvedValue({
         status: 'success',
-        type: 'registration_incomplete',
+        type: 'registrationIncomplete',
         data: {
-          pending_token: mockPendingToken,
-          prefill: { display_name: 'John Doe', email: mockEmail },
+          pendingToken: mockPendingToken,
+          prefill: { displayName: 'John Doe', email: mockEmail },
         },
       });
 
@@ -826,10 +826,10 @@ describe('AuthenticationController', () => {
         mockResponseWithCookie() as any
       );
 
-      expect(result.type).toBe('registration_incomplete');
+      expect(result.type).toBe('registrationIncomplete');
       // ← use type assertion to tell TypeScript which type it is
-      const data = result.data as { pending_token: string; prefill: object };
-      expect(data.pending_token).toBe(mockPendingToken);
+      const data = result.data as { pendingToken: string; prefill: object };
+      expect(data.pendingToken).toBe(mockPendingToken);
     });
 
     it('should propagate exception thrown by service', async () => {
@@ -861,7 +861,7 @@ describe('AuthenticationController', () => {
       service.linkSocialAccount.mockResolvedValue({
         status: 'success',
         message: 'google account linked successfully',
-        data: { provider: 'google', provider_email: mockEmail, linked_at: new Date() },
+        data: { provider: 'google', providerEmail: mockEmail, linkedAt: new Date() },
       });
 
       await controller.googleLinkCallback(mockProfileWithUserId as any);
@@ -874,7 +874,7 @@ describe('AuthenticationController', () => {
       const mockServiceResponse = {
         status: 'success',
         message: 'google account linked successfully',
-        data: { provider: 'google', provider_email: mockEmail, linked_at: new Date() },
+        data: { provider: 'google', providerEmail: mockEmail, linkedAt: new Date() },
       };
       service.linkSocialAccount.mockResolvedValue(mockServiceResponse);
 
@@ -919,7 +919,7 @@ describe('AuthenticationController', () => {
       service.linkSocialAccount.mockResolvedValue({
         status: 'success',
         message: 'facebook account linked successfully',
-        data: { provider: 'facebook', provider_email: mockEmail, linked_at: new Date() },
+        data: { provider: 'facebook', providerEmail: mockEmail, linkedAt: new Date() },
       });
 
       await controller.facebookLinkCallback(mockFacebookProfileWithUserId as any);
@@ -935,7 +935,7 @@ describe('AuthenticationController', () => {
       const mockServiceResponse = {
         status: 'success',
         message: 'facebook account linked successfully',
-        data: { provider: 'facebook', provider_email: mockEmail, linked_at: new Date() },
+        data: { provider: 'facebook', providerEmail: mockEmail, linkedAt: new Date() },
       };
       service.linkSocialAccount.mockResolvedValue(mockServiceResponse);
 
@@ -1013,7 +1013,7 @@ describe('AuthenticationController', () => {
     it('should delegate to service with userId', async () => {
       service.getSocialAccounts.mockResolvedValue({
         status: 'success',
-        data: { display_name: mockUsername, social_accounts: [] },
+        data: { displayName: mockUsername, socialAccounts: [] },
       });
 
       await controller.getSocialAccounts(mockUserId);
@@ -1026,13 +1026,13 @@ describe('AuthenticationController', () => {
       const mockServiceResponse = {
         status: 'success',
         data: {
-          display_name: mockUsername,
-          social_accounts: [
+          displayName: mockUsername,
+          socialAccounts: [
             {
               providerid: mockProviderId,
               provider: 'google',
-              provider_email: mockEmail,
-              linked_at: new Date(),
+              providerEmail: mockEmail,
+              linkedAt: new Date(),
             },
           ],
         },
@@ -1044,10 +1044,10 @@ describe('AuthenticationController', () => {
       expect(result).toEqual(mockServiceResponse);
     });
 
-    it('should return empty social_accounts array when none linked', async () => {
+    it('should return empty socialAccounts array when none linked', async () => {
       service.getSocialAccounts.mockResolvedValue({
         status: 'success',
-        data: { display_name: mockUsername, social_accounts: [] },
+        data: { displayName: mockUsername, socialAccounts: [] },
       });
 
       const result = await controller.getSocialAccounts(mockUserId);

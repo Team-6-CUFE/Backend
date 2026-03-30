@@ -27,10 +27,10 @@ export const mockRedisClient = () => ({
 export const mockRegisterDto = () => ({
   email: mockEmail,
   password: mockPassword,
-  display_name: 'Yara Senousy',
+  displayName: 'Yara Senousy',
   birthdate: new Date('1995-06-15'),
   gender: 'female',
-  captcha_token: 'valid-captcha-token',
+  captchaToken: 'valid-captcha-token',
 });
 
 export const mockLoginDto = () => ({
@@ -76,16 +76,16 @@ export const mockUserEmail = (): Partial<UserEmail> => ({
 
 export const mockStoredRefreshToken = (): Partial<RefreshToken> => ({
   id: 'token-uuid-1234',
-  user_id: mockUserId,
+  userId: mockUserId,
   token: 'hashed_refresh_token',
-  expires_at: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // 7 days from now
+  expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // 7 days from now
 });
 
 export const mockExpiredRefreshToken = (): Partial<RefreshToken> => ({
   id: 'token-uuid-5678',
-  user_id: mockUserId,
+  userId: mockUserId,
   token: 'hashed_expired_token',
-  expires_at: new Date(Date.now() - 1000), // already expired
+  expiresAt: new Date(Date.now() - 1000), // already expired
 });
 
 export const mockResponseWithCookie = () => ({
@@ -113,28 +113,28 @@ export const mockOAuthProfile = (): OAuthProfile => ({
 
 export const mockSocialAccount = () => ({
   provider: 'google',
-  provider_id: mockProviderId,
-  user_id: mockUserId,
+  providerId: mockProviderId,
+  userId: mockUserId,
 });
 
 export const mockPendingOAuthSession = () => ({
   token: mockPendingToken,
   provider: 'google',
-  provider_id: mockProviderId,
+  providerId: mockProviderId,
   email: mockEmail,
-  first_name: 'Yara',
-  last_name: 'Senousy',
+  firstName: 'Yara',
+  lastName: 'Senousy',
   expires_at: new Date(Date.now() + 10 * 60 * 1000), // 10 min from now
 });
 
 export const mockExpiredPendingOAuthSession = () => ({
   ...mockPendingOAuthSession(),
-  expires_at: new Date(Date.now() - 1000), // already expired
+  expiresAt: new Date(Date.now() - 1000), // already expired
 });
 
 export const mockCompleteOAuthProfileDto = () => ({
-  pending_token: mockPendingToken,
-  display_name: 'Yara Senousy',
+  pendingToken: mockPendingToken,
+  displayName: 'Yara Senousy',
   birthdate: '1995-06-15',
   gender: 'female',
 });
@@ -255,22 +255,22 @@ export const mockUserWithMultipleEmails = (): Partial<User> => ({
 
 export const mockNewEmailRecord = () => ({
   email: mockSecondaryEmail,
-  is_primary: false,
-  is_verified: false,
-  user_id: mockUserId,
-  created_at: new Date(),
-  updated_at: new Date(),
+  isPrimary: false,
+  isVerified: false,
+  userId: mockUserId,
+  createdAt: new Date(),
+  updatedAt: new Date(),
 });
 
 export const mockVerificationCodeRecord = () => ({
   id: 'code-uuid-001',
-  user_id: mockUserId,
+  userId: mockUserId,
   code: mockVerificationCode,
   email: mockSecondaryEmail,
-  expires_at: new Date(Date.now() + 5 * 60 * 1000), // 5 min from now
+  expiresAt: new Date(Date.now() + 5 * 60 * 1000), // 5 min from now
 });
 
 export const mockExpiredVerificationCodeRecord = () => ({
   ...mockVerificationCodeRecord(),
-  expires_at: new Date(Date.now() - 1000), // already expired
+  expiresAt: new Date(Date.now() - 1000), // already expired
 });
