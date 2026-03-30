@@ -20,6 +20,12 @@ import {
   ApiUpdateGender,
   ApiUpdatePrivacy,
   ApiCheckUsername,
+  ApiUpdateCover,
+  ApiGetExternalProfiles,
+  ApiAddExternalProfile,
+  ApiUpdateExternalProfile,
+  ApiDeleteExternalProfile,
+  ApiUpdateAvatar,
 } from './profile.swagger';
 
 @ApiTags('Profile')
@@ -82,11 +88,13 @@ export class ProfileController {
     return this.profileService.updateMyPrivacy(userId, updatePrivacyReqDto);
   }
 
+  @ApiGetExternalProfiles()
   @Get('me/external-profiles')
   async getMyExternalProfiles(@CurrentUser('sub') userId: string) {
     return this.profileService.getMyExternalProfiles(userId);
   }
 
+  @ApiAddExternalProfile()
   @Post('me/external-profiles')
   async addExternalProfile(
     @CurrentUser('sub') userId: string,
@@ -95,6 +103,7 @@ export class ProfileController {
     return this.profileService.addExternalProfile(userId, createExternalProfileDto);
   }
 
+  @ApiUpdateExternalProfile()
   @Patch('me/external-profiles/:id')
   async updateExternalProfile(
     @CurrentUser('sub') userId: string,
@@ -104,16 +113,19 @@ export class ProfileController {
     return this.profileService.updateExternalProfile(userId, profileId, updateExternalProfileDto);
   }
 
+  @ApiDeleteExternalProfile()
   @Delete('me/external-profiles/:id')
   async deleteExternalProfile(@CurrentUser('sub') userId: string, @Param('id') profileId: string) {
     return this.profileService.deleteExternalProfile(userId, profileId);
   }
 
+  @ApiUpdateAvatar()
   @Put('me/avatar')
   async updateAvatar(@CurrentUser('sub') userId: string, @Body() updateAvatarDto: UpdateAvatarDto) {
     return this.profileService.updateAvatar(userId, updateAvatarDto.avatarUrl);
   }
 
+  @ApiUpdateCover()
   @Put('me/cover')
   async updateCover(@CurrentUser('sub') userId: string, @Body() updateCoverDto: UpdateCoverDto) {
     return this.profileService.updateCover(userId, updateCoverDto.coverPhoto);
