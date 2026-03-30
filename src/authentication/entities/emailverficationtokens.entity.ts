@@ -24,7 +24,7 @@ export class EmailVerificationToken extends BaseEntity {
   expiresAt!: Date;
 
   @Column({
-    name: 'token_type',
+    name: 'type',
     type: 'varchar',
     length: 50,
     default: TokenType.EMAIL_VERIFICATION,

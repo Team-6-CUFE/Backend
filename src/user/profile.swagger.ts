@@ -1,5 +1,12 @@
 import { applyDecorators } from '@nestjs/common';
-import { ApiOperation, ApiResponse, ApiParam, ApiQuery, ApiBearerAuth } from '@nestjs/swagger';
+import {
+  ApiOperation,
+  ApiResponse,
+  ApiParam,
+  ApiQuery,
+  ApiBearerAuth,
+  ApiBody,
+} from '@nestjs/swagger';
 
 export function ApiGetMyProfile() {
   return applyDecorators(
@@ -295,6 +302,386 @@ export function ApiUpdatePrivacy() {
       },
     }),
     ApiResponse({ status: 401, description: 'Unauthorized — missing or invalid JWT' }),
+    ApiResponse({ status: 500, description: 'Unexpected server error' })
+  );
+}
+
+export function ApiUpdateAvatar() {
+  return applyDecorators(
+    ApiBearerAuth(),
+    ApiOperation({
+      summary: 'Update profile picture',
+      description: "Updates the authenticated user's avatar/profile picture URL.",
+    }),
+    ApiBody({
+      schema: {
+        type: 'object',
+        required: ['avatarUrl'],
+        properties: {
+          avatarUrl: {
+            type: 'string',
+            format: 'uri',
+            example: 'https://cdn.example.com/avatars/moaaz.jpg',
+          },
+        },
+      },
+    }),
+    ApiResponse({
+      status: 200,
+      description: 'Profile picture updated successfully',
+      schema: {
+        example: {
+          status: 'Success',
+          message: 'Profile picture updated successfully',
+          data: {
+            avatarUrl: 'https://cdn.example.com/avatars/moaaz.jpg',
+            updatedAt: '2025-03-01T12:00:00.000Z',
+          },
+        },
+      },
+    }),
+    ApiResponse({
+      status: 400,
+      description: 'Invalid or missing URL',
+      schema: {
+        example: {
+          status: 'error',
+          message: 'Invalid file',
+          errors: [{ field: 'avatarUrl', message: 'File size exceeds 5MB limit' }],
+        },
+      },
+    }),
+    ApiResponse({ status: 401, description: 'Unauthorized — missing or invalid JWT' }),
+    ApiResponse({ status: 404, description: 'User not found' }),
+    ApiResponse({ status: 500, description: 'Unexpected server error' })
+  );
+}
+
+export function ApiUpdateCover() {
+  return applyDecorators(
+    ApiBearerAuth(),
+    ApiOperation({
+      summary: 'Update cover photo',
+      description: "Updates the authenticated user's cover photo URL.",
+    }),
+    ApiBody({
+      schema: {
+        type: 'object',
+        required: ['coverPhoto'],
+        properties: {
+          coverPhoto: {
+            type: 'string',
+            format: 'uri',
+            example: 'https://cdn.example.com/covers/moaaz.jpg',
+          },
+        },
+      },
+    }),
+    ApiResponse({
+      status: 200,
+      description: 'Cover photo updated successfully',
+      schema: {
+        example: {
+          status: 'Success',
+          message: 'Cover photo updated successfully',
+          data: {
+            coverPhoto: 'https://cdn.example.com/covers/moaaz.jpg',
+            updatedAt: '2025-03-01T12:00:00.000Z',
+          },
+        },
+      },
+    }),
+    ApiResponse({
+      status: 400,
+      description: 'Invalid or missing URL',
+      schema: {
+        example: {
+          status: 'error',
+          message: 'Validation failed',
+          errors: [{ field: 'coverPhoto', message: 'Please provide a valid URL' }],
+        },
+      },
+    }),
+    ApiResponse({ status: 401, description: 'Unauthorized — missing or invalid JWT' }),
+    ApiResponse({ status: 404, description: 'User not found' }),
+    ApiResponse({ status: 500, description: 'Unexpected server error' })
+  );
+}
+
+export function ApiGetExternalProfiles() {
+  return applyDecorators(
+    ApiBearerAuth(),
+    ApiOperation({
+      summary: 'Get my external profiles',
+      description:
+        'Returns all external profile links saved by the authenticated user (e.g. Instagram, Twitter). Up to 10 entries.',
+    }),
+    ApiResponse({
+      status: 200,
+      description: 'External profiles retrieved successfully',
+      schema: {
+        example: {
+          status: 'Success',
+          data: [
+            {
+              id: 'abc-uuid-1',
+              userId: '550e8400-e29b-41d4-a716-446655440001',
+              name: 'instagram',
+              url: 'https://instagram.com/moaaz',
+              createdAt: '2025-03-01T12:00:00.000Z',
+              updatedAt: '2025-03-01T12:00:00.000Z',
+            },
+            {
+              id: 'abc-uuid-2',
+              userId: '550e8400-e29b-41d4-a716-446655440001',
+              name: 'soundcloud',
+              url: 'https://soundcloud.com/moaaz',
+              createdAt: '2025-03-02T09:00:00.000Z',
+              updatedAt: '2025-03-02T09:00:00.000Z',
+            },
+          ],
+        },
+      },
+    }),
+    ApiResponse({ status: 401, description: 'Unauthorized — missing or invalid JWT' }),
+    ApiResponse({ status: 500, description: 'Unexpected server error' })
+  );
+}
+
+export function ApiAddExternalProfile() {
+  return applyDecorators(
+    ApiBearerAuth(),
+    ApiOperation({
+      summary: 'Add an external profile link',
+      description:
+        'Adds a new external profile link for the authenticated user. The user may have at most 10 links. Both name and URL must be unique per user — duplicate names or URLs are rejected.',
+    }),
+    ApiBody({
+      schema: {
+        type: 'object',
+        required: ['name', 'url'],
+        properties: {
+          name: {
+            type: 'string',
+            maxLength: 50,
+            example: 'instagram',
+            description: 'Label for the link (e.g. "instagram", "twitter", "personal site")',
+          },
+          url: {
+            type: 'string',
+            format: 'uri',
+            maxLength: 255,
+            example: 'https://instagram.com/moaaz',
+          },
+        },
+      },
+    }),
+    ApiResponse({
+      status: 201,
+      description: 'External profile added successfully',
+      schema: {
+        example: {
+          status: 'Success',
+          message: 'External profile added successfully',
+          data: {
+            id: 'abc-uuid-1',
+            userId: '550e8400-e29b-41d4-a716-446655440001',
+            name: 'instagram',
+            url: 'https://instagram.com/moaaz',
+            createdAt: '2025-03-01T12:00:00.000Z',
+            updatedAt: '2025-03-01T12:00:00.000Z',
+          },
+        },
+      },
+    }),
+    ApiResponse({
+      status: 400,
+      description: 'Validation error or maximum links reached',
+      content: {
+        'application/json': {
+          examples: {
+            maxReached: {
+              summary: 'Maximum of 10 links reached',
+              value: {
+                status: 'error',
+                message: 'Validation failed',
+                errors: [
+                  {
+                    field: 'general',
+                    message: 'You can only have a maximum of 10 external links.',
+                  },
+                ],
+              },
+            },
+            invalidUrl: {
+              summary: 'Invalid URL format',
+              value: {
+                status: 'error',
+                message: 'Validation failed',
+                errors: [{ field: 'url', message: 'Must be a valid URL format' }],
+              },
+            },
+          },
+        },
+      },
+    }),
+    ApiResponse({
+      status: 409,
+      description: 'Duplicate name or URL',
+      content: {
+        'application/json': {
+          examples: {
+            duplicateName: {
+              summary: 'Name already exists',
+              value: {
+                status: 'error',
+                message: 'Validation failed',
+                errors: [{ field: 'name', message: 'You already have a link named instagram.' }],
+              },
+            },
+            duplicateUrl: {
+              summary: 'URL already saved',
+              value: {
+                status: 'error',
+                message: 'Validation failed',
+                errors: [{ field: 'url', message: 'You already saved this exact URL.' }],
+              },
+            },
+          },
+        },
+      },
+    }),
+    ApiResponse({ status: 401, description: 'Unauthorized — missing or invalid JWT' }),
+    ApiResponse({ status: 500, description: 'Unexpected server error' })
+  );
+}
+
+export function ApiUpdateExternalProfile() {
+  return applyDecorators(
+    ApiBearerAuth(),
+    ApiOperation({
+      summary: 'Edit an external profile link',
+      description:
+        "Updates the name and/or URL of one of the authenticated user's external profile links. Both fields are optional — only send what you want to change. Duplicate name or URL across the user's existing links is rejected.",
+    }),
+    ApiParam({
+      name: 'id',
+      description: 'UUID of the external profile link to update',
+      example: 'abc-uuid-1',
+    }),
+    ApiBody({
+      schema: {
+        type: 'object',
+        properties: {
+          name: {
+            type: 'string',
+            maxLength: 50,
+            example: 'twitter',
+          },
+          url: {
+            type: 'string',
+            format: 'uri',
+            maxLength: 255,
+            example: 'https://twitter.com/moaaz',
+          },
+        },
+      },
+    }),
+    ApiResponse({
+      status: 200,
+      description: 'External profile updated successfully',
+      schema: {
+        example: {
+          status: 'Success',
+          message: 'External profile updated successfully',
+          data: {
+            id: 'abc-uuid-1',
+            userId: '550e8400-e29b-41d4-a716-446655440001',
+            name: 'twitter',
+            url: 'https://twitter.com/moaaz',
+            createdAt: '2025-03-01T12:00:00.000Z',
+            updatedAt: '2025-03-10T09:00:00.000Z',
+          },
+        },
+      },
+    }),
+    ApiResponse({
+      status: 400,
+      description: 'Validation error',
+      schema: {
+        example: {
+          status: 'error',
+          message: 'Validation failed',
+          errors: [{ field: 'url', message: 'Must be a valid URL format' }],
+        },
+      },
+    }),
+    ApiResponse({
+      status: 404,
+      description: 'External profile not found',
+      schema: {
+        example: {
+          status: 'error',
+          message: 'Resource not found',
+          errors: [{ field: 'profileId', message: 'External profile not found.' }],
+        },
+      },
+    }),
+    ApiResponse({
+      status: 409,
+      description: 'Duplicate name or URL',
+      content: {
+        'application/json': {
+          examples: {
+            duplicateName: {
+              summary: 'Name already exists',
+              value: {
+                status: 'error',
+                message: 'Validation failed',
+                errors: [{ field: 'name', message: 'You already have a link named twitter.' }],
+              },
+            },
+            duplicateUrl: {
+              summary: 'URL already saved',
+              value: {
+                status: 'error',
+                message: 'Validation failed',
+                errors: [{ field: 'url', message: 'You already saved this exact URL.' }],
+              },
+            },
+          },
+        },
+      },
+    }),
+    ApiResponse({ status: 401, description: 'Unauthorized — missing or invalid JWT' }),
+    ApiResponse({ status: 500, description: 'Unexpected server error' })
+  );
+}
+
+export function ApiDeleteExternalProfile() {
+  return applyDecorators(
+    ApiBearerAuth(),
+    ApiOperation({
+      summary: 'Remove an external profile link',
+      description: "Permanently deletes one of the authenticated user's external profile links.",
+    }),
+    ApiParam({
+      name: 'id',
+      description: 'UUID of the external profile link to delete',
+      example: 'abc-uuid-1',
+    }),
+    ApiResponse({
+      status: 200,
+      description: 'External profile deleted successfully',
+      schema: {
+        example: {
+          status: 'Success',
+          message: 'External profile deleted successfully',
+        },
+      },
+    }),
+    ApiResponse({ status: 401, description: 'Unauthorized — missing or invalid JWT' }),
+    ApiResponse({ status: 404, description: 'External profile not found' }),
     ApiResponse({ status: 500, description: 'Unexpected server error' })
   );
 }
