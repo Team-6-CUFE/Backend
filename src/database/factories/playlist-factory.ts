@@ -9,7 +9,7 @@ export default setSeederFactory(Playlist, (faker) => {
   playlist.title = `${formattedAdjective} ${genre} Vibes`;
   playlist.description =
     faker.helpers.maybe(() => faker.lorem.sentences(2), { probability: 0.7 }) ?? '';
-  playlist.cover_image = faker.image.url({ width: 500, height: 500 });
-  playlist.is_public = faker.datatype.boolean({ probability: 0.85 });
+  playlist.coverImage = faker.image.url({ width: 500, height: 500 });
+  playlist.isPublic = faker.datatype.boolean({ probability: 0.85 });
   return playlist;
 });
