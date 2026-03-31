@@ -158,10 +158,7 @@ export class FollowersService {
       throw new BadRequestException('You cannot block yourself');
     }
 
-    const alreadyBlocked = await this.followersRepository.hasBlockRelationship(
-      currentUserId,
-      targetUserId
-    );
+    const alreadyBlocked = await this.followersRepository.isBlocking(currentUserId, targetUserId);
 
     if (alreadyBlocked) {
       throw new ConflictException('You have already blocked this user');
