@@ -3,6 +3,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { UserFollow } from './entities/user-follows.entity';
 import { UserBlock } from './entities/user-blocks.entity';
+import { User } from '../user/entities/user.entity';
 
 @Injectable()
 export class FollowersRepository {
@@ -10,7 +11,9 @@ export class FollowersRepository {
     @InjectRepository(UserFollow)
     private followRepository: Repository<UserFollow>,
     @InjectRepository(UserBlock)
-    private blockRepository: Repository<UserBlock>
+    private blockRepository: Repository<UserBlock>,
+    @InjectRepository(User)
+    private userRepository: Repository<User>
   ) {}
 
   async hasBlockRelationship(userA: string, userB: string): Promise<boolean> {
@@ -22,5 +25,127 @@ export class FollowersRepository {
     });
 
     return block !== null;
+  }
+
+  async createFollow(followerId: string, followedId: string): Promise<UserFollow> {
+    const follow = await this.followRepository.create({
+      follower: followerId,
+      followed: followedId,
+    });
+    return this.followRepository.save(follow);
+  }
+
+  async deleteFollow(followerId: string, followedId: string): Promise<boolean> {
+    const result = await this.followRepository.delete({
+      follower: followerId,
+      followed: followedId,
+    });
+    return (result.affected ?? 0) > 0;
+  }
+
+  async getFollowers(
+    userId: string,
+    page: number,
+    limit: number
+  ): Promise<{ users: Partial<User>[]; total: number }> {
+    const offset: number = (page - 1) * limit;
+    const [users, total] = await Promise.all([
+      this.userRepository
+        .createQueryBuilder('user')
+        .innerJoin('user_follows', 'uf', 'uf.follower = user.user_id')
+        .where('uf.followed = :userId', { userId })
+        .select([
+          'user.userId',
+          'user.username',
+          'user.displayName',
+          'user.avatarUrl',
+          'user.followersCount',
+        ])
+        .skip(offset)
+        .take(limit)
+        .getMany(),
+
+      this.followRepository.count({ where: { followed: userId } }),
+    ]);
+
+    return { users, total };
+  }
+
+  async getFollowing(
+    userId: string,
+    page: number,
+    limit: number
+  ): Promise<{ users: Partial<User>[]; total: number }> {
+    const offset: number = (page - 1) * limit;
+    const [users, total] = await Promise.all([
+      this.userRepository
+        .createQueryBuilder('user')
+        .innerJoin('user_follows', 'uf', 'uf.followed = user.user_id')
+        .where('uf.follower = :userId', { userId })
+        .select([
+          'user.userId',
+          'user.username',
+          'user.displayName',
+          'user.avatarUrl',
+          'user.followersCount',
+        ])
+        .skip(offset)
+        .take(limit)
+        .getMany(),
+
+      this.followRepository.count({ where: { follower: userId } }),
+    ]);
+
+    return { users, total };
+  }
+
+  async isFollowing(followerId: string, followedId: string): Promise<boolean> {
+    const follow = await this.followRepository.findOne({
+      where: { follower: followerId, followed: followedId },
+    });
+    return follow !== null;
+  }
+
+  async isMutualFollow(userAId: string, userBId: string): Promise<boolean> {
+    const [aFollowsB, bFollowsA] = await Promise.all([
+      this.followRepository.findOne({ where: { follower: userAId, followed: userBId } }),
+      this.followRepository.findOne({ where: { follower: userBId, followed: userAId } }),
+    ]);
+    return aFollowsB !== null && bFollowsA !== null;
+  }
+
+  async getFollowStatus(
+    currentUserId: string,
+    targetUserId: string
+  ): Promise<{ status: 'following' | 'notFollowing' | 'mutual'; since?: Date }> {
+    const follow = await this.followRepository.findOne({
+      where: { follower: currentUserId, followed: targetUserId },
+      order: { createdAt: 'ASC' },
+    });
+
+    if (!follow) {
+      return { status: 'notFollowing' };
+    }
+
+    const isMutual = await this.isMutualFollow(currentUserId, targetUserId);
+
+    return {
+      status: isMutual ? 'mutual' : 'following',
+      since: follow.createdAt,
+    };
+  }
+
+  async countFollowers(userId: string): Promise<number> {
+    const result = await this.followRepository.count({
+      where: { followed: userId },
+    });
+    return result;
+  }
+
+  async countFollowing(userId: string): Promise<number> {
+    const result = await this.followRepository.count({
+      where: { follower: userId },
+    });
+    return result;
   }
 }

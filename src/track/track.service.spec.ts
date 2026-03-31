@@ -29,6 +29,12 @@ const mockTrackRepository = () => ({
   editTrackRepost: jest.fn(),
   getTrackReposts: jest.fn(),
   getUserTrackReposts: jest.fn(),
+  didUserLikeTrack: jest.fn(),
+  likeTrack: jest.fn(),
+  getTrackLikesCount: jest.fn(),
+  removeTrackLike: jest.fn(),
+  getTrackLikes: jest.fn(),
+  getUserTrackLikes: jest.fn(),
 });
 
 const mockUserRepository = () => ({
@@ -50,6 +56,7 @@ const mockRepostWithUser = () => ({
     username: 'other_user',
     displayName: 'Other User',
     avatarUrl: 'https://example.com/avatar.jpg',
+    followersCount: 120,
   },
   caption: mockCaption,
   createdAt: new Date('2024-06-01T12:00:00Z'),
@@ -67,6 +74,33 @@ const mockRepostWithTrack = () => ({
     user: { userId: mockArtistId, username: 'dj_nour', displayName: 'Nour' },
   },
   caption: 'Love this track!',
+  createdAt: new Date('2024-06-01T12:00:00Z'),
+});
+const mockTrackLike = () => ({
+  trackId: mockTrackId,
+  userId: mockUserId,
+  createdAt: new Date(),
+});
+const mockLikeWithUser = () => ({
+  user: {
+    userId: mockOtherUserId,
+    username: 'other_user',
+    displayName: 'Other User',
+    avatarUrl: 'https://example.com/avatar.jpg',
+    followersCount: 120,
+  },
+  createdAt: new Date('2024-06-01T12:00:00Z'),
+});
+const mockLikeWithTrack = () => ({
+  track: {
+    trackId: mockTrackId,
+    title: 'Midnight Drive',
+    coverImage: 'https://s3.amazonaws.com/covers/midnight.jpg',
+    durationSeconds: 213,
+    playCount: 1500,
+    repostsCount: 30,
+    user: { userId: mockArtistId, username: 'dj_nour', displayName: 'Nour' },
+  },
   createdAt: new Date('2024-06-01T12:00:00Z'),
 });
 
@@ -333,6 +367,7 @@ describe('TrackService', () => {
             username: 'other_user',
             displayName: 'Other User',
             avatarUrl: 'https://example.com/avatar.jpg',
+            followersCount: 120,
             caption: mockCaption,
             repostedAt: repost.createdAt,
           },
@@ -390,6 +425,7 @@ describe('TrackService', () => {
         username: 'other_user',
         displayName: 'Other User',
         avatarUrl: 'https://example.com/avatar.jpg',
+        followersCount: 120,
       });
     });
 
@@ -536,6 +572,388 @@ describe('TrackService', () => {
       trackRepo.getUserTrackReposts.mockRejectedValue(new Error('DB error'));
 
       await expect(service.getUserTrackReposts(mockOtherUserId, mockMyUserId)).rejects.toThrow(
+        'DB error'
+      );
+    });
+  });
+
+  // ─── likeTrack() ─────────────────────────────────────────────────────────────
+
+  describe('likeTrack', () => {
+    it('should return { status, data } with the created like on success', async () => {
+      const like = mockTrackLike();
+      trackRepo.findById.mockResolvedValue(mockPublicTrack());
+      trackRepo.didUserLikeTrack.mockResolvedValue(false);
+      trackRepo.likeTrack.mockResolvedValue(like);
+
+      const result = await service.likeTrack(mockTrackId, mockUserId);
+
+      expect(trackRepo.likeTrack).toHaveBeenCalledWith(mockTrackId, mockUserId);
+      expect(result).toEqual({ status: 'success', data: like });
+    });
+
+    it('should throw NotFoundException when track not found', async () => {
+      trackRepo.findById.mockResolvedValue(null);
+
+      await expect(service.likeTrack(mockTrackId, mockUserId)).rejects.toThrow(NotFoundException);
+    });
+
+    it('should NOT call likeTrack if track not found', async () => {
+      trackRepo.findById.mockResolvedValue(null);
+
+      await expect(service.likeTrack(mockTrackId, mockUserId)).rejects.toThrow();
+      expect(trackRepo.likeTrack).not.toHaveBeenCalled();
+    });
+
+    it('should throw BadRequestException when userId equals track.userId', async () => {
+      trackRepo.findById.mockResolvedValue(mockOwnTrack());
+
+      await expect(service.likeTrack(mockTrackId, mockUserId)).rejects.toThrow(BadRequestException);
+    });
+
+    it('should NOT call didUserLikeTrack if track is own', async () => {
+      trackRepo.findById.mockResolvedValue(mockOwnTrack());
+
+      await expect(service.likeTrack(mockTrackId, mockUserId)).rejects.toThrow();
+      expect(trackRepo.didUserLikeTrack).not.toHaveBeenCalled();
+    });
+
+    it('should throw ForbiddenException when track is private', async () => {
+      trackRepo.findById.mockResolvedValue(mockPrivateTrack());
+
+      await expect(service.likeTrack(mockTrackId, mockUserId)).rejects.toThrow(ForbiddenException);
+    });
+
+    it('should NOT call didUserLikeTrack if track is private', async () => {
+      trackRepo.findById.mockResolvedValue(mockPrivateTrack());
+
+      await expect(service.likeTrack(mockTrackId, mockUserId)).rejects.toThrow();
+      expect(trackRepo.didUserLikeTrack).not.toHaveBeenCalled();
+    });
+
+    it('should throw ConflictException when user has already liked', async () => {
+      trackRepo.findById.mockResolvedValue(mockPublicTrack());
+      trackRepo.didUserLikeTrack.mockResolvedValue(true);
+
+      await expect(service.likeTrack(mockTrackId, mockUserId)).rejects.toThrow(ConflictException);
+    });
+  });
+
+  // ─── getTrackLikesCount() ────────────────────────────────────────────────────
+
+  describe('getTrackLikesCount', () => {
+    it('should return { status, data: { trackId, likesCount } } for a public track', async () => {
+      trackRepo.findById.mockResolvedValue(mockPublicTrack());
+      trackRepo.getTrackLikesCount.mockResolvedValue(7);
+
+      const result = await service.getTrackLikesCount(mockTrackId, mockUserId);
+
+      expect(result).toEqual({ status: 'success', data: { trackId: mockTrackId, likesCount: 7 } });
+    });
+
+    it('should allow access to own private track (userId === track.userId)', async () => {
+      trackRepo.findById.mockResolvedValue({ ...mockPrivateTrack(), userId: mockUserId });
+      trackRepo.getTrackLikesCount.mockResolvedValue(2);
+
+      const result = await service.getTrackLikesCount(mockTrackId, mockUserId);
+
+      expect(result).toEqual({ status: 'success', data: { trackId: mockTrackId, likesCount: 2 } });
+    });
+
+    it('should throw NotFoundException when track not found', async () => {
+      trackRepo.findById.mockResolvedValue(null);
+
+      await expect(service.getTrackLikesCount(mockTrackId, mockUserId)).rejects.toThrow(
+        NotFoundException
+      );
+    });
+
+    it('should throw ForbiddenException when track is private and user is not the owner', async () => {
+      trackRepo.findById.mockResolvedValue(mockPrivateTrack());
+
+      await expect(service.getTrackLikesCount(mockTrackId, mockUserId)).rejects.toThrow(
+        ForbiddenException
+      );
+    });
+
+    it('should call findById with correct trackId', async () => {
+      trackRepo.findById.mockResolvedValue(mockPublicTrack());
+      trackRepo.getTrackLikesCount.mockResolvedValue(0);
+
+      await service.getTrackLikesCount(mockTrackId, mockUserId);
+
+      expect(trackRepo.findById).toHaveBeenCalledWith(mockTrackId);
+    });
+
+    it('should call getTrackLikesCount with correct trackId', async () => {
+      trackRepo.findById.mockResolvedValue(mockPublicTrack());
+      trackRepo.getTrackLikesCount.mockResolvedValue(3);
+
+      await service.getTrackLikesCount(mockTrackId, mockUserId);
+
+      expect(trackRepo.getTrackLikesCount).toHaveBeenCalledWith(mockTrackId);
+    });
+  });
+
+  // ─── removeTrackLike() ───────────────────────────────────────────────────────
+
+  describe('removeTrackLike', () => {
+    it('should remove like and return success message', async () => {
+      trackRepo.didUserLikeTrack.mockResolvedValue(true);
+      trackRepo.removeTrackLike.mockResolvedValue(undefined);
+
+      const result = await service.removeTrackLike(mockTrackId, mockUserId);
+
+      expect(result).toEqual({ status: 'success', message: 'Track successfully unliked' });
+    });
+
+    it('should call removeTrackLike on repo with correct args', async () => {
+      trackRepo.didUserLikeTrack.mockResolvedValue(true);
+      trackRepo.removeTrackLike.mockResolvedValue(undefined);
+
+      await service.removeTrackLike(mockTrackId, mockUserId);
+
+      expect(trackRepo.removeTrackLike).toHaveBeenCalledWith(mockTrackId, mockUserId);
+    });
+
+    it('should call didUserLikeTrack with correct args', async () => {
+      trackRepo.didUserLikeTrack.mockResolvedValue(true);
+      trackRepo.removeTrackLike.mockResolvedValue(undefined);
+
+      await service.removeTrackLike(mockTrackId, mockUserId);
+
+      expect(trackRepo.didUserLikeTrack).toHaveBeenCalledWith(mockUserId, mockTrackId);
+    });
+
+    it('should throw BadRequestException when user has not liked', async () => {
+      trackRepo.didUserLikeTrack.mockResolvedValue(false);
+
+      await expect(service.removeTrackLike(mockTrackId, mockUserId)).rejects.toThrow(
+        BadRequestException
+      );
+    });
+
+    it('should NOT call removeTrackLike if user has not liked', async () => {
+      trackRepo.didUserLikeTrack.mockResolvedValue(false);
+
+      await expect(service.removeTrackLike(mockTrackId, mockUserId)).rejects.toThrow();
+      expect(trackRepo.removeTrackLike).not.toHaveBeenCalled();
+    });
+  });
+
+  // ─── getTrackLikes() ─────────────────────────────────────────────────────────
+
+  describe('getTrackLikes', () => {
+    it('should return a paginated response with correct shape for a public track', async () => {
+      const like = mockLikeWithUser();
+      trackRepo.findById.mockResolvedValue(mockPublicTrack());
+      trackRepo.getTrackLikes.mockResolvedValue([[like], 1]);
+
+      const result = await service.getTrackLikes(mockTrackId, mockUserId, 1, 20);
+
+      expect(result).toEqual({
+        status: 'success',
+        data: [
+          {
+            userId: mockOtherUserId,
+            username: 'other_user',
+            displayName: 'Other User',
+            avatarUrl: 'https://example.com/avatar.jpg',
+            followersCount: 120,
+            likedAt: like.createdAt,
+          },
+        ],
+        pagination: { currentPage: 1, totalPages: 1, totalCount: 1, limit: 20 },
+      });
+    });
+
+    it('should allow access to own private track', async () => {
+      trackRepo.findById.mockResolvedValue({ ...mockPrivateTrack(), userId: mockUserId });
+      trackRepo.getTrackLikes.mockResolvedValue([[], 0]);
+
+      await expect(service.getTrackLikes(mockTrackId, mockUserId, 1, 20)).resolves.not.toThrow();
+    });
+
+    it('should throw NotFoundException when track not found', async () => {
+      trackRepo.findById.mockResolvedValue(null);
+
+      await expect(service.getTrackLikes(mockTrackId, mockUserId)).rejects.toThrow(
+        NotFoundException
+      );
+    });
+
+    it('should throw ForbiddenException when track is private and user is not the owner', async () => {
+      trackRepo.findById.mockResolvedValue(mockPrivateTrack());
+
+      await expect(service.getTrackLikes(mockTrackId, mockUserId)).rejects.toThrow(
+        ForbiddenException
+      );
+    });
+
+    it('should cap limit at 100 when limit=200 is passed', async () => {
+      trackRepo.findById.mockResolvedValue(mockPublicTrack());
+      trackRepo.getTrackLikes.mockResolvedValue([[], 0]);
+
+      await service.getTrackLikes(mockTrackId, mockUserId, 1, 200);
+
+      expect(trackRepo.getTrackLikes).toHaveBeenCalledWith(mockTrackId, 1, 100);
+    });
+
+    it('should map like.user fields correctly (no caption field)', async () => {
+      const like = mockLikeWithUser();
+      trackRepo.findById.mockResolvedValue(mockPublicTrack());
+      trackRepo.getTrackLikes.mockResolvedValue([[like], 1]);
+
+      const result = await service.getTrackLikes(mockTrackId, mockUserId, 1, 20);
+
+      expect(result.data[0]).not.toHaveProperty('caption');
+      expect(result.data[0]).toMatchObject({
+        userId: mockOtherUserId,
+        username: 'other_user',
+        displayName: 'Other User',
+        avatarUrl: 'https://example.com/avatar.jpg',
+        followersCount: 120,
+      });
+    });
+
+    it('should include likedAt in mapped output', async () => {
+      const like = mockLikeWithUser();
+      trackRepo.findById.mockResolvedValue(mockPublicTrack());
+      trackRepo.getTrackLikes.mockResolvedValue([[like], 1]);
+
+      const result = await service.getTrackLikes(mockTrackId, mockUserId, 1, 20);
+
+      expect(result.data[0].likedAt).toBe(like.createdAt);
+    });
+
+    it('should call getTrackLikes with correct args (trackId, page, cappedLimit)', async () => {
+      trackRepo.findById.mockResolvedValue(mockPublicTrack());
+      trackRepo.getTrackLikes.mockResolvedValue([[], 0]);
+
+      await service.getTrackLikes(mockTrackId, mockUserId, 2, 50);
+
+      expect(trackRepo.getTrackLikes).toHaveBeenCalledWith(mockTrackId, 2, 50);
+    });
+
+    it('should use defaults (page=1, limit=20) when not provided', async () => {
+      trackRepo.findById.mockResolvedValue(mockPublicTrack());
+      trackRepo.getTrackLikes.mockResolvedValue([[], 0]);
+
+      await service.getTrackLikes(mockTrackId, mockUserId);
+
+      expect(trackRepo.getTrackLikes).toHaveBeenCalledWith(mockTrackId, 1, 20);
+    });
+  });
+
+  // ─── getUserTrackLikes() ─────────────────────────────────────────────────────
+
+  describe('getUserTrackLikes', () => {
+    it('should throw NotFoundException when user not found', async () => {
+      userRepo.findById.mockResolvedValue(null);
+
+      await expect(service.getUserTrackLikes(mockOtherUserId, mockMyUserId)).rejects.toThrow(
+        NotFoundException
+      );
+    });
+
+    it('should throw ForbiddenException when account is private and requester is not the owner', async () => {
+      userRepo.findById.mockResolvedValue(mockPrivateUser());
+
+      await expect(service.getUserTrackLikes(mockOtherUserId, mockMyUserId)).rejects.toThrow(
+        ForbiddenException
+      );
+    });
+
+    it('should return likes for a public user', async () => {
+      const like = mockLikeWithTrack();
+      userRepo.findById.mockResolvedValue(mockPublicUser());
+      trackRepo.getUserTrackLikes.mockResolvedValue([[like], 1]);
+
+      const result = await service.getUserTrackLikes(mockOtherUserId, mockMyUserId, 1, 20);
+
+      expect(trackRepo.getUserTrackLikes).toHaveBeenCalledWith(mockOtherUserId, 1, 20);
+      expect(result).toBeDefined();
+    });
+
+    it('should allow a private user to view their own likes', async () => {
+      const like = mockLikeWithTrack();
+      userRepo.findById.mockResolvedValue(mockPrivateUser());
+      trackRepo.getUserTrackLikes.mockResolvedValue([[like], 1]);
+
+      const result = await service.getUserTrackLikes(mockOtherUserId, mockOtherUserId, 1, 20);
+
+      expect(result).toBeDefined();
+    });
+
+    it('should cap limit to 100', async () => {
+      userRepo.findById.mockResolvedValue(mockPublicUser());
+      trackRepo.getUserTrackLikes.mockResolvedValue([[], 0]);
+
+      await service.getUserTrackLikes(mockOtherUserId, mockMyUserId, 1, 200);
+
+      expect(trackRepo.getUserTrackLikes).toHaveBeenCalledWith(mockOtherUserId, 1, 100);
+    });
+
+    it('should use default page=1 and limit=20 when not provided', async () => {
+      userRepo.findById.mockResolvedValue(mockPublicUser());
+      trackRepo.getUserTrackLikes.mockResolvedValue([[], 0]);
+
+      await service.getUserTrackLikes(mockOtherUserId, mockMyUserId);
+
+      expect(trackRepo.getUserTrackLikes).toHaveBeenCalledWith(mockOtherUserId, 1, 20);
+    });
+
+    it('should return correct pagination response shape', async () => {
+      const like = mockLikeWithTrack();
+      userRepo.findById.mockResolvedValue(mockPublicUser());
+      trackRepo.getUserTrackLikes.mockResolvedValue([[like], 5]);
+
+      const result = await service.getUserTrackLikes(mockOtherUserId, mockMyUserId, 1, 2);
+
+      expect(result).toHaveProperty('data');
+      expect(result).toHaveProperty('pagination');
+      expect(result.pagination).toMatchObject({
+        currentPage: 1,
+        totalPages: 3,
+        totalCount: 5,
+        limit: 2,
+      });
+    });
+
+    it('should map like fields correctly (no caption)', async () => {
+      const like = mockLikeWithTrack();
+      userRepo.findById.mockResolvedValue(mockPublicUser());
+      trackRepo.getUserTrackLikes.mockResolvedValue([[like], 1]);
+
+      const result = await service.getUserTrackLikes(mockOtherUserId, mockMyUserId, 1, 20);
+
+      expect(result.data[0]).toMatchObject({
+        trackId: mockTrackId,
+        title: 'Midnight Drive',
+        coverImage: 'https://s3.amazonaws.com/covers/midnight.jpg',
+        durationSeconds: 213,
+        playCount: 1500,
+        repostsCount: 30,
+        artist: { userId: mockArtistId, username: 'dj_nour', displayName: 'Nour' },
+        likedAt: new Date('2024-06-01T12:00:00Z'),
+      });
+      expect(result.data[0]).not.toHaveProperty('caption');
+    });
+
+    it('should call userRepository.findById with the correct userId', async () => {
+      userRepo.findById.mockResolvedValue(mockPublicUser());
+      trackRepo.getUserTrackLikes.mockResolvedValue([[], 0]);
+
+      await service.getUserTrackLikes(mockOtherUserId, mockMyUserId);
+
+      expect(userRepo.findById).toHaveBeenCalledWith(mockOtherUserId);
+    });
+
+    it('should propagate error from trackRepository', async () => {
+      userRepo.findById.mockResolvedValue(mockPublicUser());
+      trackRepo.getUserTrackLikes.mockRejectedValue(new Error('DB error'));
+
+      await expect(service.getUserTrackLikes(mockOtherUserId, mockMyUserId)).rejects.toThrow(
         'DB error'
       );
     });

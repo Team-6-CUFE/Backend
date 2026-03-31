@@ -21,6 +21,11 @@ const mockTrackService = () => ({
   editTrackRepost: jest.fn(),
   getTrackReposts: jest.fn(),
   getUserTrackReposts: jest.fn(),
+  likeTrack: jest.fn(),
+  getTrackLikesCount: jest.fn(),
+  removeTrackLike: jest.fn(),
+  getTrackLikes: jest.fn(),
+  getUserTrackLikes: jest.fn(),
 });
 
 describe('TrackController', () => {
@@ -292,6 +297,233 @@ describe('TrackController', () => {
 
       await expect(
         controller.getUserTrackReposts(mockUserId, mockMyUserId, mockPage, mockLimit)
+      ).rejects.toThrow(ForbiddenException);
+    });
+  });
+
+  // ─── likeTrack ────────────────────────────────────────────────────────────────
+
+  describe('likeTrack', () => {
+    it('should delegate to service with trackId and userId', async () => {
+      service.likeTrack.mockResolvedValue({});
+
+      await controller.likeTrack(mockTrackId, mockUserId);
+
+      expect(service.likeTrack).toHaveBeenCalledWith(mockTrackId, mockUserId);
+      expect(service.likeTrack).toHaveBeenCalledTimes(1);
+    });
+
+    it('should return the service response as-is', async () => {
+      const mockResponse = {
+        status: 'success',
+        data: { trackId: mockTrackId, userId: mockUserId },
+      };
+      service.likeTrack.mockResolvedValue(mockResponse);
+
+      const result = await controller.likeTrack(mockTrackId, mockUserId);
+
+      expect(result).toEqual(mockResponse);
+    });
+
+    it('should propagate NotFoundException from service', async () => {
+      service.likeTrack.mockRejectedValue(new NotFoundException('Track not found'));
+
+      await expect(controller.likeTrack(mockTrackId, mockUserId)).rejects.toThrow(
+        NotFoundException
+      );
+    });
+
+    it('should propagate ConflictException from service', async () => {
+      service.likeTrack.mockRejectedValue(new ConflictException('Already liked'));
+
+      await expect(controller.likeTrack(mockTrackId, mockUserId)).rejects.toThrow(
+        ConflictException
+      );
+    });
+
+    it('should propagate ForbiddenException from service', async () => {
+      service.likeTrack.mockRejectedValue(new ForbiddenException('Track is private'));
+
+      await expect(controller.likeTrack(mockTrackId, mockUserId)).rejects.toThrow(
+        ForbiddenException
+      );
+    });
+  });
+
+  // ─── getTrackLikesCount ───────────────────────────────────────────────────────
+
+  describe('getTrackLikesCount', () => {
+    it('should delegate to service with trackId and userId', async () => {
+      service.getTrackLikesCount.mockResolvedValue({
+        status: 'success',
+        data: { trackId: mockTrackId, likesCount: 5 },
+      });
+
+      await controller.getTrackLikessCount(mockTrackId, mockUserId);
+
+      expect(service.getTrackLikesCount).toHaveBeenCalledWith(mockTrackId, mockUserId);
+      expect(service.getTrackLikesCount).toHaveBeenCalledTimes(1);
+    });
+
+    it('should return the service response as-is', async () => {
+      const mockResponse = { status: 'success', data: { trackId: mockTrackId, likesCount: 42 } };
+      service.getTrackLikesCount.mockResolvedValue(mockResponse);
+
+      const result = await controller.getTrackLikessCount(mockTrackId, mockUserId);
+
+      expect(result).toEqual(mockResponse);
+    });
+
+    it('should propagate NotFoundException from service', async () => {
+      service.getTrackLikesCount.mockRejectedValue(new NotFoundException('Track not found'));
+
+      await expect(controller.getTrackLikessCount(mockTrackId, mockUserId)).rejects.toThrow(
+        NotFoundException
+      );
+    });
+
+    it('should propagate ForbiddenException from service', async () => {
+      service.getTrackLikesCount.mockRejectedValue(new ForbiddenException('Access denied'));
+
+      await expect(controller.getTrackLikessCount(mockTrackId, mockUserId)).rejects.toThrow(
+        ForbiddenException
+      );
+    });
+  });
+
+  // ─── removeTrackLike ──────────────────────────────────────────────────────────
+
+  describe('removeTrackLike', () => {
+    it('should delegate to service with trackId and userId', async () => {
+      service.removeTrackLike.mockResolvedValue({});
+
+      await controller.removeTrackLike(mockTrackId, mockUserId);
+
+      expect(service.removeTrackLike).toHaveBeenCalledWith(mockTrackId, mockUserId);
+      expect(service.removeTrackLike).toHaveBeenCalledTimes(1);
+    });
+
+    it('should return the service response as-is', async () => {
+      const mockResponse = { status: 'success', message: 'Track successfully unliked' };
+      service.removeTrackLike.mockResolvedValue(mockResponse);
+
+      const result = await controller.removeTrackLike(mockTrackId, mockUserId);
+
+      expect(result).toEqual(mockResponse);
+    });
+
+    it('should propagate BadRequestException from service', async () => {
+      service.removeTrackLike.mockRejectedValue(new BadRequestException('Like not found'));
+
+      await expect(controller.removeTrackLike(mockTrackId, mockUserId)).rejects.toThrow(
+        BadRequestException
+      );
+    });
+  });
+
+  // ─── getTrackLikes ────────────────────────────────────────────────────────────
+
+  describe('getTrackLikes', () => {
+    const mockPage = 1;
+    const mockLimit = 10;
+
+    it('should delegate to service with trackId, userId, page, and limit', async () => {
+      service.getTrackLikes.mockResolvedValue({ status: 'success', data: [], pagination: {} });
+
+      await controller.getTrackLikes(mockTrackId, mockUserId, mockPage, mockLimit);
+
+      expect(service.getTrackLikes).toHaveBeenCalledWith(
+        mockTrackId,
+        mockUserId,
+        mockPage,
+        mockLimit
+      );
+      expect(service.getTrackLikes).toHaveBeenCalledTimes(1);
+    });
+
+    it('should return the service response as-is', async () => {
+      const mockResponse = {
+        status: 'success',
+        data: [{ userId: mockUserId, likedAt: new Date() }],
+        pagination: { currentPage: 1, totalPages: 1, totalCount: 1, limit: 10 },
+      };
+      service.getTrackLikes.mockResolvedValue(mockResponse);
+
+      const result = await controller.getTrackLikes(mockTrackId, mockUserId, mockPage, mockLimit);
+
+      expect(result).toEqual(mockResponse);
+    });
+
+    it('should propagate NotFoundException from service', async () => {
+      service.getTrackLikes.mockRejectedValue(new NotFoundException('Track not found'));
+
+      await expect(
+        controller.getTrackLikes(mockTrackId, mockUserId, mockPage, mockLimit)
+      ).rejects.toThrow(NotFoundException);
+    });
+
+    it('should propagate ForbiddenException from service', async () => {
+      service.getTrackLikes.mockRejectedValue(new ForbiddenException('Access denied'));
+
+      await expect(
+        controller.getTrackLikes(mockTrackId, mockUserId, mockPage, mockLimit)
+      ).rejects.toThrow(ForbiddenException);
+    });
+  });
+
+  // ─── getUserTrackLikes ────────────────────────────────────────────────────────
+
+  describe('getUserTrackLikes', () => {
+    const mockPage = 1;
+    const mockLimit = 20;
+
+    it('should delegate to service with userId, myUserId, page, and limit', async () => {
+      service.getUserTrackLikes.mockResolvedValue({ status: 'success', data: [], pagination: {} });
+
+      await controller.getUserTrackLikes(mockUserId, mockMyUserId, mockPage, mockLimit);
+
+      expect(service.getUserTrackLikes).toHaveBeenCalledWith(
+        mockUserId,
+        mockMyUserId,
+        mockPage,
+        mockLimit
+      );
+      expect(service.getUserTrackLikes).toHaveBeenCalledTimes(1);
+    });
+
+    it('should return the service response as-is', async () => {
+      const mockResponse = {
+        status: 'success',
+        data: [{ trackId: mockTrackId, title: 'Midnight Drive' }],
+        pagination: { currentPage: 1, totalPages: 1, totalCount: 1, limit: 20 },
+      };
+      service.getUserTrackLikes.mockResolvedValue(mockResponse);
+
+      const result = await controller.getUserTrackLikes(
+        mockUserId,
+        mockMyUserId,
+        mockPage,
+        mockLimit
+      );
+
+      expect(result).toBe(mockResponse);
+    });
+
+    it('should propagate NotFoundException from service', async () => {
+      service.getUserTrackLikes.mockRejectedValue(new NotFoundException('User not found'));
+
+      await expect(
+        controller.getUserTrackLikes(mockUserId, mockMyUserId, mockPage, mockLimit)
+      ).rejects.toThrow(NotFoundException);
+    });
+
+    it('should propagate ForbiddenException from service', async () => {
+      service.getUserTrackLikes.mockRejectedValue(
+        new ForbiddenException('This account is private')
+      );
+
+      await expect(
+        controller.getUserTrackLikes(mockUserId, mockMyUserId, mockPage, mockLimit)
       ).rejects.toThrow(ForbiddenException);
     });
   });
