@@ -198,4 +198,11 @@ export class FollowersRepository {
       return transactionalEntityManager.save(newBlock);
     });
   }
+
+  async isBlocking(blockerId: string, blockedId: string): Promise<boolean> {
+    const block = await this.blockRepository.findOne({
+      where: { blocker: blockerId, blocked: blockedId },
+    });
+    return block !== null;
+  }
 }
