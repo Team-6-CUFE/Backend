@@ -214,4 +214,26 @@ export class FollowersRepository {
 
     return (result.affected ?? 0) > 0;
   }
+
+  async getBlockedUsers(
+    userId: string,
+    page: number,
+    limit: number
+  ): Promise<{ users: Partial<User>[]; total: number }> {
+    const offset: number = (page - 1) * limit;
+    const [users, total] = await Promise.all([
+      this.userRepository
+        .createQueryBuilder('user')
+        .innerJoin('user_blocks', 'ub', 'ub.blocked = user.user_id')
+        .where('ub.blocker = :userId', { userId })
+        .select(['user.userId', 'user.username', 'user.displayName', 'user.avatarUrl'])
+        .skip(offset)
+        .take(limit)
+        .getMany(),
+
+      this.blockRepository.count({ where: { blocker: userId } }),
+    ]);
+
+    return { users, total };
+  }
 }
