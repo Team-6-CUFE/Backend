@@ -7,6 +7,11 @@ import {
   ApiGetPlaylistRepostCount,
   ApiGetPlaylistReposts,
   ApiGetUserPlaylistReposts,
+  ApiGetPlaylistLikes,
+  ApiGetPlaylistLikesCount,
+  ApiGetUserPlaylistLikes,
+  ApiLikePlaylist,
+  ApiUnlikePlaylist,
 } from './playlist.swagger';
 import { CurrentUser } from '../authentication/decorators/current-user.decorator';
 import { CheckBlock } from '../followers/decorators/no-block.decorator';
@@ -61,5 +66,53 @@ export class PlaylistController {
     @Query('limit') limit: number
   ) {
     return this.playlistService.getUserPlaylistReposts(userId, myUserId, page, limit);
+  }
+
+  /// likes
+  @ApiLikePlaylist()
+  @Post(':playlistId/like')
+  likePlaylist(
+    @Param('playlistId', ParseUUIDPipe) playlistId: string,
+    @CurrentUser('sub') userId: string
+  ) {
+    return this.playlistService.likePlaylist(playlistId, userId);
+  }
+
+  @ApiUnlikePlaylist()
+  @Delete('/:playlistId/like')
+  unlikePlaylist(
+    @Param('playlistId', ParseUUIDPipe) playlistId: string,
+    @CurrentUser('sub') userId: string
+  ) {
+    return this.playlistService.unlikePlaylist(playlistId, userId);
+  }
+
+  @ApiGetPlaylistLikesCount()
+  @Get(':playlistId/likes/count')
+  getLikesCount(@Param('playlistId', ParseUUIDPipe) playlistId: string) {
+    return this.playlistService.getLikesCount(playlistId);
+  }
+
+  @ApiGetPlaylistLikes()
+  @Get(':playlistId/likes')
+  getPlaylistLikes(
+    @Param('playlistId', ParseUUIDPipe) playlistId: string,
+    @CurrentUser('sub') userId: string,
+    @Query('page') page: number,
+    @Query('limit') limit: number
+  ) {
+    return this.playlistService.getPlaylistLikes(playlistId, userId, page, limit);
+  }
+
+  @ApiGetUserPlaylistLikes()
+  @CheckBlock()
+  @Get('users/:user_id/likes')
+  getUserTrackLikes(
+    @Param('user_id', ParseUUIDPipe) userId: string,
+    @CurrentUser('sub') myUserId: string,
+    @Query('page') page: number,
+    @Query('limit') limit: number
+  ) {
+    return this.playlistService.getUserPlaylistLikes(userId, myUserId, page, limit);
   }
 }

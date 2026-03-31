@@ -3,6 +3,7 @@ import { Repository } from 'typeorm';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Playlist } from './entities/playlist.entity';
 import { PlaylistRepost } from './entities/playlist-reposts.entity';
+import { PlaylistLike } from './entities/playlist-likes.entity';
 
 @Injectable()
 export class PlaylistRepository {
@@ -10,7 +11,9 @@ export class PlaylistRepository {
     @InjectRepository(Playlist)
     private readonly playlistRepository: Repository<Playlist>,
     @InjectRepository(PlaylistRepost)
-    private readonly playlistRepostRepository: Repository<PlaylistRepost>
+    private readonly playlistRepostRepository: Repository<PlaylistRepost>,
+    @InjectRepository(PlaylistLike)
+    private readonly playlistLikesRepository: Repository<PlaylistLike>
   ) {}
 
   async findPlaylistById(playlistId: string): Promise<Playlist | null> {
@@ -72,5 +75,22 @@ export class PlaylistRepository {
       .skip(skip)
       .take(limit)
       .getManyAndCount();
+  }
+
+  async findLikeByUserAndPlaylist(
+    userId: string,
+    playlistId: string
+  ): Promise<PlaylistRepost | null> {
+    return this.playlistLikesRepository.findOne({
+      where: { userId, playlistId },
+    });
+  }
+
+  async createLink(userId: string, playlistId: string): Promise<PlaylistRepost> {
+    const repost = this.playlistLikesRepository.create({
+      userId,
+      playlistId,
+    });
+    return this.playlistRepository.save(repost);
   }
 }
