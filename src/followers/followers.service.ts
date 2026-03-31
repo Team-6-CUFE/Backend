@@ -195,4 +195,21 @@ export class FollowersService {
       message: 'User successfully unblocked',
     };
   }
+
+  async getBlockedUsers(userId: string, page: number, limit: number) {
+    const { users, total } = await this.followersRepository.getBlockedUsers(userId, page, limit);
+
+    return {
+      status: 'success',
+      data: {
+        blocked_users: users,
+        pagination: {
+          currentPage: page,
+          totalPages: Math.ceil(total / limit),
+          totalCount: total,
+          limit,
+        },
+      },
+    };
+  }
 }
