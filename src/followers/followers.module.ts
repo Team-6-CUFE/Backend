@@ -7,11 +7,13 @@ import { UserFollow } from './entities/user-follows.entity';
 import { UserModule } from '../user/user.module';
 import { FollowersRepository } from './followers.repository';
 import { NoBlockGuard } from './guards/no-block.guard';
+import { UserExistsGuard } from './guards/user-exists.guard';
+import { User } from '../user/entities/user.entity';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([UserFollow, UserBlock]), UserModule],
+  imports: [TypeOrmModule.forFeature([UserFollow, UserBlock, User]), UserModule],
   controllers: [FollowersController],
-  providers: [FollowersService, FollowersRepository, NoBlockGuard],
+  providers: [FollowersService, FollowersRepository, NoBlockGuard, UserExistsGuard],
   exports: [FollowersRepository, NoBlockGuard],
 })
 export class FollowersModule {}
