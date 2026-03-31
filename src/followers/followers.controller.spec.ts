@@ -182,4 +182,24 @@ describe('FollowersController', () => {
       expect(result).toEqual(expected);
     });
   });
+
+  describe('getBlockedUsers', () => {
+    it('should call service.getBlockedUsers with explicit page and limit', async () => {
+      const expected = { status: 'success', data: { blocked_users: [], pagination: {} } };
+      mockFollowersService.getBlockedUsers.mockResolvedValue(expected);
+
+      const result = await controller.getBlockedUsers(mockFollowerId, 3, 15);
+
+      expect(mockFollowersService.getBlockedUsers).toHaveBeenCalledWith(mockFollowerId, 3, 15);
+      expect(result).toEqual(expected);
+    });
+
+    it('should fall back to page=1 and limit=20 when query params are undefined', async () => {
+      mockFollowersService.getBlockedUsers.mockResolvedValue({ status: 'success' });
+
+      await controller.getBlockedUsers(mockFollowerId, undefined as any, undefined as any);
+
+      expect(mockFollowersService.getBlockedUsers).toHaveBeenCalledWith(mockFollowerId, 1, 20);
+    });
+  });
 });

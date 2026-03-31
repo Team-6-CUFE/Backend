@@ -431,4 +431,36 @@ describe('FollowersService', () => {
       );
     });
   });
+
+  describe('getBlockedUsers', () => {
+    it('should return a paginated list of blocked users', async () => {
+      mockFollowersRepository.getBlockedUsers.mockResolvedValue({
+        users: mockFollowersList,
+        total: 45,
+      });
+
+      const result = await service.getBlockedUsers(mockFollowerId, 2, 20);
+
+      // Assert
+      expect(result.status).toBe('success');
+      expect(result.data.blocked_users).toHaveLength(3);
+      expect(result.data.pagination).toEqual({
+        currentPage: 2,
+        totalPages: 3,
+        totalCount: 45,
+        limit: 20,
+      });
+      expect(mockFollowersRepository.getBlockedUsers).toHaveBeenCalledWith(mockFollowerId, 2, 20);
+    });
+
+    it('should handle an empty blocked list properly', async () => {
+      mockFollowersRepository.getBlockedUsers.mockResolvedValue({ users: [], total: 0 });
+
+      const result = await service.getBlockedUsers(mockFollowerId, 1, 20);
+
+      expect(result.data.blocked_users).toHaveLength(0);
+      expect(result.data.pagination.totalCount).toBe(0);
+      expect(result.data.pagination.totalPages).toBe(0);
+    });
+  });
 });

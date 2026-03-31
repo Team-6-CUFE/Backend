@@ -48,6 +48,7 @@ export const mockFollowersRepository = {
   isBlocking: jest.fn(),
   createBlockAndHandleFollows: jest.fn(),
   deleteBlock: jest.fn(),
+  getBlockedUsers: jest.fn(),
 };
 
 export const mockUserRepository = {
@@ -64,4 +65,5 @@ export const mockFollowersService = {
   getFollowingCount: jest.fn(),
   blockUser: jest.fn(),
   unblockUser: jest.fn(),
+  getBlockedUsers: jest.fn(),
 };
