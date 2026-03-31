@@ -1,318 +1,362 @@
-// import { Test, TestingModule } from '@nestjs/testing';
-// import { BadRequestException, ConflictException, ForbiddenException, NotFoundException } from '@nestjs/common';
-// import { FollowersService } from './followers.repository';
-// import { FollowersRepository } from './followers.repository';
-// import {
-//   createMockFollowersRepository,
-//   mockUserId,
-//   mockTargetUserId,
-//   mockFollow,
-//   mockFollowerUser,
-//   mockFollowersRepository,
-// } from './test/mocks';
+import { Test, TestingModule } from '@nestjs/testing';
+import { BadRequestException, ConflictException, NotFoundException } from '@nestjs/common';
+import { FollowersService } from './followers.service';
+import { FollowersRepository } from './followers.repository';
+import { UserRepository } from '../user/user.repository';
+import {
+  mockFollowerId,
+  mockFollowedId,
+  mockUserFollow,
+  mockPublicUser,
+  mockFollowersList,
+  mockFollowersRepository,
+  mockUserRepository,
+} from './test/followers.mock';
 
-// describe('FollowersService', () => {
-//   let service: FollowersService;
+describe('FollowersService', () => {
+  let service: FollowersService;
 
-//   beforeEach(async () => {
-//     const module: TestingModule = await Test.createTestingModule({
-//       providers: [
-//         FollowersService,
-//         {
-//           provide: FollowersRepository,
-//           useFactory: createMockFollowersRepository,
-//         },
-//       ],
-//     }).compile();
+  beforeEach(async () => {
+    jest.clearAllMocks();
 
-//     service = module.get<FollowersService>(FollowersService);
-//     jest.clearAllMocks();
-//   });
+    const module: TestingModule = await Test.createTestingModule({
+      providers: [
+        FollowersService,
+        { provide: FollowersRepository, useValue: mockFollowersRepository },
+        { provide: UserRepository, useValue: mockUserRepository },
+      ],
+    }).compile();
 
-//   describe('followUser', () => {
-//     it('should successfully follow a user', async () => {
-//       mockUserExists(true);
-//       mockFindFollow(null);
-//       mockCreateFollow(mockFollow);
+    service = module.get<FollowersService>(FollowersService);
 
-//       const result = await service.followUser(mockUserId, mockTargetUserId);
+    mockUserRepository.findById.mockResolvedValue(mockPublicUser());
+    mockFollowersRepository.isFollowing.mockResolvedValue(false);
+  });
 
-//       expect(result).toEqual({
-//         follower_id: mockUserId,
-//         followed_id: mockTargetUserId,
-//         created_at: mockFollow.created_at,
-//       });
-//       expect(mockFollowersRepository.userExists).toHaveBeenCalledWith(mockTargetUserId);
-//       expect(mockFollowersRepository.findFollow).toHaveBeenCalledWith(mockUserId, mockTargetUserId);
-//       expect(mockFollowersRepository.createFollow).toHaveBeenCalledWith(mockUserId, mockTargetUserId);
-//       // Note: Counts are derived, no update calls needed
-//     });
+  describe('followUser', () => {
+    it('should create a follow and return formatted response', async () => {
+      mockFollowersRepository.isFollowing.mockResolvedValue(false);
+      mockFollowersRepository.createFollow.mockResolvedValue(mockUserFollow);
 
-//     it('should throw BadRequestException when trying to follow self', async () => {
-//       await expect(service.followUser(mockUserId, mockUserId)).rejects.toThrow(
-//         BadRequestException,
-//       );
-//       await expect(service.followUser(mockUserId, mockUserId)).rejects.toThrow(
-//         'You cannot follow yourself',
-//       );
-//     });
+      const result = await service.followUser(mockFollowerId, mockFollowedId);
 
-//     it('should throw NotFoundException when target user does not exist', async () => {
-//       mockUserExists(false);
+      expect(result).toEqual({
+        status: 'success',
+        data: {
+          followerId: mockUserFollow.follower,
+          followedId: mockUserFollow.followed,
+          createdAt: mockUserFollow.createdAt,
+        },
+      });
+      expect(mockFollowersRepository.isFollowing).toHaveBeenCalledWith(
+        mockFollowerId,
+        mockFollowedId
+      );
+      expect(mockFollowersRepository.createFollow).toHaveBeenCalledWith(
+        mockFollowerId,
+        mockFollowedId
+      );
+    });
 
-//       await expect(service.followUser(mockUserId, mockTargetUserId)).rejects.toThrow(
-//         NotFoundException,
-//       );
-//       await expect(service.followUser(mockUserId, mockTargetUserId)).rejects.toThrow(
-//         'User not found',
-//       );
-//     });
+    it('should throw BadRequestException when following self', async () => {
+      await expect(service.followUser(mockFollowerId, mockFollowerId)).rejects.toThrow(
+        new BadRequestException('You cannot follow yourself')
+      );
+      expect(mockFollowersRepository.isFollowing).not.toHaveBeenCalled();
+    });
 
-//     it('should throw ConflictException when already following', async () => {
-//       mockUserExists(true);
-//       mockFindFollow(mockFollow);
+    it('should throw ConflictException when already following', async () => {
+      mockFollowersRepository.isFollowing.mockResolvedValue(true);
 
-//       await expect(service.followUser(mockUserId, mockTargetUserId)).rejects.toThrow(
-//         ConflictException,
-//       );
-//       await expect(service.followUser(mockUserId, mockTargetUserId)).rejects.toThrow(
-//         'You are already following this user',
-//       );
-//     });
-//   });
+      await expect(service.followUser(mockFollowerId, mockFollowedId)).rejects.toThrow(
+        new ConflictException('You are already following this user')
+      );
+      expect(mockFollowersRepository.createFollow).not.toHaveBeenCalled();
+    });
+  });
 
-//   describe('unfollowUser', () => {
-//     it('should successfully unfollow a user', async () => {
-//       mockUserExists(true);
-//       mockFindFollow(mockFollow);
-//       mockDeleteFollow(true);
+  describe('unfollowUser', () => {
+    it('should delete the follow and return success', async () => {
+      mockFollowersRepository.deleteFollow.mockResolvedValue(true);
 
-//       const result = await service.unfollowUser(mockUserId, mockTargetUserId);
+      const result = await service.unfollowUser(mockFollowerId, mockFollowedId);
 
-//       expect(result).toEqual({ message: 'Successfully unfollowed user' });
-//       expect(mockFollowersRepository.deleteFollow).toHaveBeenCalledWith(
-//         mockUserId,
-//         mockTargetUserId,
-//       );
-//       // Note: Counts are derived, no update calls needed
-//     });
+      expect(result).toEqual({ status: 'success', message: 'Successfully unfollowed user' });
+      expect(mockFollowersRepository.deleteFollow).toHaveBeenCalledWith(
+        mockFollowerId,
+        mockFollowedId
+      );
+    });
 
-//     it('should throw BadRequestException when trying to unfollow self', async () => {
-//       await expect(service.unfollowUser(mockUserId, mockUserId)).rejects.toThrow(
-//         BadRequestException,
-//       );
-//       await expect(service.unfollowUser(mockUserId, mockUserId)).rejects.toThrow(
-//         'You cannot unfollow yourself',
-//       );
-//     });
+    it('should throw BadRequestException when unfollowing self', async () => {
+      await expect(service.unfollowUser(mockFollowerId, mockFollowerId)).rejects.toThrow(
+        new BadRequestException('You cannot unfollow yourself')
+      );
+      expect(mockFollowersRepository.deleteFollow).not.toHaveBeenCalled();
+    });
 
-//     it('should throw NotFoundException when target user does not exist', async () => {
-//       mockUserExists(false);
+    it('should throw NotFoundException when follow relationship does not exist', async () => {
+      mockFollowersRepository.deleteFollow.mockResolvedValue(false);
 
-//       await expect(service.unfollowUser(mockUserId, mockTargetUserId)).rejects.toThrow(
-//         NotFoundException,
-//       );
-//     });
+      await expect(service.unfollowUser(mockFollowerId, mockFollowedId)).rejects.toThrow(
+        new NotFoundException('You are not following this user')
+      );
+    });
+  });
 
-//     it('should throw NotFoundException when not following the user', async () => {
-//       mockUserExists(true);
-//       mockFindFollow(null);
+  describe('getFollowStatus', () => {
+    it('should return not_following status without since', async () => {
+      mockFollowersRepository.getFollowStatus.mockResolvedValue({ status: 'notFollowing' });
 
-//       await expect(service.unfollowUser(mockUserId, mockTargetUserId)).rejects.toThrow(
-//         NotFoundException,
-//       );
-//       await expect(service.unfollowUser(mockUserId, mockTargetUserId)).rejects.toThrow(
-//         'You are not following this user',
-//       );
-//     });
-//   });
+      const result = await service.getFollowStatus(mockFollowerId, mockFollowedId);
 
-//   describe('getFollowStatus', () => {
-//     it('should return following status when user is following', async () => {
-//       mockUserExists(true);
-//       mockGetFollowStatus({ status: 'following', since: mockFollow.created_at });
+      expect(result).toEqual({
+        status: 'success',
+        data: { followStatus: 'notFollowing' },
+      });
+      expect(result.data).not.toHaveProperty('since');
+    });
 
-//       const result = await service.getFollowStatus(mockUserId, mockTargetUserId);
+    it('should return following status with since', async () => {
+      mockFollowersRepository.getFollowStatus.mockResolvedValue({
+        status: 'following',
+        since: mockUserFollow.createdAt,
+      });
 
-//       expect(result).toEqual({
-//         follow_status: 'following',
-//         since: mockFollow.created_at,
-//       });
-//     });
+      const result = await service.getFollowStatus(mockFollowerId, mockFollowedId);
 
-//     it('should return mutual status when both users follow each other', async () => {
-//       mockUserExists(true);
-//       mockGetFollowStatus({ status: 'mutual', since: mockFollow.created_at });
+      expect(result).toEqual({
+        status: 'success',
+        data: { followStatus: 'following', since: mockUserFollow.createdAt },
+      });
+    });
 
-//       const result = await service.getFollowStatus(mockUserId, mockTargetUserId);
+    it('should return mutual status with since', async () => {
+      mockFollowersRepository.getFollowStatus.mockResolvedValue({
+        status: 'mutual',
+        since: mockUserFollow.createdAt,
+      });
 
-//       expect(result).toEqual({
-//         follow_status: 'mutual',
-//         since: mockFollow.created_at,
-//       });
-//     });
+      const result = await service.getFollowStatus(mockFollowerId, mockFollowedId);
 
-//     it('should return not_following status when not following', async () => {
-//       mockUserExists(true);
-//       mockGetFollowStatus({ status: 'not_following' });
+      expect(result.data.followStatus).toBe('mutual');
+      expect(result.data.since).toEqual(mockUserFollow.createdAt);
+    });
 
-//       const result = await service.getFollowStatus(mockUserId, mockTargetUserId);
+    it('should throw BadRequestException when checking status with self', async () => {
+      await expect(service.getFollowStatus(mockFollowerId, mockFollowerId)).rejects.toThrow(
+        new BadRequestException('Cannot check follow status with yourself')
+      );
+      expect(mockFollowersRepository.getFollowStatus).not.toHaveBeenCalled();
+    });
+  });
 
-//       expect(result).toEqual({
-//         follow_status: 'not_following',
-//       });
-//     });
+  describe('getFollowers', () => {
+    it('should default followersCount to 0 when undefined', async () => {
+      mockFollowersRepository.getFollowers.mockResolvedValue({
+        users: [mockPublicUser({ userId: 'user-1', followersCount: undefined })],
+        total: 1,
+      });
 
-//     it('should throw NotFoundException when target user does not exist', async () => {
-//       mockUserExists(false);
+      const result = await service.getFollowers(mockFollowedId, 1, 20);
 
-//       await expect(service.getFollowStatus(mockUserId, mockTargetUserId)).rejects.toThrow(
-//         NotFoundException,
-//       );
-//     });
-//   });
+      expect(result.data.followers[0].followersCount).toBe(0);
+    });
+    it('should return enriched followers list with isFollowedBack=false', async () => {
+      mockFollowersRepository.getFollowers.mockResolvedValue({
+        users: mockFollowersList,
+        total: 3,
+      });
+      mockFollowersRepository.isFollowing.mockResolvedValue(false);
 
-//   describe('getFollowers', () => {
-//     const mockFollowersResult = {
-//       users: [mockFollowerUser],
-//       total: 1,
-//     };
+      const result = await service.getFollowers(mockFollowedId, 1, 20);
 
-//     it('should return followers list for public user', async () => {
-//       mockUserExists(true);
-//       mockIsUserPublic(true);
-//       mockGetFollowers(mockFollowersResult);
-//       mockIsFollowing(true);
+      expect(result.status).toBe('success');
+      expect(result.data.followers).toHaveLength(3);
+      result.data.followers.forEach((f) => {
+        expect(f.isFollowedBack).toBe(false);
+        expect(f).toHaveProperty('userId');
+        expect(f).toHaveProperty('username');
+        expect(f).toHaveProperty('displayName');
+        expect(f).toHaveProperty('avatarUrl');
+        expect(f).toHaveProperty('followersCount');
+      });
+    });
 
-//       const result = await service.getFollowers(mockUserId, mockTargetUserId, 1, 20);
+    it('should return enriched followers list with isFollowedBack=true', async () => {
+      mockFollowersRepository.getFollowers.mockResolvedValue({
+        users: mockFollowersList,
+        total: 3,
+      });
+      mockFollowersRepository.isFollowing.mockResolvedValue(true);
 
-//       expect(result.followers).toHaveLength(1);
-//       expect(result.pagination).toEqual({
-//         current_page: 1,
-//         total_pages: 1,
-//         total_count: 1,
-//         limit: 20,
-//       });
-//     });
+      const result = await service.getFollowers(mockFollowedId, 1, 20);
 
-//     it('should return followers list for private user when requester is owner', async () => {
-//       mockUserExists(true);
-//       mockIsUserPublic(false);
-//       mockGetFollowers(mockFollowersResult);
-//       mockIsFollowing(true);
+      result.data.followers.forEach((f) => expect(f.isFollowedBack).toBe(true));
+    });
 
-//       const result = await service.getFollowers(mockTargetUserId, mockTargetUserId, 1, 20);
+    it('should calculate pagination correctly', async () => {
+      mockFollowersRepository.getFollowers.mockResolvedValue({
+        users: mockFollowersList,
+        total: 45,
+      });
 
-//       expect(result.followers).toHaveLength(1);
-//     });
+      const result = await service.getFollowers(mockFollowedId, 2, 20);
 
-//     it('should throw ForbiddenException for private user when requester is not owner', async () => {
-//       mockUserExists(true);
-//       mockIsUserPublic(false);
+      expect(result.data.pagination).toEqual({
+        currentPage: 2,
+        totalPages: 3,
+        totalCount: 45,
+        limit: 20,
+      });
+    });
 
-//       await expect(
-//         service.getFollowers(mockUserId, mockTargetUserId, 1, 20),
-//       ).rejects.toThrow(ForbiddenException);
-//       await expect(
-//         service.getFollowers(mockUserId, mockTargetUserId, 1, 20),
-//       ).rejects.toThrow('This account is private');
-//     });
+    it('should handle null displayName and avatarUrl gracefully', async () => {
+      const usersWithNulls = [
+        mockPublicUser({ userId: 'user-1', displayName: undefined, avatarUrl: undefined }),
+      ];
+      mockFollowersRepository.getFollowers.mockResolvedValue({ users: usersWithNulls, total: 1 });
 
-//     it('should throw NotFoundException when target user does not exist', async () => {
-//       mockUserExists(false);
+      const result = await service.getFollowers(mockFollowedId, 1, 20);
 
-//       await expect(
-//         service.getFollowers(mockUserId, mockTargetUserId, 1, 20),
-//       ).rejects.toThrow(NotFoundException);
-//     });
-//   });
+      expect(result.data.followers[0].displayName).toBeNull();
+      expect(result.data.followers[0].avatarUrl).toBeNull();
+    });
 
-//   describe('getFollowing', () => {
-//     const mockFollowingResult = {
-//       users: [mockFollowerUser],
-//       total: 1,
-//     };
+    it('should return empty followers list with correct pagination', async () => {
+      mockFollowersRepository.getFollowers.mockResolvedValue({ users: [], total: 0 });
 
-//     it('should return following list for public user', async () => {
-//       mockUserExists(true);
-//       mockIsUserPublic(true);
-//       mockGetFollowing(mockFollowingResult);
-//       mockIsFollowing(true);
+      const result = await service.getFollowers(mockFollowedId, 1, 20);
 
-//       const result = await service.getFollowing(mockUserId, mockTargetUserId, 1, 20);
+      expect(result.data.followers).toHaveLength(0);
+      expect(result.data.pagination.totalPages).toBe(0);
+      expect(result.data.pagination.totalCount).toBe(0);
+    });
+  });
 
-//       expect(result.following).toHaveLength(1);
-//       expect(result.pagination).toEqual({
-//         current_page: 1,
-//         total_pages: 1,
-//         total_count: 1,
-//         limit: 20,
-//       });
-//     });
+  describe('getFollowing', () => {
+    it('should default followersCount to 0 when undefined', async () => {
+      mockFollowersRepository.getFollowing.mockResolvedValue({
+        users: [mockPublicUser({ userId: 'user-1', followersCount: undefined })],
+        total: 1,
+      });
 
-//     it('should throw ForbiddenException for private user when requester is not owner', async () => {
-//       mockUserExists(true);
-//       mockIsUserPublic(false);
+      const result = await service.getFollowing(mockFollowedId, 1, 20);
 
-//       await expect(
-//         service.getFollowing(mockUserId, mockTargetUserId, 1, 20),
-//       ).rejects.toThrow(ForbiddenException);
-//     });
-//   });
+      expect(result.data.following[0].followersCount).toBe(0);
+    });
+    it('should return enriched following list with isFollowingBack=false', async () => {
+      mockFollowersRepository.getFollowing.mockResolvedValue({
+        users: mockFollowersList,
+        total: 3,
+      });
+      mockFollowersRepository.isFollowing.mockResolvedValue(false);
 
-//   describe('getFollowersCount', () => {
-//     it('should return followers count for public user', async () => {
-//       mockUserExists(true);
-//       mockIsUserPublic(true);
-//       mockGetFollowersCount(1024);
+      const result = await service.getFollowing(mockFollowerId, 1, 20);
 
-//       const result = await service.getFollowersCount(mockUserId, mockTargetUserId);
+      expect(result.status).toBe('success');
+      expect(result.data.following).toHaveLength(3);
+      result.data.following.forEach((f) => {
+        expect(f.isFollowingBack).toBe(false);
+        expect(f).toHaveProperty('userId');
+        expect(f).toHaveProperty('username');
+        expect(f).toHaveProperty('displayName');
+        expect(f).toHaveProperty('avatarUrl');
+        expect(f).toHaveProperty('followersCount');
+      });
+    });
 
-//       expect(result).toEqual({
-//         user_id: mockTargetUserId,
-//         followers_count: 1024,
-//       });
-//     });
+    it('should return enriched following list with isFollowingBack=true', async () => {
+      mockFollowersRepository.getFollowing.mockResolvedValue({
+        users: mockFollowersList,
+        total: 3,
+      });
+      mockFollowersRepository.isFollowing.mockResolvedValue(true);
 
-//     it('should throw ForbiddenException for private user when requester is not owner', async () => {
-//       mockUserExists(true);
-//       mockIsUserPublic(false);
+      const result = await service.getFollowing(mockFollowerId, 1, 20);
 
-//       await expect(
-//         service.getFollowersCount(mockUserId, mockTargetUserId),
-//       ).rejects.toThrow(ForbiddenException);
-//     });
+      result.data.following.forEach((f) => expect(f.isFollowingBack).toBe(true));
+    });
 
-//     it('should throw NotFoundException when target user does not exist', async () => {
-//       mockUserExists(false);
+    it('should calculate pagination correctly', async () => {
+      mockFollowersRepository.getFollowing.mockResolvedValue({
+        users: mockFollowersList,
+        total: 60,
+      });
 
-//       await expect(
-//         service.getFollowersCount(mockUserId, mockTargetUserId),
-//       ).rejects.toThrow(NotFoundException);
-//     });
-//   });
+      const result = await service.getFollowing(mockFollowerId, 3, 20);
 
-//   describe('getFollowingCount', () => {
-//     it('should return following count for public user', async () => {
-//       mockUserExists(true);
-//       mockIsUserPublic(true);
-//       mockGetFollowingCount(512);
+      expect(result.data.pagination).toEqual({
+        currentPage: 3,
+        totalPages: 3,
+        totalCount: 60,
+        limit: 20,
+      });
+    });
 
-//       const result = await service.getFollowingCount(mockUserId, mockTargetUserId);
+    it('should handle null displayName and avatarUrl gracefully', async () => {
+      const usersWithNulls = [
+        mockPublicUser({ userId: 'user-1', displayName: undefined, avatarUrl: undefined }),
+      ];
+      mockFollowersRepository.getFollowing.mockResolvedValue({ users: usersWithNulls, total: 1 });
 
-//       expect(result).toEqual({
-//         user_id: mockTargetUserId,
-//         followings_count: 512,
-//       });
-//     });
+      const result = await service.getFollowing(mockFollowerId, 1, 20);
 
-//     it('should throw ForbiddenException for private user when requester is not owner', async () => {
-//       mockUserExists(true);
-//       mockIsUserPublic(false);
+      expect(result.data.following[0].displayName).toBeNull();
+      expect(result.data.following[0].avatarUrl).toBeNull();
+    });
 
-//       await expect(
-//         service.getFollowingCount(mockUserId, mockTargetUserId),
-//       ).rejects.toThrow(ForbiddenException);
-//     });
-//   });
-// });
+    it('should return empty following list with correct pagination', async () => {
+      mockFollowersRepository.getFollowing.mockResolvedValue({ users: [], total: 0 });
+
+      const result = await service.getFollowing(mockFollowerId, 1, 20);
+
+      expect(result.data.following).toHaveLength(0);
+      expect(result.data.pagination.totalCount).toBe(0);
+    });
+  });
+
+  describe('getFollowersCount', () => {
+    it('should return followers count from user row', async () => {
+      mockUserRepository.findById.mockResolvedValue(mockPublicUser({ followersCount: 1024 }));
+
+      const result = await service.getFollowersCount(mockFollowedId);
+
+      expect(result).toEqual({
+        status: 'success',
+        data: { user_id: mockFollowedId, followers_count: 1024 },
+      });
+      expect(mockUserRepository.findById).toHaveBeenCalledWith(mockFollowedId);
+    });
+
+    it('should return 0 when followersCount is 0', async () => {
+      mockUserRepository.findById.mockResolvedValue(mockPublicUser({ followersCount: 0 }));
+
+      const result = await service.getFollowersCount(mockFollowedId);
+
+      expect(result.data.followers_count).toBe(0);
+    });
+  });
+
+  describe('getFollowingCount', () => {
+    it('should return following count from user row', async () => {
+      mockUserRepository.findById.mockResolvedValue(mockPublicUser({ followingsCount: 512 }));
+
+      const result = await service.getFollowingCount(mockFollowedId);
+
+      expect(result).toEqual({
+        status: 'success',
+        data: { user_id: mockFollowedId, followings_count: 512 },
+      });
+      expect(mockUserRepository.findById).toHaveBeenCalledWith(mockFollowedId);
+    });
+
+    it('should return 0 when followingsCount is 0', async () => {
+      mockUserRepository.findById.mockResolvedValue(mockPublicUser({ followingsCount: 0 }));
+
+      const result = await service.getFollowingCount(mockFollowedId);
+
+      expect(result.data.followings_count).toBe(0);
+    });
+  });
+});
