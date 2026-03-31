@@ -23,9 +23,11 @@ import {
   ApiRemoveTrackLike,
   ApiRemoveTrackRepost,
   ApiRepostTrack,
+  ApiTrackComment,
 } from './track.swagger';
 import { CurrentUser } from '../authentication/decorators/current-user.decorator';
 import { CheckBlock } from '../followers/decorators/no-block.decorator';
+import { AddCommentDto } from './dto/add-comment.dto';
 
 @ApiTags('Tracks')
 @Controller('tracks')
@@ -138,5 +140,16 @@ export class TrackController {
     @Query('limit') limit: number
   ) {
     return this.trackService.getUserTrackLikes(userId, myUserId, page, limit);
+  }
+
+  @ApiTrackComment()
+  @CheckBlock()
+  @Post(':trackId/comment')
+  comment(
+    @Param('trackId', ParseUUIDPipe) trackId: string,
+    @CurrentUser('sub') userId: string,
+    @Body() commentDto: AddCommentDto
+  ) {
+    return this.trackService.addComment(trackId, userId, commentDto);
   }
 }

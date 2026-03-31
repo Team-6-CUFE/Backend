@@ -560,3 +560,46 @@ export function ApiGetUserTrackLikes() {
     ApiResponse({ status: 401, description: 'Unauthorized' })
   );
 }
+
+export function ApiTrackComment() {
+  return applyDecorators(
+    ApiCookieAuth('access_token'),
+    ApiOperation({
+      summary: 'Comment on a track',
+      description: 'Allows a user to comment on a track. The track must be public.',
+    }),
+    ApiParam({ name: 'trackId', description: 'UUID of the track', type: 'string' }),
+    ApiResponse({
+      status: 201,
+      description: 'Comment created successfully',
+      schema: {
+        example: {
+          status: 'success',
+          data: {
+            commentId: '550e8400-e29b-41d4-a716-446655440001',
+            userId: '550e8400-e29b-41d4-a716-446655440002',
+            trackId: '550e8400-e29b-41d4-a716-446655440003',
+            content: 'Great track!',
+            timestampSeconds: 120,
+            parentId: null,
+          },
+        },
+      },
+    }),
+    ApiResponse({
+      status: 403,
+      description: 'Track is private',
+      schema: {
+        example: { statusCode: 403, message: 'This track is private' },
+      },
+    }),
+    ApiResponse({
+      status: 404,
+      description: 'Track not found',
+      schema: {
+        example: { statusCode: 404, message: 'Track not found' },
+      },
+    }),
+    ApiResponse({ status: 401, description: 'Unauthorized' })
+  );
+}

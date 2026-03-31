@@ -4,6 +4,8 @@ import { Repository } from 'typeorm';
 import { Track } from './entities/track.entity';
 import { TrackRepost } from './entities/track-reposts.entity';
 import { TrackLikes } from './entities/track-likes.entity';
+import { TrackComment } from './entities/track-comments.entity';
+import { AddCommentDto } from './dto/add-comment.dto';
 
 @Injectable()
 export class TrackRepository {
@@ -15,7 +17,10 @@ export class TrackRepository {
     private readonly trackRepostRepository: Repository<TrackRepost>,
 
     @InjectRepository(TrackLikes)
-    private readonly trackLikesRepository: Repository<TrackLikes>
+    private readonly trackLikesRepository: Repository<TrackLikes>,
+
+    @InjectRepository(TrackComment)
+    private readonly trackCommentRepository: Repository<TrackComment>
   ) {}
 
   async findById(trackId: string): Promise<Track | null> {
@@ -154,5 +159,26 @@ export class TrackRepository {
       .skip(skip)
       .take(limit)
       .getManyAndCount();
+  }
+
+  async findCommentById(commentId: string): Promise<TrackComment | null> {
+    return this.trackCommentRepository.findOne({
+      where: { commentId },
+    });
+  }
+
+  async addComment(
+    trackId: string,
+    userId: string,
+    commentDto: AddCommentDto
+  ): Promise<TrackComment> {
+    const comment = this.trackCommentRepository.create({
+      trackId,
+      userId,
+      content: commentDto.content,
+      parentId: commentDto.parentId,
+      timestampSeconds: commentDto.timestampSeconds,
+    });
+    return this.trackCommentRepository.save(comment);
   }
 }

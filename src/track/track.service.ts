@@ -8,6 +8,7 @@ import {
 import { TrackRepository } from './track.repository';
 import { UserRepository } from '../user/user.repository';
 import { buildPaginationResponse } from '../common/utilities/pagination.util';
+import { AddCommentDto } from './dto/add-comment.dto';
 
 @Injectable()
 export class TrackService {
@@ -243,5 +244,28 @@ export class TrackService {
       likedAt: like.createdAt,
     }));
     return { status: 'success', ...buildPaginationResponse(mappedLikes, total, page, limit) };
+  }
+
+  async addComment(trackId: string, userId: string, commentDto: AddCommentDto) {
+    const track = await this.trackRepository.findById(trackId);
+    if (!track) {
+      throw new NotFoundException('Track not found');
+    }
+
+    if (!track.isPublic) {
+      throw new ForbiddenException('This track is private');
+    }
+
+    if (commentDto.parentId) {
+      const parentComment = await this.trackRepository.findCommentById(commentDto.parentId);
+      if (!parentComment) {
+        throw new NotFoundException('Parent comment not found');
+      }
+    }
+
+    return {
+      status: 'success',
+      data: await this.trackRepository.addComment(trackId, userId, commentDto),
+    };
   }
 }
