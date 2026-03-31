@@ -51,3 +51,15 @@ export function ApiGetPlaylistReposts() {
     ApiCookieAuth('access_token')
   );
 }
+export function ApiGetUserPlaylistReposts() {
+  return applyDecorators(
+    ApiOperation({ summary: 'Repost a playlist' }),
+    ApiParam({ name: 'playlistId', type: Number, description: 'ID of the playlist to repost' }),
+    ApiResponse({ status: 201, description: 'Playlist reposted successfully' }),
+    ApiResponse({
+      status: 400,
+      description: 'Bad Request - Invalid playlist ID or user not authenticated',
+    }),
+    ApiCookieAuth('access_token')
+  );
+}

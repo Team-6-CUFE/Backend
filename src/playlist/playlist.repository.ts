@@ -37,4 +37,40 @@ export class PlaylistRepository {
   async removeRepost(userId: string, playlistId: string) {
     await this.playlistRepostRepository.delete({ userId, playlistId });
   }
+
+  async getPlaylistReposters(
+    playlistId: string,
+    page: number,
+    cappedLimit: number
+  ): Promise<[any[], number]> {
+    const skip = (page - 1) * cappedLimit;
+    const [reposts, total] = await this.playlistRepostRepository.findAndCount({
+      where: { playlistId },
+      relations: ['user'],
+      order: { createdAt: 'DESC' },
+      skip,
+      take: cappedLimit,
+    });
+    return [reposts, total];
+  }
+
+  async getUserPlaylistReposts(
+    userId: string,
+    page: number,
+    limit: number
+  ): Promise<[any[], number]> {
+    console.log('page', page);
+    console.log('limit', limit);
+    const skip = (page - 1) * limit;
+    console.log(skip);
+    return this.playlistRepostRepository
+      .createQueryBuilder('repost')
+      .innerJoinAndSelect('repost.playlist', 'playlist')
+      .innerJoinAndSelect('playlist.user', 'user')
+      .where('repost.userId = :userId', { userId })
+      .orderBy('repost.createdAt', 'DESC')
+      .skip(skip)
+      .take(limit)
+      .getManyAndCount();
+  }
 }

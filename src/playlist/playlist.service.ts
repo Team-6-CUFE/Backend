@@ -3,12 +3,18 @@ import {
   BadRequestException,
   ForbiddenException,
   ConflictException,
+  NotFoundException,
 } from '@nestjs/common';
 import { PlaylistRepository } from './playlist.repository';
+import { buildPaginationResponse } from '../common/utilities/pagination.util';
+import { UserRepository } from '../user/user.repository';
 
 @Injectable()
 export class PlaylistService {
-  constructor(private readonly playlistRepository: PlaylistRepository) {}
+  constructor(
+    private readonly playlistRepository: PlaylistRepository,
+    private readonly userRepository: UserRepository
+  ) {}
 
   async repostPlaylist(playlistId: string, userId: string) {
     // we need to check if playlist exists
@@ -88,5 +94,66 @@ export class PlaylistService {
       playlistId,
       repostCount,
     };
+  }
+
+  async getPlaylistReposters(playlistId: string, userId: string, page: number, limit: number) {
+    const playlist = await this.playlistRepository.findPlaylistById(playlistId);
+    if (!playlist) {
+      throw new BadRequestException({ status: 'error', message: 'playlist not found' });
+    }
+    if (!playlist.isPublic && playlist.userId !== userId) {
+      throw new ForbiddenException({ status: 'error', message: 'This Playlist is private' });
+    }
+    const cappedLimit = Math.min(limit, 100);
+    const [reposts, total] = await this.playlistRepository.getPlaylistReposters(
+      playlistId,
+      page,
+      cappedLimit
+    );
+
+    const mappedReposters = reposts.map((repost) => ({
+      userId: repost.user.userId,
+      username: repost.user.username,
+      displayName: repost.user.displayName,
+      avatarUrl: repost.user.avatarUrl,
+      repostedAt: repost.createdAt,
+    }));
+    return buildPaginationResponse(mappedReposters, total, page, limit);
+  }
+
+  async getUserPlaylistReposts(userId: string, myUserId: string, page: number, limit: number) {
+    const user = await this.userRepository.findById(userId);
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+
+    if (!user.isPublic && user.userId !== myUserId) {
+      throw new ForbiddenException('This account is private');
+    }
+    console.log('service limit', limit);
+    const cappedLimit = Math.min(limit, 100);
+    console.log('cappedlimit', cappedLimit);
+    const [reposts, total] = await this.playlistRepository.getUserPlaylistReposts(
+      userId,
+      page,
+      cappedLimit
+    );
+    console.log(reposts, total);
+    const mappedReposts = reposts.map((repost) => ({
+      playlistId: repost.playlistId,
+      title: repost.playlist.title,
+      coverImage: repost.playlist.coverImage,
+      isPublic: repost.playlist.isPublic,
+      likesCount: repost.playlist.likesCount,
+      repostsCount: repost.playlist.repostsCount,
+      user: {
+        userId: repost.playlist.user.userId,
+        username: repost.playlist.user.username,
+        displayName: repost.playlist.user.displayName,
+      },
+      repostedAt: repost.createdAt,
+    }));
+
+    return buildPaginationResponse(mappedReposts, total, page, limit);
   }
 }
