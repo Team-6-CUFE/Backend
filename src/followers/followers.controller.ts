@@ -31,6 +31,15 @@ import { CheckBlock } from './decorators/no-block.decorator';
 export class FollowersController {
   constructor(private readonly followersService: FollowersService) {}
 
+  @Get('blocked')
+  async getBlockedUsers(
+    @CurrentUser('sub') currentUserId: string,
+    @Query('page') page: number,
+    @Query('limit') limit: number
+  ) {
+    return this.followersService.getBlockedUsers(currentUserId, page ?? 1, limit ?? 20);
+  }
+
   @Post(':user_id/follow')
   @HttpCode(HttpStatus.CREATED)
   @CheckBlock()
