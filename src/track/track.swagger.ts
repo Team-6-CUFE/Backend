@@ -1,5 +1,13 @@
 import { applyDecorators } from '@nestjs/common';
-import { ApiCookieAuth, ApiOperation, ApiParam, ApiQuery, ApiResponse } from '@nestjs/swagger';
+import {
+  ApiBody,
+  ApiCookieAuth,
+  ApiOperation,
+  ApiParam,
+  ApiQuery,
+  ApiResponse,
+} from '@nestjs/swagger';
+import { AddCommentDto } from './dto/add-comment.dto';
 
 // ─── Repost Track ─────────────────────────────────────────────────────────────
 
@@ -12,6 +20,19 @@ export function ApiRepostTrack() {
         'Allows the authenticated user to repost a track. The user cannot repost their own track, and the track must be public. Returns a conflict error if the user has already reposted the track.',
     }),
     ApiParam({ name: 'trackId', description: 'UUID of the track to repost', type: 'string' }),
+    ApiBody({
+      required: false,
+      schema: {
+        type: 'object',
+        properties: {
+          caption: {
+            type: 'string',
+            description: 'Optional caption to accompany the repost',
+            example: 'Check out this awesome track!',
+          },
+        },
+      },
+    }),
     ApiResponse({
       status: 201,
       description: 'Track reposted successfully',
@@ -569,6 +590,7 @@ export function ApiTrackComment() {
       description: 'Allows a user to comment on a track. The track must be public.',
     }),
     ApiParam({ name: 'trackId', description: 'UUID of the track', type: 'string' }),
+    ApiBody({ type: AddCommentDto }),
     ApiResponse({
       status: 201,
       description: 'Comment created successfully',
@@ -582,6 +604,8 @@ export function ApiTrackComment() {
             content: 'Great track!',
             timestampSeconds: 120,
             parentId: null,
+            createdAt: '2024-06-01T12:00:00Z',
+            updatedAt: '2024-06-01T12:00:00Z',
           },
         },
       },
@@ -595,7 +619,7 @@ export function ApiTrackComment() {
     }),
     ApiResponse({
       status: 404,
-      description: 'Track not found',
+      description: 'Track or parent comment not found',
       schema: {
         example: { statusCode: 404, message: 'Track not found' },
       },
