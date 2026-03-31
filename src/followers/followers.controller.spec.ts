@@ -170,4 +170,16 @@ describe('FollowersController', () => {
       expect(mockFollowersService.getFollowing).toHaveBeenCalledWith(mockFollowedId, 1, 20);
     });
   });
+
+  describe('unblockUser', () => {
+    it('should call service.unblockUser with correct args and return result', async () => {
+      const expected = { status: 'success', message: 'User successfully unblocked' };
+      mockFollowersService.unblockUser.mockResolvedValue(expected);
+
+      const result = await controller.unblockUser(mockFollowerId, mockFollowedId);
+
+      expect(mockFollowersService.unblockUser).toHaveBeenCalledWith(mockFollowerId, mockFollowedId);
+      expect(result).toEqual(expected);
+    });
+  });
 });

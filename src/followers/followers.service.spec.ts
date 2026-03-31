@@ -402,4 +402,33 @@ describe('FollowersService', () => {
       expect(mockFollowersRepository.createBlockAndHandleFollows).not.toHaveBeenCalled();
     });
   });
+
+  describe('unblockUser', () => {
+    it('should delete the block and return success', async () => {
+      mockFollowersRepository.deleteBlock.mockResolvedValue(true);
+
+      const result = await service.unblockUser(mockFollowerId, mockFollowedId);
+
+      expect(result).toEqual({ status: 'success', message: 'User successfully unblocked' });
+      expect(mockFollowersRepository.deleteBlock).toHaveBeenCalledWith(
+        mockFollowerId,
+        mockFollowedId
+      );
+    });
+
+    it('should throw BadRequestException when unblocking self', async () => {
+      await expect(service.unblockUser(mockFollowerId, mockFollowerId)).rejects.toThrow(
+        new BadRequestException('You cannot unblock yourself')
+      );
+      expect(mockFollowersRepository.deleteBlock).not.toHaveBeenCalled();
+    });
+
+    it('should throw NotFoundException when block relationship does not exist', async () => {
+      mockFollowersRepository.deleteBlock.mockResolvedValue(false);
+
+      await expect(service.unblockUser(mockFollowerId, mockFollowedId)).rejects.toThrow(
+        new NotFoundException('You have not blocked this user')
+      );
+    });
+  });
 });
