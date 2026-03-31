@@ -463,4 +463,66 @@ describe('FollowersService', () => {
       expect(result.data.pagination.totalPages).toBe(0);
     });
   });
+
+  describe('getBlockStatus', () => {
+    const mockDate = new Date('2025-03-10T09:00:00Z');
+
+    it('should return blocking status when only current user blocks target', async () => {
+      mockFollowersRepository.getBlockRelationship.mockResolvedValue([
+        { blocker: mockFollowerId, blocked: mockFollowedId, createdAt: mockDate } as any,
+      ]);
+
+      const result = await service.getBlockStatus(mockFollowerId, mockFollowedId);
+
+      expect(result).toEqual({
+        status: 'success',
+        data: { blockStatus: 'blocking', since: mockDate },
+      });
+    });
+
+    it('should return blocked_by status when only target blocks current user', async () => {
+      mockFollowersRepository.getBlockRelationship.mockResolvedValue([
+        { blocker: mockFollowedId, blocked: mockFollowerId, createdAt: mockDate } as any,
+      ]);
+
+      const result = await service.getBlockStatus(mockFollowerId, mockFollowedId);
+
+      expect(result).toEqual({
+        status: 'success',
+        data: { blockStatus: 'blocked_by', since: mockDate },
+      });
+    });
+
+    it('should return mutual_block status when both users block each other', async () => {
+      mockFollowersRepository.getBlockRelationship.mockResolvedValue([
+        { blocker: mockFollowerId, blocked: mockFollowedId, createdAt: mockDate } as any,
+        { blocker: mockFollowedId, blocked: mockFollowerId, createdAt: mockDate } as any,
+      ]);
+
+      const result = await service.getBlockStatus(mockFollowerId, mockFollowedId);
+
+      expect(result).toEqual({
+        status: 'success',
+        data: { blockStatus: 'mutual_block' },
+      });
+    });
+
+    it('should return none status when no blocks exist', async () => {
+      mockFollowersRepository.getBlockRelationship.mockResolvedValue([]);
+
+      const result = await service.getBlockStatus(mockFollowerId, mockFollowedId);
+
+      expect(result).toEqual({
+        status: 'success',
+        data: { blockStatus: 'none' },
+      });
+    });
+
+    it('should throw BadRequestException when checking status with self', async () => {
+      await expect(service.getBlockStatus(mockFollowerId, mockFollowerId)).rejects.toThrow(
+        new BadRequestException('Cannot check block status with yourself')
+      );
+      expect(mockFollowersRepository.getBlockRelationship).not.toHaveBeenCalled();
+    });
+  });
 });
