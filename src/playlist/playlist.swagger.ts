@@ -1,12 +1,5 @@
 import { applyDecorators } from '@nestjs/common';
-import {
-  ApiOperation,
-  ApiResponse,
-  ApiParam,
-  ApiBearerAuth,
-  ApiQuery,
-  ApiCookieAuth,
-} from '@nestjs/swagger';
+import { ApiOperation, ApiResponse, ApiParam, ApiBearerAuth, ApiQuery } from '@nestjs/swagger';
 
 export function ApiRepostPlaylist() {
   return applyDecorators(
@@ -246,63 +239,141 @@ export function ApiGetUserPlaylistReposts() {
 
 export function ApiLikePlaylist() {
   return applyDecorators(
-    ApiOperation({ summary: 'Repost a playlist' }),
-    ApiParam({ name: 'playlistId', type: Number, description: 'ID of the playlist to repost' }),
-    ApiResponse({ status: 201, description: 'Playlist reposted successfully' }),
-    ApiResponse({
-      status: 400,
-      description: 'Bad Request - Invalid playlist ID or user not authenticated',
+    ApiBearerAuth(),
+    ApiOperation({
+      summary: 'Like a playlist',
+      description: 'Allows a user to like a public playlist or their own private playlist.',
     }),
-    ApiCookieAuth('access_token')
+    ApiParam({
+      name: 'playlistId',
+      type: 'string',
+      format: 'uuid',
+      description: 'The UUID of the playlist',
+    }),
+    ApiResponse({
+      status: 201,
+      description: 'Playlist liked successfully',
+      schema: {
+        example: {
+          status: 'success',
+          userId: 'uuid',
+          playlistId: 'uuid',
+          likedAt: '2026-03-31T...',
+        },
+      },
+    }),
+    ApiResponse({ status: 400, description: 'Bad Request - Playlist not found' }),
+    ApiResponse({
+      status: 403,
+      description: 'Forbidden - Cannot like a private playlist belonging to someone else',
+    }),
+    ApiResponse({ status: 409, description: 'Conflict - You have already liked this playlist' })
   );
 }
+
 export function ApiUnlikePlaylist() {
   return applyDecorators(
-    ApiOperation({ summary: 'Repost a playlist' }),
-    ApiParam({ name: 'playlistId', type: Number, description: 'ID of the playlist to repost' }),
-    ApiResponse({ status: 201, description: 'Playlist reposted successfully' }),
+    ApiBearerAuth(),
+    ApiOperation({ summary: 'Unlike a playlist', description: 'Removes a like from a playlist.' }),
+    ApiParam({ name: 'playlistId', type: 'string', format: 'uuid' }),
     ApiResponse({
-      status: 400,
-      description: 'Bad Request - Invalid playlist ID or user not authenticated',
+      status: 200,
+      description: 'Playlist Like successfully removed',
+      schema: { example: { status: 'success', message: 'Playlist Like successfully removed' } },
     }),
-    ApiCookieAuth('access_token')
+    ApiResponse({ status: 400, description: 'Bad Request - Playlist not found' }),
+    ApiResponse({
+      status: 403,
+      description: 'Forbidden - You have not liked this playlist or it is private',
+    })
   );
 }
 
 export function ApiGetPlaylistLikesCount() {
   return applyDecorators(
-    ApiOperation({ summary: 'Repost a playlist' }),
-    ApiParam({ name: 'playlistId', type: Number, description: 'ID of the playlist to repost' }),
-    ApiResponse({ status: 201, description: 'Playlist reposted successfully' }),
-    ApiResponse({
-      status: 400,
-      description: 'Bad Request - Invalid playlist ID or user not authenticated',
+    ApiBearerAuth(),
+    ApiOperation({
+      summary: 'Get playlist likes count',
+      description: 'Returns the total number of likes for a playlist.',
     }),
-    ApiCookieAuth('access_token')
+    ApiParam({ name: 'playlistId', type: 'string', format: 'uuid' }),
+    ApiResponse({
+      status: 200,
+      description: 'Count retrieved successfully',
+      schema: { example: { playlistId: 'uuid', likesCount: 42 } },
+    }),
+    ApiResponse({ status: 400, description: 'Bad Request - Playlist not found' }),
+    ApiResponse({ status: 403, description: 'Forbidden - Accessing private playlist likes count' })
   );
 }
 
 export function ApiGetPlaylistLikes() {
   return applyDecorators(
-    ApiOperation({ summary: 'Repost a playlist' }),
-    ApiParam({ name: 'playlistId', type: Number, description: 'ID of the playlist to repost' }),
-    ApiResponse({ status: 201, description: 'Playlist reposted successfully' }),
-    ApiResponse({
-      status: 400,
-      description: 'Bad Request - Invalid playlist ID or user not authenticated',
+    ApiBearerAuth(),
+    ApiOperation({
+      summary: 'Get users who liked a playlist',
+      description: 'Returns a paginated list of users who liked the specified playlist.',
     }),
-    ApiCookieAuth('access_token')
+    ApiParam({ name: 'playlistId', type: 'string', format: 'uuid' }),
+    ApiQuery({ name: 'page', required: false, type: Number, example: 1 }),
+    ApiQuery({ name: 'limit', required: false, type: Number, example: 10 }),
+    ApiResponse({
+      status: 200,
+      description: 'List of users retrieved successfully',
+      schema: {
+        example: {
+          items: [
+            {
+              userId: 'uuid',
+              username: 'user1',
+              displayName: 'User One',
+              avatarUrl: '...',
+              followersCount: 10,
+              repostedAt: '...',
+            },
+          ],
+          total: 1,
+          page: 1,
+          limit: 10,
+        },
+      },
+    }),
+    ApiResponse({ status: 400, description: 'Bad Request - Playlist not found' }),
+    ApiResponse({ status: 403, description: 'Forbidden - Playlist is private' })
   );
 }
+
 export function ApiGetUserPlaylistLikes() {
   return applyDecorators(
-    ApiOperation({ summary: 'Repost a playlist' }),
-    ApiParam({ name: 'playlistId', type: Number, description: 'ID of the playlist to repost' }),
-    ApiResponse({ status: 201, description: 'Playlist reposted successfully' }),
-    ApiResponse({
-      status: 400,
-      description: 'Bad Request - Invalid playlist ID or user not authenticated',
+    ApiBearerAuth(),
+    ApiOperation({
+      summary: 'Get a users liked playlists',
+      description: 'Returns a paginated list of playlists that a specific user has liked.',
     }),
-    ApiCookieAuth('access_token')
+    ApiParam({ name: 'user_id', type: 'string', format: 'uuid' }),
+    ApiQuery({ name: 'page', required: false, type: Number }),
+    ApiQuery({ name: 'limit', required: false, type: Number }),
+    ApiResponse({
+      status: 200,
+      description: 'User likes retrieved successfully',
+      schema: {
+        example: {
+          items: [
+            {
+              playlistId: 'uuid',
+              title: 'My Favs',
+              tracksCount: 20,
+              likesCount: 5,
+              user: { username: 'creator' },
+            },
+          ],
+          total: 5,
+          page: 1,
+          limit: 10,
+        },
+      },
+    }),
+    ApiResponse({ status: 404, description: 'User not found' }),
+    ApiResponse({ status: 403, description: 'Forbidden - This account is private' })
   );
 }

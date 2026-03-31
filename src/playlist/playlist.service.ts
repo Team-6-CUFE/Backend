@@ -279,6 +279,7 @@ export class PlaylistService {
       title: repost.playlist.title,
       coverImage: repost.playlist.coverImage,
       isPublic: repost.playlist.isPublic,
+      tracksCount: repost.playlist.tracksCount,
       likesCount: repost.playlist.likesCount,
       repostsCount: repost.playlist.repostsCount,
       user: {
