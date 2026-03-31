@@ -135,4 +135,14 @@ export class FollowersController {
   ) {
     return this.followersService.unblockUser(currentUserId, targetUserId);
   }
+
+  @Get(':user_id/block-status')
+  @CheckUserExists('user_id')
+  // @ApiGetBlockStatus()
+  async getBlockStatus(
+    @CurrentUser('sub') currentUserId: string,
+    @Param('user_id', ParseUUIDPipe) targetUserId: string
+  ) {
+    return this.followersService.getBlockStatus(currentUserId, targetUserId);
+  }
 }
