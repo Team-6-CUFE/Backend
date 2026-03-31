@@ -8,10 +8,11 @@ import { Track } from './entities/track.entity';
 import { UserModule } from '../user/user.module';
 import { FollowersModule } from '../followers/followers.module';
 import { TrackLikes } from './entities/track-likes.entity';
+import { TrackComment } from './entities/track-comments.entity';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([Track, TrackRepost, TrackLikes]),
+    TypeOrmModule.forFeature([Track, TrackRepost, TrackLikes, TrackComment]),
     UserModule,
     FollowersModule,
   ],

@@ -8,6 +8,7 @@ import {
 import { TrackRepository } from './track.repository';
 import { UserRepository } from '../user/user.repository';
 import { buildPaginationResponse } from '../common/utilities/pagination.util';
+import { AddCommentDto } from './dto/add-comment.dto';
 
 @Injectable()
 export class TrackService {
@@ -243,5 +244,109 @@ export class TrackService {
       likedAt: like.createdAt,
     }));
     return { status: 'success', ...buildPaginationResponse(mappedLikes, total, page, limit) };
+  }
+
+  async addComment(trackId: string, userId: string, commentDto: AddCommentDto) {
+    const track = await this.trackRepository.findById(trackId);
+    if (!track) {
+      throw new NotFoundException('Track not found');
+    }
+
+    if (!track.isPublic) {
+      throw new ForbiddenException('This track is private');
+    }
+
+    if (commentDto.parentId) {
+      const parentComment = await this.trackRepository.findCommentById(commentDto.parentId);
+      if (!parentComment) {
+        throw new NotFoundException('Parent comment not found');
+      }
+    }
+    const comment = await this.trackRepository.addComment(trackId, userId, commentDto);
+    return { status: 'success', data: comment };
+  }
+
+  async deleteComment(trackId: string, commentId: string, userId: string) {
+    const track = await this.trackRepository.findById(trackId);
+    if (!track) {
+      throw new NotFoundException('Track not found');
+    }
+
+    if (!track.isPublic) {
+      throw new ForbiddenException('This track is private');
+    }
+    const comment = await this.trackRepository.findCommentById(commentId);
+    if (!comment) {
+      throw new NotFoundException('Comment not found');
+    }
+    if (comment.trackId !== trackId) {
+      throw new ConflictException('This comment does not belong to this track');
+    }
+    if (comment.userId !== userId) {
+      throw new ForbiddenException('You are not authorized to delete this comment');
+    }
+    await this.trackRepository.deleteComment(trackId, commentId, userId);
+    return {
+      status: 'success',
+      message: 'comment deleted successfully',
+    };
+  }
+
+  async getTrackComments(
+    trackId: string,
+    userId: string,
+    page: number = 1,
+    limit: number = 20,
+    order: 'timestamp' | 'newest' | 'oldest' = 'timestamp'
+  ) {
+    const track = await this.trackRepository.findById(trackId);
+    if (!track) throw new NotFoundException('Track not found');
+
+    // Private track logic
+    if (!track.isPublic && track.userId !== userId) {
+      throw new ForbiddenException('This track is private');
+    }
+
+    const cappedLimit = Math.min(limit, 100);
+
+    // Fetch comments and total count
+    const [comments, total] = await this.trackRepository.getTrackComments(
+      trackId,
+      page,
+      cappedLimit,
+      order
+    );
+
+    const mappedComments = comments.map((comment) => ({
+      commentId: comment.commentId,
+      content: comment.content,
+      timestampSeconds: comment.timestampSeconds,
+      parentId: comment.parentId,
+      user: {
+        userId: comment.user.userId,
+        username: comment.user.username,
+        displayName: comment.user.displayName,
+        avatarUrl: comment.user.avatarUrl,
+      },
+      createdAt: comment.createdAt,
+      replies: (comment.replies ?? []).map((reply) => ({
+        commentId: reply.commentId,
+        content: reply.content,
+        timestampSeconds: reply.timestampSeconds,
+        parentId: reply.parentId,
+        user: {
+          userId: reply.user.userId,
+          username: reply.user.username,
+          displayName: reply.user.displayName,
+          avatarUrl: reply.user.avatarUrl,
+        },
+        createdAt: reply.createdAt,
+      })),
+    }));
+
+    return {
+      status: 'success',
+      ...buildPaginationResponse(mappedComments, total, page, cappedLimit),
+    };
   }
 }

@@ -10,6 +10,7 @@ export default setSeederFactory(TrackComment, async () => {
 
   // Random time within a typical song (0 to 300 seconds)
   comment.timestampSeconds = faker.number.int({ min: 0, max: 300 });
+  comment.parentId = null;
 
   return comment;
 });

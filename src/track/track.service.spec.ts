@@ -35,6 +35,10 @@ const mockTrackRepository = () => ({
   removeTrackLike: jest.fn(),
   getTrackLikes: jest.fn(),
   getUserTrackLikes: jest.fn(),
+  findCommentById: jest.fn(),
+  addComment: jest.fn(),
+  deleteComment: jest.fn(),
+  getTrackComments: jest.fn(),
 });
 
 const mockUserRepository = () => ({
@@ -102,6 +106,32 @@ const mockLikeWithTrack = () => ({
     user: { userId: mockArtistId, username: 'dj_nour', displayName: 'Nour' },
   },
   createdAt: new Date('2024-06-01T12:00:00Z'),
+});
+
+// ─── Comment factories ────────────────────────────────────────────────────────
+
+const mockCommentId = '660e8400-e29b-41d4-a716-446655440010';
+const mockParentCommentId = '660e8400-e29b-41d4-a716-446655440011';
+
+const mockTrackComment = (overrides?: object) => ({
+  commentId: mockCommentId,
+  trackId: mockTrackId,
+  userId: mockUserId,
+  content: 'Great track!',
+  timestampSeconds: 56,
+  parentId: null,
+  createdAt: new Date('2024-06-01T12:00:00Z'),
+  ...overrides,
+});
+
+const mockParentComment = () => ({
+  commentId: mockParentCommentId,
+  trackId: mockTrackId,
+  userId: mockOtherUserId,
+  content: 'Original comment',
+  timestampSeconds: 30,
+  parentId: null,
+  createdAt: new Date('2024-06-01T11:00:00Z'),
 });
 
 // ─── Suite ───────────────────────────────────────────────────────────────────
@@ -956,6 +986,374 @@ describe('TrackService', () => {
       await expect(service.getUserTrackLikes(mockOtherUserId, mockMyUserId)).rejects.toThrow(
         'DB error'
       );
+    });
+  });
+
+  // ─── addComment() ────────────────────────────────────────────────────────────
+
+  describe('addComment', () => {
+    const mockDto = { content: 'Great track!', timestampSeconds: 56 };
+    const mockDtoWithParent = {
+      content: 'Nice reply!',
+      timestampSeconds: 30,
+      parentId: mockParentCommentId,
+    };
+
+    it('should return { status, data } with the saved comment', async () => {
+      const comment = mockTrackComment();
+      trackRepo.findById.mockResolvedValue(mockPublicTrack());
+      trackRepo.addComment.mockResolvedValue(comment);
+
+      const result = await service.addComment(mockTrackId, mockUserId, mockDto);
+
+      expect(result).toEqual({ status: 'success', data: comment });
+    });
+
+    it('should call addComment on repo with trackId, userId, and dto', async () => {
+      trackRepo.findById.mockResolvedValue(mockPublicTrack());
+      trackRepo.addComment.mockResolvedValue(mockTrackComment());
+
+      await service.addComment(mockTrackId, mockUserId, mockDto);
+
+      expect(trackRepo.addComment).toHaveBeenCalledWith(mockTrackId, mockUserId, mockDto);
+      expect(trackRepo.addComment).toHaveBeenCalledTimes(1);
+    });
+
+    it('should throw NotFoundException when track not found', async () => {
+      trackRepo.findById.mockResolvedValue(null);
+
+      await expect(service.addComment(mockTrackId, mockUserId, mockDto)).rejects.toThrow(
+        NotFoundException
+      );
+    });
+
+    it('should NOT call addComment if track not found', async () => {
+      trackRepo.findById.mockResolvedValue(null);
+
+      await expect(service.addComment(mockTrackId, mockUserId, mockDto)).rejects.toThrow();
+      expect(trackRepo.addComment).not.toHaveBeenCalled();
+    });
+
+    it('should throw ForbiddenException when track is private', async () => {
+      trackRepo.findById.mockResolvedValue(mockPrivateTrack());
+
+      await expect(service.addComment(mockTrackId, mockUserId, mockDto)).rejects.toThrow(
+        ForbiddenException
+      );
+    });
+
+    it('should NOT call addComment if track is private', async () => {
+      trackRepo.findById.mockResolvedValue(mockPrivateTrack());
+
+      await expect(service.addComment(mockTrackId, mockUserId, mockDto)).rejects.toThrow();
+      expect(trackRepo.addComment).not.toHaveBeenCalled();
+    });
+
+    it('should allow owner to comment on their own private track', async () => {
+      trackRepo.findById.mockResolvedValue({ ...mockPrivateTrack(), isPublic: false });
+      // Private check is isPublic only — owner is NOT exempt for commenting
+      // (service throws ForbiddenException regardless of ownership)
+      await expect(service.addComment(mockTrackId, mockUserId, mockDto)).rejects.toThrow(
+        ForbiddenException
+      );
+    });
+
+    it('should throw NotFoundException when parentId is provided but parent not found', async () => {
+      trackRepo.findById.mockResolvedValue(mockPublicTrack());
+      trackRepo.findCommentById.mockResolvedValue(null);
+
+      await expect(service.addComment(mockTrackId, mockUserId, mockDtoWithParent)).rejects.toThrow(
+        NotFoundException
+      );
+    });
+
+    it('should NOT call addComment if parent comment not found', async () => {
+      trackRepo.findById.mockResolvedValue(mockPublicTrack());
+      trackRepo.findCommentById.mockResolvedValue(null);
+
+      await expect(
+        service.addComment(mockTrackId, mockUserId, mockDtoWithParent)
+      ).rejects.toThrow();
+      expect(trackRepo.addComment).not.toHaveBeenCalled();
+    });
+
+    it('should call findCommentById with the parentId when parentId is provided', async () => {
+      trackRepo.findById.mockResolvedValue(mockPublicTrack());
+      trackRepo.findCommentById.mockResolvedValue(mockParentComment());
+      trackRepo.addComment.mockResolvedValue(mockTrackComment({ parentId: mockParentCommentId }));
+
+      await service.addComment(mockTrackId, mockUserId, mockDtoWithParent);
+
+      expect(trackRepo.findCommentById).toHaveBeenCalledWith(mockParentCommentId);
+    });
+
+    it('should NOT call findCommentById when no parentId is in dto', async () => {
+      trackRepo.findById.mockResolvedValue(mockPublicTrack());
+      trackRepo.addComment.mockResolvedValue(mockTrackComment());
+
+      await service.addComment(mockTrackId, mockUserId, mockDto);
+
+      expect(trackRepo.findCommentById).not.toHaveBeenCalled();
+    });
+
+    it('should create reply when parentId is valid', async () => {
+      const reply = mockTrackComment({ parentId: mockParentCommentId, content: 'Nice reply!' });
+      trackRepo.findById.mockResolvedValue(mockPublicTrack());
+      trackRepo.findCommentById.mockResolvedValue(mockParentComment());
+      trackRepo.addComment.mockResolvedValue(reply);
+
+      const result = await service.addComment(mockTrackId, mockUserId, mockDtoWithParent);
+
+      expect(result).toEqual({ status: 'success', data: reply });
+      expect(result.data.parentId).toBe(mockParentCommentId);
+    });
+  });
+
+  // ─── deleteComment() ─────────────────────────────────────────────────────────
+
+  describe('deleteComment', () => {
+    it('should return { status, message } on success', async () => {
+      trackRepo.findById.mockResolvedValue(mockPublicTrack());
+      trackRepo.findCommentById.mockResolvedValue(
+        mockTrackComment({ userId: mockUserId, trackId: mockTrackId })
+      );
+      trackRepo.deleteComment.mockResolvedValue(undefined);
+
+      const result = await service.deleteComment(mockTrackId, mockCommentId, mockUserId);
+
+      expect(result).toEqual({ status: 'success', message: 'comment deleted successfully' });
+    });
+
+    it('should call deleteComment on repo with correct args', async () => {
+      trackRepo.findById.mockResolvedValue(mockPublicTrack());
+      trackRepo.findCommentById.mockResolvedValue(
+        mockTrackComment({ userId: mockUserId, trackId: mockTrackId })
+      );
+      trackRepo.deleteComment.mockResolvedValue(undefined);
+
+      await service.deleteComment(mockTrackId, mockCommentId, mockUserId);
+
+      expect(trackRepo.deleteComment).toHaveBeenCalledWith(mockTrackId, mockCommentId, mockUserId);
+    });
+
+    it('should throw NotFoundException when track not found', async () => {
+      trackRepo.findById.mockResolvedValue(null);
+
+      await expect(service.deleteComment(mockTrackId, mockCommentId, mockUserId)).rejects.toThrow(
+        NotFoundException
+      );
+    });
+
+    it('should throw ForbiddenException when track is private', async () => {
+      trackRepo.findById.mockResolvedValue(mockPrivateTrack());
+
+      await expect(service.deleteComment(mockTrackId, mockCommentId, mockUserId)).rejects.toThrow(
+        ForbiddenException
+      );
+    });
+
+    it('should throw NotFoundException when comment not found', async () => {
+      trackRepo.findById.mockResolvedValue(mockPublicTrack());
+      trackRepo.findCommentById.mockResolvedValue(null);
+
+      await expect(service.deleteComment(mockTrackId, mockCommentId, mockUserId)).rejects.toThrow(
+        NotFoundException
+      );
+    });
+
+    it('should throw ConflictException when comment does not belong to the track', async () => {
+      const wrongTrackComment = mockTrackComment({
+        trackId: '999e8400-e29b-41d4-a716-446655440099',
+      });
+      trackRepo.findById.mockResolvedValue(mockPublicTrack());
+      trackRepo.findCommentById.mockResolvedValue(wrongTrackComment);
+
+      await expect(service.deleteComment(mockTrackId, mockCommentId, mockUserId)).rejects.toThrow(
+        ConflictException
+      );
+    });
+
+    it('should throw ForbiddenException when user is not the comment author', async () => {
+      trackRepo.findById.mockResolvedValue(mockPublicTrack());
+      trackRepo.findCommentById.mockResolvedValue(
+        mockTrackComment({ userId: mockOtherUserId, trackId: mockTrackId })
+      );
+
+      await expect(service.deleteComment(mockTrackId, mockCommentId, mockUserId)).rejects.toThrow(
+        ForbiddenException
+      );
+    });
+
+    it('should NOT call deleteComment if user is not the comment author', async () => {
+      trackRepo.findById.mockResolvedValue(mockPublicTrack());
+      trackRepo.findCommentById.mockResolvedValue(
+        mockTrackComment({ userId: mockOtherUserId, trackId: mockTrackId })
+      );
+
+      await expect(service.deleteComment(mockTrackId, mockCommentId, mockUserId)).rejects.toThrow();
+      expect(trackRepo.deleteComment).not.toHaveBeenCalled();
+    });
+  });
+
+  // ─── getTrackComments() ───────────────────────────────────────────────────────
+
+  describe('getTrackComments', () => {
+    const mockReplyUser = {
+      userId: mockOtherUserId,
+      username: 'other_user',
+      displayName: 'Other User',
+      avatarUrl: 'https://example.com/other-avatar.jpg',
+    };
+
+    const mockReply = () => ({
+      commentId: mockParentCommentId,
+      trackId: mockTrackId,
+      userId: mockOtherUserId,
+      content: 'Great reply!',
+      timestampSeconds: 56,
+      parentId: mockCommentId,
+      createdAt: new Date('2024-06-02T10:00:00Z'),
+      user: mockReplyUser,
+    });
+
+    const mockCommentWithUser = () => ({
+      ...mockTrackComment(),
+      parentId: null,
+      user: {
+        userId: mockUserId,
+        username: 'test_user',
+        displayName: 'Test User',
+        avatarUrl: 'https://example.com/avatar.jpg',
+      },
+      replies: [mockReply()],
+    });
+
+    it('should return paginated comments with status: success', async () => {
+      trackRepo.findById.mockResolvedValue(mockPublicTrack());
+      trackRepo.getTrackComments.mockResolvedValue([[mockCommentWithUser()], 1]);
+
+      const result = await service.getTrackComments(mockTrackId, mockUserId, 1, 20, 'timestamp');
+
+      expect(result.status).toBe('success');
+      expect(result.data).toHaveLength(1);
+      expect(result.pagination).toMatchObject({ currentPage: 1, totalCount: 1 });
+    });
+
+    it('should map comment fields correctly including parentId and replies', async () => {
+      const c = mockCommentWithUser();
+      trackRepo.findById.mockResolvedValue(mockPublicTrack());
+      trackRepo.getTrackComments.mockResolvedValue([[c], 1]);
+
+      const result = await service.getTrackComments(mockTrackId, mockUserId, 1, 20, 'timestamp');
+
+      expect(result.data[0]).toMatchObject({
+        commentId: c.commentId,
+        content: c.content,
+        timestampSeconds: c.timestampSeconds,
+        parentId: null,
+        user: {
+          userId: c.user.userId,
+          username: c.user.username,
+          displayName: c.user.displayName,
+          avatarUrl: c.user.avatarUrl,
+        },
+        createdAt: c.createdAt,
+      });
+    });
+
+    it('should map nested replies with user and parentId', async () => {
+      const c = mockCommentWithUser();
+      const reply = mockReply();
+      trackRepo.findById.mockResolvedValue(mockPublicTrack());
+      trackRepo.getTrackComments.mockResolvedValue([[c], 1]);
+
+      const result = await service.getTrackComments(mockTrackId, mockUserId, 1, 20, 'timestamp');
+
+      expect(result.data[0].replies).toHaveLength(1);
+      expect(result.data[0].replies[0]).toMatchObject({
+        commentId: reply.commentId,
+        content: reply.content,
+        timestampSeconds: reply.timestampSeconds,
+        parentId: mockCommentId,
+        user: {
+          userId: reply.user.userId,
+          username: reply.user.username,
+          displayName: reply.user.displayName,
+          avatarUrl: reply.user.avatarUrl,
+        },
+        createdAt: reply.createdAt,
+      });
+    });
+
+    it('should return empty replies array when comment has no replies', async () => {
+      const c = { ...mockCommentWithUser(), replies: [] };
+      trackRepo.findById.mockResolvedValue(mockPublicTrack());
+      trackRepo.getTrackComments.mockResolvedValue([[c], 1]);
+
+      const result = await service.getTrackComments(mockTrackId, mockUserId, 1, 20, 'timestamp');
+
+      expect(result.data[0].replies).toEqual([]);
+    });
+
+    it('should throw NotFoundException when track not found', async () => {
+      trackRepo.findById.mockResolvedValue(null);
+
+      await expect(
+        service.getTrackComments(mockTrackId, mockUserId, 1, 20, 'timestamp')
+      ).rejects.toThrow(NotFoundException);
+    });
+
+    it('should throw ForbiddenException when track is private and user is not the owner', async () => {
+      trackRepo.findById.mockResolvedValue(mockPrivateTrack());
+
+      await expect(
+        service.getTrackComments(mockTrackId, mockUserId, 1, 20, 'timestamp')
+      ).rejects.toThrow(ForbiddenException);
+    });
+
+    it('should allow owner to get comments of their private track', async () => {
+      trackRepo.findById.mockResolvedValue({ ...mockPrivateTrack(), userId: mockUserId });
+      trackRepo.getTrackComments.mockResolvedValue([[], 0]);
+
+      await expect(
+        service.getTrackComments(mockTrackId, mockUserId, 1, 20, 'timestamp')
+      ).resolves.not.toThrow();
+    });
+
+    it('should cap limit at 100', async () => {
+      trackRepo.findById.mockResolvedValue(mockPublicTrack());
+      trackRepo.getTrackComments.mockResolvedValue([[], 0]);
+
+      await service.getTrackComments(mockTrackId, mockUserId, 1, 200, 'timestamp');
+
+      expect(trackRepo.getTrackComments).toHaveBeenCalledWith(mockTrackId, 1, 100, 'timestamp');
+    });
+
+    it('should use defaults page=1, limit=20, order=timestamp when not provided', async () => {
+      trackRepo.findById.mockResolvedValue(mockPublicTrack());
+      trackRepo.getTrackComments.mockResolvedValue([[], 0]);
+
+      await service.getTrackComments(mockTrackId, mockUserId);
+
+      expect(trackRepo.getTrackComments).toHaveBeenCalledWith(mockTrackId, 1, 20, 'timestamp');
+    });
+
+    it('should pass order=newest to repo', async () => {
+      trackRepo.findById.mockResolvedValue(mockPublicTrack());
+      trackRepo.getTrackComments.mockResolvedValue([[], 0]);
+
+      await service.getTrackComments(mockTrackId, mockUserId, 1, 20, 'newest');
+
+      expect(trackRepo.getTrackComments).toHaveBeenCalledWith(mockTrackId, 1, 20, 'newest');
+    });
+
+    it('should pass order=oldest to repo', async () => {
+      trackRepo.findById.mockResolvedValue(mockPublicTrack());
+      trackRepo.getTrackComments.mockResolvedValue([[], 0]);
+
+      await service.getTrackComments(mockTrackId, mockUserId, 1, 20, 'oldest');
+
+      expect(trackRepo.getTrackComments).toHaveBeenCalledWith(mockTrackId, 1, 20, 'oldest');
     });
   });
 });
