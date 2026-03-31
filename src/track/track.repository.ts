@@ -112,4 +112,10 @@ export class TrackRepository {
     });
     return this.trackLikesRepository.save(trackLike);
   }
+
+  async getTrackLikesCount(trackId: string): Promise<number> {
+    return this.trackLikesRepository.count({
+      where: { trackId },
+    });
+  }
 }

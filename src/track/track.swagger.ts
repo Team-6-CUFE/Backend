@@ -340,3 +340,69 @@ export function ApiLikeTrack() {
     ApiResponse({ status: 401, description: 'Unauthorized' })
   );
 }
+
+export function ApiRemoveTrackLike() {
+  return applyDecorators(
+    ApiCookieAuth('access_token'),
+    ApiOperation({
+      summary: 'Remove a track like',
+      description:
+        'Allows a user to remove their like from a track. Returns an error if the user has not liked the track.',
+    }),
+    ApiParam({ name: 'trackId', description: 'UUID of the track', type: 'string' }),
+    ApiResponse({
+      status: 200,
+      description: 'Track like removed successfully',
+      schema: {
+        example: { status: 'success', message: 'Track successfully unliked' },
+      },
+    }),
+    ApiResponse({
+      status: 400,
+      description: 'User has not liked this track',
+      schema: {
+        example: { statusCode: 400, message: 'You have not liked this track' },
+      },
+    }),
+    ApiResponse({ status: 401, description: 'Unauthorized' })
+  );
+}
+
+export function ApiGetTrackLikesCount() {
+  return applyDecorators(
+    ApiCookieAuth('access_token'),
+    ApiOperation({
+      summary: 'Get like count of a track',
+      description: 'Retrieves the total number of likes for a specific track.',
+    }),
+    ApiParam({ name: 'trackId', description: 'UUID of the track', type: 'string' }),
+    ApiResponse({
+      status: 200,
+      description: 'Like count retrieved successfully',
+      schema: {
+        example: {
+          status: 'success',
+          data: {
+            trackId: '123e4567-e89b-12d3-a456-426614174000',
+            likesCount: 42,
+          },
+        },
+      },
+    }),
+    ApiResponse({
+      status: 403,
+      description: 'Track is private',
+      schema: {
+        example: { statusCode: 403, message: 'This track is private' },
+      },
+    }),
+    ApiResponse({
+      status: 404,
+      description: 'Track not found',
+      schema: {
+        example: { statusCode: 404, message: 'Track not found' },
+      },
+    }),
+    ApiResponse({ status: 401, description: 'Unauthorized' })
+  );
+}

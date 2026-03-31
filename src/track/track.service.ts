@@ -163,4 +163,20 @@ export class TrackService {
       data: await this.trackRepository.likeTrack(trackId, userId),
     };
   }
+
+  async getTrackLikesCount(trackId: string, userId: string) {
+    const track = await this.trackRepository.findById(trackId);
+    if (!track) {
+      throw new NotFoundException('Track not found');
+    }
+
+    if (!track.isPublic && track.userId !== userId) {
+      throw new ForbiddenException('This track is private');
+    }
+    const likesCount = await this.trackRepository.getTrackLikesCount(trackId);
+    return {
+      status: 'success',
+      data: { trackId, likesCount },
+    };
+  }
 }

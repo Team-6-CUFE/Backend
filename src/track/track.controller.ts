@@ -13,6 +13,7 @@ import { ApiTags } from '@nestjs/swagger';
 import { TrackService } from './track.service';
 import {
   ApiEditTrackRepost,
+  ApiGetTrackLikesCount,
   ApiGetTrackReposts,
   ApiGetTrackRepostsCount,
   ApiGetUserTrackReposts,
@@ -93,5 +94,14 @@ export class TrackController {
   @Post(':trackId/like')
   likeTrack(@Param('trackId', ParseUUIDPipe) trackId: string, @CurrentUser('sub') userId: string) {
     return this.trackService.likeTrack(trackId, userId);
+  }
+
+  @ApiGetTrackLikesCount()
+  @Get(':trackId/likes/count')
+  getTrackLikessCount(
+    @Param('trackId', ParseUUIDPipe) trackId: string,
+    @CurrentUser('sub') userId: string
+  ) {
+    return this.trackService.getTrackLikesCount(trackId, userId);
   }
 }
