@@ -59,10 +59,7 @@ export class PlaylistRepository {
     page: number,
     limit: number
   ): Promise<[any[], number]> {
-    console.log('page', page);
-    console.log('limit', limit);
     const skip = (page - 1) * limit;
-    console.log(skip);
     return this.playlistRepostRepository
       .createQueryBuilder('repost')
       .innerJoinAndSelect('repost.playlist', 'playlist')
