@@ -12,17 +12,16 @@ import {
 import { ApiTags } from '@nestjs/swagger';
 import { FollowersService } from './followers.service';
 import { CheckUserExists } from './decorators/user-exists.decorator';
-// import { Public } from '../authentication/decorators/public.decorator';
 import { CurrentUser } from '../authentication/decorators/current-user.decorator';
-// import {
-//   ApiFollowUser,
-//   ApiUnfollowUser,
-//   ApiGetFollowStatus,
-//   ApiGetFollowers,
-//   ApiGetFollowing,
-//   ApiGetFollowersCount,
-//   ApiGetFollowingCount,
-// } from './followers.swagger';
+import {
+  ApiFollowUser,
+  ApiUnfollowUser,
+  ApiGetFollowStatus,
+  ApiGetFollowers,
+  ApiGetFollowing,
+  ApiGetFollowersCount,
+  ApiGetFollowingCount,
+} from './followers.swagger';
 import { CheckBlock } from './decorators/no-block.decorator';
 
 @ApiTags('Followers & Social Graph')
@@ -33,8 +32,8 @@ export class FollowersController {
   @Post(':user_id/follow')
   @HttpCode(HttpStatus.CREATED)
   @CheckBlock()
-  @CheckUserExists('sub', 'user_id')
-  //   @ApiFollowUser()
+  @CheckUserExists('user_id')
+  @ApiFollowUser()
   async followUser(
     @CurrentUser('sub') followerId: string,
     @Param('user_id', ParseUUIDPipe) followedId: string
@@ -44,8 +43,8 @@ export class FollowersController {
 
   @Delete(':user_id/follow')
   @HttpCode(HttpStatus.OK)
-  @CheckUserExists('sub', 'user_id')
-  //   @ApiUnfollowUser()
+  @CheckUserExists('user_id')
+  @ApiUnfollowUser()
   async unfollowUser(
     @CurrentUser('sub') followerId: string,
     @Param('user_id', ParseUUIDPipe) followedId: string
@@ -55,8 +54,8 @@ export class FollowersController {
 
   @Get(':user_id/follow-status')
   @CheckBlock()
-  @CheckUserExists('sub', 'user_id')
-  //   @ApiGetFollowStatus()
+  @CheckUserExists('user_id')
+  @ApiGetFollowStatus()
   async getFollowStatus(
     @CurrentUser('sub') currentUserId: string,
     @Param('user_id', ParseUUIDPipe) targetUserId: string
@@ -64,30 +63,26 @@ export class FollowersController {
     return this.followersService.getFollowStatus(currentUserId, targetUserId);
   }
 
-  //   @Get(':user_id/followers/count')
-  //   @CheckBlock()
-  //   @CheckUserExists()
-  // //   @ApiGetFollowersCount()
-  //   async getFollowersCount(
-  //     @Param('user_id', ParseUUIDPipe) userId: string
-  //   ) {
-  //     return this.followersService.getFollowersCount(userId);
-  //   }
+  @Get(':user_id/followers/count')
+  @CheckBlock()
+  @CheckUserExists()
+  @ApiGetFollowersCount()
+  async getFollowersCount(@Param('user_id', ParseUUIDPipe) userId: string) {
+    return this.followersService.getFollowersCount(userId);
+  }
 
-  //   @Get(':user_id/following/count')
-  //   @CheckBlock()
-  //   @CheckUserExists()
-  // //   @ApiGetFollowingCount()
-  //   async getFollowingCount(
-  //     @Param('user_id', ParseUUIDPipe) userId: string
-  //   ) {
-  //     return this.followersService.getFollowingCount(userId);
-  //   }
+  @Get(':user_id/following/count')
+  @CheckBlock()
+  @CheckUserExists()
+  @ApiGetFollowingCount()
+  async getFollowingCount(@Param('user_id', ParseUUIDPipe) userId: string) {
+    return this.followersService.getFollowingCount(userId);
+  }
 
   @Get(':user_id/followers')
   @CheckBlock()
   @CheckUserExists()
-  //   @ApiGetFollowers()
+  @ApiGetFollowers()
   async getFollowers(
     @Param('user_id', ParseUUIDPipe) userId: string,
     @Query('page') page: number,
@@ -96,19 +91,15 @@ export class FollowersController {
     return this.followersService.getFollowers(userId, page ?? 1, limit ?? 20);
   }
 
-  //   @Get(':user_id/following')
-  //   @CheckBlock()
-  //   @CheckUserExists()
-  // //   @ApiGetFollowing()
-  //   async getFollowing(
-  //     @Param('user_id', ParseUUIDPipe) userId: string,
-  //     @Query('page') page:number,
-  //     @Query('limit') limit:number
-  //   ) {
-  //     return this.followersService.getFollowing(
-  //       userId,
-  //       page ?? 1,
-  //       limit ?? 20
-  //     );
-  //   }
+  @Get(':user_id/following')
+  @CheckBlock()
+  @CheckUserExists()
+  @ApiGetFollowing()
+  async getFollowing(
+    @Param('user_id', ParseUUIDPipe) userId: string,
+    @Query('page') page: number,
+    @Query('limit') limit: number
+  ) {
+    return this.followersService.getFollowing(userId, page ?? 1, limit ?? 20);
+  }
 }

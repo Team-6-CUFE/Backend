@@ -5,18 +5,49 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { FollowersRepository } from './followers.repository';
-// import { UserRepository } from '../user/user.repository';
+import { UserRepository } from '../user/user.repository';
 
 @Injectable()
 export class FollowersService {
   constructor(
-    private readonly followersRepository: FollowersRepository
-    // private readonly userRepository: UserRepository
+    private readonly followersRepository: FollowersRepository,
+    private readonly userRepository: UserRepository
   ) {}
 
-  //   async getFollowing(userId: string, page: number, limit: number) {
-  //       throw new Error('Method not implemented.');
-  //   }
+  async getFollowing(userId: string, page: number, limit: number) {
+    const { users, total } = await this.followersRepository.getFollowing(userId, page, limit);
+
+    const enriched = await Promise.all(
+      users.map(async (u) => {
+        const isFollowingBack = await this.followersRepository.isFollowing(
+          u.userId as string,
+          userId
+        );
+        return {
+          userId: u.userId,
+          username: u.username,
+          displayName: u.displayName ?? null,
+          avatarUrl: u.avatarUrl ?? null,
+          followersCount: u.followersCount ?? 0,
+          isFollowingBack,
+        };
+      })
+    );
+
+    return {
+      status: 'success',
+      data: {
+        following: enriched,
+        pagination: {
+          currentPage: page,
+          totalPages: Math.ceil(total / limit),
+          totalCount: total,
+          limit,
+        },
+      },
+    };
+  }
+
   async getFollowers(userId: string, page: number, limit: number) {
     const { users, total } = await this.followersRepository.getFollowers(userId, page, limit);
 
@@ -31,7 +62,7 @@ export class FollowersService {
           username: u.username,
           displayName: u.displayName ?? null,
           avatarUrl: u.avatarUrl ?? null,
-          //   followersCount: u.followersCount ?? 0,
+          followersCount: u.followersCount ?? 0,
           isFollowedBack,
         };
       })
@@ -42,20 +73,39 @@ export class FollowersService {
       data: {
         followers: enriched,
         pagination: {
-          current_page: page,
-          total_pages: Math.ceil(total / limit),
-          total_count: total,
+          currentPage: page,
+          totalPages: Math.ceil(total / limit),
+          totalCount: total,
           limit,
         },
       },
     };
   }
-  //   async getFollowingCount(userId: string) {
-  //       throw new Error('Method not implemented.');
-  //   }
-  //   async getFollowersCount(userId: string) {
 
-  //   }
+  async getFollowingCount(userId: string) {
+    const target = await this.userRepository.findById(userId);
+
+    return {
+      status: 'success',
+      data: {
+        user_id: userId,
+        followings_count: target!.followingsCount,
+      },
+    };
+  }
+
+  async getFollowersCount(userId: string) {
+    const target = await this.userRepository.findById(userId);
+
+    return {
+      status: 'success',
+      data: {
+        user_id: userId,
+        followers_count: target!.followersCount,
+      },
+    };
+  }
+
   async getFollowStatus(currentUserId: string, targetUserId: string) {
     if (currentUserId === targetUserId) {
       throw new BadRequestException('Cannot check follow status with yourself');
@@ -64,7 +114,7 @@ export class FollowersService {
     return {
       status: 'success',
       data: {
-        follow_status: result.status,
+        followStatus: result.status,
         ...(result.since && { since: result.since }),
       },
     };
@@ -74,7 +124,7 @@ export class FollowersService {
     if (followerId === followedId) {
       throw new BadRequestException('You cannot unfollow yourself');
     }
-    const deleted = this.followersRepository.deleteFollow(followerId, followedId);
+    const deleted = await this.followersRepository.deleteFollow(followerId, followedId);
     if (!deleted) {
       throw new NotFoundException('You are not following this user');
     }

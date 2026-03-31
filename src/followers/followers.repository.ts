@@ -49,21 +49,24 @@ export class FollowersRepository {
     limit: number
   ): Promise<{ users: Partial<User>[]; total: number }> {
     const offset: number = (page - 1) * limit;
-    const [users, total] = await this.userRepository
-      .createQueryBuilder('user')
-      .innerJoin('user_follows', 'uf', 'uf.follower = user.user_id')
-      .where('uf.followed = :userId', { userId })
-      .select([
-        'user.user_id',
-        'user.username',
-        'user.display_name',
-        'user.avatar_url',
-        'user.followers_count',
-      ])
-      .skip(offset)
-      .take(limit)
-      .orderBy('uf.created_at', 'DESC')
-      .getManyAndCount();
+    const [users, total] = await Promise.all([
+      this.userRepository
+        .createQueryBuilder('user')
+        .innerJoin('user_follows', 'uf', 'uf.follower = user.user_id')
+        .where('uf.followed = :userId', { userId })
+        .select([
+          'user.userId',
+          'user.username',
+          'user.displayName',
+          'user.avatarUrl',
+          'user.followersCount',
+        ])
+        .skip(offset)
+        .take(limit)
+        .getMany(),
+
+      this.followRepository.count({ where: { followed: userId } }),
+    ]);
 
     return { users, total };
   }
@@ -74,21 +77,24 @@ export class FollowersRepository {
     limit: number
   ): Promise<{ users: Partial<User>[]; total: number }> {
     const offset: number = (page - 1) * limit;
-    const [users, total] = await this.userRepository
-      .createQueryBuilder('user')
-      .innerJoin('user_follows', 'uf', 'uf.followed = user.user_id')
-      .where('uf.follower = :userId', { userId })
-      .select([
-        'user.user_id',
-        'user.username',
-        'user.display_name',
-        'user.avatar_url',
-        'user.followers_count',
-      ])
-      .skip(offset)
-      .take(limit)
-      .orderBy('uf.created_at', 'DESC')
-      .getManyAndCount();
+    const [users, total] = await Promise.all([
+      this.userRepository
+        .createQueryBuilder('user')
+        .innerJoin('user_follows', 'uf', 'uf.followed = user.user_id')
+        .where('uf.follower = :userId', { userId })
+        .select([
+          'user.userId',
+          'user.username',
+          'user.displayName',
+          'user.avatarUrl',
+          'user.followersCount',
+        ])
+        .skip(offset)
+        .take(limit)
+        .getMany(),
+
+      this.followRepository.count({ where: { follower: userId } }),
+    ]);
 
     return { users, total };
   }
