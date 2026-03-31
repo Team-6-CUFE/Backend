@@ -27,6 +27,8 @@ const mockTrackService = () => ({
   getTrackLikes: jest.fn(),
   getUserTrackLikes: jest.fn(),
   addComment: jest.fn(),
+  deleteComment: jest.fn(),
+  getTrackComments: jest.fn(),
 });
 
 describe('TrackController', () => {
@@ -605,6 +607,130 @@ describe('TrackController', () => {
       await expect(
         controller.comment(mockTrackId, mockUserId, mockDtoWithParent as any)
       ).rejects.toThrow(NotFoundException);
+    });
+  });
+
+  // ─── deleteComment ────────────────────────────────────────────────────────────
+
+  describe('deleteComment', () => {
+    const mockCommentId = '660e8400-e29b-41d4-a716-446655440010';
+
+    it('should delegate to service with trackId, commentId, and userId', async () => {
+      service.deleteComment.mockResolvedValue({
+        status: 'success',
+        message: 'comment deleted successfully',
+      });
+
+      await controller.deleteComment(mockTrackId, mockCommentId, mockUserId);
+
+      expect(service.deleteComment).toHaveBeenCalledWith(mockTrackId, mockCommentId, mockUserId);
+      expect(service.deleteComment).toHaveBeenCalledTimes(1);
+    });
+
+    it('should return the service response as-is', async () => {
+      const mockResponse = { status: 'success', message: 'comment deleted successfully' };
+      service.deleteComment.mockResolvedValue(mockResponse);
+
+      const result = await controller.deleteComment(mockTrackId, mockCommentId, mockUserId);
+
+      expect(result).toBe(mockResponse);
+    });
+
+    it('should propagate NotFoundException when track or comment not found', async () => {
+      service.deleteComment.mockRejectedValue(new NotFoundException('Comment not found'));
+
+      await expect(
+        controller.deleteComment(mockTrackId, mockCommentId, mockUserId)
+      ).rejects.toThrow(NotFoundException);
+    });
+
+    it('should propagate ForbiddenException when not the comment author', async () => {
+      service.deleteComment.mockRejectedValue(
+        new ForbiddenException('You are not authorized to delete this comment')
+      );
+
+      await expect(
+        controller.deleteComment(mockTrackId, mockCommentId, mockUserId)
+      ).rejects.toThrow(ForbiddenException);
+    });
+
+    it('should propagate ConflictException when comment does not belong to track', async () => {
+      service.deleteComment.mockRejectedValue(
+        new ConflictException('This comment does not belong to this track')
+      );
+
+      await expect(
+        controller.deleteComment(mockTrackId, mockCommentId, mockUserId)
+      ).rejects.toThrow(ConflictException);
+    });
+  });
+
+  // ─── getTrackComments ─────────────────────────────────────────────────────────
+
+  describe('getTrackComments', () => {
+    const mockPage = 1;
+    const mockLimit = 20;
+
+    it('should delegate to service with all params', async () => {
+      service.getTrackComments.mockResolvedValue({
+        status: 'success',
+        data: [],
+        pagination: { currentPage: 1, totalPages: 0, totalCount: 0, limit: mockLimit },
+      });
+
+      await controller.getTrackComments(mockTrackId, mockUserId, mockPage, mockLimit, 'timestamp');
+
+      expect(service.getTrackComments).toHaveBeenCalledWith(
+        mockTrackId,
+        mockUserId,
+        mockPage,
+        mockLimit,
+        'timestamp'
+      );
+      expect(service.getTrackComments).toHaveBeenCalledTimes(1);
+    });
+
+    it('should return the service response as-is', async () => {
+      const mockResponse = {
+        status: 'success',
+        data: [
+          {
+            commentId: '660e8400-e29b-41d4-a716-446655440010',
+            content: 'Great!',
+            timestampSeconds: 56,
+            user: { userId: mockUserId, username: 'user' },
+            createdAt: new Date(),
+          },
+        ],
+        pagination: { currentPage: 1, totalPages: 1, totalCount: 1, limit: mockLimit },
+      };
+      service.getTrackComments.mockResolvedValue(mockResponse);
+
+      const result = await controller.getTrackComments(
+        mockTrackId,
+        mockUserId,
+        mockPage,
+        mockLimit,
+        'newest'
+      );
+
+      expect(result).toBe(mockResponse);
+    });
+
+    it('should propagate NotFoundException when track not found', async () => {
+      service.getTrackComments.mockRejectedValue(new NotFoundException('Track not found'));
+
+      await expect(
+        controller.getTrackComments(mockTrackId, mockUserId, mockPage, mockLimit, 'oldest')
+      ).rejects.toThrow(NotFoundException);
+    });
+
+    it('should propagate ForbiddenException when track is private', async () => {
+      service.getTrackComments.mockRejectedValue(new ForbiddenException('This track is private'));
+
+      await expect(
+        controller.getTrackComments(mockTrackId, mockUserId, mockPage, mockLimit, 'timestamp')
+      ).rejects.toThrow(ForbiddenException);
     });
   });
 });

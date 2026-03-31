@@ -263,20 +263,7 @@ export class TrackService {
       }
     }
     const comment = await this.trackRepository.addComment(trackId, userId, commentDto);
-    console.log('hello', comment.commentId);
-    return {
-      status: 'success',
-      data: {
-        commentId: comment.commentId,
-        userId: comment.userId,
-        trackId: comment.trackId,
-        timestamp: comment.createdAt.getTime(),
-        parentId: comment.parentId,
-        createdAt: comment.createdAt,
-        updatedAt: comment.updatedAt,
-        content: comment.content,
-      },
-    };
+    return { status: 'success', data: comment };
   }
 
   async deleteComment(trackId: string, commentId: string, userId: string) {
@@ -294,6 +281,9 @@ export class TrackService {
     }
     if (comment.trackId !== trackId) {
       throw new ConflictException('This comment does not belong to this track');
+    }
+    if (comment.userId !== userId) {
+      throw new ForbiddenException('You are not authorized to delete this comment');
     }
     await this.trackRepository.deleteComment(trackId, commentId, userId);
     return {

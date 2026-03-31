@@ -631,42 +631,41 @@ export function ApiDeleteComment() {
   return applyDecorators(
     ApiCookieAuth('access_token'),
     ApiOperation({
-      summary: 'Comment on a track',
-      description: 'Allows a user to comment on a track. The track must be public.',
+      summary: 'Delete a comment from a track',
+      description:
+        'Deletes a comment by ID. The requester must be the author of the comment. Also deletes all replies to the comment.',
     }),
     ApiParam({ name: 'trackId', description: 'UUID of the track', type: 'string' }),
-    ApiBody({ type: AddCommentDto }),
+    ApiParam({ name: 'commentId', description: 'UUID of the comment to delete', type: 'string' }),
     ApiResponse({
-      status: 201,
-      description: 'Comment created successfully',
+      status: 200,
+      description: 'Comment deleted successfully',
       schema: {
         example: {
           status: 'success',
-          data: {
-            commentId: '550e8400-e29b-41d4-a716-446655440001',
-            userId: '550e8400-e29b-41d4-a716-446655440002',
-            trackId: '550e8400-e29b-41d4-a716-446655440003',
-            content: 'Great track!',
-            timestampSeconds: 120,
-            parentId: null,
-            createdAt: '2024-06-01T12:00:00Z',
-            updatedAt: '2024-06-01T12:00:00Z',
-          },
+          message: 'comment deleted successfully',
         },
       },
     }),
     ApiResponse({
       status: 403,
-      description: 'Track is private',
+      description: 'Track is private or user is not the comment author',
       schema: {
-        example: { statusCode: 403, message: 'This track is private' },
+        example: { statusCode: 403, message: 'You are not authorized to delete this comment' },
       },
     }),
     ApiResponse({
       status: 404,
-      description: 'Track or parent comment not found',
+      description: 'Track or comment not found',
       schema: {
-        example: { statusCode: 404, message: 'Track not found' },
+        example: { statusCode: 404, message: 'Comment not found' },
+      },
+    }),
+    ApiResponse({
+      status: 409,
+      description: 'Comment does not belong to this track',
+      schema: {
+        example: { statusCode: 409, message: 'This comment does not belong to this track' },
       },
     }),
     ApiResponse({ status: 401, description: 'Unauthorized' })
@@ -731,6 +730,7 @@ export function ApiGetTrackComments() {
       },
     }),
     ApiResponse({ status: 403, description: 'Track is private' }),
-    ApiResponse({ status: 404, description: 'Track not found' })
+    ApiResponse({ status: 404, description: 'Track not found' }),
+    ApiResponse({ status: 401, description: 'Unauthorized' })
   );
 }
