@@ -113,4 +113,15 @@ export class FollowersController {
   ) {
     return this.followersService.blockUser(currentUserId, targetUserId);
   }
+
+  @Delete(':user_id/block')
+  @HttpCode(HttpStatus.OK)
+  @CheckUserExists('user_id')
+  // @ApiUnblockUser()
+  async unblockUser(
+    @CurrentUser('sub') currentUserId: string,
+    @Param('user_id', ParseUUIDPipe) targetUserId: string
+  ) {
+    return this.followersService.unblockUser(currentUserId, targetUserId);
+  }
 }
