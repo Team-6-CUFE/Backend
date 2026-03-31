@@ -18,6 +18,7 @@ import {
   ApiGetTrackRepostsCount,
   ApiGetUserTrackReposts,
   ApiLikeTrack,
+  ApiRemoveTrackLike,
   ApiRemoveTrackRepost,
   ApiRepostTrack,
 } from './track.swagger';
@@ -103,5 +104,14 @@ export class TrackController {
     @CurrentUser('sub') userId: string
   ) {
     return this.trackService.getTrackLikesCount(trackId, userId);
+  }
+
+  @ApiRemoveTrackLike()
+  @Delete(':trackId/like')
+  removeTrackLike(
+    @Param('trackId', ParseUUIDPipe) trackId: string,
+    @CurrentUser('sub') userId: string
+  ) {
+    return this.trackService.removeTrackLike(trackId, userId);
   }
 }

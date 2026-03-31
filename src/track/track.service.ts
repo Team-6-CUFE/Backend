@@ -179,4 +179,16 @@ export class TrackService {
       data: { trackId, likesCount },
     };
   }
+
+  async removeTrackLike(trackId: string, userId: string) {
+    const checkLike = await this.trackRepository.didUserLikeTrack(userId, trackId);
+    if (!checkLike) {
+      throw new BadRequestException('You have not liked this track');
+    }
+    await this.trackRepository.removeTrackLike(trackId, userId);
+    return {
+      status: 'success',
+      message: 'Track successfully unliked',
+    };
+  }
 }

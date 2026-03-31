@@ -118,4 +118,11 @@ export class TrackRepository {
       where: { trackId },
     });
   }
+
+  async removeTrackLike(trackId: string, userId: string): Promise<void> {
+    await this.trackLikesRepository.delete({
+      trackId,
+      userId,
+    });
+  }
 }
