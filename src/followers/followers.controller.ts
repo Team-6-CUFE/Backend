@@ -115,7 +115,6 @@ export class FollowersController {
   }
 
   @Delete(':user_id/block')
-  @HttpCode(HttpStatus.OK)
   @CheckUserExists('user_id')
   // @ApiUnblockUser()
   async unblockUser(
