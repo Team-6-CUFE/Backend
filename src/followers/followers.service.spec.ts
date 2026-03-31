@@ -11,6 +11,7 @@ import {
   mockFollowersList,
   mockFollowersRepository,
   mockUserRepository,
+  mockUserBlock,
 } from './test/followers.mock';
 
 describe('FollowersService', () => {
@@ -357,6 +358,48 @@ describe('FollowersService', () => {
       const result = await service.getFollowingCount(mockFollowedId);
 
       expect(result.data.followings_count).toBe(0);
+    });
+  });
+
+  describe('blockUser', () => {
+    it('should create a block and return formatted response', async () => {
+      mockFollowersRepository.isBlocking.mockResolvedValue(false);
+      mockFollowersRepository.createBlockAndHandleFollows.mockResolvedValue(mockUserBlock);
+
+      const result = await service.blockUser(mockFollowerId, mockFollowedId);
+
+      expect(result).toEqual({
+        status: 'success',
+        data: {
+          blocker_id: mockUserBlock.blocker,
+          blocked_id: mockUserBlock.blocked,
+          created_at: mockUserBlock.createdAt,
+        },
+      });
+      expect(mockFollowersRepository.isBlocking).toHaveBeenCalledWith(
+        mockFollowerId,
+        mockFollowedId
+      );
+      expect(mockFollowersRepository.createBlockAndHandleFollows).toHaveBeenCalledWith(
+        mockFollowerId,
+        mockFollowedId
+      );
+    });
+
+    it('should throw BadRequestException when blocking self', async () => {
+      await expect(service.blockUser(mockFollowerId, mockFollowerId)).rejects.toThrow(
+        new BadRequestException('You cannot block yourself')
+      );
+      expect(mockFollowersRepository.isBlocking).not.toHaveBeenCalled();
+    });
+
+    it('should throw ConflictException when already blocked', async () => {
+      mockFollowersRepository.isBlocking.mockResolvedValue(true);
+
+      await expect(service.blockUser(mockFollowerId, mockFollowedId)).rejects.toThrow(
+        new ConflictException('You have already blocked this user')
+      );
+      expect(mockFollowersRepository.createBlockAndHandleFollows).not.toHaveBeenCalled();
     });
   });
 });

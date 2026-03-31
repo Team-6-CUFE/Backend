@@ -10,6 +10,12 @@ export const mockUserFollow = {
   createdAt: new Date('2025-01-15T08:30:00Z'),
 } as UserFollow;
 
+export const mockUserBlock = {
+  blocker: mockFollowerId,
+  blocked: mockFollowedId,
+  createdAt: new Date('2026-03-31T10:00:00Z'),
+};
+
 export const mockPublicUser = (overrides: Partial<User> = {}): Partial<User> => ({
   userId: mockFollowedId,
   username: 'john_doe',
@@ -39,6 +45,8 @@ export const mockFollowersRepository = {
   getFollowStatus: jest.fn(),
   countFollowers: jest.fn(),
   countFollowing: jest.fn(),
+  isBlocking: jest.fn(),
+  createBlockAndHandleFollows: jest.fn(),
 };
 
 export const mockUserRepository = {
@@ -53,4 +61,5 @@ export const mockFollowersService = {
   getFollowing: jest.fn(),
   getFollowersCount: jest.fn(),
   getFollowingCount: jest.fn(),
+  blockUser: jest.fn(),
 };

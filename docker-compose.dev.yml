@@ -4,7 +4,7 @@ services:
     environment:
       POSTGRES_DB: SoundCloud
       POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: 1234567890
+      POSTGRES_PASSWORD: 12345
     ports:
       - "5432:5432"
     healthcheck:
@@ -37,15 +37,15 @@ services:
       redis:
         condition: service_started
 
-  frontend:
-    build:
-      context: ../Frontend
-      dockerfile: Docker/Dockerfile.dev
-    container_name: soundcloud_frontend_dev
-    volumes:
-      - ../Frontend:/app
-      - /app/node_modules
-    ports:
-      - "5173:5173"
-    depends_on:
-      - backend
+  # frontend:
+  #   build:
+  #     context: ../Frontend
+  #     dockerfile: Docker/Dockerfile.dev
+  #   container_name: soundcloud_frontend_dev
+  #   volumes:
+  #     - ../Frontend:/app
+  #     - /app/node_modules
+  #   ports:
+  #     - "5173:5173"
+  #   depends_on:
+  #     - backend

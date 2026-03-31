@@ -6,6 +6,7 @@ import {
   mockFollowedId,
   mockUserFollow,
   mockFollowersService,
+  mockUserBlock,
 } from './test/followers.mock';
 
 jest.mock('./decorators/no-block.decorator', () => ({
@@ -44,6 +45,25 @@ describe('FollowersController', () => {
       const result = await controller.followUser(mockFollowerId, mockFollowedId);
 
       expect(mockFollowersService.followUser).toHaveBeenCalledWith(mockFollowerId, mockFollowedId);
+      expect(result).toEqual(expected);
+    });
+  });
+
+  describe('blockUser', () => {
+    it('should call service.blockUser with correct args and return result', async () => {
+      const expected = {
+        status: 'success',
+        data: {
+          blocker_id: mockFollowerId,
+          blocked_id: mockFollowedId,
+          created_at: mockUserBlock.createdAt,
+        },
+      };
+      mockFollowersService.blockUser.mockResolvedValue(expected);
+
+      const result = await controller.blockUser(mockFollowerId, mockFollowedId);
+
+      expect(mockFollowersService.blockUser).toHaveBeenCalledWith(mockFollowerId, mockFollowedId);
       expect(result).toEqual(expected);
     });
   });
