@@ -11,6 +11,7 @@ import { BaseEntity } from '../../common/entities/base.entity';
 import { User } from '../../user/entities/user.entity';
 import { PlaylistLike } from './playlist-likes.entity';
 import { PlaylistRepost } from './playlist-reposts.entity';
+import { PlaylistTrack } from './playlist-tracks.entity';
 
 @Entity('playlists')
 export class Playlist extends BaseEntity {
@@ -38,6 +39,9 @@ export class Playlist extends BaseEntity {
   @Column({ type: 'uuid', name: 'user_id' })
   userId!: string;
 
+  @Column({ type: 'int', name: 'tracks_count' })
+  tracksCount!: number;
+
   // Relationship
   @ManyToOne(() => User, { onDelete: 'CASCADE' })
   @JoinColumn({ name: 'user_id' })
@@ -48,4 +52,7 @@ export class Playlist extends BaseEntity {
 
   @OneToMany(() => PlaylistRepost, (repost) => repost.playlist)
   reposts!: Relation<PlaylistRepost[]>;
+
+  @OneToMany('PlaylistTrack', (playlistTrack: PlaylistTrack) => playlistTrack.playlist)
+  playlistTracks!: PlaylistTrack[];
 }
