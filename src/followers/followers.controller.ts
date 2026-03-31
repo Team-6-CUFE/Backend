@@ -24,6 +24,7 @@ import {
   ApiBlockUser,
   ApiUnblockUser,
   ApiGetBlockedUsers,
+  ApiGetBlockStatus,
 } from './followers.swagger';
 import { CheckBlock } from './decorators/no-block.decorator';
 
@@ -138,7 +139,7 @@ export class FollowersController {
 
   @Get(':user_id/block-status')
   @CheckUserExists('user_id')
-  // @ApiGetBlockStatus()
+  @ApiGetBlockStatus()
   async getBlockStatus(
     @CurrentUser('sub') currentUserId: string,
     @Param('user_id', ParseUUIDPipe) targetUserId: string

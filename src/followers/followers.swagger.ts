@@ -515,3 +515,53 @@ export function ApiGetBlockedUsers() {
     })
   );
 }
+
+export function ApiGetBlockStatus() {
+  return applyDecorators(
+    ApiBearerAuth(),
+    ApiOperation({
+      summary: 'Get block status',
+      description:
+        'Returns the block relationship status between the authenticated user and the target user.',
+    }),
+    ApiParam({ name: 'user_id', description: 'ID of the target user', type: String }),
+    ApiResponse({
+      status: HttpStatus.OK,
+      description: 'Block status successfully returned',
+      content: {
+        'application/json': {
+          examples: {
+            blocking: {
+              summary: 'Blocking',
+              value: {
+                status: 'success',
+                data: { blockStatus: 'blocking', since: '2025-03-10T09:00:00Z' },
+              },
+            },
+            blockedBy: {
+              summary: 'Blocked By',
+              value: {
+                status: 'success',
+                data: { blockStatus: 'blocked_by', since: '2025-04-22T14:30:00Z' },
+              },
+            },
+            mutualBlock: {
+              summary: 'Mutual Block',
+              value: { status: 'success', data: { blockStatus: 'mutual_block' } },
+            },
+            noBlock: {
+              summary: 'No Block',
+              value: { status: 'success', data: { blockStatus: 'none' } },
+            },
+          },
+        },
+      },
+    }),
+    ApiResponse({
+      status: HttpStatus.BAD_REQUEST,
+      description: 'Cannot check block status with yourself',
+      ...errorSchema('Cannot check block status with yourself'),
+    }),
+    ...commonErrorResponses
+  );
+}
