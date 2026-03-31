@@ -93,4 +93,44 @@ export class PlaylistRepository {
     });
     return this.playlistLikesRepository.save(like);
   }
+
+  async removeLike(userId: string, playlistId: string) {
+    await this.playlistLikesRepository.delete({ userId, playlistId });
+  }
+
+  async getPlaylistLikes(
+    playlistId: string,
+    page: number,
+    cappedLimit: number
+  ): Promise<[any[], number]> {
+    const skip = (page - 1) * cappedLimit;
+    const [reposts, total] = await this.playlistLikesRepository.findAndCount({
+      where: { playlistId },
+      relations: ['user'],
+      order: { createdAt: 'DESC' },
+      skip,
+      take: cappedLimit,
+    });
+    return [reposts, total];
+  }
+
+  async getUserPlaylistLikes(
+    userId: string,
+    page: number,
+    limit: number
+  ): Promise<[any[], number]> {
+    console.log('page', page);
+    console.log('limit', limit);
+    const skip = (page - 1) * limit;
+    console.log(skip);
+    return this.playlistLikesRepository
+      .createQueryBuilder('like')
+      .innerJoinAndSelect('like.playlist', 'playlist')
+      .innerJoinAndSelect('playlist.user', 'user')
+      .where('like.userId = :userId', { userId })
+      .orderBy('like.createdAt', 'DESC')
+      .skip(skip)
+      .take(limit)
+      .getManyAndCount();
+  }
 }

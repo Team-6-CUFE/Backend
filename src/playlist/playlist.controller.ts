@@ -89,8 +89,11 @@ export class PlaylistController {
 
   @ApiGetPlaylistLikesCount()
   @Get(':playlistId/likes/count')
-  getLikesCount(@Param('playlistId', ParseUUIDPipe) playlistId: string) {
-    return this.playlistService.getLikesCount(playlistId);
+  getLikesCount(
+    @Param('playlistId', ParseUUIDPipe) playlistId: string,
+    @CurrentUser('sub') userId: string
+  ) {
+    return this.playlistService.getLikesCount(playlistId, userId);
   }
 
   @ApiGetPlaylistLikes()

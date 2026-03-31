@@ -167,30 +167,25 @@ export class PlaylistService {
       throw new BadRequestException({ message: 'playlist not found' });
     }
     // check if already like //
-    const alreadyReposted = await this.playlistRepository.findLikeByUserAndPlaylist(
+    const alreadyLiked = await this.playlistRepository.findLikeByUserAndPlaylist(
       userId,
       playlistId
     );
-    if (alreadyReposted) {
+    if (alreadyLiked) {
       throw new ConflictException({
-        message: 'You have already reposted this playlist',
+        message: 'You have already liked this playlist',
       });
     }
     // check if playlist is private//
     const isPrivate = playlist.isPublic;
-    if (!isPrivate) {
+    if (!isPrivate && playlist.userId !== userId) {
       throw new ForbiddenException({
-        message: 'Cannot repost a private playlist',
-      });
-    }
-    // check if user is the owner of the playlist
-    if (playlist.userId === userId) {
-      throw new BadRequestException({
-        message: 'You cannot repost your own playlist',
+        message: 'Cannot like a private playlist',
       });
     }
     await this.playlistRepository.createLike(userId, playlistId);
     return {
+      status: 'success',
       userId,
       playlistId,
       likedAt: new Date(),
@@ -204,38 +199,36 @@ export class PlaylistService {
       throw new BadRequestException({ message: 'playlist not found' });
     }
     // check if user reposted this playlist or not
-    const isReposted = await this.playlistRepository.findRepostByUserAndPlaylist(
-      userId,
-      playlistId
-    );
-    if (!isReposted) {
+    const isLiked = await this.playlistRepository.findLikeByUserAndPlaylist(userId, playlistId);
+    if (!isLiked) {
       throw new ForbiddenException({
-        message: 'you have not reposted this playlist',
+        message: 'you have not liked this playlist',
       });
     }
     const { isPublic } = playlist;
-    if (!isPublic) {
+    if (!isPublic && playlist.userId !== userId) {
       throw new ForbiddenException({ message: 'This Playlist is Private' });
     }
-    await this.playlistRepository.removeRepost(userId, playlistId);
+    await this.playlistRepository.removeLike(userId, playlistId);
     return {
-      message: 'Playlist repost successfully removed',
+      status: 'success',
+      message: 'Playlist Like successfully removed',
     };
   }
 
-  async getLikesCount(playlistId: string) {
+  async getLikesCount(playlistId: string, userId: string) {
     const playlist = await this.playlistRepository.findPlaylistById(playlistId);
     if (!playlist) {
       throw new BadRequestException({ message: 'playlist not found' });
     }
     const { isPublic } = playlist;
-    if (!isPublic) {
+    if (!isPublic && playlist.userId !== userId) {
       throw new ForbiddenException({ message: 'This Playlist is Private' });
     }
-    const repostCount = playlist.repostsCount;
+    const { likesCount } = playlist;
     return {
       playlistId,
-      repostCount,
+      likesCount,
     };
   }
 
@@ -248,20 +241,21 @@ export class PlaylistService {
       throw new ForbiddenException({ status: 'error', message: 'This Playlist is private' });
     }
     const cappedLimit = Math.min(limit, 100);
-    const [reposts, total] = await this.playlistRepository.getPlaylistReposters(
+    const [likes, total] = await this.playlistRepository.getPlaylistLikes(
       playlistId,
       page,
       cappedLimit
     );
 
-    const mappedReposters = reposts.map((repost) => ({
+    const mappedLikes = likes.map((repost) => ({
       userId: repost.user.userId,
       username: repost.user.username,
       displayName: repost.user.displayName,
       avatarUrl: repost.user.avatarUrl,
+      followersCount: repost.user.followersCount,
       repostedAt: repost.createdAt,
     }));
-    return buildPaginationResponse(mappedReposters, total, page, limit);
+    return buildPaginationResponse(mappedLikes, total, page, limit);
   }
 
   async getUserPlaylistLikes(userId: string, myUserId: string, page: number, limit: number) {
@@ -273,16 +267,13 @@ export class PlaylistService {
     if (!user.isPublic && user.userId !== myUserId) {
       throw new ForbiddenException('This account is private');
     }
-    console.log('service limit', limit);
     const cappedLimit = Math.min(limit, 100);
-    console.log('cappedlimit', cappedLimit);
-    const [reposts, total] = await this.playlistRepository.getUserPlaylistReposts(
+    const [likes, total] = await this.playlistRepository.getUserPlaylistReposts(
       userId,
       page,
       cappedLimit
     );
-    console.log(reposts, total);
-    const mappedReposts = reposts.map((repost) => ({
+    const mappedReposts = likes.map((repost) => ({
       playlistId: repost.playlistId,
       title: repost.playlist.title,
       coverImage: repost.playlist.coverImage,
