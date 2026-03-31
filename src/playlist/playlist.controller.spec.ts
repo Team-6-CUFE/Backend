@@ -25,6 +25,11 @@ const mockPlaylistService = () => ({
   getRepostsCount: jest.fn(),
   getPlaylistReposters: jest.fn(),
   getUserPlaylistReposts: jest.fn(),
+  likePlaylist: jest.fn(),
+  unlikePlaylist: jest.fn(),
+  getLikesCount: jest.fn(),
+  getPlaylistLikes: jest.fn(),
+  getUserPlaylistLikes: jest.fn(),
 });
 
 // ─── Suite ────────────────────────────────────────────────────────────────────
@@ -309,6 +314,263 @@ describe('PlaylistController', () => {
 
       await expect(
         controller.getUserTrackReposts(mockUserId, mockMyUserId, mockPage, mockLimit)
+      ).rejects.toThrow(ForbiddenException);
+    });
+  });
+
+  // ─── likePlaylist ─────────────────────────────────────────────────────────
+
+  describe('likePlaylist', () => {
+    it('should delegate to service with playlistId and userId', async () => {
+      service.likePlaylist.mockResolvedValue({
+        status: 'success',
+        data: { userId: mockUserId, playlistId: mockPlaylistId, likedAt: new Date() },
+      });
+
+      await controller.likePlaylist(mockPlaylistId, mockUserId);
+
+      expect(service.likePlaylist).toHaveBeenCalledWith(mockPlaylistId, mockUserId);
+      expect(service.likePlaylist).toHaveBeenCalledTimes(1);
+    });
+
+    it('should return the service response as-is', async () => {
+      const mockResponse = {
+        status: 'success',
+        data: { userId: mockUserId, playlistId: mockPlaylistId, likedAt: new Date() },
+      };
+      service.likePlaylist.mockResolvedValue(mockResponse);
+
+      const result = await controller.likePlaylist(mockPlaylistId, mockUserId);
+
+      expect(result).toBe(mockResponse);
+    });
+
+    it('should propagate NotFoundException when playlist not found', async () => {
+      service.likePlaylist.mockRejectedValue(new NotFoundException('Playlist not found'));
+
+      await expect(controller.likePlaylist(mockPlaylistId, mockUserId)).rejects.toThrow(
+        NotFoundException
+      );
+    });
+
+    it('should propagate ForbiddenException when playlist is private', async () => {
+      service.likePlaylist.mockRejectedValue(new ForbiddenException('This playlist is private'));
+
+      await expect(controller.likePlaylist(mockPlaylistId, mockUserId)).rejects.toThrow(
+        ForbiddenException
+      );
+    });
+
+    it('should propagate ConflictException when already liked', async () => {
+      service.likePlaylist.mockRejectedValue(
+        new ConflictException('You have already liked this playlist')
+      );
+
+      await expect(controller.likePlaylist(mockPlaylistId, mockUserId)).rejects.toThrow(
+        ConflictException
+      );
+    });
+  });
+
+  // ─── unlikePlaylist ───────────────────────────────────────────────────────
+
+  describe('unlikePlaylist', () => {
+    it('should delegate to service with playlistId and userId', async () => {
+      service.unlikePlaylist.mockResolvedValue({
+        status: 'success',
+        message: 'Playlist like successfully removed',
+      });
+
+      await controller.unlikePlaylist(mockPlaylistId, mockUserId);
+
+      expect(service.unlikePlaylist).toHaveBeenCalledWith(mockPlaylistId, mockUserId);
+      expect(service.unlikePlaylist).toHaveBeenCalledTimes(1);
+    });
+
+    it('should return the service response as-is', async () => {
+      const mockResponse = { status: 'success', message: 'Playlist like successfully removed' };
+      service.unlikePlaylist.mockResolvedValue(mockResponse);
+
+      const result = await controller.unlikePlaylist(mockPlaylistId, mockUserId);
+
+      expect(result).toBe(mockResponse);
+    });
+
+    it('should propagate NotFoundException when playlist not found', async () => {
+      service.unlikePlaylist.mockRejectedValue(new NotFoundException('Playlist not found'));
+
+      await expect(controller.unlikePlaylist(mockPlaylistId, mockUserId)).rejects.toThrow(
+        NotFoundException
+      );
+    });
+
+    it('should propagate ForbiddenException when user has not liked', async () => {
+      service.unlikePlaylist.mockRejectedValue(
+        new ForbiddenException('You have not liked this playlist')
+      );
+
+      await expect(controller.unlikePlaylist(mockPlaylistId, mockUserId)).rejects.toThrow(
+        ForbiddenException
+      );
+    });
+  });
+
+  // ─── getLikesCount ────────────────────────────────────────────────────────
+
+  describe('getLikesCount', () => {
+    it('should delegate to service with playlistId and userId', async () => {
+      service.getLikesCount.mockResolvedValue({
+        status: 'success',
+        data: { playlistId: mockPlaylistId, likesCount: 17 },
+      });
+
+      await controller.getLikesCount(mockPlaylistId, mockUserId);
+
+      expect(service.getLikesCount).toHaveBeenCalledWith(mockPlaylistId, mockUserId);
+      expect(service.getLikesCount).toHaveBeenCalledTimes(1);
+    });
+
+    it('should return the service response as-is', async () => {
+      const mockResponse = {
+        status: 'success',
+        data: { playlistId: mockPlaylistId, likesCount: 17 },
+      };
+      service.getLikesCount.mockResolvedValue(mockResponse);
+
+      const result = await controller.getLikesCount(mockPlaylistId, mockUserId);
+
+      expect(result).toBe(mockResponse);
+    });
+
+    it('should propagate NotFoundException when playlist not found', async () => {
+      service.getLikesCount.mockRejectedValue(new NotFoundException('Playlist not found'));
+
+      await expect(controller.getLikesCount(mockPlaylistId, mockUserId)).rejects.toThrow(
+        NotFoundException
+      );
+    });
+
+    it('should propagate ForbiddenException when playlist is private', async () => {
+      service.getLikesCount.mockRejectedValue(new ForbiddenException('This playlist is private'));
+
+      await expect(controller.getLikesCount(mockPlaylistId, mockUserId)).rejects.toThrow(
+        ForbiddenException
+      );
+    });
+  });
+
+  // ─── getPlaylistLikes ─────────────────────────────────────────────────────
+
+  describe('getPlaylistLikes', () => {
+    it('should delegate to service with playlistId, userId, page, and limit', async () => {
+      service.getPlaylistLikes.mockResolvedValue({
+        status: 'success',
+        data: [],
+        pagination: { currentPage: 1, totalPages: 0, totalCount: 0, limit: mockLimit },
+      });
+
+      await controller.getPlaylistLikes(mockPlaylistId, mockUserId, mockPage, mockLimit);
+
+      expect(service.getPlaylistLikes).toHaveBeenCalledWith(
+        mockPlaylistId,
+        mockUserId,
+        mockPage,
+        mockLimit
+      );
+      expect(service.getPlaylistLikes).toHaveBeenCalledTimes(1);
+    });
+
+    it('should return the service response as-is', async () => {
+      const mockResponse = {
+        status: 'success',
+        data: [{ userId: mockUserId, username: 'user', likedAt: new Date() }],
+        pagination: { currentPage: 1, totalPages: 1, totalCount: 1, limit: mockLimit },
+      };
+      service.getPlaylistLikes.mockResolvedValue(mockResponse);
+
+      const result = await controller.getPlaylistLikes(
+        mockPlaylistId,
+        mockUserId,
+        mockPage,
+        mockLimit
+      );
+
+      expect(result).toBe(mockResponse);
+    });
+
+    it('should propagate NotFoundException when playlist not found', async () => {
+      service.getPlaylistLikes.mockRejectedValue(new NotFoundException('Playlist not found'));
+
+      await expect(
+        controller.getPlaylistLikes(mockPlaylistId, mockUserId, mockPage, mockLimit)
+      ).rejects.toThrow(NotFoundException);
+    });
+
+    it('should propagate ForbiddenException when playlist is private', async () => {
+      service.getPlaylistLikes.mockRejectedValue(
+        new ForbiddenException('This playlist is private')
+      );
+
+      await expect(
+        controller.getPlaylistLikes(mockPlaylistId, mockUserId, mockPage, mockLimit)
+      ).rejects.toThrow(ForbiddenException);
+    });
+  });
+
+  // ─── getUserPlaylistLikes ─────────────────────────────────────────────────
+
+  describe('getUserPlaylistLikes', () => {
+    it('should delegate to service with userId, myUserId, page, and limit', async () => {
+      service.getUserPlaylistLikes.mockResolvedValue({
+        status: 'success',
+        data: [],
+        pagination: { currentPage: 1, totalPages: 0, totalCount: 0, limit: mockLimit },
+      });
+
+      await controller.getUserTrackLikes(mockUserId, mockMyUserId, mockPage, mockLimit);
+
+      expect(service.getUserPlaylistLikes).toHaveBeenCalledWith(
+        mockUserId,
+        mockMyUserId,
+        mockPage,
+        mockLimit
+      );
+      expect(service.getUserPlaylistLikes).toHaveBeenCalledTimes(1);
+    });
+
+    it('should return the service response as-is', async () => {
+      const mockResponse = {
+        status: 'success',
+        data: [{ playlistId: mockPlaylistId, title: 'Summer Hits', likedAt: new Date() }],
+        pagination: { currentPage: 1, totalPages: 1, totalCount: 1, limit: mockLimit },
+      };
+      service.getUserPlaylistLikes.mockResolvedValue(mockResponse);
+
+      const result = await controller.getUserTrackLikes(
+        mockUserId,
+        mockMyUserId,
+        mockPage,
+        mockLimit
+      );
+
+      expect(result).toBe(mockResponse);
+    });
+
+    it('should propagate NotFoundException when user not found', async () => {
+      service.getUserPlaylistLikes.mockRejectedValue(new NotFoundException('User not found'));
+
+      await expect(
+        controller.getUserTrackLikes(mockUserId, mockMyUserId, mockPage, mockLimit)
+      ).rejects.toThrow(NotFoundException);
+    });
+
+    it('should propagate ForbiddenException when account is private', async () => {
+      service.getUserPlaylistLikes.mockRejectedValue(
+        new ForbiddenException('This account is private')
+      );
+
+      await expect(
+        controller.getUserTrackLikes(mockUserId, mockMyUserId, mockPage, mockLimit)
       ).rejects.toThrow(ForbiddenException);
     });
   });

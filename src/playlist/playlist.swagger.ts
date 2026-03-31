@@ -271,16 +271,17 @@ export function ApiGetUserPlaylistReposts() {
 
 export function ApiLikePlaylist() {
   return applyDecorators(
-    ApiBearerAuth(),
+    ApiCookieAuth('access_token'),
     ApiOperation({
       summary: 'Like a playlist',
-      description: 'Allows a user to like a public playlist or their own private playlist.',
+      description:
+        'Allows a user to like a public playlist or their own private playlist. Checks: exists → private → duplicate.',
     }),
     ApiParam({
       name: 'playlistId',
       type: 'string',
       format: 'uuid',
-      description: 'The UUID of the playlist',
+      description: 'UUID of the playlist to like',
     }),
     ApiResponse({
       status: 201,
@@ -288,42 +289,60 @@ export function ApiLikePlaylist() {
       schema: {
         example: {
           status: 'success',
-          userId: 'uuid',
-          playlistId: 'uuid',
-          likedAt: '2026-03-31T...',
+          data: {
+            userId: '550e8400-e29b-41d4-a716-446655440001',
+            playlistId: '550e8400-e29b-41d4-a716-446655440000',
+            likedAt: '2026-03-31T13:00:00.000Z',
+          },
         },
       },
     }),
-    ApiResponse({ status: 400, description: 'Bad Request - Playlist not found' }),
+    ApiResponse({ status: 401, description: 'Unauthorized' }),
     ApiResponse({
       status: 403,
-      description: 'Forbidden - Cannot like a private playlist belonging to someone else',
+      description: 'Cannot like a private playlist belonging to someone else',
+      schema: { example: { statusCode: 403, message: 'Cannot like a private playlist' } },
     }),
-    ApiResponse({ status: 409, description: 'Conflict - You have already liked this playlist' })
+    ApiResponse({
+      status: 404,
+      description: 'Playlist not found',
+      schema: { example: { statusCode: 404, message: 'Playlist not found' } },
+    }),
+    ApiResponse({
+      status: 409,
+      description: 'Already liked this playlist',
+      schema: { example: { statusCode: 409, message: 'You have already liked this playlist' } },
+    })
   );
 }
 
 export function ApiUnlikePlaylist() {
   return applyDecorators(
-    ApiBearerAuth(),
+    ApiCookieAuth('access_token'),
     ApiOperation({ summary: 'Unlike a playlist', description: 'Removes a like from a playlist.' }),
     ApiParam({ name: 'playlistId', type: 'string', format: 'uuid' }),
     ApiResponse({
       status: 200,
-      description: 'Playlist Like successfully removed',
-      schema: { example: { status: 'success', message: 'Playlist Like successfully removed' } },
+      description: 'Playlist like successfully removed',
+      schema: { example: { status: 'success', message: 'Playlist like successfully removed' } },
     }),
-    ApiResponse({ status: 400, description: 'Bad Request - Playlist not found' }),
+    ApiResponse({ status: 401, description: 'Unauthorized' }),
     ApiResponse({
       status: 403,
-      description: 'Forbidden - You have not liked this playlist or it is private',
+      description: 'You have not liked this playlist',
+      schema: { example: { statusCode: 403, message: 'You have not liked this playlist' } },
+    }),
+    ApiResponse({
+      status: 404,
+      description: 'Playlist not found',
+      schema: { example: { statusCode: 404, message: 'Playlist not found' } },
     })
   );
 }
 
 export function ApiGetPlaylistLikesCount() {
   return applyDecorators(
-    ApiBearerAuth(),
+    ApiCookieAuth('access_token'),
     ApiOperation({
       summary: 'Get playlist likes count',
       description: 'Returns the total number of likes for a playlist.',
@@ -332,80 +351,155 @@ export function ApiGetPlaylistLikesCount() {
     ApiResponse({
       status: 200,
       description: 'Count retrieved successfully',
-      schema: { example: { playlistId: 'uuid', likesCount: 42 } },
+      schema: {
+        example: {
+          status: 'success',
+          data: {
+            playlistId: '550e8400-e29b-41d4-a716-446655440000',
+            likesCount: 42,
+          },
+        },
+      },
     }),
-    ApiResponse({ status: 400, description: 'Bad Request - Playlist not found' }),
-    ApiResponse({ status: 403, description: 'Forbidden - Accessing private playlist likes count' })
+    ApiResponse({ status: 401, description: 'Unauthorized' }),
+    ApiResponse({
+      status: 403,
+      description: 'This playlist is private',
+      schema: { example: { statusCode: 403, message: 'This playlist is private' } },
+    }),
+    ApiResponse({
+      status: 404,
+      description: 'Playlist not found',
+      schema: { example: { statusCode: 404, message: 'Playlist not found' } },
+    })
   );
 }
 
 export function ApiGetPlaylistLikes() {
   return applyDecorators(
-    ApiBearerAuth(),
+    ApiCookieAuth('access_token'),
     ApiOperation({
       summary: 'Get users who liked a playlist',
       description: 'Returns a paginated list of users who liked the specified playlist.',
     }),
     ApiParam({ name: 'playlistId', type: 'string', format: 'uuid' }),
-    ApiQuery({ name: 'page', required: false, type: Number, example: 1 }),
-    ApiQuery({ name: 'limit', required: false, type: Number, example: 10 }),
+    ApiQuery({
+      name: 'page',
+      required: false,
+      type: Number,
+      example: 1,
+      description: 'Page number (default: 1)',
+    }),
+    ApiQuery({
+      name: 'limit',
+      required: false,
+      type: Number,
+      example: 20,
+      description: 'Items per page, capped at 100 (default: 20)',
+    }),
     ApiResponse({
       status: 200,
-      description: 'List of users retrieved successfully',
+      description: 'Users who liked the playlist retrieved successfully',
       schema: {
         example: {
-          items: [
+          status: 'success',
+          data: [
             {
-              userId: 'uuid',
+              userId: '550e8400-e29b-41d4-a716-446655440001',
               username: 'user1',
               displayName: 'User One',
-              avatarUrl: '...',
-              followersCount: 10,
-              repostedAt: '...',
+              avatarUrl: 'https://example.com/avatar.jpg',
+              followersCount: 120,
+              likedAt: '2026-03-31T12:00:00Z',
             },
           ],
-          total: 1,
-          page: 1,
-          limit: 10,
+          pagination: {
+            currentPage: 1,
+            totalPages: 3,
+            totalCount: 50,
+            limit: 20,
+          },
         },
       },
     }),
-    ApiResponse({ status: 400, description: 'Bad Request - Playlist not found' }),
-    ApiResponse({ status: 403, description: 'Forbidden - Playlist is private' })
+    ApiResponse({ status: 401, description: 'Unauthorized' }),
+    ApiResponse({
+      status: 403,
+      description: 'This playlist is private',
+      schema: { example: { statusCode: 403, message: 'This playlist is private' } },
+    }),
+    ApiResponse({
+      status: 404,
+      description: 'Playlist not found',
+      schema: { example: { statusCode: 404, message: 'Playlist not found' } },
+    })
   );
 }
 
 export function ApiGetUserPlaylistLikes() {
   return applyDecorators(
-    ApiBearerAuth(),
+    ApiCookieAuth('access_token'),
     ApiOperation({
-      summary: 'Get a users liked playlists',
-      description: 'Returns a paginated list of playlists that a specific user has liked.',
+      summary: "Get a user's liked playlists",
+      description: 'Returns a paginated list of playlists that the specified user has liked.',
     }),
-    ApiParam({ name: 'user_id', type: 'string', format: 'uuid' }),
-    ApiQuery({ name: 'page', required: false, type: Number }),
-    ApiQuery({ name: 'limit', required: false, type: Number }),
+    ApiParam({ name: 'user_id', type: 'string', format: 'uuid', description: 'UUID of the user' }),
+    ApiQuery({
+      name: 'page',
+      required: false,
+      type: Number,
+      example: 1,
+      description: 'Page number (default: 1)',
+    }),
+    ApiQuery({
+      name: 'limit',
+      required: false,
+      type: Number,
+      example: 20,
+      description: 'Items per page, capped at 100 (default: 20)',
+    }),
     ApiResponse({
       status: 200,
-      description: 'User likes retrieved successfully',
+      description: 'User liked playlists retrieved successfully',
       schema: {
         example: {
-          items: [
+          status: 'success',
+          data: [
             {
-              playlistId: 'uuid',
-              title: 'My Favs',
-              tracksCount: 20,
-              likesCount: 5,
-              user: { username: 'creator' },
+              playlistId: '550e8400-e29b-41d4-a716-446655440000',
+              title: 'Summer Hits',
+              coverImage: 'https://example.com/cover.jpg',
+              isPublic: true,
+              tracksCount: 5,
+              likesCount: 150,
+              repostsCount: 12,
+              user: {
+                userId: '550e8400-e29b-41d4-a716-446655440002',
+                username: 'playlist_creator',
+                displayName: 'The Creator',
+              },
+              likedAt: '2026-03-31T12:00:00Z',
             },
           ],
-          total: 5,
-          page: 1,
-          limit: 10,
+          pagination: {
+            currentPage: 1,
+            totalPages: 2,
+            totalCount: 25,
+            limit: 20,
+          },
         },
       },
     }),
-    ApiResponse({ status: 404, description: 'User not found' }),
-    ApiResponse({ status: 403, description: 'Forbidden - This account is private' })
+    ApiResponse({ status: 401, description: 'Unauthorized' }),
+    ApiResponse({
+      status: 403,
+      description: 'This account is private',
+      schema: { example: { statusCode: 403, message: 'This account is private' } },
+    }),
+    ApiResponse({
+      status: 404,
+      description: 'User not found',
+      schema: { example: { statusCode: 404, message: 'User not found' } },
+    })
   );
 }

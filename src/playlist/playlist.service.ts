@@ -155,90 +155,76 @@ export class PlaylistService {
 
     return { status: 'success', ...buildPaginationResponse(mappedReposts, total, page, limit) };
   }
-  /// \\\///\\\///\\\///\\\///\\\///\\\///\\\
 
   async likePlaylist(playlistId: string, userId: string) {
-    // we need to check if playlist exists
-    // we need to check if user has already reposted the playlist
-    // if not, we create a new repost entry in the database
     const playlist = await this.playlistRepository.findPlaylistById(playlistId);
     if (!playlist) {
-      throw new BadRequestException({ message: 'playlist not found' });
+      throw new NotFoundException('Playlist not found');
     }
-    // check if already like //
+
+    if (!playlist.isPublic && playlist.userId !== userId) {
+      throw new ForbiddenException('Cannot like a private playlist');
+    }
+
     const alreadyLiked = await this.playlistRepository.findLikeByUserAndPlaylist(
       userId,
       playlistId
     );
     if (alreadyLiked) {
-      throw new ConflictException({
-        message: 'You have already liked this playlist',
-      });
+      throw new ConflictException('You have already liked this playlist');
     }
-    // check if playlist is private//
-    const isPrivate = playlist.isPublic;
-    if (!isPrivate && playlist.userId !== userId) {
-      throw new ForbiddenException({
-        message: 'Cannot like a private playlist',
-      });
-    }
+
     await this.playlistRepository.createLike(userId, playlistId);
     return {
       status: 'success',
-      userId,
-      playlistId,
-      likedAt: new Date(),
+      data: { userId, playlistId, likedAt: new Date() },
     };
   }
 
-  // this function removes a user's repost
   async unlikePlaylist(playlistId: string, userId: string) {
     const playlist = await this.playlistRepository.findPlaylistById(playlistId);
     if (!playlist) {
-      throw new BadRequestException({ message: 'playlist not found' });
+      throw new NotFoundException('Playlist not found');
     }
-    // check if user reposted this playlist or not
+
     const isLiked = await this.playlistRepository.findLikeByUserAndPlaylist(userId, playlistId);
     if (!isLiked) {
-      throw new ForbiddenException({
-        message: 'you have not liked this playlist',
-      });
+      throw new ForbiddenException('You have not liked this playlist');
     }
-    const { isPublic } = playlist;
-    if (!isPublic && playlist.userId !== userId) {
-      throw new ForbiddenException({ message: 'This Playlist is Private' });
-    }
+
     await this.playlistRepository.removeLike(userId, playlistId);
     return {
       status: 'success',
-      message: 'Playlist Like successfully removed',
+      message: 'Playlist like successfully removed',
     };
   }
 
   async getLikesCount(playlistId: string, userId: string) {
     const playlist = await this.playlistRepository.findPlaylistById(playlistId);
     if (!playlist) {
-      throw new BadRequestException({ message: 'playlist not found' });
+      throw new NotFoundException('Playlist not found');
     }
-    const { isPublic } = playlist;
-    if (!isPublic && playlist.userId !== userId) {
-      throw new ForbiddenException({ message: 'This Playlist is Private' });
+
+    if (!playlist.isPublic && playlist.userId !== userId) {
+      throw new ForbiddenException('This playlist is private');
     }
-    const { likesCount } = playlist;
+
     return {
-      playlistId,
-      likesCount,
+      status: 'success',
+      data: { playlistId, likesCount: playlist.likesCount },
     };
   }
 
-  async getPlaylistLikes(playlistId: string, userId: string, page: number, limit: number) {
+  async getPlaylistLikes(playlistId: string, userId: string, page: number = 1, limit: number = 20) {
     const playlist = await this.playlistRepository.findPlaylistById(playlistId);
     if (!playlist) {
-      throw new BadRequestException({ status: 'error', message: 'playlist not found' });
+      throw new NotFoundException('Playlist not found');
     }
+
     if (!playlist.isPublic && playlist.userId !== userId) {
-      throw new ForbiddenException({ status: 'error', message: 'This Playlist is private' });
+      throw new ForbiddenException('This playlist is private');
     }
+
     const cappedLimit = Math.min(limit, 100);
     const [likes, total] = await this.playlistRepository.getPlaylistLikes(
       playlistId,
@@ -246,18 +232,24 @@ export class PlaylistService {
       cappedLimit
     );
 
-    const mappedLikes = likes.map((repost) => ({
-      userId: repost.user.userId,
-      username: repost.user.username,
-      displayName: repost.user.displayName,
-      avatarUrl: repost.user.avatarUrl,
-      followersCount: repost.user.followersCount,
-      repostedAt: repost.createdAt,
+    const mappedLikes = likes.map((like) => ({
+      userId: like.user.userId,
+      username: like.user.username,
+      displayName: like.user.displayName,
+      avatarUrl: like.user.avatarUrl,
+      followersCount: like.user.followersCount,
+      likedAt: like.createdAt,
     }));
-    return buildPaginationResponse(mappedLikes, total, page, limit);
+
+    return { status: 'success', ...buildPaginationResponse(mappedLikes, total, page, limit) };
   }
 
-  async getUserPlaylistLikes(userId: string, myUserId: string, page: number, limit: number) {
+  async getUserPlaylistLikes(
+    userId: string,
+    myUserId: string,
+    page: number = 1,
+    limit: number = 20
+  ) {
     const user = await this.userRepository.findById(userId);
     if (!user) {
       throw new NotFoundException('User not found');
@@ -266,28 +258,30 @@ export class PlaylistService {
     if (!user.isPublic && user.userId !== myUserId) {
       throw new ForbiddenException('This account is private');
     }
+
     const cappedLimit = Math.min(limit, 100);
-    const [likes, total] = await this.playlistRepository.getUserPlaylistReposts(
+    const [likes, total] = await this.playlistRepository.getUserPlaylistLikes(
       userId,
       page,
       cappedLimit
     );
-    const mappedReposts = likes.map((repost) => ({
-      playlistId: repost.playlistId,
-      title: repost.playlist.title,
-      coverImage: repost.playlist.coverImage,
-      isPublic: repost.playlist.isPublic,
-      tracksCount: repost.playlist.tracksCount,
-      likesCount: repost.playlist.likesCount,
-      repostsCount: repost.playlist.repostsCount,
+
+    const mappedLikes = likes.map((like) => ({
+      playlistId: like.playlistId,
+      title: like.playlist.title,
+      coverImage: like.playlist.coverImage,
+      isPublic: like.playlist.isPublic,
+      tracksCount: like.playlist.tracksCount,
+      likesCount: like.playlist.likesCount,
+      repostsCount: like.playlist.repostsCount,
       user: {
-        userId: repost.playlist.user.userId,
-        username: repost.playlist.user.username,
-        displayName: repost.playlist.user.displayName,
+        userId: like.playlist.user.userId,
+        username: like.playlist.user.username,
+        displayName: like.playlist.user.displayName,
       },
-      repostedAt: repost.createdAt,
+      likedAt: like.createdAt,
     }));
 
-    return buildPaginationResponse(mappedReposts, total, page, limit);
+    return { status: 'success', ...buildPaginationResponse(mappedLikes, total, page, limit) };
   }
 }
