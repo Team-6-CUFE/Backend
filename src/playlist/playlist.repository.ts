@@ -86,11 +86,11 @@ export class PlaylistRepository {
     });
   }
 
-  async createLink(userId: string, playlistId: string): Promise<PlaylistRepost> {
-    const repost = this.playlistLikesRepository.create({
+  async createLike(userId: string, playlistId: string): Promise<PlaylistRepost> {
+    const like = this.playlistLikesRepository.create({
       userId,
       playlistId,
     });
-    return this.playlistRepository.save(repost);
+    return this.playlistLikesRepository.save(like);
   }
 }

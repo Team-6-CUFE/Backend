@@ -189,11 +189,11 @@ export class PlaylistService {
         message: 'You cannot repost your own playlist',
       });
     }
-    await this.playlistRepository.createRepost(userId, playlistId);
+    await this.playlistRepository.createLike(userId, playlistId);
     return {
       userId,
       playlistId,
-      repostedAt: new Date(),
+      likedAt: new Date(),
     };
   }
 
