@@ -313,11 +313,11 @@ export function ApiLikeTrack() {
     ApiOperation({
       summary: 'Like a track',
       description:
-        'Allows a user to like a track. Returns an error if the user has already liked the track.',
+        'Allows a user to like a track. The user cannot like their own track, and the track must be public.',
     }),
     ApiParam({ name: 'trackId', description: 'UUID of the track', type: 'string' }),
     ApiResponse({
-      status: 200,
+      status: 201,
       description: 'Track liked successfully',
       schema: {
         example: {
@@ -332,9 +332,30 @@ export function ApiLikeTrack() {
     }),
     ApiResponse({
       status: 400,
-      description: 'User has already liked this track',
+      description: 'Cannot like your own track',
       schema: {
-        example: { statusCode: 400, message: 'You have already liked this track' },
+        example: { statusCode: 400, message: 'You cannot like your own track' },
+      },
+    }),
+    ApiResponse({
+      status: 403,
+      description: 'Track is private',
+      schema: {
+        example: { statusCode: 403, message: 'This track is private' },
+      },
+    }),
+    ApiResponse({
+      status: 404,
+      description: 'Track not found',
+      schema: {
+        example: { statusCode: 404, message: 'Track not found' },
+      },
+    }),
+    ApiResponse({
+      status: 409,
+      description: 'Track already liked',
+      schema: {
+        example: { statusCode: 409, message: 'You have already liked this track' },
       },
     }),
     ApiResponse({ status: 401, description: 'Unauthorized' })
@@ -441,7 +462,6 @@ export function ApiGetTrackLikes() {
               displayName: 'Yara Senousy',
               avatarUrl: 'https://s3.amazonaws.com/avatars/yara.jpg',
               followersCount: 500,
-              caption: 'Amazing track!',
               likedAt: '2024-06-01T12:00:00Z',
             },
           ],

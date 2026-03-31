@@ -211,7 +211,6 @@ export class TrackService {
       displayName: like.user.displayName,
       avatarUrl: like.user.avatarUrl,
       followersCount: like.user.followersCount,
-      caption: like.caption,
       likedAt: like.createdAt,
     }));
     return { status: 'success', ...buildPaginationResponse(mappedReposters, total, page, limit) };
