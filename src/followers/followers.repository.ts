@@ -148,4 +148,54 @@ export class FollowersRepository {
     });
     return result;
   }
+
+  async createBlockAndHandleFollows(blockerId: string, blockedId: string): Promise<UserBlock> {
+    // We use the manager's transaction feature to safely execute everything together
+    return this.blockRepository.manager.transaction(async (transactionalEntityManager) => {
+      const followerToBlocked = await transactionalEntityManager.findOne(UserFollow, {
+        where: { follower: blockerId, followed: blockedId },
+      });
+      if (followerToBlocked) {
+        await transactionalEntityManager.remove(UserFollow, followerToBlocked);
+        await transactionalEntityManager.decrement(
+          User,
+          { userId: blockerId },
+          'followingsCount',
+          1
+        );
+        await transactionalEntityManager.decrement(
+          User,
+          { userId: blockedId },
+          'followersCount',
+          1
+        );
+      }
+
+      const blockedToFollower = await transactionalEntityManager.findOne(UserFollow, {
+        where: { follower: blockedId, followed: blockerId },
+      });
+      if (blockedToFollower) {
+        await transactionalEntityManager.remove(UserFollow, blockedToFollower);
+        await transactionalEntityManager.decrement(
+          User,
+          { userId: blockedId },
+          'followingsCount',
+          1
+        );
+        await transactionalEntityManager.decrement(
+          User,
+          { userId: blockerId },
+          'followersCount',
+          1
+        );
+      }
+
+      const newBlock = transactionalEntityManager.create(UserBlock, {
+        blocker: blockerId,
+        blocked: blockedId,
+      });
+
+      return transactionalEntityManager.save(newBlock);
+    });
+  }
 }
