@@ -236,4 +236,13 @@ export class FollowersRepository {
 
     return { users, total };
   }
+
+  async getBlockRelationship(userA: string, userB: string): Promise<UserBlock[]> {
+    return this.blockRepository.find({
+      where: [
+        { blocker: userA, blocked: userB },
+        { blocker: userB, blocked: userA },
+      ],
+    });
+  }
 }
