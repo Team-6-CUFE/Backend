@@ -36,6 +36,7 @@ async function bootstrap() {
     .setTitle('Harmonica Documentation')
     .setDescription('API description')
     .setVersion('1.0')
+    .addServer('/api')
     .addCookieAuth('access_token')
     .build();
   const document = SwaggerModule.createDocument(app, config);
