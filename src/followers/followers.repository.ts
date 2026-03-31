@@ -205,4 +205,13 @@ export class FollowersRepository {
     });
     return block !== null;
   }
+
+  async deleteBlock(blockerId: string, blockedId: string): Promise<boolean> {
+    const result = await this.blockRepository.delete({
+      blocker: blockerId,
+      blocked: blockedId,
+    });
+
+    return (result.affected ?? 0) > 0;
+  }
 }
