@@ -155,4 +155,133 @@ export class PlaylistService {
 
     return { status: 'success', ...buildPaginationResponse(mappedReposts, total, page, limit) };
   }
+
+  async likePlaylist(playlistId: string, userId: string) {
+    const playlist = await this.playlistRepository.findPlaylistById(playlistId);
+    if (!playlist) {
+      throw new NotFoundException('Playlist not found');
+    }
+
+    if (!playlist.isPublic && playlist.userId !== userId) {
+      throw new ForbiddenException('Cannot like a private playlist');
+    }
+
+    const alreadyLiked = await this.playlistRepository.findLikeByUserAndPlaylist(
+      userId,
+      playlistId
+    );
+    if (alreadyLiked) {
+      throw new ConflictException('You have already liked this playlist');
+    }
+
+    await this.playlistRepository.createLike(userId, playlistId);
+    return {
+      status: 'success',
+      data: { userId, playlistId, likedAt: new Date() },
+    };
+  }
+
+  async unlikePlaylist(playlistId: string, userId: string) {
+    const playlist = await this.playlistRepository.findPlaylistById(playlistId);
+    if (!playlist) {
+      throw new NotFoundException('Playlist not found');
+    }
+
+    const isLiked = await this.playlistRepository.findLikeByUserAndPlaylist(userId, playlistId);
+    if (!isLiked) {
+      throw new ForbiddenException('You have not liked this playlist');
+    }
+
+    await this.playlistRepository.removeLike(userId, playlistId);
+    return {
+      status: 'success',
+      message: 'Playlist like successfully removed',
+    };
+  }
+
+  async getLikesCount(playlistId: string, userId: string) {
+    const playlist = await this.playlistRepository.findPlaylistById(playlistId);
+    if (!playlist) {
+      throw new NotFoundException('Playlist not found');
+    }
+
+    if (!playlist.isPublic && playlist.userId !== userId) {
+      throw new ForbiddenException('This playlist is private');
+    }
+
+    return {
+      status: 'success',
+      data: { playlistId, likesCount: playlist.likesCount },
+    };
+  }
+
+  async getPlaylistLikes(playlistId: string, userId: string, page: number = 1, limit: number = 20) {
+    const playlist = await this.playlistRepository.findPlaylistById(playlistId);
+    if (!playlist) {
+      throw new NotFoundException('Playlist not found');
+    }
+
+    if (!playlist.isPublic && playlist.userId !== userId) {
+      throw new ForbiddenException('This playlist is private');
+    }
+
+    const cappedLimit = Math.min(limit, 100);
+    const [likes, total] = await this.playlistRepository.getPlaylistLikes(
+      playlistId,
+      page,
+      cappedLimit
+    );
+
+    const mappedLikes = likes.map((like) => ({
+      userId: like.user.userId,
+      username: like.user.username,
+      displayName: like.user.displayName,
+      avatarUrl: like.user.avatarUrl,
+      followersCount: like.user.followersCount,
+      likedAt: like.createdAt,
+    }));
+
+    return { status: 'success', ...buildPaginationResponse(mappedLikes, total, page, limit) };
+  }
+
+  async getUserPlaylistLikes(
+    userId: string,
+    myUserId: string,
+    page: number = 1,
+    limit: number = 20
+  ) {
+    const user = await this.userRepository.findById(userId);
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+
+    if (!user.isPublic && user.userId !== myUserId) {
+      throw new ForbiddenException('This account is private');
+    }
+
+    const cappedLimit = Math.min(limit, 100);
+    const [likes, total] = await this.playlistRepository.getUserPlaylistLikes(
+      userId,
+      page,
+      cappedLimit
+    );
+
+    const mappedLikes = likes.map((like) => ({
+      playlistId: like.playlistId,
+      title: like.playlist.title,
+      coverImage: like.playlist.coverImage,
+      isPublic: like.playlist.isPublic,
+      tracksCount: like.playlist.tracksCount,
+      likesCount: like.playlist.likesCount,
+      repostsCount: like.playlist.repostsCount,
+      user: {
+        userId: like.playlist.user.userId,
+        username: like.playlist.user.username,
+        displayName: like.playlist.user.displayName,
+      },
+      likedAt: like.createdAt,
+    }));
+
+    return { status: 'success', ...buildPaginationResponse(mappedLikes, total, page, limit) };
+  }
 }

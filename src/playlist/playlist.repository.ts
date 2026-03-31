@@ -3,6 +3,7 @@ import { Repository } from 'typeorm';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Playlist } from './entities/playlist.entity';
 import { PlaylistRepost } from './entities/playlist-reposts.entity';
+import { PlaylistLike } from './entities/playlist-likes.entity';
 
 @Injectable()
 export class PlaylistRepository {
@@ -10,7 +11,9 @@ export class PlaylistRepository {
     @InjectRepository(Playlist)
     private readonly playlistRepository: Repository<Playlist>,
     @InjectRepository(PlaylistRepost)
-    private readonly playlistRepostRepository: Repository<PlaylistRepost>
+    private readonly playlistRepostRepository: Repository<PlaylistRepost>,
+    @InjectRepository(PlaylistLike)
+    private readonly playlistLikesRepository: Repository<PlaylistLike>
   ) {}
 
   async findPlaylistById(playlistId: string): Promise<Playlist | null> {
@@ -66,6 +69,60 @@ export class PlaylistRepository {
       .innerJoinAndSelect('playlist.user', 'user')
       .where('repost.userId = :userId', { userId })
       .orderBy('repost.createdAt', 'DESC')
+      .skip(skip)
+      .take(limit)
+      .getManyAndCount();
+  }
+
+  async findLikeByUserAndPlaylist(
+    userId: string,
+    playlistId: string
+  ): Promise<PlaylistRepost | null> {
+    return this.playlistLikesRepository.findOne({
+      where: { userId, playlistId },
+    });
+  }
+
+  async createLike(userId: string, playlistId: string): Promise<PlaylistRepost> {
+    const like = this.playlistLikesRepository.create({
+      userId,
+      playlistId,
+    });
+    return this.playlistLikesRepository.save(like);
+  }
+
+  async removeLike(userId: string, playlistId: string) {
+    await this.playlistLikesRepository.delete({ userId, playlistId });
+  }
+
+  async getPlaylistLikes(
+    playlistId: string,
+    page: number,
+    cappedLimit: number
+  ): Promise<[any[], number]> {
+    const skip = (page - 1) * cappedLimit;
+    const [reposts, total] = await this.playlistLikesRepository.findAndCount({
+      where: { playlistId },
+      relations: ['user'],
+      order: { createdAt: 'DESC' },
+      skip,
+      take: cappedLimit,
+    });
+    return [reposts, total];
+  }
+
+  async getUserPlaylistLikes(
+    userId: string,
+    page: number,
+    limit: number
+  ): Promise<[any[], number]> {
+    const skip = (page - 1) * limit;
+    return this.playlistLikesRepository
+      .createQueryBuilder('like')
+      .innerJoinAndSelect('like.playlist', 'playlist')
+      .innerJoinAndSelect('playlist.user', 'user')
+      .where('like.userId = :userId', { userId })
+      .orderBy('like.createdAt', 'DESC')
       .skip(skip)
       .take(limit)
       .getManyAndCount();
