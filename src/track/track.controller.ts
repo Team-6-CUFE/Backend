@@ -17,6 +17,7 @@ import {
   ApiGetTrackLikesCount,
   ApiGetTrackReposts,
   ApiGetTrackRepostsCount,
+  ApiGetUserTrackLikes,
   ApiGetUserTrackReposts,
   ApiLikeTrack,
   ApiRemoveTrackLike,
@@ -125,5 +126,17 @@ export class TrackController {
     @Query('limit') limit: number
   ) {
     return this.trackService.getTrackLikes(trackId, userId, page, limit);
+  }
+
+  @ApiGetUserTrackLikes()
+  @CheckBlock()
+  @Get('users/:user_id/likes')
+  getUserTrackLikes(
+    @Param('user_id', ParseUUIDPipe) userId: string,
+    @CurrentUser('sub') myUserId: string,
+    @Query('page') page: number,
+    @Query('limit') limit: number
+  ) {
+    return this.trackService.getUserTrackLikes(userId, myUserId, page, limit);
   }
 }

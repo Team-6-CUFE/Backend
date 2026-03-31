@@ -216,4 +216,33 @@ export class TrackService {
     }));
     return { status: 'success', ...buildPaginationResponse(mappedReposters, total, page, limit) };
   }
+
+  async getUserTrackLikes(userId: string, myUserId: string, page: number = 1, limit: number = 20) {
+    const user = await this.userRepository.findById(userId);
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+
+    if (!user.isPublic && user.userId !== myUserId) {
+      throw new ForbiddenException('This account is private');
+    }
+
+    const cappedLimit = Math.min(limit, 100);
+    const [likes, total] = await this.trackRepository.getUserTrackLikes(userId, page, cappedLimit);
+    const mappedLikes = likes.map((like) => ({
+      trackId: like.track.trackId,
+      title: like.track.title,
+      coverImage: like.track.coverImage,
+      durationSeconds: like.track.durationSeconds,
+      playCount: like.track.playCount,
+      repostsCount: like.track.repostsCount,
+      artist: {
+        userId: like.track.user.userId,
+        username: like.track.user.username,
+        displayName: like.track.user.displayName,
+      },
+      likedAt: like.createdAt,
+    }));
+    return { status: 'success', ...buildPaginationResponse(mappedLikes, total, page, limit) };
+  }
 }

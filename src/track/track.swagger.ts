@@ -471,3 +471,72 @@ export function ApiGetTrackLikes() {
     ApiResponse({ status: 401, description: 'Unauthorized' })
   );
 }
+
+export function ApiGetUserTrackLikes() {
+  return applyDecorators(
+    ApiCookieAuth('access_token'),
+    ApiOperation({
+      summary: 'Get tracks liked by a user',
+      description: 'Returns a paginated list of tracks liked by the specified user.',
+    }),
+    ApiParam({ name: 'user_id', description: 'UUID of the user', type: 'string' }),
+    ApiQuery({
+      name: 'page',
+      required: false,
+      description: 'Page number (default: 1)',
+      type: 'number',
+    }),
+    ApiQuery({
+      name: 'limit',
+      required: false,
+      description: 'Items per page, capped at 100 (default: 20)',
+      type: 'number',
+    }),
+    ApiResponse({
+      status: 200,
+      description: 'Liked tracks retrieved successfully',
+      schema: {
+        example: {
+          status: 'success',
+          data: [
+            {
+              trackId: '123e4567-e89b-12d3-a456-426614174000',
+              title: 'Midnight Drive',
+              coverImage: 'https://s3.amazonaws.com/covers/midnight.jpg',
+              durationSeconds: 213,
+              playCount: 1500,
+              repostsCount: 30,
+              artist: {
+                userId: '550e8400-e29b-41d4-a716-446655440002',
+                username: 'dj_nour',
+                displayName: 'DJ Nour',
+              },
+              likedAt: '2024-06-01T12:00:00Z',
+            },
+          ],
+          pagination: {
+            currentPage: 1,
+            totalPages: 2,
+            totalCount: 25,
+            limit: 20,
+          },
+        },
+      },
+    }),
+    ApiResponse({
+      status: 403,
+      description: 'Profile is private',
+      schema: {
+        example: { statusCode: 403, message: 'This account is private' },
+      },
+    }),
+    ApiResponse({
+      status: 404,
+      description: 'User not found',
+      schema: {
+        example: { statusCode: 404, message: 'User not found' },
+      },
+    }),
+    ApiResponse({ status: 401, description: 'Unauthorized' })
+  );
+}

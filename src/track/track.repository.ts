@@ -137,4 +137,22 @@ export class TrackRepository {
     });
     return [likes, total];
   }
+
+  async getUserTrackLikes(
+    userId: string,
+    page: number,
+    limit: number
+  ): Promise<[TrackLikes[], number]> {
+    const skip = (page - 1) * limit;
+
+    return this.trackLikesRepository
+      .createQueryBuilder('like')
+      .innerJoinAndSelect('like.track', 'track')
+      .innerJoinAndSelect('track.user', 'artist')
+      .where('like.userId = :userId', { userId })
+      .orderBy('like.createdAt', 'DESC')
+      .skip(skip)
+      .take(limit)
+      .getManyAndCount();
+  }
 }
