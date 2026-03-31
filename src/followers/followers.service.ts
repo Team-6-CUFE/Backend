@@ -212,4 +212,36 @@ export class FollowersService {
       },
     };
   }
+
+  async getBlockStatus(currentUserId: string, targetUserId: string) {
+    if (currentUserId === targetUserId) {
+      throw new BadRequestException('Cannot check block status with yourself');
+    }
+
+    const blocks = await this.followersRepository.getBlockRelationship(currentUserId, targetUserId);
+
+    const amIBlocking = blocks.find((b) => b.blocker === currentUserId);
+    const isBlockingMe = blocks.find((b) => b.blocker === targetUserId);
+
+    let blockStatus = 'none';
+    let since: Date | undefined;
+
+    if (amIBlocking && isBlockingMe) {
+      blockStatus = 'mutual_block';
+    } else if (amIBlocking) {
+      blockStatus = 'blocking';
+      since = amIBlocking.createdAt;
+    } else if (isBlockingMe) {
+      blockStatus = 'blocked_by';
+      since = isBlockingMe.createdAt;
+    }
+
+    return {
+      status: 'success',
+      data: {
+        blockStatus,
+        ...(since && { since }),
+      },
+    };
+  }
 }
