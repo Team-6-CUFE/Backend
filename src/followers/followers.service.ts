@@ -152,4 +152,33 @@ export class FollowersService {
       },
     };
   }
+
+  async blockUser(currentUserId: string, targetUserId: string) {
+    if (currentUserId === targetUserId) {
+      throw new BadRequestException('You cannot block yourself');
+    }
+
+    const alreadyBlocked = await this.followersRepository.hasBlockRelationship(
+      currentUserId,
+      targetUserId
+    );
+
+    if (alreadyBlocked) {
+      throw new ConflictException('You have already blocked this user');
+    }
+
+    const block = await this.followersRepository.createBlockAndHandleFollows(
+      currentUserId,
+      targetUserId
+    );
+
+    return {
+      status: 'success',
+      data: {
+        blocker_id: block.blocker,
+        blocked_id: block.blocked,
+        created_at: block.createdAt,
+      },
+    };
+  }
 }
