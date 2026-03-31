@@ -178,4 +178,21 @@ export class FollowersService {
       },
     };
   }
+
+  async unblockUser(currentUserId: string, targetUserId: string) {
+    if (currentUserId === targetUserId) {
+      throw new BadRequestException('You cannot unblock yourself');
+    }
+
+    const deleted = await this.followersRepository.deleteBlock(currentUserId, targetUserId);
+
+    if (!deleted) {
+      throw new NotFoundException('You have not blocked this user');
+    }
+
+    return {
+      status: 'success',
+      message: 'User successfully unblocked',
+    };
+  }
 }
