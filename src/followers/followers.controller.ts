@@ -23,6 +23,7 @@ import {
   ApiGetFollowingCount,
   ApiBlockUser,
   ApiUnblockUser,
+  ApiGetBlockedUsers,
 } from './followers.swagger';
 import { CheckBlock } from './decorators/no-block.decorator';
 
@@ -32,6 +33,7 @@ export class FollowersController {
   constructor(private readonly followersService: FollowersService) {}
 
   @Get('blocked')
+  @ApiGetBlockedUsers()
   async getBlockedUsers(
     @CurrentUser('sub') currentUserId: string,
     @Query('page') page: number,

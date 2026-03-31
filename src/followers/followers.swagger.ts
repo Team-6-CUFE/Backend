@@ -476,3 +476,42 @@ export function ApiUnblockUser() {
     })
   );
 }
+
+export function ApiGetBlockedUsers() {
+  return applyDecorators(
+    ApiBearerAuth(),
+    ApiOperation({
+      summary: 'Get blocked users',
+      description: 'Retrieves a paginated list of all users blocked by the authenticated user.',
+    }),
+    ApiResponse({
+      status: HttpStatus.OK,
+      description: 'Successfully retrieved blocked users list',
+      schema: {
+        example: {
+          status: 'success',
+          data: {
+            blocked_users: [
+              {
+                userId: '112f6e51-3927-4740-bcbf-96e791996111',
+                username: 'toxic_user',
+                displayName: 'Toxic User',
+                avatarUrl: 'https://s3.amazonaws.com/avatars/toxic.jpg',
+              },
+            ],
+            pagination: {
+              currentPage: 1,
+              totalPages: 1,
+              totalCount: 1,
+              limit: 20,
+            },
+          },
+        },
+      },
+    }),
+    ApiResponse({
+      status: HttpStatus.UNAUTHORIZED,
+      description: 'No valid authentication token provided',
+    })
+  );
+}
