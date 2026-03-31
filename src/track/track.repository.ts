@@ -125,4 +125,16 @@ export class TrackRepository {
       userId,
     });
   }
+
+  async getTrackLikes(trackId: string, page: number, limit: number): Promise<[any[], number]> {
+    const skip = (page - 1) * limit;
+    const [likes, total] = await this.trackLikesRepository.findAndCount({
+      where: { trackId },
+      relations: ['user'],
+      order: { createdAt: 'DESC' },
+      skip,
+      take: limit,
+    });
+    return [likes, total];
+  }
 }

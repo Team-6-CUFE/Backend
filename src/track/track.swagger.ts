@@ -406,3 +406,68 @@ export function ApiGetTrackLikesCount() {
     ApiResponse({ status: 401, description: 'Unauthorized' })
   );
 }
+
+export function ApiGetTrackLikes() {
+  return applyDecorators(
+    ApiCookieAuth('access_token'),
+    ApiOperation({
+      summary: 'Get users who liked a track',
+      description:
+        'Returns a paginated list of users who have liked the track. Private tracks are only accessible by their owner.',
+    }),
+    ApiParam({ name: 'trackId', description: 'UUID of the track', type: 'string' }),
+    ApiQuery({
+      name: 'page',
+      required: false,
+      description: 'Page number (default: 1)',
+      type: 'number',
+    }),
+    ApiQuery({
+      name: 'limit',
+      required: false,
+      description: 'Items per page, capped at 100 (default: 20)',
+      type: 'number',
+    }),
+    ApiResponse({
+      status: 200,
+      description: 'Likes retrieved successfully',
+      schema: {
+        example: {
+          status: 'success',
+          data: [
+            {
+              userId: '550e8400-e29b-41d4-a716-446655440001',
+              username: 'yara_senousy',
+              displayName: 'Yara Senousy',
+              avatarUrl: 'https://s3.amazonaws.com/avatars/yara.jpg',
+              followersCount: 500,
+              caption: 'Amazing track!',
+              likedAt: '2024-06-01T12:00:00Z',
+            },
+          ],
+          pagination: {
+            currentPage: 1,
+            totalPages: 3,
+            totalCount: 50,
+            limit: 20,
+          },
+        },
+      },
+    }),
+    ApiResponse({
+      status: 403,
+      description: 'Track is private',
+      schema: {
+        example: { statusCode: 403, message: 'This track is private' },
+      },
+    }),
+    ApiResponse({
+      status: 404,
+      description: 'Track not found',
+      schema: {
+        example: { statusCode: 404, message: 'Track not found' },
+      },
+    }),
+    ApiResponse({ status: 401, description: 'Unauthorized' })
+  );
+}

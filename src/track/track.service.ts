@@ -191,4 +191,29 @@ export class TrackService {
       message: 'Track successfully unliked',
     };
   }
+
+  async getTrackLikes(trackId: string, userId: string, page: number = 1, limit: number = 20) {
+    const track = await this.trackRepository.findById(trackId);
+    if (!track) {
+      throw new NotFoundException('Track not found');
+    }
+
+    if (!track.isPublic && track.userId !== userId) {
+      throw new ForbiddenException('This track is private');
+    }
+
+    const cappedLimit = Math.min(limit, 100); // Cap limit to 100
+
+    const [likes, total] = await this.trackRepository.getTrackLikes(trackId, page, cappedLimit);
+    const mappedReposters = likes.map((like) => ({
+      userId: like.user.userId,
+      username: like.user.username,
+      displayName: like.user.displayName,
+      avatarUrl: like.user.avatarUrl,
+      followersCount: like.user.followersCount,
+      caption: like.caption,
+      likedAt: like.createdAt,
+    }));
+    return { status: 'success', ...buildPaginationResponse(mappedReposters, total, page, limit) };
+  }
 }
