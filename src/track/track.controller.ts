@@ -16,6 +16,7 @@ import {
   ApiGetTrackReposts,
   ApiGetTrackRepostsCount,
   ApiGetUserTrackReposts,
+  ApiLikeTrack,
   ApiRemoveTrackRepost,
   ApiRepostTrack,
 } from './track.swagger';
@@ -86,5 +87,11 @@ export class TrackController {
     @Query('limit') limit: number
   ) {
     return this.trackService.getUserTrackReposts(userId, myUserId, page, limit);
+  }
+
+  @ApiLikeTrack()
+  @Post(':trackId/like')
+  likeTrack(@Param('trackId', ParseUUIDPipe) trackId: string, @CurrentUser('sub') userId: string) {
+    return this.trackService.likeTrack(trackId, userId);
   }
 }

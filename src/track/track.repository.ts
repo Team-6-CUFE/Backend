@@ -3,6 +3,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Track } from './entities/track.entity';
 import { TrackRepost } from './entities/track-reposts.entity';
+import { TrackLikes } from './entities/track-likes.entity';
 
 @Injectable()
 export class TrackRepository {
@@ -11,7 +12,10 @@ export class TrackRepository {
     private readonly trackRepository: Repository<Track>,
 
     @InjectRepository(TrackRepost)
-    private readonly trackRepostRepository: Repository<TrackRepost>
+    private readonly trackRepostRepository: Repository<TrackRepost>,
+
+    @InjectRepository(TrackLikes)
+    private readonly trackLikesRepository: Repository<TrackLikes>
   ) {}
 
   async findById(trackId: string): Promise<Track | null> {
@@ -92,5 +96,20 @@ export class TrackRepository {
       .skip(skip)
       .take(limit)
       .getManyAndCount();
+  }
+
+  async didUserLikeTrack(userId: string, trackId: string): Promise<boolean> {
+    const like = await this.trackLikesRepository.findOne({
+      where: { userId, trackId },
+    });
+    return !!like;
+  }
+
+  async likeTrack(trackId: string, userId: string): Promise<TrackLikes> {
+    const trackLike = this.trackLikesRepository.create({
+      trackId,
+      userId,
+    });
+    return this.trackLikesRepository.save(trackLike);
   }
 }

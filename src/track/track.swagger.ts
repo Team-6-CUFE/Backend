@@ -306,3 +306,37 @@ export function ApiEditTrackRepost() {
     ApiResponse({ status: 401, description: 'Unauthorized' })
   );
 }
+
+export function ApiLikeTrack() {
+  return applyDecorators(
+    ApiCookieAuth('access_token'),
+    ApiOperation({
+      summary: 'Like a track',
+      description:
+        'Allows a user to like a track. Returns an error if the user has already liked the track.',
+    }),
+    ApiParam({ name: 'trackId', description: 'UUID of the track', type: 'string' }),
+    ApiResponse({
+      status: 200,
+      description: 'Track liked successfully',
+      schema: {
+        example: {
+          status: 'success',
+          data: {
+            trackId: '123e4567-e89b-12d3-a456-426614174000',
+            userId: '123e4567-e89b-12d3-a456-426614174001',
+            createdAt: '2024-06-01T12:00:00Z',
+          },
+        },
+      },
+    }),
+    ApiResponse({
+      status: 400,
+      description: 'User has already liked this track',
+      schema: {
+        example: { statusCode: 400, message: 'You have already liked this track' },
+      },
+    }),
+    ApiResponse({ status: 401, description: 'Unauthorized' })
+  );
+}

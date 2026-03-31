@@ -139,4 +139,28 @@ export class TrackService {
     }));
     return { status: 'success', ...buildPaginationResponse(mappedReposts, total, page, limit) };
   }
+
+  async likeTrack(trackId: string, userId: string) {
+    const track = await this.trackRepository.findById(trackId);
+    if (!track) {
+      throw new NotFoundException('Track not found');
+    }
+
+    if (track.userId === userId) {
+      throw new BadRequestException('You cannot like your own track');
+    }
+
+    if (!track.isPublic) {
+      throw new ForbiddenException('This track is private');
+    }
+
+    const alreadyLiked = await this.trackRepository.didUserLikeTrack(userId, trackId);
+    if (alreadyLiked) {
+      throw new ConflictException('You have already liked this track');
+    }
+    return {
+      status: 'success',
+      data: await this.trackRepository.likeTrack(trackId, userId),
+    };
+  }
 }
