@@ -94,6 +94,7 @@ export function ApiGetTrackReposts() {
               username: 'yara_senousy',
               displayName: 'Yara Senousy',
               avatarUrl: 'https://s3.amazonaws.com/avatars/yara.jpg',
+              followersCount: 500,
               caption: 'Amazing track!',
               repostedAt: '2024-06-01T12:00:00Z',
             },

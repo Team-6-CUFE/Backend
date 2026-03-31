@@ -94,6 +94,7 @@ export class TrackService {
       username: repost.user.username,
       displayName: repost.user.displayName,
       avatarUrl: repost.user.avatarUrl,
+      followersCount: repost.user.followersCount,
       caption: repost.caption,
       repostedAt: repost.createdAt,
     }));
