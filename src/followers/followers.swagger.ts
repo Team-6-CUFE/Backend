@@ -391,3 +391,88 @@ export function ApiBlockUser() {
     })
   );
 }
+
+export function ApiUnblockUser() {
+  return applyDecorators(
+    ApiBearerAuth(),
+    ApiOperation({
+      summary: 'Unblock a user',
+      description:
+        'Removes the block relationship between the authenticated user and the target user. This does not restore previous follow relationships.',
+    }),
+    ApiParam({
+      name: 'user_id',
+      description: 'ID of the user to unblock',
+      type: String,
+      example: '993f6e51-3927-4740-bcbf-96e7919964bc',
+    }),
+
+    // Success Response (200 OK)
+    ApiResponse({
+      status: HttpStatus.OK,
+      description: 'User successfully unblocked',
+      schema: {
+        example: {
+          status: 'success',
+          message: 'User successfully unblocked',
+        },
+      },
+    }),
+
+    // Self-unblock (400 Bad Request)
+    ApiResponse({
+      status: HttpStatus.BAD_REQUEST,
+      description: 'User attempted to unblock themselves',
+      content: {
+        'application/json': {
+          example: {
+            status: 'error',
+            message: 'You cannot unblock yourself',
+          },
+        },
+      },
+    }),
+
+    // Unauthorized (401)
+    ApiResponse({
+      status: HttpStatus.UNAUTHORIZED,
+      description: 'No valid authentication token provided',
+      content: {
+        'application/json': {
+          example: {
+            statusCode: 401,
+            message: 'Unauthorized',
+          },
+        },
+      },
+    }),
+
+    // Block Not Found (404)
+    ApiResponse({
+      status: HttpStatus.NOT_FOUND,
+      description: 'Block relationship not found',
+      content: {
+        'application/json': {
+          example: {
+            status: 'error',
+            message: 'You have not blocked this user',
+          },
+        },
+      },
+    }),
+
+    // Internal Server Error (500)
+    ApiResponse({
+      status: HttpStatus.INTERNAL_SERVER_ERROR,
+      description: 'Unexpected server error',
+      content: {
+        'application/json': {
+          example: {
+            statusCode: 500,
+            message: 'Internal server error',
+          },
+        },
+      },
+    })
+  );
+}
