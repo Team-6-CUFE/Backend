@@ -102,4 +102,13 @@ export class FollowersController {
   ) {
     return this.followersService.getFollowing(userId, page ?? 1, limit ?? 20);
   }
+
+  @Post(':user_id/block')
+  @CheckUserExists('user_id')
+  async blockUser(
+    @CurrentUser('sub') currentUserId: string,
+    @Param('user_id', ParseUUIDPipe) targetUserId: string
+  ) {
+    return this.followersService.blockUser(currentUserId, targetUserId);
+  }
 }
