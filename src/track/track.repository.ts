@@ -208,7 +208,9 @@ export class TrackRepository {
     const query = this.trackCommentRepository
       .createQueryBuilder('comment')
       .innerJoinAndSelect('comment.user', 'user')
-      .where('comment.trackId = :trackId', { trackId });
+      .leftJoinAndSelect('comment.replies', 'reply')
+      .leftJoinAndSelect('reply.user', 'replyUser')
+      .where('comment.trackId = :trackId AND comment.parentId IS NULL', { trackId });
     if (order === 'newest') {
       query.orderBy('comment.createdAt', 'DESC');
     } else if (order === 'oldest') {

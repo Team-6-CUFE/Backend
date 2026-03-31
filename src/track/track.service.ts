@@ -321,6 +321,7 @@ export class TrackService {
       commentId: comment.commentId,
       content: comment.content,
       timestampSeconds: comment.timestampSeconds,
+      parentId: comment.parentId,
       user: {
         userId: comment.user.userId,
         username: comment.user.username,
@@ -328,6 +329,19 @@ export class TrackService {
         avatarUrl: comment.user.avatarUrl,
       },
       createdAt: comment.createdAt,
+      replies: (comment.replies ?? []).map((reply) => ({
+        commentId: reply.commentId,
+        content: reply.content,
+        timestampSeconds: reply.timestampSeconds,
+        parentId: reply.parentId,
+        user: {
+          userId: reply.user.userId,
+          username: reply.user.username,
+          displayName: reply.user.displayName,
+          avatarUrl: reply.user.avatarUrl,
+        },
+        createdAt: reply.createdAt,
+      })),
     }));
 
     return {

@@ -1198,14 +1198,34 @@ describe('TrackService', () => {
   // ─── getTrackComments() ───────────────────────────────────────────────────────
 
   describe('getTrackComments', () => {
+    const mockReplyUser = {
+      userId: mockOtherUserId,
+      username: 'other_user',
+      displayName: 'Other User',
+      avatarUrl: 'https://example.com/other-avatar.jpg',
+    };
+
+    const mockReply = () => ({
+      commentId: mockParentCommentId,
+      trackId: mockTrackId,
+      userId: mockOtherUserId,
+      content: 'Great reply!',
+      timestampSeconds: 56,
+      parentId: mockCommentId,
+      createdAt: new Date('2024-06-02T10:00:00Z'),
+      user: mockReplyUser,
+    });
+
     const mockCommentWithUser = () => ({
       ...mockTrackComment(),
+      parentId: null,
       user: {
         userId: mockUserId,
         username: 'test_user',
         displayName: 'Test User',
         avatarUrl: 'https://example.com/avatar.jpg',
       },
+      replies: [mockReply()],
     });
 
     it('should return paginated comments with status: success', async () => {
@@ -1219,7 +1239,7 @@ describe('TrackService', () => {
       expect(result.pagination).toMatchObject({ currentPage: 1, totalCount: 1 });
     });
 
-    it('should map comment fields correctly', async () => {
+    it('should map comment fields correctly including parentId and replies', async () => {
       const c = mockCommentWithUser();
       trackRepo.findById.mockResolvedValue(mockPublicTrack());
       trackRepo.getTrackComments.mockResolvedValue([[c], 1]);
@@ -1230,6 +1250,7 @@ describe('TrackService', () => {
         commentId: c.commentId,
         content: c.content,
         timestampSeconds: c.timestampSeconds,
+        parentId: null,
         user: {
           userId: c.user.userId,
           username: c.user.username,
@@ -1238,6 +1259,40 @@ describe('TrackService', () => {
         },
         createdAt: c.createdAt,
       });
+    });
+
+    it('should map nested replies with user and parentId', async () => {
+      const c = mockCommentWithUser();
+      const reply = mockReply();
+      trackRepo.findById.mockResolvedValue(mockPublicTrack());
+      trackRepo.getTrackComments.mockResolvedValue([[c], 1]);
+
+      const result = await service.getTrackComments(mockTrackId, mockUserId, 1, 20, 'timestamp');
+
+      expect(result.data[0].replies).toHaveLength(1);
+      expect(result.data[0].replies[0]).toMatchObject({
+        commentId: reply.commentId,
+        content: reply.content,
+        timestampSeconds: reply.timestampSeconds,
+        parentId: mockCommentId,
+        user: {
+          userId: reply.user.userId,
+          username: reply.user.username,
+          displayName: reply.user.displayName,
+          avatarUrl: reply.user.avatarUrl,
+        },
+        createdAt: reply.createdAt,
+      });
+    });
+
+    it('should return empty replies array when comment has no replies', async () => {
+      const c = { ...mockCommentWithUser(), replies: [] };
+      trackRepo.findById.mockResolvedValue(mockPublicTrack());
+      trackRepo.getTrackComments.mockResolvedValue([[c], 1]);
+
+      const result = await service.getTrackComments(mockTrackId, mockUserId, 1, 20, 'timestamp');
+
+      expect(result.data[0].replies).toEqual([]);
     });
 
     it('should throw NotFoundException when track not found', async () => {
