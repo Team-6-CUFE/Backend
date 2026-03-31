@@ -1,11 +1,19 @@
-import { Entity, Column, ManyToOne, OneToMany, JoinColumn, Relation, PrimaryColumn } from 'typeorm';
+import {
+  Entity,
+  Column,
+  ManyToOne,
+  OneToMany,
+  JoinColumn,
+  Relation,
+  PrimaryGeneratedColumn,
+} from 'typeorm';
 import { User } from '../../user/entities/user.entity';
 import { Track } from './track.entity';
 import { BaseEntity } from '../../common/entities/base.entity';
 
 @Entity('track_comments')
 export class TrackComment extends BaseEntity {
-  @PrimaryColumn({ name: 'comment_id', type: 'uuid' })
+  @PrimaryGeneratedColumn('uuid', { name: 'comment_id' })
   commentId!: string;
 
   @Column({ name: 'user_id', type: 'uuid' })

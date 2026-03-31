@@ -179,6 +179,44 @@ export class TrackRepository {
       parentId: commentDto.parentId,
       timestampSeconds: commentDto.timestampSeconds,
     });
-    return this.trackCommentRepository.save(comment);
+    const savedComment = await this.trackCommentRepository.save(comment);
+    return savedComment;
+  }
+
+  async deleteComment(trackId: string, commentId: string, userId: string): Promise<void> {
+    await this.trackCommentRepository.delete({
+      trackId,
+      commentId,
+      userId,
+    });
+
+    const replies = await this.trackCommentRepository.find({
+      where: { parentId: commentId },
+    });
+
+    // Use map to create an array of promises, then execute them in parallel
+    await Promise.all(replies.map((reply) => this.trackCommentRepository.delete(reply.commentId)));
+  }
+
+  async getTrackComments(
+    trackId: string,
+    page: number,
+    limit: number,
+    order: 'timestamp' | 'newest' | 'oldest'
+  ): Promise<[TrackComment[], number]> {
+    const skip = (page - 1) * limit;
+    const query = this.trackCommentRepository
+      .createQueryBuilder('comment')
+      .innerJoinAndSelect('comment.user', 'user')
+      .where('comment.trackId = :trackId', { trackId });
+    if (order === 'newest') {
+      query.orderBy('comment.createdAt', 'DESC');
+    } else if (order === 'oldest') {
+      query.orderBy('comment.createdAt', 'ASC');
+    } else {
+      query.orderBy('comment.timestampSeconds', 'ASC');
+    }
+
+    return query.skip(skip).take(limit).getManyAndCount();
   }
 }

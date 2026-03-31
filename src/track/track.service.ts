@@ -262,10 +262,87 @@ export class TrackService {
         throw new NotFoundException('Parent comment not found');
       }
     }
+    const comment = await this.trackRepository.addComment(trackId, userId, commentDto);
+    console.log('hello', comment.commentId);
+    return {
+      status: 'success',
+      data: {
+        commentId: comment.commentId,
+        userId: comment.userId,
+        trackId: comment.trackId,
+        timestamp: comment.createdAt.getTime(),
+        parentId: comment.parentId,
+        createdAt: comment.createdAt,
+        updatedAt: comment.updatedAt,
+        content: comment.content,
+      },
+    };
+  }
+
+  async deleteComment(trackId: string, commentId: string, userId: string) {
+    const track = await this.trackRepository.findById(trackId);
+    if (!track) {
+      throw new NotFoundException('Track not found');
+    }
+
+    if (!track.isPublic) {
+      throw new ForbiddenException('This track is private');
+    }
+    const comment = await this.trackRepository.findCommentById(commentId);
+    if (!comment) {
+      throw new NotFoundException('Comment not found');
+    }
+    if (comment.trackId !== trackId) {
+      throw new ConflictException('This comment does not belong to this track');
+    }
+    await this.trackRepository.deleteComment(trackId, commentId, userId);
+    return {
+      status: 'success',
+      message: 'comment deleted successfully',
+    };
+  }
+
+  async getTrackComments(
+    trackId: string,
+    userId: string,
+    page: number = 1,
+    limit: number = 20,
+    order: 'timestamp' | 'newest' | 'oldest' = 'timestamp'
+  ) {
+    const track = await this.trackRepository.findById(trackId);
+    if (!track) throw new NotFoundException('Track not found');
+
+    // Private track logic
+    if (!track.isPublic && track.userId !== userId) {
+      throw new ForbiddenException('This track is private');
+    }
+
+    const cappedLimit = Math.min(limit, 100);
+
+    // Fetch comments and total count
+    const [comments, total] = await this.trackRepository.getTrackComments(
+      trackId,
+      page,
+      cappedLimit,
+      order
+    );
+
+    const mappedComments = comments.map((comment) => ({
+      commentId: comment.commentId,
+      content: comment.content,
+      timestampSeconds: comment.timestampSeconds,
+      user: {
+        userId: comment.user.userId,
+        username: comment.user.username,
+        displayName: comment.user.displayName,
+        avatarUrl: comment.user.avatarUrl,
+      },
+      createdAt: comment.createdAt,
+    }));
 
     return {
       status: 'success',
-      data: await this.trackRepository.addComment(trackId, userId, commentDto),
+      ...buildPaginationResponse(mappedComments, total, page, cappedLimit),
     };
   }
 }

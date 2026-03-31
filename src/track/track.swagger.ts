@@ -627,3 +627,110 @@ export function ApiTrackComment() {
     ApiResponse({ status: 401, description: 'Unauthorized' })
   );
 }
+export function ApiDeleteComment() {
+  return applyDecorators(
+    ApiCookieAuth('access_token'),
+    ApiOperation({
+      summary: 'Comment on a track',
+      description: 'Allows a user to comment on a track. The track must be public.',
+    }),
+    ApiParam({ name: 'trackId', description: 'UUID of the track', type: 'string' }),
+    ApiBody({ type: AddCommentDto }),
+    ApiResponse({
+      status: 201,
+      description: 'Comment created successfully',
+      schema: {
+        example: {
+          status: 'success',
+          data: {
+            commentId: '550e8400-e29b-41d4-a716-446655440001',
+            userId: '550e8400-e29b-41d4-a716-446655440002',
+            trackId: '550e8400-e29b-41d4-a716-446655440003',
+            content: 'Great track!',
+            timestampSeconds: 120,
+            parentId: null,
+            createdAt: '2024-06-01T12:00:00Z',
+            updatedAt: '2024-06-01T12:00:00Z',
+          },
+        },
+      },
+    }),
+    ApiResponse({
+      status: 403,
+      description: 'Track is private',
+      schema: {
+        example: { statusCode: 403, message: 'This track is private' },
+      },
+    }),
+    ApiResponse({
+      status: 404,
+      description: 'Track or parent comment not found',
+      schema: {
+        example: { statusCode: 404, message: 'Track not found' },
+      },
+    }),
+    ApiResponse({ status: 401, description: 'Unauthorized' })
+  );
+}
+export function ApiGetTrackComments() {
+  return applyDecorators(
+    ApiCookieAuth('access_token'),
+    ApiOperation({
+      summary: 'Get comments on a track',
+      description:
+        'Returns a paginated list of comments. Ordering can be by track timestamp, newest, or oldest.',
+    }),
+    ApiParam({ name: 'trackId', description: 'UUID of the track', type: 'string' }),
+    ApiQuery({ name: 'page', required: false, type: 'number', example: 1 }),
+    ApiQuery({ name: 'limit', required: false, type: 'number', example: 20 }),
+    ApiQuery({
+      name: 'order',
+      required: false,
+      enum: ['timestamp', 'newest', 'oldest'],
+      description: 'Sort order',
+    }),
+    ApiResponse({
+      status: 200,
+      description: 'Comments retrieved successfully',
+      schema: {
+        example: {
+          status: 'success',
+          data: [
+            {
+              commentId: 'cmt_123',
+              content: 'This drop at 1:23 is insane!',
+              timestampSeconds: 83,
+              user: {
+                userId: 'usr_123',
+                username: 'john_doe',
+                displayName: 'John Doe',
+                avatarUrl: 'https://s3.amazonaws.com/avatars/usr_123.jpg',
+              },
+              createdAt: '2025-06-01T12:00:00Z',
+            },
+            {
+              commentId: 'cmt_124',
+              content: 'Love the melody here',
+              timestampSeconds: 145,
+              user: {
+                userId: 'usr_456',
+                username: 'jane_doe',
+                displayName: 'Jane Doe',
+                avatarUrl: 'https://s3.amazonaws.com/avatars/usr_456.jpg',
+              },
+              createdAt: '2025-06-02T08:15:00Z',
+            },
+          ],
+          pagination: {
+            currentPage: 1,
+            totalPages: 3,
+            totalCount: 54,
+            limit: 20,
+          },
+        },
+      },
+    }),
+    ApiResponse({ status: 403, description: 'Track is private' }),
+    ApiResponse({ status: 404, description: 'Track not found' })
+  );
+}
