@@ -321,3 +321,73 @@ export function ApiGetFollowingCount() {
     privatOrBlockedResponse
   );
 }
+
+export function ApiBlockUser() {
+  return applyDecorators(
+    ApiBearerAuth(),
+    ApiOperation({
+      summary: 'Block a user',
+      description:
+        'Blocks the specified user on behalf of the authenticated user. Enforces mutual invisibility and removes any existing follow relationships between the two users.',
+    }),
+    ApiParam({
+      name: 'user_id',
+      description: 'ID of the user to be blocked',
+      type: String,
+      example: 'usr_456',
+    }),
+
+    // Success Response (201 Created)
+    ApiResponse({
+      status: HttpStatus.CREATED,
+      description: 'Block relationship successfully created',
+      schema: {
+        example: {
+          status: 'success',
+          data: {
+            blocker_id: 'usr_123',
+            blocked_id: 'usr_456',
+            created_at: '2025-06-01T12:00:00Z',
+          },
+        },
+      },
+    }),
+
+    // Self-block (400 Bad Request)
+    ApiResponse({
+      status: HttpStatus.BAD_REQUEST,
+      description: 'User attempted to block themselves',
+      content: {
+        'application/json': {
+          example: {
+            status: 'error',
+            message: 'You cannot block yourself',
+          },
+        },
+      },
+    }),
+
+    // Unauthorized (401) & Not Found (404)
+    ...commonErrorResponses,
+
+    // Already Blocked (409 Conflict)
+    ApiResponse({
+      status: HttpStatus.CONFLICT,
+      description: 'Block relationship already exists',
+      content: {
+        'application/json': {
+          example: {
+            status: 'error',
+            message: 'You have already blocked this user',
+          },
+        },
+      },
+    }),
+
+    ApiResponse({
+      status: HttpStatus.INTERNAL_SERVER_ERROR,
+      description: 'Unexpected server error',
+      ...errorSchema('Internal server error'),
+    })
+  );
+}
