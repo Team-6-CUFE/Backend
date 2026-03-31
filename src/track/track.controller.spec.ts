@@ -26,6 +26,7 @@ const mockTrackService = () => ({
   removeTrackLike: jest.fn(),
   getTrackLikes: jest.fn(),
   getUserTrackLikes: jest.fn(),
+  addComment: jest.fn(),
 });
 
 describe('TrackController', () => {
@@ -525,6 +526,85 @@ describe('TrackController', () => {
       await expect(
         controller.getUserTrackLikes(mockUserId, mockMyUserId, mockPage, mockLimit)
       ).rejects.toThrow(ForbiddenException);
+    });
+  });
+
+  // ─── comment ──────────────────────────────────────────────────────────────────
+
+  describe('comment', () => {
+    const mockCommentId = '660e8400-e29b-41d4-a716-446655440010';
+    const mockParentCommentId = '660e8400-e29b-41d4-a716-446655440011';
+    const mockDto = { content: 'Great track!', timestampSeconds: 56 };
+    const mockDtoWithParent = {
+      content: 'Nice reply!',
+      timestampSeconds: 30,
+      parentId: mockParentCommentId,
+    };
+    const mockCommentResponse = () => ({
+      status: 'success',
+      data: {
+        commentId: mockCommentId,
+        trackId: mockTrackId,
+        userId: mockUserId,
+        content: 'Great track!',
+        timestampSeconds: 56,
+        parentId: null,
+        createdAt: new Date('2024-06-01T12:00:00Z'),
+      },
+    });
+
+    it('should delegate to service with trackId, userId, and dto', async () => {
+      service.addComment.mockResolvedValue(mockCommentResponse());
+
+      await controller.comment(mockTrackId, mockUserId, mockDto as any);
+
+      expect(service.addComment).toHaveBeenCalledWith(mockTrackId, mockUserId, mockDto);
+      expect(service.addComment).toHaveBeenCalledTimes(1);
+    });
+
+    it('should return the service response as-is', async () => {
+      const mockResponse = mockCommentResponse();
+      service.addComment.mockResolvedValue(mockResponse);
+
+      const result = await controller.comment(mockTrackId, mockUserId, mockDto as any);
+
+      expect(result).toBe(mockResponse);
+    });
+
+    it('should pass parentId to service when provided', async () => {
+      const replyResponse = {
+        status: 'success',
+        data: { ...mockCommentResponse().data, parentId: mockParentCommentId },
+      };
+      service.addComment.mockResolvedValue(replyResponse);
+
+      await controller.comment(mockTrackId, mockUserId, mockDtoWithParent as any);
+
+      expect(service.addComment).toHaveBeenCalledWith(mockTrackId, mockUserId, mockDtoWithParent);
+    });
+
+    it('should propagate NotFoundException when track not found', async () => {
+      service.addComment.mockRejectedValue(new NotFoundException('Track not found'));
+
+      await expect(controller.comment(mockTrackId, mockUserId, mockDto as any)).rejects.toThrow(
+        NotFoundException
+      );
+    });
+
+    it('should propagate ForbiddenException when track is private', async () => {
+      service.addComment.mockRejectedValue(new ForbiddenException('This track is private'));
+
+      await expect(controller.comment(mockTrackId, mockUserId, mockDto as any)).rejects.toThrow(
+        ForbiddenException
+      );
+    });
+
+    it('should propagate NotFoundException when parent comment not found', async () => {
+      service.addComment.mockRejectedValue(new NotFoundException('Parent comment not found'));
+
+      await expect(
+        controller.comment(mockTrackId, mockUserId, mockDtoWithParent as any)
+      ).rejects.toThrow(NotFoundException);
     });
   });
 });

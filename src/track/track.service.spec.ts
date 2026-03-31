@@ -35,6 +35,8 @@ const mockTrackRepository = () => ({
   removeTrackLike: jest.fn(),
   getTrackLikes: jest.fn(),
   getUserTrackLikes: jest.fn(),
+  findCommentById: jest.fn(),
+  addComment: jest.fn(),
 });
 
 const mockUserRepository = () => ({
@@ -102,6 +104,32 @@ const mockLikeWithTrack = () => ({
     user: { userId: mockArtistId, username: 'dj_nour', displayName: 'Nour' },
   },
   createdAt: new Date('2024-06-01T12:00:00Z'),
+});
+
+// ─── Comment factories ────────────────────────────────────────────────────────
+
+const mockCommentId = '660e8400-e29b-41d4-a716-446655440010';
+const mockParentCommentId = '660e8400-e29b-41d4-a716-446655440011';
+
+const mockTrackComment = (overrides?: object) => ({
+  commentId: mockCommentId,
+  trackId: mockTrackId,
+  userId: mockUserId,
+  content: 'Great track!',
+  timestampSeconds: 56,
+  parentId: null,
+  createdAt: new Date('2024-06-01T12:00:00Z'),
+  ...overrides,
+});
+
+const mockParentComment = () => ({
+  commentId: mockParentCommentId,
+  trackId: mockTrackId,
+  userId: mockOtherUserId,
+  content: 'Original comment',
+  timestampSeconds: 30,
+  parentId: null,
+  createdAt: new Date('2024-06-01T11:00:00Z'),
 });
 
 // ─── Suite ───────────────────────────────────────────────────────────────────
@@ -956,6 +984,126 @@ describe('TrackService', () => {
       await expect(service.getUserTrackLikes(mockOtherUserId, mockMyUserId)).rejects.toThrow(
         'DB error'
       );
+    });
+  });
+
+  // ─── addComment() ────────────────────────────────────────────────────────────
+
+  describe('addComment', () => {
+    const mockDto = { content: 'Great track!', timestampSeconds: 56 };
+    const mockDtoWithParent = {
+      content: 'Nice reply!',
+      timestampSeconds: 30,
+      parentId: mockParentCommentId,
+    };
+
+    it('should return { status, data } with the saved comment', async () => {
+      const comment = mockTrackComment();
+      trackRepo.findById.mockResolvedValue(mockPublicTrack());
+      trackRepo.addComment.mockResolvedValue(comment);
+
+      const result = await service.addComment(mockTrackId, mockUserId, mockDto);
+
+      expect(result).toEqual({ status: 'success', data: comment });
+    });
+
+    it('should call addComment on repo with trackId, userId, and dto', async () => {
+      trackRepo.findById.mockResolvedValue(mockPublicTrack());
+      trackRepo.addComment.mockResolvedValue(mockTrackComment());
+
+      await service.addComment(mockTrackId, mockUserId, mockDto);
+
+      expect(trackRepo.addComment).toHaveBeenCalledWith(mockTrackId, mockUserId, mockDto);
+      expect(trackRepo.addComment).toHaveBeenCalledTimes(1);
+    });
+
+    it('should throw NotFoundException when track not found', async () => {
+      trackRepo.findById.mockResolvedValue(null);
+
+      await expect(service.addComment(mockTrackId, mockUserId, mockDto)).rejects.toThrow(
+        NotFoundException
+      );
+    });
+
+    it('should NOT call addComment if track not found', async () => {
+      trackRepo.findById.mockResolvedValue(null);
+
+      await expect(service.addComment(mockTrackId, mockUserId, mockDto)).rejects.toThrow();
+      expect(trackRepo.addComment).not.toHaveBeenCalled();
+    });
+
+    it('should throw ForbiddenException when track is private', async () => {
+      trackRepo.findById.mockResolvedValue(mockPrivateTrack());
+
+      await expect(service.addComment(mockTrackId, mockUserId, mockDto)).rejects.toThrow(
+        ForbiddenException
+      );
+    });
+
+    it('should NOT call addComment if track is private', async () => {
+      trackRepo.findById.mockResolvedValue(mockPrivateTrack());
+
+      await expect(service.addComment(mockTrackId, mockUserId, mockDto)).rejects.toThrow();
+      expect(trackRepo.addComment).not.toHaveBeenCalled();
+    });
+
+    it('should allow owner to comment on their own private track', async () => {
+      trackRepo.findById.mockResolvedValue({ ...mockPrivateTrack(), isPublic: false });
+      // Private check is isPublic only — owner is NOT exempt for commenting
+      // (service throws ForbiddenException regardless of ownership)
+      await expect(service.addComment(mockTrackId, mockUserId, mockDto)).rejects.toThrow(
+        ForbiddenException
+      );
+    });
+
+    it('should throw NotFoundException when parentId is provided but parent not found', async () => {
+      trackRepo.findById.mockResolvedValue(mockPublicTrack());
+      trackRepo.findCommentById.mockResolvedValue(null);
+
+      await expect(service.addComment(mockTrackId, mockUserId, mockDtoWithParent)).rejects.toThrow(
+        NotFoundException
+      );
+    });
+
+    it('should NOT call addComment if parent comment not found', async () => {
+      trackRepo.findById.mockResolvedValue(mockPublicTrack());
+      trackRepo.findCommentById.mockResolvedValue(null);
+
+      await expect(
+        service.addComment(mockTrackId, mockUserId, mockDtoWithParent)
+      ).rejects.toThrow();
+      expect(trackRepo.addComment).not.toHaveBeenCalled();
+    });
+
+    it('should call findCommentById with the parentId when parentId is provided', async () => {
+      trackRepo.findById.mockResolvedValue(mockPublicTrack());
+      trackRepo.findCommentById.mockResolvedValue(mockParentComment());
+      trackRepo.addComment.mockResolvedValue(mockTrackComment({ parentId: mockParentCommentId }));
+
+      await service.addComment(mockTrackId, mockUserId, mockDtoWithParent);
+
+      expect(trackRepo.findCommentById).toHaveBeenCalledWith(mockParentCommentId);
+    });
+
+    it('should NOT call findCommentById when no parentId is in dto', async () => {
+      trackRepo.findById.mockResolvedValue(mockPublicTrack());
+      trackRepo.addComment.mockResolvedValue(mockTrackComment());
+
+      await service.addComment(mockTrackId, mockUserId, mockDto);
+
+      expect(trackRepo.findCommentById).not.toHaveBeenCalled();
+    });
+
+    it('should create reply when parentId is valid', async () => {
+      const reply = mockTrackComment({ parentId: mockParentCommentId, content: 'Nice reply!' });
+      trackRepo.findById.mockResolvedValue(mockPublicTrack());
+      trackRepo.findCommentById.mockResolvedValue(mockParentComment());
+      trackRepo.addComment.mockResolvedValue(reply);
+
+      const result = await service.addComment(mockTrackId, mockUserId, mockDtoWithParent);
+
+      expect(result).toEqual({ status: 'success', data: reply });
+      expect(result.data.parentId).toBe(mockParentCommentId);
     });
   });
 });
