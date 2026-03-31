@@ -7,9 +7,14 @@ import { TrackRepost } from './entities/track-reposts.entity';
 import { Track } from './entities/track.entity';
 import { UserModule } from '../user/user.module';
 import { FollowersModule } from '../followers/followers.module';
+import { TrackLikes } from './entities/track-likes.entity';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([Track, TrackRepost]), UserModule, FollowersModule],
+  imports: [
+    TypeOrmModule.forFeature([Track, TrackRepost, TrackLikes]),
+    UserModule,
+    FollowersModule,
+  ],
   controllers: [TrackController],
   providers: [TrackService, TrackRepository],
   exports: [TrackService, TrackRepository],
