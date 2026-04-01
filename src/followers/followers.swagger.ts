@@ -331,10 +331,10 @@ export function ApiBlockUser() {
         'Blocks the specified user on behalf of the authenticated user. Enforces mutual invisibility and removes any existing follow relationships between the two users.',
     }),
     ApiParam({
-      name: 'user_id',
+      name: 'userId',
       description: 'ID of the user to be blocked',
       type: String,
-      example: 'usr_456',
+      example: '1066b876-d3c5-46ed-b954-ac24fdab3294',
     }),
 
     // Success Response (201 Created)
@@ -345,8 +345,8 @@ export function ApiBlockUser() {
         example: {
           status: 'success',
           data: {
-            blocker_id: 'usr_123',
-            blocked_id: 'usr_456',
+            blocker_id: 'e4fbc35b-2881-4fdc-bd05-d3900b2eb61a',
+            blocked_id: '1066b876-d3c5-46ed-b954-ac24fdab3294',
             created_at: '2025-06-01T12:00:00Z',
           },
         },
@@ -401,7 +401,7 @@ export function ApiUnblockUser() {
         'Removes the block relationship between the authenticated user and the target user. This does not restore previous follow relationships.',
     }),
     ApiParam({
-      name: 'user_id',
+      name: 'userId',
       description: 'ID of the user to unblock',
       type: String,
       example: '993f6e51-3927-4740-bcbf-96e7919964bc',

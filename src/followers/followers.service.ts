@@ -173,9 +173,9 @@ export class FollowersService {
     return {
       status: 'success',
       data: {
-        blocker_id: block.blocker,
-        blocked_id: block.blocked,
-        created_at: block.createdAt,
+        blockerId: block.blocker,
+        blockedId: block.blocked,
+        createdAt: block.createdAt,
       },
     };
   }
@@ -242,72 +242,6 @@ export class FollowersService {
       data: {
         blockStatus,
         ...(since && { since }),
-      },
-    };
-  }
-
-  async getFollowersYouKnow(
-    currentUserId: string,
-    targetUserId: string,
-    page: number,
-    limit: number
-  ) {
-    if (currentUserId === targetUserId) {
-      return {
-        status: 'success',
-        data: {
-          users: [],
-          pagination: {
-            current_page: page,
-            total_pages: 0,
-            total_count: 0,
-            limit,
-          },
-        },
-      };
-    }
-
-    const target = await this.userRepository.findById(targetUserId);
-
-    if (!target) {
-      throw new NotFoundException('Target user not found');
-    }
-
-    const blocks = await this.followersRepository.getBlockRelationship(currentUserId, targetUserId);
-
-    if (blocks.length > 0) {
-      throw new ForbiddenException('Action not allowed due to a block relationship');
-    }
-
-    if (!target.isPublic) {
-      const isFollowing = await this.followersRepository.isFollowing(currentUserId, targetUserId);
-      if (!isFollowing) {
-        throw new ForbiddenException('This account is private');
-      }
-    }
-
-    const { users, total } = await this.followersRepository.getCommonFollowers(
-      currentUserId,
-      targetUserId,
-      page,
-      limit
-    );
-
-    return {
-      status: 'success',
-      data: {
-        users: users.map((u) => ({
-          user_id: u.userId,
-          username: u.username,
-          display_name: u.displayName ?? null,
-          avatar_url: u.avatarUrl ?? null,
-        })),
-        pagination: {
-          current_page: page,
-          total_pages: Math.ceil(total / limit),
-          total_count: total,
-          limit,
-        },
       },
     };
   }
