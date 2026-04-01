@@ -220,4 +220,47 @@ describe('FollowersController', () => {
       expect(result).toEqual(expected);
     });
   });
+
+  describe('getCommonFollowers', () => {
+    const currentUserId = 'usr_current';
+    const userId = 'usr_123';
+    const otherUserId = 'usr_456';
+
+    it('should call service.getCommonFollowers with explicit page and limit', async () => {
+      const mockResult = { status: 'success', data: { common_followers: [], pagination: {} } };
+      mockFollowersService.getCommonFollowers.mockResolvedValue(mockResult);
+
+      const result = await controller.getCommonFollowers(currentUserId, userId, otherUserId, 5, 50);
+
+      expect(mockFollowersService.getCommonFollowers).toHaveBeenCalledWith(
+        currentUserId,
+        userId,
+        otherUserId,
+        5,
+        50
+      );
+      expect(result).toEqual(mockResult);
+    });
+
+    it('should fall back to page=1 and limit=20 when query params are undefined', async () => {
+      const mockResult = { status: 'success', data: { common_followers: [], pagination: {} } };
+      mockFollowersService.getCommonFollowers.mockResolvedValue(mockResult);
+
+      await controller.getCommonFollowers(
+        currentUserId,
+        userId,
+        otherUserId,
+        undefined as any,
+        undefined as any
+      );
+
+      expect(mockFollowersService.getCommonFollowers).toHaveBeenCalledWith(
+        currentUserId,
+        userId,
+        otherUserId,
+        1,
+        20
+      );
+    });
+  });
 });

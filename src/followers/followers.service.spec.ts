@@ -1,5 +1,10 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { BadRequestException, ConflictException, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  ConflictException,
+  ForbiddenException,
+  NotFoundException,
+} from '@nestjs/common';
 import { FollowersService } from './followers.service';
 import { FollowersRepository } from './followers.repository';
 import { UserRepository } from '../user/user.repository';
@@ -12,6 +17,7 @@ import {
   mockFollowersRepository,
   mockUserRepository,
   mockUserBlock,
+  mockCommonFollowersData,
 } from './test/followers.mock';
 
 describe('FollowersService', () => {
@@ -523,6 +529,70 @@ describe('FollowersService', () => {
         new BadRequestException('Cannot check block status with yourself')
       );
       expect(mockFollowersRepository.getBlockRelationship).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('getCommonFollowers', () => {
+    const currentUserId = 'usr_current';
+    const userId = 'usr_123';
+    const otherUserId = 'usr_456';
+
+    it('should throw BadRequestException if both user IDs are the same', async () => {
+      await expect(
+        service.getCommonFollowers(currentUserId, userId, userId, 1, 20)
+      ).rejects.toThrow(BadRequestException);
+    });
+
+    it('should throw NotFoundException if one or both users do not exist', async () => {
+      mockUserRepository.findById
+        .mockResolvedValueOnce({ userId } as any)
+        .mockResolvedValueOnce(null);
+
+      await expect(
+        service.getCommonFollowers(currentUserId, userId, otherUserId, 1, 20)
+      ).rejects.toThrow(NotFoundException);
+    });
+
+    it('should throw ForbiddenException if there is a block relationship with user A', async () => {
+      mockUserRepository.findById.mockResolvedValue({ userId: 'any', isPublic: true } as any);
+
+      mockFollowersRepository.getBlockRelationship.mockResolvedValueOnce([{ blocker: 'some_id' }]);
+
+      await expect(
+        service.getCommonFollowers(currentUserId, userId, otherUserId, 1, 20)
+      ).rejects.toThrow(ForbiddenException);
+    });
+
+    it('should throw ForbiddenException if user B account is private', async () => {
+      mockUserRepository.findById
+        .mockResolvedValueOnce({ userId, isPublic: true } as any)
+        .mockResolvedValueOnce({ userId: otherUserId, isPublic: false } as any);
+
+      mockFollowersRepository.getBlockRelationship.mockResolvedValue([]);
+
+      await expect(
+        service.getCommonFollowers(currentUserId, userId, otherUserId, 1, 20)
+      ).rejects.toThrow(ForbiddenException);
+    });
+
+    it('should return common followers successfully if all checks pass', async () => {
+      mockUserRepository.findById.mockResolvedValue({ userId: 'any', isPublic: true } as any);
+      mockFollowersRepository.getBlockRelationship.mockResolvedValue([]);
+      mockFollowersRepository.getCommonFollowers.mockResolvedValue(mockCommonFollowersData);
+
+      const result = await service.getCommonFollowers(currentUserId, userId, otherUserId, 1, 20);
+
+      expect(result.status).toBe('success');
+      expect(result.data.user_id).toBe(userId);
+      expect(result.data.other_user_id).toBe(otherUserId);
+      expect(result.data.common_followers.length).toBe(1);
+      expect(result.data.pagination.total_count).toBe(1);
+      expect(mockFollowersRepository.getCommonFollowers).toHaveBeenCalledWith(
+        userId,
+        otherUserId,
+        1,
+        20
+      );
     });
   });
 });
