@@ -4,13 +4,13 @@ import {
   ApiResponse,
   ApiParam,
   ApiQuery,
-  ApiBearerAuth,
+  ApiCookieAuth,
   ApiBody,
 } from '@nestjs/swagger';
 
 export function ApiGetMyProfile() {
   return applyDecorators(
-    ApiBearerAuth(),
+    ApiCookieAuth('access_token'),
     ApiOperation({
       summary: 'Get my profile',
       description:
@@ -113,7 +113,7 @@ export function ApiGetProfile() {
 
 export function ApiUpdateProfile() {
   return applyDecorators(
-    ApiBearerAuth(),
+    ApiCookieAuth('access_token'),
     ApiOperation({
       summary: 'Update my profile',
       description:
@@ -168,7 +168,7 @@ export function ApiUpdateProfile() {
 
 export function ApiUpdateBirthdate() {
   return applyDecorators(
-    ApiBearerAuth(),
+    ApiCookieAuth('access_token'),
     ApiOperation({
       summary: 'Update my birthdate',
       description:
@@ -230,7 +230,7 @@ export function ApiUpdateBirthdate() {
 
 export function ApiUpdateGender() {
   return applyDecorators(
-    ApiBearerAuth(),
+    ApiCookieAuth('access_token'),
     ApiOperation({
       summary: 'Update my gender',
       description:
@@ -270,7 +270,7 @@ export function ApiUpdateGender() {
 
 export function ApiUpdatePrivacy() {
   return applyDecorators(
-    ApiBearerAuth(),
+    ApiCookieAuth('access_token'),
     ApiOperation({
       summary: 'Change account privacy',
       description:
@@ -282,7 +282,7 @@ export function ApiUpdatePrivacy() {
       schema: {
         example: {
           status: 'success',
-          message: 'Privacy updated successfully',
+          message: 'Privacy settings updated successfully',
           data: {
             isPublic: false,
             updatedAt: '2025-03-01T12:00:00.000Z',
@@ -308,7 +308,7 @@ export function ApiUpdatePrivacy() {
 
 export function ApiUpdateAvatar() {
   return applyDecorators(
-    ApiBearerAuth(),
+    ApiCookieAuth('access_token'),
     ApiOperation({
       summary: 'Update profile picture',
       description: "Updates the authenticated user's avatar/profile picture URL.",
@@ -359,7 +359,7 @@ export function ApiUpdateAvatar() {
 
 export function ApiUpdateCover() {
   return applyDecorators(
-    ApiBearerAuth(),
+    ApiCookieAuth('access_token'),
     ApiOperation({
       summary: 'Update cover photo',
       description: "Updates the authenticated user's cover photo URL.",
@@ -410,7 +410,7 @@ export function ApiUpdateCover() {
 
 export function ApiGetExternalProfiles() {
   return applyDecorators(
-    ApiBearerAuth(),
+    ApiCookieAuth('access_token'),
     ApiOperation({
       summary: 'Get my external profiles',
       description:
@@ -450,7 +450,7 @@ export function ApiGetExternalProfiles() {
 
 export function ApiAddExternalProfile() {
   return applyDecorators(
-    ApiBearerAuth(),
+    ApiCookieAuth('access_token'),
     ApiOperation({
       summary: 'Add an external profile link',
       description:
@@ -558,7 +558,7 @@ export function ApiAddExternalProfile() {
 
 export function ApiUpdateExternalProfile() {
   return applyDecorators(
-    ApiBearerAuth(),
+    ApiCookieAuth('access_token'),
     ApiOperation({
       summary: 'Edit an external profile link',
       description:
@@ -660,7 +660,7 @@ export function ApiUpdateExternalProfile() {
 
 export function ApiDeleteExternalProfile() {
   return applyDecorators(
-    ApiBearerAuth(),
+    ApiCookieAuth('access_token'),
     ApiOperation({
       summary: 'Remove an external profile link',
       description: "Permanently deletes one of the authenticated user's external profile links.",

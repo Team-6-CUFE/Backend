@@ -78,4 +78,61 @@ describe('ProfileController', () => {
 
     expect(service.isUsernameTaken).toHaveBeenCalledWith('testuser');
   });
+
+  it('getMyExternalProfiles → delegates to service with userId', async () => {
+    service.getMyExternalProfiles.mockResolvedValue({ status: 'Success', data: [] });
+
+    await controller.getMyExternalProfiles(mockUserId);
+
+    expect(service.getMyExternalProfiles).toHaveBeenCalledWith(mockUserId);
+  });
+
+  it('addExternalProfile → delegates to service with userId and dto', async () => {
+    const dto = { name: 'instagram', url: 'https://instagram.com/test' };
+    service.addExternalProfile.mockResolvedValue({ status: 'Success', message: '', data: {} });
+
+    await controller.addExternalProfile(mockUserId, dto as any);
+
+    expect(service.addExternalProfile).toHaveBeenCalledWith(mockUserId, dto);
+  });
+
+  it('updateExternalProfile → delegates to service with userId, profileId, and dto', async () => {
+    const profileId = 'profile-uuid-1';
+    const dto = { name: 'twitter' };
+    service.updateExternalProfile.mockResolvedValue({ status: 'Success', message: '', data: {} });
+
+    await controller.updateExternalProfile(mockUserId, profileId, dto as any);
+
+    expect(service.updateExternalProfile).toHaveBeenCalledWith(mockUserId, profileId, dto);
+  });
+
+  it('deleteExternalProfile → delegates to service with userId and profileId', async () => {
+    const profileId = 'profile-uuid-1';
+    service.deleteExternalProfile.mockResolvedValue({
+      status: 'Success',
+      message: 'External profile deleted successfully',
+    });
+
+    await controller.deleteExternalProfile(mockUserId, profileId);
+
+    expect(service.deleteExternalProfile).toHaveBeenCalledWith(mockUserId, profileId);
+  });
+
+  it('updateAvatar → delegates to service with userId and avatarUrl', async () => {
+    const dto = { avatarUrl: 'https://cdn.example.com/avatars/test.jpg' };
+    service.updateAvatar.mockResolvedValue({ status: 'Success', message: '', data: {} });
+
+    await controller.updateAvatar(mockUserId, dto as any);
+
+    expect(service.updateAvatar).toHaveBeenCalledWith(mockUserId, dto.avatarUrl);
+  });
+
+  it('updateCover → delegates to service with userId and coverPhoto', async () => {
+    const dto = { coverPhoto: 'https://cdn.example.com/covers/test.jpg' };
+    service.updateCover.mockResolvedValue({ status: 'Success', message: '', data: {} });
+
+    await controller.updateCover(mockUserId, dto as any);
+
+    expect(service.updateCover).toHaveBeenCalledWith(mockUserId, dto.coverPhoto);
+  });
 });

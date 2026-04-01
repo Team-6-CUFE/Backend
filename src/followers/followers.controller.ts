@@ -21,6 +21,12 @@ import {
   ApiGetFollowing,
   ApiGetFollowersCount,
   ApiGetFollowingCount,
+  ApiBlockUser,
+  ApiUnblockUser,
+  ApiGetBlockedUsers,
+  ApiGetBlockStatus,
+  ApiGetCommonFollowers,
+  ApiGetSuggestedUsers,
 } from './followers.swagger';
 import { CheckBlock } from './decorators/no-block.decorator';
 
@@ -28,6 +34,16 @@ import { CheckBlock } from './decorators/no-block.decorator';
 @Controller('users')
 export class FollowersController {
   constructor(private readonly followersService: FollowersService) {}
+
+  @Get('blocked')
+  @ApiGetBlockedUsers()
+  async getBlockedUsers(
+    @CurrentUser('sub') currentUserId: string,
+    @Query('page') page: number,
+    @Query('limit') limit: number
+  ) {
+    return this.followersService.getBlockedUsers(currentUserId, page ?? 1, limit ?? 20);
+  }
 
   @Post(':user_id/follow')
   @HttpCode(HttpStatus.CREATED)
@@ -101,5 +117,65 @@ export class FollowersController {
     @Query('limit') limit: number
   ) {
     return this.followersService.getFollowing(userId, page ?? 1, limit ?? 20);
+  }
+
+  @Post(':user_id/block')
+  @CheckUserExists('user_id')
+  @ApiBlockUser()
+  async blockUser(
+    @CurrentUser('sub') currentUserId: string,
+    @Param('user_id', ParseUUIDPipe) targetUserId: string
+  ) {
+    return this.followersService.blockUser(currentUserId, targetUserId);
+  }
+
+  @Delete(':user_id/block')
+  @CheckUserExists('user_id')
+  @ApiUnblockUser()
+  async unblockUser(
+    @CurrentUser('sub') currentUserId: string,
+    @Param('user_id', ParseUUIDPipe) targetUserId: string
+  ) {
+    return this.followersService.unblockUser(currentUserId, targetUserId);
+  }
+
+  @Get(':user_id/block-status')
+  @CheckUserExists('user_id')
+  @ApiGetBlockStatus()
+  async getBlockStatus(
+    @CurrentUser('sub') currentUserId: string,
+    @Param('user_id', ParseUUIDPipe) targetUserId: string
+  ) {
+    return this.followersService.getBlockStatus(currentUserId, targetUserId);
+  }
+
+  @Get(':user_id/common-followers/:other_user_id')
+  @CheckUserExists('user_id')
+  @ApiGetCommonFollowers()
+  async getCommonFollowers(
+    @CurrentUser('sub') currentUserId: string,
+    @Param('user_id', ParseUUIDPipe) userId: string,
+    @Param('other_user_id', ParseUUIDPipe) otherUserId: string,
+    @Query('page') page: number,
+    @Query('limit') limit: number
+  ) {
+    return this.followersService.getCommonFollowers(
+      currentUserId,
+      userId,
+      otherUserId,
+      page ?? 1,
+      limit ?? 20
+    );
+  }
+
+  @Get('suggested')
+  @ApiGetSuggestedUsers()
+  async getSuggestedUsers(
+    @CurrentUser('sub') currentUserId: string,
+    @Query('page') page: number,
+    @Query('limit') limit: number,
+    @Query('by') by?: string
+  ) {
+    return this.followersService.getSuggestedUsers(currentUserId, page ?? 1, limit ?? 20, by);
   }
 }

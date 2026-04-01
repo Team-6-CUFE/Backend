@@ -148,4 +148,236 @@ export class FollowersRepository {
     });
     return result;
   }
+
+  async createBlockAndHandleFollows(blockerId: string, blockedId: string): Promise<UserBlock> {
+    // We use the manager's transaction feature to safely execute everything together
+    return this.blockRepository.manager.transaction(async (transactionalEntityManager) => {
+      const followerToBlocked = await transactionalEntityManager.findOne(UserFollow, {
+        where: { follower: blockerId, followed: blockedId },
+      });
+      if (followerToBlocked) {
+        await transactionalEntityManager.remove(UserFollow, followerToBlocked);
+        await transactionalEntityManager.decrement(
+          User,
+          { userId: blockerId },
+          'followingsCount',
+          1
+        );
+        await transactionalEntityManager.decrement(
+          User,
+          { userId: blockedId },
+          'followersCount',
+          1
+        );
+      }
+
+      const blockedToFollower = await transactionalEntityManager.findOne(UserFollow, {
+        where: { follower: blockedId, followed: blockerId },
+      });
+      if (blockedToFollower) {
+        await transactionalEntityManager.remove(UserFollow, blockedToFollower);
+        await transactionalEntityManager.decrement(
+          User,
+          { userId: blockedId },
+          'followingsCount',
+          1
+        );
+        await transactionalEntityManager.decrement(
+          User,
+          { userId: blockerId },
+          'followersCount',
+          1
+        );
+      }
+
+      const newBlock = transactionalEntityManager.create(UserBlock, {
+        blocker: blockerId,
+        blocked: blockedId,
+      });
+
+      return transactionalEntityManager.save(newBlock);
+    });
+  }
+
+  async isBlocking(blockerId: string, blockedId: string): Promise<boolean> {
+    const block = await this.blockRepository.findOne({
+      where: { blocker: blockerId, blocked: blockedId },
+    });
+    return block !== null;
+  }
+
+  async deleteBlock(blockerId: string, blockedId: string): Promise<boolean> {
+    const result = await this.blockRepository.delete({
+      blocker: blockerId,
+      blocked: blockedId,
+    });
+
+    return (result.affected ?? 0) > 0;
+  }
+
+  async getBlockedUsers(
+    userId: string,
+    page: number,
+    limit: number
+  ): Promise<{ users: Partial<User>[]; total: number }> {
+    const offset: number = (page - 1) * limit;
+    const [users, total] = await Promise.all([
+      this.userRepository
+        .createQueryBuilder('user')
+        .innerJoin('user_blocks', 'ub', 'ub.blocked = user.user_id')
+        .where('ub.blocker = :userId', { userId })
+        .select(['user.userId', 'user.username', 'user.displayName', 'user.avatarUrl'])
+        .skip(offset)
+        .take(limit)
+        .getMany(),
+
+      this.blockRepository.count({ where: { blocker: userId } }),
+    ]);
+
+    return { users, total };
+  }
+
+  async getBlockRelationship(userA: string, userB: string): Promise<UserBlock[]> {
+    return this.blockRepository.find({
+      where: [
+        { blocker: userA, blocked: userB },
+        { blocker: userB, blocked: userA },
+      ],
+    });
+  }
+
+  async getCommonFollowers(
+    userId: string,
+    otherUserId: string,
+    page: number,
+    limit: number
+  ): Promise<{ users: Partial<User>[]; total: number }> {
+    const offset = (page - 1) * limit;
+
+    const query = this.userRepository
+      .createQueryBuilder('user')
+      .innerJoin('user_follows', 'f1', 'f1.follower = user.user_id AND f1.followed = :userId', {
+        userId,
+      })
+      .innerJoin(
+        'user_follows',
+        'f2',
+        'f2.follower = user.user_id AND f2.followed = :otherUserId',
+        { otherUserId }
+      )
+      .select(['user.userId', 'user.username', 'user.displayName', 'user.avatarUrl']);
+
+    const [users, total] = await Promise.all([
+      query.skip(offset).take(limit).getMany(),
+      query.getCount(),
+    ]);
+
+    return { users, total };
+  }
+
+  async getSuggestedUsers(
+    userId: string,
+    page: number,
+    limit: number,
+    by?: string
+  ): Promise<{ users: Partial<User>[]; total: number }> {
+    const offset = (page - 1) * limit;
+
+    const query = this.userRepository
+      .createQueryBuilder('user')
+      .select([
+        'user.userId',
+        'user.username',
+        'user.displayName',
+        'user.avatarUrl',
+        'user.followersCount',
+      ])
+      // 1. Exclude the current user
+      .where('user.userId != :userId', { userId })
+
+      // 2. Exclude users the current user is already following
+      .andWhere((qb) => {
+        const subQuery = qb
+          .subQuery()
+          .select('uf.followed')
+          .from(UserFollow, 'uf')
+          .where('uf.follower = :userId')
+          .getQuery();
+        return `user.user_id NOT IN ${subQuery}`;
+      })
+
+      // 3. Exclude users the current user has blocked
+      .andWhere((qb) => {
+        const subQuery = qb
+          .subQuery()
+          .select('ub.blocked')
+          .from(UserBlock, 'ub')
+          .where('ub.blocker = :userId')
+          .getQuery();
+        return `user.user_id NOT IN ${subQuery}`;
+      })
+
+      // 4. Exclude users who have blocked the current user
+      .andWhere((qb) => {
+        const subQuery = qb
+          .subQuery()
+          .select('ub2.blocker')
+          .from(UserBlock, 'ub2')
+          .where('ub2.blocked = :userId')
+          .getQuery();
+        return `user.user_id NOT IN ${subQuery}`;
+      });
+
+    // APPLY FILTERS
+    if (by === 'popular') {
+      query.orderBy('user.followersCount', 'DESC');
+    } else if (by === 'mutuals') {
+      // Join follow table twice to find people followed by people you follow
+      query
+        .innerJoin('user_follows', 'mutual', 'mutual.followed = user.user_id')
+        .innerJoin(
+          'user_follows',
+          'my_follows',
+          'my_follows.followed = mutual.follower AND my_follows.follower = :userId',
+          { userId }
+        )
+        .groupBy('user.userId')
+        .orderBy('user.followersCount', 'DESC');
+    } else if (by === 'genre') {
+      // A. Fetch the current user's favorite genres
+      const currentUser = await this.userRepository
+        .createQueryBuilder('u')
+        .leftJoinAndSelect('u.favoriteGenres', 'fg')
+        .leftJoinAndSelect('fg.genre', 'g')
+        .where('u.userId = :userId', { userId })
+        .getOne();
+
+      const genreIds =
+        currentUser?.favoriteGenres?.map((fg) => fg.genre?.genreId).filter(Boolean) || [];
+
+      // B. If they have genres, find other users with matching genres
+      if (genreIds.length > 0) {
+        query
+          .innerJoin('user.favoriteGenres', 'suggested_fg')
+          .innerJoin('suggested_fg.genre', 'sg_genre')
+          .andWhere('sg_genre.genre_id IN (:...genreIds)', { genreIds })
+          .groupBy('user.userId')
+          .orderBy('user.followersCount', 'DESC');
+      } else {
+        // Fallback: If the user hasn't selected any genres, just show popular accounts
+        query.orderBy('user.followersCount', 'DESC');
+      }
+    } else {
+      // Default fallback (no 'by' parameter provided)
+      query.orderBy('user.followersCount', 'DESC');
+    }
+
+    // Execute query with pagination
+    const [users, total] = await Promise.all([
+      query.skip(offset).take(limit).getMany(),
+      query.getCount(),
+    ]);
+
+    return { users, total };
+  }
 }
