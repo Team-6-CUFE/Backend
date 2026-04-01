@@ -316,4 +316,32 @@ export class FollowersService {
       },
     };
   }
+
+  async getSuggestedUsers(currentUserId: string, page: number, limit: number, by?: string) {
+    const { users, total } = await this.followersRepository.getSuggestedUsers(
+      currentUserId,
+      page,
+      limit,
+      by
+    );
+
+    return {
+      status: 'success',
+      data: {
+        suggestedUsers: users.map((u) => ({
+          userId: u.userId,
+          username: u.username,
+          displayName: u.displayName ?? null,
+          avatarUrl: u.avatarUrl ?? null,
+          followersCount: u.followersCount ?? 0,
+        })),
+        pagination: {
+          currentPage: page,
+          totalPages: Math.ceil(total / limit),
+          totalCount: total,
+          limit,
+        },
+      },
+    };
+  }
 }

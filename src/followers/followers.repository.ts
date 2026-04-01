@@ -274,4 +274,110 @@ export class FollowersRepository {
 
     return { users, total };
   }
+
+  async getSuggestedUsers(
+    userId: string,
+    page: number,
+    limit: number,
+    by?: string
+  ): Promise<{ users: Partial<User>[]; total: number }> {
+    const offset = (page - 1) * limit;
+
+    const query = this.userRepository
+      .createQueryBuilder('user')
+      .select([
+        'user.userId',
+        'user.username',
+        'user.displayName',
+        'user.avatarUrl',
+        'user.followersCount',
+      ])
+      // 1. Exclude the current user
+      .where('user.userId != :userId', { userId })
+
+      // 2. Exclude users the current user is already following
+      .andWhere((qb) => {
+        const subQuery = qb
+          .subQuery()
+          .select('uf.followed')
+          .from(UserFollow, 'uf')
+          .where('uf.follower = :userId')
+          .getQuery();
+        return `user.user_id NOT IN ${subQuery}`;
+      })
+
+      // 3. Exclude users the current user has blocked
+      .andWhere((qb) => {
+        const subQuery = qb
+          .subQuery()
+          .select('ub.blocked')
+          .from(UserBlock, 'ub')
+          .where('ub.blocker = :userId')
+          .getQuery();
+        return `user.user_id NOT IN ${subQuery}`;
+      })
+
+      // 4. Exclude users who have blocked the current user
+      .andWhere((qb) => {
+        const subQuery = qb
+          .subQuery()
+          .select('ub2.blocker')
+          .from(UserBlock, 'ub2')
+          .where('ub2.blocked = :userId')
+          .getQuery();
+        return `user.user_id NOT IN ${subQuery}`;
+      });
+
+    // APPLY FILTERS
+    if (by === 'popular') {
+      query.orderBy('user.followersCount', 'DESC');
+    } else if (by === 'mutuals') {
+      // Join follow table twice to find people followed by people you follow
+      query
+        .innerJoin('user_follows', 'mutual', 'mutual.followed = user.user_id')
+        .innerJoin(
+          'user_follows',
+          'my_follows',
+          'my_follows.followed = mutual.follower AND my_follows.follower = :userId',
+          { userId }
+        )
+        .groupBy('user.userId')
+        .orderBy('user.followersCount', 'DESC');
+    } else if (by === 'genre') {
+      // A. Fetch the current user's favorite genres
+      const currentUser = await this.userRepository
+        .createQueryBuilder('u')
+        .leftJoinAndSelect('u.favoriteGenres', 'fg')
+        .leftJoinAndSelect('fg.genre', 'g')
+        .where('u.userId = :userId', { userId })
+        .getOne();
+
+      const genreIds =
+        currentUser?.favoriteGenres?.map((fg) => fg.genre?.genreId).filter(Boolean) || [];
+
+      // B. If they have genres, find other users with matching genres
+      if (genreIds.length > 0) {
+        query
+          .innerJoin('user.favoriteGenres', 'suggested_fg')
+          .innerJoin('suggested_fg.genre', 'sg_genre')
+          .andWhere('sg_genre.genre_id IN (:...genreIds)', { genreIds })
+          .groupBy('user.userId')
+          .orderBy('user.followersCount', 'DESC');
+      } else {
+        // Fallback: If the user hasn't selected any genres, just show popular accounts
+        query.orderBy('user.followersCount', 'DESC');
+      }
+    } else {
+      // Default fallback (no 'by' parameter provided)
+      query.orderBy('user.followersCount', 'DESC');
+    }
+
+    // Execute query with pagination
+    const [users, total] = await Promise.all([
+      query.skip(offset).take(limit).getMany(),
+      query.getCount(),
+    ]);
+
+    return { users, total };
+  }
 }

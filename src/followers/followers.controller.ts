@@ -166,4 +166,15 @@ export class FollowersController {
       limit ?? 20
     );
   }
+
+  @Get('suggested')
+  // Add an @ApiGetSuggestedUsers() here if you create the swagger decorator
+  async getSuggestedUsers(
+    @CurrentUser('sub') currentUserId: string,
+    @Query('page') page: number,
+    @Query('limit') limit: number,
+    @Query('by') by?: string
+  ) {
+    return this.followersService.getSuggestedUsers(currentUserId, page ?? 1, limit ?? 20, by);
+  }
 }
