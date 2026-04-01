@@ -71,4 +71,10 @@ export const mockProfileService = () => ({
   updateMyGender: jest.fn(),
   updateMyPrivacy: jest.fn(),
   isUsernameTaken: jest.fn(),
+  getMyExternalProfiles: jest.fn(),
+  addExternalProfile: jest.fn(),
+  updateExternalProfile: jest.fn(),
+  deleteExternalProfile: jest.fn(),
+  updateAvatar: jest.fn(),
+  updateCover: jest.fn(),
 });
