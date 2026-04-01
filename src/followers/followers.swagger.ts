@@ -1,8 +1,8 @@
 import { applyDecorators, HttpStatus } from '@nestjs/common';
 import { ApiOperation, ApiParam, ApiQuery, ApiResponse, ApiBearerAuth } from '@nestjs/swagger';
 
-const errorSchema = (message: string) => ({
-  schema: { example: { status: 'error', message } },
+const errorSchema = (statusCode: number, message: string) => ({
+  schema: { example: { statusCode, message } },
 });
 
 const invalidUuidResponse = ApiResponse({
@@ -13,11 +13,11 @@ const invalidUuidResponse = ApiResponse({
       examples: {
         invalidUuid: {
           summary: 'Invalid UUID',
-          value: { status: 'error', message: 'user_id must be a valid UUID' },
+          value: { statusCode: 400, message: 'user_id must be a valid UUID' },
         },
         selfFollow: {
           summary: 'Self-follow attempt',
-          value: { status: 'error', message: 'You cannot follow yourself' },
+          value: { statusCode: 400, message: 'You cannot follow yourself' },
         },
       },
     },
@@ -28,12 +28,12 @@ const commonErrorResponses = [
   ApiResponse({
     status: HttpStatus.UNAUTHORIZED,
     description: 'No valid authentication token provided',
-    ...errorSchema('Unauthorized'),
+    ...errorSchema(401, 'Unauthorized'),
   }),
   ApiResponse({
     status: HttpStatus.NOT_FOUND,
     description: 'Target user not found',
-    ...errorSchema('User not found'),
+    ...errorSchema(404, 'User not found'),
   }),
 ];
 
@@ -45,11 +45,11 @@ const privatOrBlockedResponse = ApiResponse({
       examples: {
         private: {
           summary: 'Private account',
-          value: { status: 'error', message: 'This account is private' },
+          value: { statusCode: 403, message: 'This account is private' },
         },
         blocked: {
           summary: 'Block relationship',
-          value: { status: 'error', message: 'Action not allowed due to a block relationship' },
+          value: { statusCode: 403, message: 'Action not allowed due to a block relationship' },
         },
       },
     },
@@ -87,11 +87,11 @@ export function ApiFollowUser() {
           examples: {
             invalidUuid: {
               summary: 'Invalid UUID',
-              value: { status: 'error', message: 'user_id must be a valid UUID' },
+              value: { statusCode: 400, message: 'user_id must be a valid UUID' },
             },
             selfFollow: {
               summary: 'Self-follow',
-              value: { status: 'error', message: 'You cannot follow yourself' },
+              value: { statusCode: 400, message: 'You cannot follow yourself' },
             },
           },
         },
@@ -101,12 +101,12 @@ export function ApiFollowUser() {
     ApiResponse({
       status: HttpStatus.FORBIDDEN,
       description: 'A block relationship exists between the two users',
-      ...errorSchema('Action not allowed due to a block relationship'),
+      ...errorSchema(403, 'Action not allowed due to a block relationship'),
     }),
     ApiResponse({
       status: HttpStatus.CONFLICT,
       description: 'Already following this user',
-      ...errorSchema('You are already following this user'),
+      ...errorSchema(409, 'You are already following this user'),
     })
   );
 }
@@ -133,11 +133,11 @@ export function ApiUnfollowUser() {
           examples: {
             invalidUuid: {
               summary: 'Invalid UUID',
-              value: { status: 'error', message: 'user_id must be a valid UUID' },
+              value: { statusCode: 400, message: 'user_id must be a valid UUID' },
             },
             selfUnfollow: {
               summary: 'Self-unfollow',
-              value: { status: 'error', message: 'You cannot unfollow yourself' },
+              value: { statusCode: 400, message: 'You cannot unfollow yourself' },
             },
           },
         },
@@ -189,7 +189,7 @@ export function ApiGetFollowStatus() {
     ApiResponse({
       status: HttpStatus.FORBIDDEN,
       description: 'A block relationship exists between the two users',
-      ...errorSchema('Action not allowed due to a block relationship'),
+      ...errorSchema(403, 'Action not allowed due to a block relationship'),
     })
   );
 }
