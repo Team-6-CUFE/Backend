@@ -6,6 +6,7 @@ import {
   mockFollowedId,
   mockUserFollow,
   mockFollowersService,
+  mockUserBlock,
 } from './test/followers.mock';
 
 jest.mock('./decorators/no-block.decorator', () => ({
@@ -48,6 +49,25 @@ describe('FollowersController', () => {
     });
   });
 
+  describe('blockUser', () => {
+    it('should call service.blockUser with correct args and return result', async () => {
+      const expected = {
+        status: 'success',
+        data: {
+          blockerId: mockFollowerId,
+          blockedId: mockFollowedId,
+          createdAt: mockUserBlock.createdAt,
+        },
+      };
+      mockFollowersService.blockUser.mockResolvedValue(expected);
+
+      const result = await controller.blockUser(mockFollowerId, mockFollowedId);
+
+      expect(mockFollowersService.blockUser).toHaveBeenCalledWith(mockFollowerId, mockFollowedId);
+      expect(result).toEqual(expected);
+    });
+  });
+
   describe('unfollowUser', () => {
     it('should call service.unfollowUser with correct args and return result', async () => {
       const expected = { status: 'success', message: 'Successfully unfollowed user' };
@@ -85,7 +105,7 @@ describe('FollowersController', () => {
     it('should call service.getFollowersCount with userId and return result', async () => {
       const expected = {
         status: 'success',
-        data: { user_id: mockFollowedId, followers_count: 1024 },
+        data: { userId: mockFollowedId, followersCount: 1024 },
       };
       mockFollowersService.getFollowersCount.mockResolvedValue(expected);
 
@@ -100,7 +120,7 @@ describe('FollowersController', () => {
     it('should call service.getFollowingCount with userId and return result', async () => {
       const expected = {
         status: 'success',
-        data: { user_id: mockFollowedId, followings_count: 512 },
+        data: { userId: mockFollowedId, followingsCount: 512 },
       };
       mockFollowersService.getFollowingCount.mockResolvedValue(expected);
 
@@ -148,6 +168,134 @@ describe('FollowersController', () => {
       await controller.getFollowing(mockFollowedId, undefined as any, undefined as any);
 
       expect(mockFollowersService.getFollowing).toHaveBeenCalledWith(mockFollowedId, 1, 20);
+    });
+  });
+
+  describe('unblockUser', () => {
+    it('should call service.unblockUser with correct args and return result', async () => {
+      const expected = { status: 'success', message: 'User successfully unblocked' };
+      mockFollowersService.unblockUser.mockResolvedValue(expected);
+
+      const result = await controller.unblockUser(mockFollowerId, mockFollowedId);
+
+      expect(mockFollowersService.unblockUser).toHaveBeenCalledWith(mockFollowerId, mockFollowedId);
+      expect(result).toEqual(expected);
+    });
+  });
+
+  describe('getBlockedUsers', () => {
+    it('should call service.getBlockedUsers with explicit page and limit', async () => {
+      const expected = { status: 'success', data: { blockedUsers: [], pagination: {} } };
+      mockFollowersService.getBlockedUsers.mockResolvedValue(expected);
+
+      const result = await controller.getBlockedUsers(mockFollowerId, 3, 15);
+
+      expect(mockFollowersService.getBlockedUsers).toHaveBeenCalledWith(mockFollowerId, 3, 15);
+      expect(result).toEqual(expected);
+    });
+
+    it('should fall back to page=1 and limit=20 when query params are undefined', async () => {
+      mockFollowersService.getBlockedUsers.mockResolvedValue({ status: 'success' });
+
+      await controller.getBlockedUsers(mockFollowerId, undefined as any, undefined as any);
+
+      expect(mockFollowersService.getBlockedUsers).toHaveBeenCalledWith(mockFollowerId, 1, 20);
+    });
+  });
+
+  describe('getBlockStatus', () => {
+    it('should call service.getBlockStatus with correct args and return result', async () => {
+      const expected = {
+        status: 'success',
+        data: { blockStatus: 'blocking', since: new Date() },
+      };
+      mockFollowersService.getBlockStatus.mockResolvedValue(expected);
+
+      const result = await controller.getBlockStatus(mockFollowerId, mockFollowedId);
+
+      expect(mockFollowersService.getBlockStatus).toHaveBeenCalledWith(
+        mockFollowerId,
+        mockFollowedId
+      );
+      expect(result).toEqual(expected);
+    });
+  });
+
+  describe('getCommonFollowers', () => {
+    const currentUserId = 'usr_current';
+    const userId = 'usr_123';
+    const otherUserId = 'usr_456';
+
+    it('should call service.getCommonFollowers with explicit page and limit', async () => {
+      const mockResult = { status: 'success', data: { common_followers: [], pagination: {} } };
+      mockFollowersService.getCommonFollowers.mockResolvedValue(mockResult);
+
+      const result = await controller.getCommonFollowers(currentUserId, userId, otherUserId, 5, 50);
+
+      expect(mockFollowersService.getCommonFollowers).toHaveBeenCalledWith(
+        currentUserId,
+        userId,
+        otherUserId,
+        5,
+        50
+      );
+      expect(result).toEqual(mockResult);
+    });
+
+    it('should fall back to page=1 and limit=20 when query params are undefined', async () => {
+      const mockResult = { status: 'success', data: { common_followers: [], pagination: {} } };
+      mockFollowersService.getCommonFollowers.mockResolvedValue(mockResult);
+
+      await controller.getCommonFollowers(
+        currentUserId,
+        userId,
+        otherUserId,
+        undefined as any,
+        undefined as any
+      );
+
+      expect(mockFollowersService.getCommonFollowers).toHaveBeenCalledWith(
+        currentUserId,
+        userId,
+        otherUserId,
+        1,
+        20
+      );
+    });
+  });
+
+  describe('getSuggestedUsers', () => {
+    it('should call service.getSuggestedUsers with correct parameters', async () => {
+      const expected = { status: 'success', data: { suggestedUsers: [], pagination: {} } };
+      mockFollowersService.getSuggestedUsers.mockResolvedValue(expected);
+
+      const result = await controller.getSuggestedUsers(mockFollowerId, 1, 10, 'genre');
+
+      expect(mockFollowersService.getSuggestedUsers).toHaveBeenCalledWith(
+        mockFollowerId,
+        1,
+        10,
+        'genre'
+      );
+      expect(result).toEqual(expected);
+    });
+
+    it('should use default pagination and undefined "by" when not provided', async () => {
+      mockFollowersService.getSuggestedUsers.mockResolvedValue({ status: 'success' });
+
+      await controller.getSuggestedUsers(
+        mockFollowerId,
+        undefined as any,
+        undefined as any,
+        undefined
+      );
+
+      expect(mockFollowersService.getSuggestedUsers).toHaveBeenCalledWith(
+        mockFollowerId,
+        1,
+        20,
+        undefined
+      );
     });
   });
 });

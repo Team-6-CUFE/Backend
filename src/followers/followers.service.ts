@@ -1,6 +1,7 @@
 import {
   BadRequestException,
   ConflictException,
+  ForbiddenException,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
@@ -88,8 +89,8 @@ export class FollowersService {
     return {
       status: 'success',
       data: {
-        user_id: userId,
-        followings_count: target!.followingsCount,
+        userId,
+        followingsCount: target!.followingsCount,
       },
     };
   }
@@ -100,8 +101,8 @@ export class FollowersService {
     return {
       status: 'success',
       data: {
-        user_id: userId,
-        followers_count: target!.followersCount,
+        userId,
+        followersCount: target!.followersCount,
       },
     };
   }
@@ -149,6 +150,197 @@ export class FollowersService {
         followerId: follow.follower,
         followedId: follow.followed,
         createdAt: follow.createdAt,
+      },
+    };
+  }
+
+  async blockUser(currentUserId: string, targetUserId: string) {
+    if (currentUserId === targetUserId) {
+      throw new BadRequestException('You cannot block yourself');
+    }
+
+    const alreadyBlocked = await this.followersRepository.isBlocking(currentUserId, targetUserId);
+
+    if (alreadyBlocked) {
+      throw new ConflictException('You have already blocked this user');
+    }
+
+    const block = await this.followersRepository.createBlockAndHandleFollows(
+      currentUserId,
+      targetUserId
+    );
+
+    return {
+      status: 'success',
+      data: {
+        blockerId: block.blocker,
+        blockedId: block.blocked,
+        createdAt: block.createdAt,
+      },
+    };
+  }
+
+  async unblockUser(currentUserId: string, targetUserId: string) {
+    if (currentUserId === targetUserId) {
+      throw new BadRequestException('You cannot unblock yourself');
+    }
+
+    const deleted = await this.followersRepository.deleteBlock(currentUserId, targetUserId);
+
+    if (!deleted) {
+      throw new NotFoundException('You have not blocked this user');
+    }
+
+    return {
+      status: 'success',
+      message: 'User successfully unblocked',
+    };
+  }
+
+  async getBlockedUsers(userId: string, page: number, limit: number) {
+    const { users, total } = await this.followersRepository.getBlockedUsers(userId, page, limit);
+
+    return {
+      status: 'success',
+      data: {
+        blockedUsers: users,
+        pagination: {
+          currentPage: page,
+          totalPages: Math.ceil(total / limit),
+          totalCount: total,
+          limit,
+        },
+      },
+    };
+  }
+
+  async getBlockStatus(currentUserId: string, targetUserId: string) {
+    if (currentUserId === targetUserId) {
+      throw new BadRequestException('Cannot check block status with yourself');
+    }
+
+    const blocks = await this.followersRepository.getBlockRelationship(currentUserId, targetUserId);
+
+    const amIBlocking = blocks.find((b) => b.blocker === currentUserId);
+    const isBlockingMe = blocks.find((b) => b.blocker === targetUserId);
+
+    let blockStatus = 'none';
+    let since: Date | undefined;
+
+    if (amIBlocking && isBlockingMe) {
+      blockStatus = 'mutualBlock';
+    } else if (amIBlocking) {
+      blockStatus = 'blocking';
+      since = amIBlocking.createdAt;
+    } else if (isBlockingMe) {
+      blockStatus = 'blockedBy';
+      since = isBlockingMe.createdAt;
+    }
+
+    return {
+      status: 'success',
+      data: {
+        blockStatus,
+        ...(since && { since }),
+      },
+    };
+  }
+
+  async getCommonFollowers(
+    currentUserId: string,
+    userId: string,
+    otherUserId: string,
+    page: number,
+    limit: number
+  ) {
+    if (userId === otherUserId) {
+      throw new BadRequestException('Both user IDs cannot be the same');
+    }
+
+    const [userA, userB] = await Promise.all([
+      this.userRepository.findById(userId),
+      this.userRepository.findById(otherUserId),
+    ]);
+
+    if (!userA || !userB) {
+      throw new NotFoundException('One or both users not found');
+    }
+
+    if (currentUserId !== userId) {
+      const blocksA = await this.followersRepository.getBlockRelationship(currentUserId, userId);
+      if (blocksA.length > 0) {
+        throw new ForbiddenException('Action not allowed due to a block relationship');
+      }
+      if (!userA.isPublic) {
+        throw new ForbiddenException('One or both accounts are private');
+      }
+    }
+
+    if (currentUserId !== otherUserId) {
+      const blocksB = await this.followersRepository.getBlockRelationship(
+        currentUserId,
+        otherUserId
+      );
+      if (blocksB.length > 0) {
+        throw new ForbiddenException('Action not allowed due to a block relationship');
+      }
+      if (!userB.isPublic) {
+        throw new ForbiddenException('One or both accounts are private');
+      }
+    }
+
+    const { users, total } = await this.followersRepository.getCommonFollowers(
+      userId,
+      otherUserId,
+      page,
+      limit
+    );
+
+    return {
+      status: 'success',
+      data: {
+        userId,
+        otherUserId,
+        commonFollowers: users.map((u) => ({
+          userId: u.userId,
+          username: u.username,
+          displayName: u.displayName ?? null,
+          avatarUrl: u.avatarUrl ?? null,
+        })),
+        pagination: {
+          currentPage: page,
+          totalPages: Math.ceil(total / limit),
+          totalCount: total,
+          limit,
+        },
+      },
+    };
+  }
+
+  async getSuggestedUsers(currentUserId: string, page: number, limit: number, by?: string) {
+    const { users, total } = await this.followersRepository.getSuggestedUsers(
+      currentUserId,
+      page,
+      limit,
+      by
+    );
+
+    return {
+      status: 'success',
+      data: {
+        suggestedUsers: users.map((u) => ({
+          userId: u.userId,
+          username: u.username,
+          displayName: u.displayName ?? null,
+          avatarUrl: u.avatarUrl ?? null,
+          followersCount: u.followersCount ?? 0,
+        })),
+        pagination: {
+          currentPage: page,
+          totalPages: Math.ceil(total / limit),
+          totalCount: total,
+          limit,
+        },
       },
     };
   }

@@ -1,5 +1,5 @@
 import { applyDecorators, HttpStatus } from '@nestjs/common';
-import { ApiOperation, ApiParam, ApiQuery, ApiResponse, ApiBearerAuth } from '@nestjs/swagger';
+import { ApiOperation, ApiParam, ApiQuery, ApiResponse, ApiCookieAuth } from '@nestjs/swagger';
 
 const errorSchema = (statusCode: number, message: string) => ({
   schema: { example: { statusCode, message } },
@@ -58,7 +58,7 @@ const privatOrBlockedResponse = ApiResponse({
 
 export function ApiFollowUser() {
   return applyDecorators(
-    ApiBearerAuth(),
+    ApiCookieAuth('access_token'),
     ApiOperation({
       summary: 'Follow a user',
       description:
@@ -113,7 +113,7 @@ export function ApiFollowUser() {
 
 export function ApiUnfollowUser() {
   return applyDecorators(
-    ApiBearerAuth(),
+    ApiCookieAuth('access_token'),
     ApiOperation({
       summary: 'Unfollow a user',
       description:
@@ -149,7 +149,7 @@ export function ApiUnfollowUser() {
 
 export function ApiGetFollowStatus() {
   return applyDecorators(
-    ApiBearerAuth(),
+    ApiCookieAuth('access_token'),
     ApiOperation({
       summary: 'Get follow status',
       description:
@@ -196,7 +196,7 @@ export function ApiGetFollowStatus() {
 
 export function ApiGetFollowers() {
   return applyDecorators(
-    ApiBearerAuth(),
+    ApiCookieAuth('access_token'),
     ApiOperation({
       summary: 'Get followers list',
       description:
@@ -235,7 +235,7 @@ export function ApiGetFollowers() {
 
 export function ApiGetFollowing() {
   return applyDecorators(
-    ApiBearerAuth(),
+    ApiCookieAuth('access_token'),
     ApiOperation({
       summary: 'Get following list',
       description:
@@ -274,7 +274,7 @@ export function ApiGetFollowing() {
 
 export function ApiGetFollowersCount() {
   return applyDecorators(
-    ApiBearerAuth(),
+    ApiCookieAuth('access_token'),
     ApiOperation({
       summary: 'Get followers count',
       description:
@@ -299,7 +299,7 @@ export function ApiGetFollowersCount() {
 
 export function ApiGetFollowingCount() {
   return applyDecorators(
-    ApiBearerAuth(),
+    ApiCookieAuth('access_token'),
     ApiOperation({
       summary: 'Get following count',
       description:
@@ -319,5 +319,336 @@ export function ApiGetFollowingCount() {
     invalidUuidResponse,
     ...commonErrorResponses,
     privatOrBlockedResponse
+  );
+}
+
+export function ApiBlockUser() {
+  return applyDecorators(
+    ApiCookieAuth('access_token'),
+    ApiOperation({
+      summary: 'Block a user',
+      description:
+        'Blocks the specified user on behalf of the authenticated user. Enforces mutual invisibility and removes any existing follow relationships between the two users.',
+    }),
+    ApiParam({
+      name: 'user_id',
+      description: 'ID of the user to be blocked',
+      type: String,
+      example: '1066b876-d3c5-46ed-b954-ac24fdab3294',
+    }),
+
+    // Success Response (201 Created)
+    ApiResponse({
+      status: HttpStatus.CREATED,
+      description: 'Block relationship successfully created',
+      schema: {
+        example: {
+          status: 'success',
+          data: {
+            blockerId: 'e4fbc35b-2881-4fdc-bd05-d3900b2eb61a',
+            blockedId: '1066b876-d3c5-46ed-b954-ac24fdab3294',
+            createdAt: '2025-06-01T12:00:00Z',
+          },
+        },
+      },
+    }),
+
+    // Self-block (400 Bad Request)
+    ApiResponse({
+      status: HttpStatus.BAD_REQUEST,
+      description: 'User attempted to block themselves',
+      ...errorSchema(400, 'You cannot block yourself'),
+    }),
+
+    // Unauthorized (401) & Not Found (404)
+    ...commonErrorResponses,
+
+    // Already Blocked (409 Conflict)
+    ApiResponse({
+      status: HttpStatus.CONFLICT,
+      description: 'Block relationship already exists',
+      ...errorSchema(409, 'You have already blocked this user'),
+    }),
+
+    ApiResponse({
+      status: HttpStatus.INTERNAL_SERVER_ERROR,
+      description: 'Unexpected server error',
+      ...errorSchema(500, 'Internal server error'),
+    })
+  );
+}
+
+export function ApiUnblockUser() {
+  return applyDecorators(
+    ApiCookieAuth('access_token'),
+    ApiOperation({
+      summary: 'Unblock a user',
+      description:
+        'Removes the block relationship between the authenticated user and the target user. This does not restore previous follow relationships.',
+    }),
+    ApiParam({
+      name: 'user_id',
+      description: 'ID of the user to unblock',
+      type: String,
+      example: '993f6e51-3927-4740-bcbf-96e7919964bc',
+    }),
+
+    // Success Response (200 OK)
+    ApiResponse({
+      status: HttpStatus.OK,
+      description: 'User successfully unblocked',
+      schema: {
+        example: {
+          status: 'success',
+          message: 'User successfully unblocked',
+        },
+      },
+    }),
+
+    // Self-unblock (400 Bad Request)
+    ApiResponse({
+      status: HttpStatus.BAD_REQUEST,
+      description: 'User attempted to unblock themselves',
+      ...errorSchema(400, 'You cannot unblock yourself'),
+    }),
+
+    // Unauthorized (401)
+    ApiResponse({
+      status: HttpStatus.UNAUTHORIZED,
+      description: 'No valid authentication token provided',
+      ...errorSchema(401, 'Unauthorized'),
+    }),
+
+    // Block Not Found (404)
+    ApiResponse({
+      status: HttpStatus.NOT_FOUND,
+      description: 'Block relationship not found',
+      ...errorSchema(404, 'You have not blocked this user'),
+    }),
+
+    // Internal Server Error (500)
+    ApiResponse({
+      status: HttpStatus.INTERNAL_SERVER_ERROR,
+      description: 'Unexpected server error',
+      ...errorSchema(500, 'Internal server error'),
+    })
+  );
+}
+
+export function ApiGetBlockedUsers() {
+  return applyDecorators(
+    ApiCookieAuth('access_token'),
+    ApiOperation({
+      summary: 'Get blocked users',
+      description: 'Retrieves a paginated list of all users blocked by the authenticated user.',
+    }),
+    ApiQuery({ name: 'page', required: false, type: Number, example: 1 }),
+    ApiQuery({ name: 'limit', required: false, type: Number, example: 20 }),
+    ApiResponse({
+      status: HttpStatus.OK,
+      description: 'Successfully retrieved blocked users list',
+      schema: {
+        example: {
+          status: 'success',
+          data: {
+            blockedUsers: [
+              {
+                userId: '112f6e51-3927-4740-bcbf-96e791996111',
+                username: 'toxic_user',
+                displayName: 'Toxic User',
+                avatarUrl: 'https://s3.amazonaws.com/avatars/toxic.jpg',
+              },
+            ],
+            pagination: {
+              currentPage: 1,
+              totalPages: 1,
+              totalCount: 1,
+              limit: 20,
+            },
+          },
+        },
+      },
+    }),
+    ApiResponse({
+      status: HttpStatus.UNAUTHORIZED,
+      description: 'No valid authentication token provided',
+      ...errorSchema(401, 'Unauthorized'),
+    })
+  );
+}
+
+export function ApiGetBlockStatus() {
+  return applyDecorators(
+    ApiCookieAuth('access_token'),
+    ApiOperation({
+      summary: 'Get block status',
+      description:
+        'Returns the block relationship status between the authenticated user and the target user.',
+    }),
+    ApiParam({ name: 'user_id', description: 'ID of the target user', type: String }),
+    ApiResponse({
+      status: HttpStatus.OK,
+      description: 'Block status successfully returned',
+      content: {
+        'application/json': {
+          examples: {
+            blocking: {
+              summary: 'Blocking',
+              value: {
+                status: 'success',
+                data: { blockStatus: 'blocking', since: '2025-03-10T09:00:00Z' },
+              },
+            },
+            blockedBy: {
+              summary: 'Blocked By',
+              value: {
+                status: 'success',
+                data: { blockStatus: 'blockedBy', since: '2025-04-22T14:30:00Z' },
+              },
+            },
+            mutualBlock: {
+              summary: 'Mutual Block',
+              value: { status: 'success', data: { blockStatus: 'mutualBlock' } },
+            },
+            noBlock: {
+              summary: 'No Block',
+              value: { status: 'success', data: { blockStatus: 'none' } },
+            },
+          },
+        },
+      },
+    }),
+    ApiResponse({
+      status: HttpStatus.BAD_REQUEST,
+      description: 'Cannot check block status with yourself',
+      ...errorSchema(400, 'Cannot check block status with yourself'),
+    }),
+    ...commonErrorResponses
+  );
+}
+
+export function ApiGetCommonFollowers() {
+  return applyDecorators(
+    ApiCookieAuth('access_token'),
+    ApiOperation({
+      summary: 'Get common followers',
+      description:
+        'Returns a paginated list of users that follow both the target user and the other specified user. Enforces privacy and blocking rules.',
+    }),
+    ApiParam({ name: 'user_id', description: 'ID of the first user', type: String }),
+    ApiParam({
+      name: 'other_user_id',
+      description: 'ID of the second user to compare with',
+      type: String,
+    }),
+    ApiQuery({ name: 'page', required: false, type: Number, example: 1 }),
+    ApiQuery({ name: 'limit', required: false, type: Number, example: 20 }),
+    ApiResponse({
+      status: HttpStatus.OK,
+      description: 'Common followers list successfully returned',
+      schema: {
+        example: {
+          status: 'success',
+          data: {
+            userId: '550e8400-e29b-41d4-a716-446655440001',
+            otherUserId: '550e8400-e29b-41d4-a716-446655440002',
+            commonFollowers: [
+              {
+                userId: '550e8400-e29b-41d4-a716-446655440003',
+                username: 'mutual_friend',
+                displayName: 'Mutual Friend',
+                avatarUrl: 'https://s3.amazonaws.com/avatars/mutual.jpg',
+              },
+            ],
+            pagination: { currentPage: 1, totalPages: 1, totalCount: 1, limit: 20 },
+          },
+        },
+      },
+    }),
+    ApiResponse({
+      status: HttpStatus.BAD_REQUEST,
+      description: 'Invalid UUID or comparing identical users',
+      content: {
+        'application/json': {
+          examples: {
+            invalidUuid: {
+              summary: 'Invalid UUID',
+              value: { statusCode: 400, message: 'user_id must be a valid UUID' },
+            },
+            identicalUsers: {
+              summary: 'Identical Users',
+              value: {
+                statusCode: 400,
+                message: 'Both user IDs cannot be the same',
+              },
+            },
+          },
+        },
+      },
+    }),
+    ...commonErrorResponses,
+    privatOrBlockedResponse
+  );
+}
+
+export function ApiGetSuggestedUsers() {
+  return applyDecorators(
+    ApiCookieAuth('access_token'),
+    ApiOperation({
+      summary: 'Get suggested users',
+      description:
+        'Returns a paginated list of suggested users to follow based on popularity, mutual connections, or shared favorite genres.',
+    }),
+    ApiQuery({
+      name: 'page',
+      required: false,
+      type: Number,
+      example: 1,
+    }),
+    ApiQuery({
+      name: 'limit',
+      required: false,
+      type: Number,
+      example: 20,
+    }),
+    ApiQuery({
+      name: 'by',
+      required: false,
+      type: String,
+      description: 'The recommendation algorithm to use',
+      enum: ['popular', 'mutuals', 'genre'],
+      example: 'popular',
+    }),
+    ApiResponse({
+      status: HttpStatus.OK,
+      description: 'Suggested users list successfully returned',
+      schema: {
+        example: {
+          status: 'success',
+          data: {
+            suggestedUsers: [
+              {
+                userId: '550e8400-e29b-41d4-a716-446655440999',
+                username: 'rising_star',
+                displayName: 'Rising Star',
+                avatarUrl: 'https://s3.amazonaws.com/avatars/star.jpg',
+                followersCount: 1500,
+              },
+            ],
+            pagination: {
+              currentPage: 1,
+              totalPages: 2,
+              totalCount: 35,
+              limit: 20,
+            },
+          },
+        },
+      },
+    }),
+    ApiResponse({
+      status: HttpStatus.UNAUTHORIZED,
+      description: 'No valid authentication token provided',
+      ...errorSchema(401, 'Unauthorized'),
+    })
   );
 }

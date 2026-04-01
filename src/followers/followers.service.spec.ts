@@ -1,5 +1,10 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { BadRequestException, ConflictException, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  ConflictException,
+  ForbiddenException,
+  NotFoundException,
+} from '@nestjs/common';
 import { FollowersService } from './followers.service';
 import { FollowersRepository } from './followers.repository';
 import { UserRepository } from '../user/user.repository';
@@ -11,6 +16,9 @@ import {
   mockFollowersList,
   mockFollowersRepository,
   mockUserRepository,
+  mockUserBlock,
+  mockCommonFollowersData,
+  mockSuggestedUsersData,
 } from './test/followers.mock';
 
 describe('FollowersService', () => {
@@ -324,7 +332,7 @@ describe('FollowersService', () => {
 
       expect(result).toEqual({
         status: 'success',
-        data: { user_id: mockFollowedId, followers_count: 1024 },
+        data: { userId: mockFollowedId, followersCount: 1024 },
       });
       expect(mockUserRepository.findById).toHaveBeenCalledWith(mockFollowedId);
     });
@@ -334,7 +342,7 @@ describe('FollowersService', () => {
 
       const result = await service.getFollowersCount(mockFollowedId);
 
-      expect(result.data.followers_count).toBe(0);
+      expect(result.data.followersCount).toBe(0);
     });
   });
 
@@ -346,7 +354,7 @@ describe('FollowersService', () => {
 
       expect(result).toEqual({
         status: 'success',
-        data: { user_id: mockFollowedId, followings_count: 512 },
+        data: { userId: mockFollowedId, followingsCount: 512 },
       });
       expect(mockUserRepository.findById).toHaveBeenCalledWith(mockFollowedId);
     });
@@ -356,7 +364,280 @@ describe('FollowersService', () => {
 
       const result = await service.getFollowingCount(mockFollowedId);
 
-      expect(result.data.followings_count).toBe(0);
+      expect(result.data.followingsCount).toBe(0);
+    });
+  });
+
+  describe('blockUser', () => {
+    it('should create a block and return formatted response', async () => {
+      mockFollowersRepository.isBlocking.mockResolvedValue(false);
+      mockFollowersRepository.createBlockAndHandleFollows.mockResolvedValue(mockUserBlock);
+
+      const result = await service.blockUser(mockFollowerId, mockFollowedId);
+
+      expect(result).toEqual({
+        status: 'success',
+        data: {
+          blockerId: mockUserBlock.blocker,
+          blockedId: mockUserBlock.blocked,
+          createdAt: mockUserBlock.createdAt,
+        },
+      });
+      expect(mockFollowersRepository.isBlocking).toHaveBeenCalledWith(
+        mockFollowerId,
+        mockFollowedId
+      );
+      expect(mockFollowersRepository.createBlockAndHandleFollows).toHaveBeenCalledWith(
+        mockFollowerId,
+        mockFollowedId
+      );
+    });
+
+    it('should throw BadRequestException when blocking self', async () => {
+      await expect(service.blockUser(mockFollowerId, mockFollowerId)).rejects.toThrow(
+        new BadRequestException('You cannot block yourself')
+      );
+      expect(mockFollowersRepository.isBlocking).not.toHaveBeenCalled();
+    });
+
+    it('should throw ConflictException when already blocked', async () => {
+      mockFollowersRepository.isBlocking.mockResolvedValue(true);
+
+      await expect(service.blockUser(mockFollowerId, mockFollowedId)).rejects.toThrow(
+        new ConflictException('You have already blocked this user')
+      );
+      expect(mockFollowersRepository.createBlockAndHandleFollows).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('unblockUser', () => {
+    it('should delete the block and return success', async () => {
+      mockFollowersRepository.deleteBlock.mockResolvedValue(true);
+
+      const result = await service.unblockUser(mockFollowerId, mockFollowedId);
+
+      expect(result).toEqual({ status: 'success', message: 'User successfully unblocked' });
+      expect(mockFollowersRepository.deleteBlock).toHaveBeenCalledWith(
+        mockFollowerId,
+        mockFollowedId
+      );
+    });
+
+    it('should throw BadRequestException when unblocking self', async () => {
+      await expect(service.unblockUser(mockFollowerId, mockFollowerId)).rejects.toThrow(
+        new BadRequestException('You cannot unblock yourself')
+      );
+      expect(mockFollowersRepository.deleteBlock).not.toHaveBeenCalled();
+    });
+
+    it('should throw NotFoundException when block relationship does not exist', async () => {
+      mockFollowersRepository.deleteBlock.mockResolvedValue(false);
+
+      await expect(service.unblockUser(mockFollowerId, mockFollowedId)).rejects.toThrow(
+        new NotFoundException('You have not blocked this user')
+      );
+    });
+  });
+
+  describe('getBlockedUsers', () => {
+    it('should return a paginated list of blocked users', async () => {
+      mockFollowersRepository.getBlockedUsers.mockResolvedValue({
+        users: mockFollowersList,
+        total: 45,
+      });
+
+      const result = await service.getBlockedUsers(mockFollowerId, 2, 20);
+
+      // Assert
+      expect(result.status).toBe('success');
+      expect(result.data.blockedUsers).toHaveLength(3);
+      expect(result.data.pagination).toEqual({
+        currentPage: 2,
+        totalPages: 3,
+        totalCount: 45,
+        limit: 20,
+      });
+      expect(mockFollowersRepository.getBlockedUsers).toHaveBeenCalledWith(mockFollowerId, 2, 20);
+    });
+
+    it('should handle an empty blocked list properly', async () => {
+      mockFollowersRepository.getBlockedUsers.mockResolvedValue({ users: [], total: 0 });
+
+      const result = await service.getBlockedUsers(mockFollowerId, 1, 20);
+
+      expect(result.data.blockedUsers).toHaveLength(0);
+      expect(result.data.pagination.totalCount).toBe(0);
+      expect(result.data.pagination.totalPages).toBe(0);
+    });
+  });
+
+  describe('getBlockStatus', () => {
+    const mockDate = new Date('2025-03-10T09:00:00Z');
+
+    it('should return blocking status when only current user blocks target', async () => {
+      mockFollowersRepository.getBlockRelationship.mockResolvedValue([
+        { blocker: mockFollowerId, blocked: mockFollowedId, createdAt: mockDate } as any,
+      ]);
+
+      const result = await service.getBlockStatus(mockFollowerId, mockFollowedId);
+
+      expect(result).toEqual({
+        status: 'success',
+        data: { blockStatus: 'blocking', since: mockDate },
+      });
+    });
+
+    it('should return blocked_by status when only target blocks current user', async () => {
+      mockFollowersRepository.getBlockRelationship.mockResolvedValue([
+        { blocker: mockFollowedId, blocked: mockFollowerId, createdAt: mockDate } as any,
+      ]);
+
+      const result = await service.getBlockStatus(mockFollowerId, mockFollowedId);
+
+      expect(result).toEqual({
+        status: 'success',
+        data: { blockStatus: 'blockedBy', since: mockDate },
+      });
+    });
+
+    it('should return mutual_block status when both users block each other', async () => {
+      mockFollowersRepository.getBlockRelationship.mockResolvedValue([
+        { blocker: mockFollowerId, blocked: mockFollowedId, createdAt: mockDate } as any,
+        { blocker: mockFollowedId, blocked: mockFollowerId, createdAt: mockDate } as any,
+      ]);
+
+      const result = await service.getBlockStatus(mockFollowerId, mockFollowedId);
+
+      expect(result).toEqual({
+        status: 'success',
+        data: { blockStatus: 'mutualBlock' },
+      });
+    });
+
+    it('should return none status when no blocks exist', async () => {
+      mockFollowersRepository.getBlockRelationship.mockResolvedValue([]);
+
+      const result = await service.getBlockStatus(mockFollowerId, mockFollowedId);
+
+      expect(result).toEqual({
+        status: 'success',
+        data: { blockStatus: 'none' },
+      });
+    });
+
+    it('should throw BadRequestException when checking status with self', async () => {
+      await expect(service.getBlockStatus(mockFollowerId, mockFollowerId)).rejects.toThrow(
+        new BadRequestException('Cannot check block status with yourself')
+      );
+      expect(mockFollowersRepository.getBlockRelationship).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('getCommonFollowers', () => {
+    const currentUserId = 'usr_current';
+    const userId = 'usr_123';
+    const otherUserId = 'usr_456';
+
+    it('should throw BadRequestException if both user IDs are the same', async () => {
+      await expect(
+        service.getCommonFollowers(currentUserId, userId, userId, 1, 20)
+      ).rejects.toThrow(BadRequestException);
+    });
+
+    it('should throw NotFoundException if one or both users do not exist', async () => {
+      mockUserRepository.findById
+        .mockResolvedValueOnce({ userId } as any)
+        .mockResolvedValueOnce(null);
+
+      await expect(
+        service.getCommonFollowers(currentUserId, userId, otherUserId, 1, 20)
+      ).rejects.toThrow(NotFoundException);
+    });
+
+    it('should throw ForbiddenException if there is a block relationship with user A', async () => {
+      mockUserRepository.findById.mockResolvedValue({ userId: 'any', isPublic: true } as any);
+
+      mockFollowersRepository.getBlockRelationship.mockResolvedValueOnce([{ blocker: 'some_id' }]);
+
+      await expect(
+        service.getCommonFollowers(currentUserId, userId, otherUserId, 1, 20)
+      ).rejects.toThrow(ForbiddenException);
+    });
+
+    it('should throw ForbiddenException if user B account is private', async () => {
+      mockUserRepository.findById
+        .mockResolvedValueOnce({ userId, isPublic: true } as any)
+        .mockResolvedValueOnce({ userId: otherUserId, isPublic: false } as any);
+
+      mockFollowersRepository.getBlockRelationship.mockResolvedValue([]);
+
+      await expect(
+        service.getCommonFollowers(currentUserId, userId, otherUserId, 1, 20)
+      ).rejects.toThrow(ForbiddenException);
+    });
+
+    it('should return common followers successfully if all checks pass', async () => {
+      mockUserRepository.findById.mockResolvedValue({ userId: 'any', isPublic: true } as any);
+      mockFollowersRepository.getBlockRelationship.mockResolvedValue([]);
+      mockFollowersRepository.getCommonFollowers.mockResolvedValue(mockCommonFollowersData);
+
+      const result = await service.getCommonFollowers(currentUserId, userId, otherUserId, 1, 20);
+
+      expect(result.status).toBe('success');
+      expect(result.data.userId).toBe(userId);
+      expect(result.data.otherUserId).toBe(otherUserId);
+      expect(result.data.commonFollowers.length).toBe(1);
+      expect(result.data.pagination.totalCount).toBe(1);
+      expect(mockFollowersRepository.getCommonFollowers).toHaveBeenCalledWith(
+        userId,
+        otherUserId,
+        1,
+        20
+      );
+    });
+  });
+
+  describe('getSuggestedUsers', () => {
+    it('should return suggested users with success status and pagination', async () => {
+      mockFollowersRepository.getSuggestedUsers.mockResolvedValue(mockSuggestedUsersData);
+
+      const result = await service.getSuggestedUsers(mockFollowerId, 1, 20, 'popular');
+
+      expect(result).toEqual({
+        status: 'success',
+        data: {
+          suggestedUsers: [
+            {
+              userId: 'suggested-1',
+              username: 'trending_artist',
+              displayName: 'Trending Artist',
+              avatarUrl: 'https://s3.amazonaws.com/avatars/1.jpg',
+              followersCount: 5000,
+            },
+          ],
+          pagination: {
+            currentPage: 1,
+            totalPages: 1,
+            totalCount: 1,
+            limit: 20,
+          },
+        },
+      });
+      expect(mockFollowersRepository.getSuggestedUsers).toHaveBeenCalledWith(
+        mockFollowerId,
+        1,
+        20,
+        'popular'
+      );
+    });
+
+    it('should handle empty suggestions gracefully', async () => {
+      mockFollowersRepository.getSuggestedUsers.mockResolvedValue({ users: [], total: 0 });
+
+      const result = await service.getSuggestedUsers(mockFollowerId, 1, 20);
+
+      expect(result.data.suggestedUsers).toHaveLength(0);
+      expect(result.data.pagination.totalCount).toBe(0);
     });
   });
 });

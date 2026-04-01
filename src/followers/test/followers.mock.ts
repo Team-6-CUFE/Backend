@@ -10,6 +10,12 @@ export const mockUserFollow = {
   createdAt: new Date('2025-01-15T08:30:00Z'),
 } as UserFollow;
 
+export const mockUserBlock = {
+  blocker: mockFollowerId,
+  blocked: mockFollowedId,
+  createdAt: new Date('2026-03-31T10:00:00Z'),
+};
+
 export const mockPublicUser = (overrides: Partial<User> = {}): Partial<User> => ({
   userId: mockFollowedId,
   username: 'john_doe',
@@ -28,6 +34,31 @@ export const mockFollowersList: Partial<User>[] = [
   mockPublicUser({ userId: 'user-3', username: 'user_three', followersCount: 30 }),
 ];
 
+export const mockCommonFollowersData = {
+  users: [
+    {
+      userId: 'usr_789',
+      username: 'john_doe',
+      displayName: 'John Doe',
+      avatarUrl: 'https://s3.amazonaws.com/avatars/usr_789.jpg',
+    },
+  ],
+  total: 1,
+};
+
+export const mockSuggestedUsersData = {
+  users: [
+    {
+      userId: 'suggested-1',
+      username: 'trending_artist',
+      displayName: 'Trending Artist',
+      avatarUrl: 'https://s3.amazonaws.com/avatars/1.jpg',
+      followersCount: 5000,
+    },
+  ],
+  total: 1,
+};
+
 export const mockFollowersRepository = {
   hasBlockRelationship: jest.fn(),
   createFollow: jest.fn(),
@@ -39,6 +70,13 @@ export const mockFollowersRepository = {
   getFollowStatus: jest.fn(),
   countFollowers: jest.fn(),
   countFollowing: jest.fn(),
+  isBlocking: jest.fn(),
+  createBlockAndHandleFollows: jest.fn(),
+  deleteBlock: jest.fn(),
+  getBlockedUsers: jest.fn(),
+  getBlockRelationship: jest.fn(),
+  getCommonFollowers: jest.fn(),
+  getSuggestedUsers: jest.fn(),
 };
 
 export const mockUserRepository = {
@@ -53,4 +91,10 @@ export const mockFollowersService = {
   getFollowing: jest.fn(),
   getFollowersCount: jest.fn(),
   getFollowingCount: jest.fn(),
+  blockUser: jest.fn(),
+  unblockUser: jest.fn(),
+  getBlockedUsers: jest.fn(),
+  getBlockStatus: jest.fn(),
+  getCommonFollowers: jest.fn(),
+  getSuggestedUsers: jest.fn(),
 };
