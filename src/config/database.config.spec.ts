@@ -17,7 +17,7 @@ const mockConfigService = {
 
 describe('getDatabaseConfig', () => {
   it('should return correct connection fields from ConfigService', () => {
-    const config = getDatabaseConfig(mockConfigService);
+    const config = getDatabaseConfig(mockConfigService) as Record<string, unknown>;
 
     expect(config.type).toBe('postgres');
     expect(config.host).toBe('localhost');
@@ -28,19 +28,19 @@ describe('getDatabaseConfig', () => {
   });
 
   it('should set synchronize to false', () => {
-    const config = getDatabaseConfig(mockConfigService);
+    const config = getDatabaseConfig(mockConfigService) as Record<string, unknown>;
 
     expect(config.synchronize).toBe(false);
   });
 
   it('should set migrationsRun to false', () => {
-    const config = getDatabaseConfig(mockConfigService);
+    const config = getDatabaseConfig(mockConfigService) as Record<string, unknown>;
 
     expect(config.migrationsRun).toBe(false);
   });
 
   it('should enable logging in development', () => {
-    const config = getDatabaseConfig(mockConfigService);
+    const config = getDatabaseConfig(mockConfigService) as Record<string, unknown>;
 
     expect(config.logging).toBe(true);
   });
@@ -53,13 +53,13 @@ describe('getDatabaseConfig', () => {
       }),
     } as unknown as ConfigService;
 
-    const config = getDatabaseConfig(prodConfigService);
+    const config = getDatabaseConfig(prodConfigService) as Record<string, unknown>;
 
     expect(config.logging).toBe(false);
   });
 
   it('should include entities and migrations path patterns', () => {
-    const config = getDatabaseConfig(mockConfigService);
+    const config = getDatabaseConfig(mockConfigService) as Record<string, unknown>;
 
     expect(Array.isArray(config.entities)).toBe(true);
     expect(Array.isArray(config.migrations)).toBe(true);

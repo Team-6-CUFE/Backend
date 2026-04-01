@@ -50,7 +50,9 @@ describe('getMailConfig', () => {
   it('should set the from address using name and email from config', () => {
     const config = getMailConfig(mockConfigService);
 
-    expect(config.defaults?.from).toBe('"Harmonica" <no-reply@harmonica.com>');
+    expect((config.defaults as { from?: string })?.from).toBe(
+      '"Harmonica" <no-reply@harmonica.com>'
+    );
   });
 
   it('should configure handlebars template adapter', () => {
