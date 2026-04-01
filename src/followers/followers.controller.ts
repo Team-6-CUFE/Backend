@@ -26,6 +26,7 @@ import {
   ApiGetBlockedUsers,
   ApiGetBlockStatus,
   ApiGetCommonFollowers,
+  ApiGetSuggestedUsers,
 } from './followers.swagger';
 import { CheckBlock } from './decorators/no-block.decorator';
 
@@ -168,7 +169,7 @@ export class FollowersController {
   }
 
   @Get('suggested')
-  // Add an @ApiGetSuggestedUsers() here if you create the swagger decorator
+  @ApiGetSuggestedUsers()
   async getSuggestedUsers(
     @CurrentUser('sub') currentUserId: string,
     @Query('page') page: number,

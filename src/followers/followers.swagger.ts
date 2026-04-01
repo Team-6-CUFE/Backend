@@ -630,3 +630,65 @@ export function ApiGetCommonFollowers() {
     privatOrBlockedResponse
   );
 }
+
+export function ApiGetSuggestedUsers() {
+  return applyDecorators(
+    ApiBearerAuth(),
+    ApiOperation({
+      summary: 'Get suggested users',
+      description:
+        'Returns a paginated list of suggested users to follow based on popularity, mutual connections, or shared favorite genres.',
+    }),
+    ApiQuery({
+      name: 'page',
+      required: false,
+      type: Number,
+      example: 1,
+    }),
+    ApiQuery({
+      name: 'limit',
+      required: false,
+      type: Number,
+      example: 20,
+    }),
+    ApiQuery({
+      name: 'by',
+      required: false,
+      type: String,
+      description: 'The recommendation algorithm to use',
+      enum: ['popular', 'mutuals', 'genre'],
+      example: 'popular',
+    }),
+    ApiResponse({
+      status: HttpStatus.OK,
+      description: 'Suggested users list successfully returned',
+      schema: {
+        example: {
+          status: 'success',
+          data: {
+            suggestedUsers: [
+              {
+                userId: '550e8400-e29b-41d4-a716-446655440999',
+                username: 'rising_star',
+                displayName: 'Rising Star',
+                avatarUrl: 'https://s3.amazonaws.com/avatars/star.jpg',
+                followersCount: 1500,
+              },
+            ],
+            pagination: {
+              currentPage: 1,
+              totalPages: 2,
+              totalCount: 35,
+              limit: 20,
+            },
+          },
+        },
+      },
+    }),
+    ApiResponse({
+      status: HttpStatus.UNAUTHORIZED,
+      description: 'No valid authentication token provided',
+      ...errorSchema('Unauthorized'),
+    })
+  );
+}
