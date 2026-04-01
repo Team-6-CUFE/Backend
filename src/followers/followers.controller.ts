@@ -146,4 +146,23 @@ export class FollowersController {
   ) {
     return this.followersService.getBlockStatus(currentUserId, targetUserId);
   }
+
+  @Get(':user_id/common-followers/:other_user_id')
+  @CheckUserExists('user_id')
+  // @ApiGetCommonFollowers()
+  async getCommonFollowers(
+    @CurrentUser('sub') currentUserId: string,
+    @Param('user_id', ParseUUIDPipe) userId: string,
+    @Param('other_user_id', ParseUUIDPipe) otherUserId: string,
+    @Query('page') page: number,
+    @Query('limit') limit: number
+  ) {
+    return this.followersService.getCommonFollowers(
+      currentUserId,
+      userId,
+      otherUserId,
+      page ?? 1,
+      limit ?? 20
+    );
+  }
 }
