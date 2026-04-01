@@ -217,11 +217,15 @@ export class AuthenticationService {
       expiresIn: ACCESS_TOKEN_EXPIRY,
     });
 
-    // Sign refresh token
-    const refreshToken = this.jwtService.sign(payload, {
-      secret: this.configService.get<string>('JWT_REFRESH_SECRET'),
-      expiresIn: REFRESH_TOKEN_EXPIRY,
-    });
+    // Sign refresh token — include a unique jti so concurrent logins never
+    // produce the same token hash (same payload + same iat second = collision).
+    const refreshToken = this.jwtService.sign(
+      { ...payload, jti: crypto.randomUUID() },
+      {
+        secret: this.configService.get<string>('JWT_REFRESH_SECRET'),
+        expiresIn: REFRESH_TOKEN_EXPIRY,
+      }
+    );
 
     // Save refresh token in DB
     const expiresAt = new Date(Date.now() + REFRESH_COOKIE_MAX_AGE_MS);
