@@ -25,6 +25,7 @@ import {
   ApiUnblockUser,
   ApiGetBlockedUsers,
   ApiGetBlockStatus,
+  ApiGetCommonFollowers,
 } from './followers.swagger';
 import { CheckBlock } from './decorators/no-block.decorator';
 
@@ -149,7 +150,7 @@ export class FollowersController {
 
   @Get(':user_id/common-followers/:other_user_id')
   @CheckUserExists('user_id')
-  // @ApiGetCommonFollowers()
+  @ApiGetCommonFollowers()
   async getCommonFollowers(
     @CurrentUser('sub') currentUserId: string,
     @Param('user_id', ParseUUIDPipe) userId: string,

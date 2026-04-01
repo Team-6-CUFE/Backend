@@ -565,3 +565,68 @@ export function ApiGetBlockStatus() {
     ...commonErrorResponses
   );
 }
+
+export function ApiGetCommonFollowers() {
+  return applyDecorators(
+    ApiBearerAuth(),
+    ApiOperation({
+      summary: 'Get common followers',
+      description:
+        'Returns a paginated list of users that follow both the target user and the other specified user. Enforces privacy and blocking rules.',
+    }),
+    ApiParam({ name: 'userId', description: 'ID of the first user', type: String }),
+    ApiParam({
+      name: 'otherUserId',
+      description: 'ID of the second user to compare with',
+      type: String,
+    }),
+    ApiQuery({ name: 'page', required: false, type: Number, example: 1 }),
+    ApiQuery({ name: 'limit', required: false, type: Number, example: 20 }),
+    ApiResponse({
+      status: HttpStatus.OK,
+      description: 'Common followers list successfully returned',
+      schema: {
+        example: {
+          status: 'success',
+          data: {
+            userId: '550e8400-e29b-41d4-a716-446655440001',
+            otherUserId: '550e8400-e29b-41d4-a716-446655440002',
+            commonFollowers: [
+              {
+                userId: '550e8400-e29b-41d4-a716-446655440003',
+                username: 'mutual_friend',
+                displayName: 'Mutual Friend',
+                avatarUrl: 'https://s3.amazonaws.com/avatars/mutual.jpg',
+                followersCount: 150,
+              },
+            ],
+            pagination: { currentPage: 1, totalPages: 1, totalCount: 1, limit: 20 },
+          },
+        },
+      },
+    }),
+    ApiResponse({
+      status: HttpStatus.BAD_REQUEST,
+      description: 'Invalid UUID or comparing identical users',
+      content: {
+        'application/json': {
+          examples: {
+            invalidUuid: {
+              summary: 'Invalid UUID',
+              value: { status: 'error', message: 'user_id must be a valid UUID' },
+            },
+            identicalUsers: {
+              summary: 'Identical Users',
+              value: {
+                status: 'error',
+                message: 'Cannot find common followers with the same user',
+              },
+            },
+          },
+        },
+      },
+    }),
+    ...commonErrorResponses,
+    privatOrBlockedResponse
+  );
+}
