@@ -1,6 +1,7 @@
 services:
   db:
     image: postgres:alpine
+    container_name: harmonica-db-dev
     environment:
       POSTGRES_DB: SoundCloud
       POSTGRES_USER: postgres
@@ -15,12 +16,12 @@ services:
 
   redis:
     image: redis:alpine
-    container_name: redis_soundcloud
+    container_name: harmonica-redis-dev
     ports:
       - "6379:6379"
 
   backend:
-    container_name: soundcloud_backend_dev
+    container_name: harmonica-backend-dev
     build:
       context: .
       dockerfile: Docker/Dockerfile.dev
@@ -38,10 +39,11 @@ services:
         condition: service_started
 
   frontend:
+    image: harmonica-frontend-dev:latest
     build:
       context: ../Frontend
       dockerfile: Docker/Dockerfile.dev
-    container_name: soundcloud_frontend_dev
+    container_name: harmonica-frontend-dev
     volumes:
       - ../Frontend:/app
       - /app/node_modules
