@@ -332,7 +332,7 @@ describe('FollowersService', () => {
 
       expect(result).toEqual({
         status: 'success',
-        data: { user_id: mockFollowedId, followers_count: 1024 },
+        data: { userId: mockFollowedId, followersCount: 1024 },
       });
       expect(mockUserRepository.findById).toHaveBeenCalledWith(mockFollowedId);
     });
@@ -342,7 +342,7 @@ describe('FollowersService', () => {
 
       const result = await service.getFollowersCount(mockFollowedId);
 
-      expect(result.data.followers_count).toBe(0);
+      expect(result.data.followersCount).toBe(0);
     });
   });
 
@@ -354,7 +354,7 @@ describe('FollowersService', () => {
 
       expect(result).toEqual({
         status: 'success',
-        data: { user_id: mockFollowedId, followings_count: 512 },
+        data: { userId: mockFollowedId, followingsCount: 512 },
       });
       expect(mockUserRepository.findById).toHaveBeenCalledWith(mockFollowedId);
     });
@@ -364,7 +364,7 @@ describe('FollowersService', () => {
 
       const result = await service.getFollowingCount(mockFollowedId);
 
-      expect(result.data.followings_count).toBe(0);
+      expect(result.data.followingsCount).toBe(0);
     });
   });
 

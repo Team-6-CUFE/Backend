@@ -89,8 +89,8 @@ export class FollowersService {
     return {
       status: 'success',
       data: {
-        user_id: userId,
-        followings_count: target!.followingsCount,
+        userId,
+        followingsCount: target!.followingsCount,
       },
     };
   }
@@ -101,8 +101,8 @@ export class FollowersService {
     return {
       status: 'success',
       data: {
-        user_id: userId,
-        followers_count: target!.followersCount,
+        userId,
+        followersCount: target!.followersCount,
       },
     };
   }

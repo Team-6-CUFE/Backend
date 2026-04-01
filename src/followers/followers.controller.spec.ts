@@ -54,9 +54,9 @@ describe('FollowersController', () => {
       const expected = {
         status: 'success',
         data: {
-          blocker_id: mockFollowerId,
-          blocked_id: mockFollowedId,
-          created_at: mockUserBlock.createdAt,
+          blockerId: mockFollowerId,
+          blockedId: mockFollowedId,
+          createdAt: mockUserBlock.createdAt,
         },
       };
       mockFollowersService.blockUser.mockResolvedValue(expected);
@@ -105,7 +105,7 @@ describe('FollowersController', () => {
     it('should call service.getFollowersCount with userId and return result', async () => {
       const expected = {
         status: 'success',
-        data: { user_id: mockFollowedId, followers_count: 1024 },
+        data: { userId: mockFollowedId, followersCount: 1024 },
       };
       mockFollowersService.getFollowersCount.mockResolvedValue(expected);
 
@@ -120,7 +120,7 @@ describe('FollowersController', () => {
     it('should call service.getFollowingCount with userId and return result', async () => {
       const expected = {
         status: 'success',
-        data: { user_id: mockFollowedId, followings_count: 512 },
+        data: { userId: mockFollowedId, followingsCount: 512 },
       };
       mockFollowersService.getFollowingCount.mockResolvedValue(expected);
 
@@ -185,7 +185,7 @@ describe('FollowersController', () => {
 
   describe('getBlockedUsers', () => {
     it('should call service.getBlockedUsers with explicit page and limit', async () => {
-      const expected = { status: 'success', data: { blocked_users: [], pagination: {} } };
+      const expected = { status: 'success', data: { blockedUsers: [], pagination: {} } };
       mockFollowersService.getBlockedUsers.mockResolvedValue(expected);
 
       const result = await controller.getBlockedUsers(mockFollowerId, 3, 15);
