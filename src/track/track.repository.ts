@@ -4,6 +4,8 @@ import { Repository } from 'typeorm';
 import { Track } from './entities/track.entity';
 import { TrackRepost } from './entities/track-reposts.entity';
 import { TrackLikes } from './entities/track-likes.entity';
+import { TrackComment } from './entities/track-comments.entity';
+import { AddCommentDto } from './dto/add-comment.dto';
 
 @Injectable()
 export class TrackRepository {
@@ -15,7 +17,10 @@ export class TrackRepository {
     private readonly trackRepostRepository: Repository<TrackRepost>,
 
     @InjectRepository(TrackLikes)
-    private readonly trackLikesRepository: Repository<TrackLikes>
+    private readonly trackLikesRepository: Repository<TrackLikes>,
+
+    @InjectRepository(TrackComment)
+    private readonly trackCommentRepository: Repository<TrackComment>
   ) {}
 
   async findById(trackId: string): Promise<Track | null> {
@@ -154,5 +159,66 @@ export class TrackRepository {
       .skip(skip)
       .take(limit)
       .getManyAndCount();
+  }
+
+  async findCommentById(commentId: string): Promise<TrackComment | null> {
+    return this.trackCommentRepository.findOne({
+      where: { commentId },
+    });
+  }
+
+  async addComment(
+    trackId: string,
+    userId: string,
+    commentDto: AddCommentDto
+  ): Promise<TrackComment> {
+    const comment = this.trackCommentRepository.create({
+      trackId,
+      userId,
+      content: commentDto.content,
+      parentId: commentDto.parentId,
+      timestampSeconds: commentDto.timestampSeconds,
+    });
+    const savedComment = await this.trackCommentRepository.save(comment);
+    return savedComment;
+  }
+
+  async deleteComment(trackId: string, commentId: string, userId: string): Promise<void> {
+    await this.trackCommentRepository.delete({
+      trackId,
+      commentId,
+      userId,
+    });
+
+    const replies = await this.trackCommentRepository.find({
+      where: { parentId: commentId },
+    });
+
+    // Use map to create an array of promises, then execute them in parallel
+    await Promise.all(replies.map((reply) => this.trackCommentRepository.delete(reply.commentId)));
+  }
+
+  async getTrackComments(
+    trackId: string,
+    page: number,
+    limit: number,
+    order: 'timestamp' | 'newest' | 'oldest'
+  ): Promise<[TrackComment[], number]> {
+    const skip = (page - 1) * limit;
+    const query = this.trackCommentRepository
+      .createQueryBuilder('comment')
+      .innerJoinAndSelect('comment.user', 'user')
+      .leftJoinAndSelect('comment.replies', 'reply')
+      .leftJoinAndSelect('reply.user', 'replyUser')
+      .where('comment.trackId = :trackId AND comment.parentId IS NULL', { trackId });
+    if (order === 'newest') {
+      query.orderBy('comment.createdAt', 'DESC');
+    } else if (order === 'oldest') {
+      query.orderBy('comment.createdAt', 'ASC');
+    } else {
+      query.orderBy('comment.timestampSeconds', 'ASC');
+    }
+
+    return query.skip(skip).take(limit).getManyAndCount();
   }
 }

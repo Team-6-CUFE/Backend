@@ -23,9 +23,13 @@ import {
   ApiRemoveTrackLike,
   ApiRemoveTrackRepost,
   ApiRepostTrack,
+  ApiTrackComment,
+  ApiDeleteComment,
+  ApiGetTrackComments,
 } from './track.swagger';
 import { CurrentUser } from '../authentication/decorators/current-user.decorator';
 import { CheckBlock } from '../followers/decorators/no-block.decorator';
+import { AddCommentDto } from './dto/add-comment.dto';
 
 @ApiTags('Tracks')
 @Controller('tracks')
@@ -138,5 +142,40 @@ export class TrackController {
     @Query('limit') limit: number
   ) {
     return this.trackService.getUserTrackLikes(userId, myUserId, page, limit);
+  }
+
+  @ApiTrackComment()
+  @CheckBlock()
+  @Post(':trackId/comment')
+  comment(
+    @Param('trackId', ParseUUIDPipe) trackId: string,
+    @CurrentUser('sub') userId: string,
+    @Body() commentDto: AddCommentDto
+  ) {
+    return this.trackService.addComment(trackId, userId, commentDto);
+  }
+
+  @ApiDeleteComment()
+  @CheckBlock()
+  @Delete(':trackId/comments/:commentId')
+  deleteComment(
+    @Param('trackId', ParseUUIDPipe) trackId: string,
+    @Param('commentId', ParseUUIDPipe) commentId: string,
+    @CurrentUser('sub') userId: string
+  ) {
+    return this.trackService.deleteComment(trackId, commentId, userId);
+  }
+
+  @ApiGetTrackComments()
+  @Get(':trackId/comments')
+  @CheckBlock()
+  getTrackComments(
+    @Param('trackId', ParseUUIDPipe) trackId: string,
+    @CurrentUser('sub') userId: string,
+    @Query('page') page: number = 1,
+    @Query('limit') limit: number = 20,
+    @Query('order') order: 'timestamp' | 'newest' | 'oldest' = 'timestamp'
+  ) {
+    return this.trackService.getTrackComments(trackId, userId, page, limit, order);
   }
 }

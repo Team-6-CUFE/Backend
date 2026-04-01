@@ -15,8 +15,8 @@ const invalidUuidResponse = ApiResponse({
           summary: 'Invalid UUID',
           value: { statusCode: 400, message: 'user_id must be a valid UUID' },
         },
-        selfAction: {
-          summary: 'Self-action attempt',
+        selfFollow: {
+          summary: 'Self-follow attempt',
           value: { statusCode: 400, message: 'You cannot follow yourself' },
         },
       },
