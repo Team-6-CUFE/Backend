@@ -246,9 +246,9 @@ export class FollowersRepository {
     });
   }
 
-  async getMutualFollowers(
-    currentUserId: string,
-    targetUserId: string,
+  async getCommonFollowers(
+    userId: string,
+    otherUserId: string,
     page: number,
     limit: number
   ): Promise<{ users: Partial<User>[]; total: number }> {
@@ -256,17 +256,16 @@ export class FollowersRepository {
 
     const query = this.userRepository
       .createQueryBuilder('user')
-      .innerJoin('user_follows', 'f1', 'f1.follower = user.user_id')
-      .innerJoin('user_follows', 'f2', 'f2.follower = user.user_id')
-      .where('f1.followed = :targetUserId', { targetUserId })
-      .andWhere('f2.followed = :currentUserId', { currentUserId })
-      .select([
-        'user.userId',
-        'user.username',
-        'user.displayName',
-        'user.avatarUrl',
-        'user.followersCount',
-      ]);
+      .innerJoin('user_follows', 'f1', 'f1.follower = user.user_id AND f1.followed = :userId', {
+        userId,
+      })
+      .innerJoin(
+        'user_follows',
+        'f2',
+        'f2.follower = user.user_id AND f2.followed = :otherUserId',
+        { otherUserId }
+      )
+      .select(['user.userId', 'user.username', 'user.displayName', 'user.avatarUrl']);
 
     const [users, total] = await Promise.all([
       query.skip(offset).take(limit).getMany(),
