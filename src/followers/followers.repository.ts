@@ -245,4 +245,34 @@ export class FollowersRepository {
       ],
     });
   }
+
+  async getMutualFollowers(
+    currentUserId: string,
+    targetUserId: string,
+    page: number,
+    limit: number
+  ): Promise<{ users: Partial<User>[]; total: number }> {
+    const offset = (page - 1) * limit;
+
+    const query = this.userRepository
+      .createQueryBuilder('user')
+      .innerJoin('user_follows', 'f1', 'f1.follower = user.user_id')
+      .innerJoin('user_follows', 'f2', 'f2.follower = user.user_id')
+      .where('f1.followed = :targetUserId', { targetUserId })
+      .andWhere('f2.followed = :currentUserId', { currentUserId })
+      .select([
+        'user.userId',
+        'user.username',
+        'user.displayName',
+        'user.avatarUrl',
+        'user.followersCount',
+      ]);
+
+    const [users, total] = await Promise.all([
+      query.skip(offset).take(limit).getMany(),
+      query.getCount(),
+    ]);
+
+    return { users, total };
+  }
 }
