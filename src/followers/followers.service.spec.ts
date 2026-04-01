@@ -377,9 +377,9 @@ describe('FollowersService', () => {
       expect(result).toEqual({
         status: 'success',
         data: {
-          blocker_id: mockUserBlock.blocker,
-          blocked_id: mockUserBlock.blocked,
-          created_at: mockUserBlock.createdAt,
+          blockerId: mockUserBlock.blocker,
+          blockedId: mockUserBlock.blocked,
+          createdAt: mockUserBlock.createdAt,
         },
       });
       expect(mockFollowersRepository.isBlocking).toHaveBeenCalledWith(
@@ -449,7 +449,7 @@ describe('FollowersService', () => {
 
       // Assert
       expect(result.status).toBe('success');
-      expect(result.data.blocked_users).toHaveLength(3);
+      expect(result.data.blockedUsers).toHaveLength(3);
       expect(result.data.pagination).toEqual({
         currentPage: 2,
         totalPages: 3,
@@ -464,7 +464,7 @@ describe('FollowersService', () => {
 
       const result = await service.getBlockedUsers(mockFollowerId, 1, 20);
 
-      expect(result.data.blocked_users).toHaveLength(0);
+      expect(result.data.blockedUsers).toHaveLength(0);
       expect(result.data.pagination.totalCount).toBe(0);
       expect(result.data.pagination.totalPages).toBe(0);
     });
@@ -495,7 +495,7 @@ describe('FollowersService', () => {
 
       expect(result).toEqual({
         status: 'success',
-        data: { blockStatus: 'blocked_by', since: mockDate },
+        data: { blockStatus: 'blockedBy', since: mockDate },
       });
     });
 
@@ -509,7 +509,7 @@ describe('FollowersService', () => {
 
       expect(result).toEqual({
         status: 'success',
-        data: { blockStatus: 'mutual_block' },
+        data: { blockStatus: 'mutualBlock' },
       });
     });
 
@@ -583,10 +583,10 @@ describe('FollowersService', () => {
       const result = await service.getCommonFollowers(currentUserId, userId, otherUserId, 1, 20);
 
       expect(result.status).toBe('success');
-      expect(result.data.user_id).toBe(userId);
-      expect(result.data.other_user_id).toBe(otherUserId);
-      expect(result.data.common_followers.length).toBe(1);
-      expect(result.data.pagination.total_count).toBe(1);
+      expect(result.data.userId).toBe(userId);
+      expect(result.data.otherUserId).toBe(otherUserId);
+      expect(result.data.commonFollowers.length).toBe(1);
+      expect(result.data.pagination.totalCount).toBe(1);
       expect(mockFollowersRepository.getCommonFollowers).toHaveBeenCalledWith(
         userId,
         otherUserId,

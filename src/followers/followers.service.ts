@@ -203,7 +203,7 @@ export class FollowersService {
     return {
       status: 'success',
       data: {
-        blocked_users: users,
+        blockedUsers: users,
         pagination: {
           currentPage: page,
           totalPages: Math.ceil(total / limit),
@@ -228,12 +228,12 @@ export class FollowersService {
     let since: Date | undefined;
 
     if (amIBlocking && isBlockingMe) {
-      blockStatus = 'mutual_block';
+      blockStatus = 'mutualBlock';
     } else if (amIBlocking) {
       blockStatus = 'blocking';
       since = amIBlocking.createdAt;
     } else if (isBlockingMe) {
-      blockStatus = 'blocked_by';
+      blockStatus = 'blockedBy';
       since = isBlockingMe.createdAt;
     }
 
@@ -299,18 +299,18 @@ export class FollowersService {
     return {
       status: 'success',
       data: {
-        user_id: userId,
-        other_user_id: otherUserId,
-        common_followers: users.map((u) => ({
-          user_id: u.userId,
+        userId,
+        otherUserId,
+        commonFollowers: users.map((u) => ({
+          userId: u.userId,
           username: u.username,
-          display_name: u.displayName ?? null,
-          avatar_url: u.avatarUrl ?? null,
+          displayName: u.displayName ?? null,
+          avatarUrl: u.avatarUrl ?? null,
         })),
         pagination: {
-          current_page: page,
-          total_pages: Math.ceil(total / limit),
-          total_count: total,
+          currentPage: page,
+          totalPages: Math.ceil(total / limit),
+          totalCount: total,
           limit,
         },
       },

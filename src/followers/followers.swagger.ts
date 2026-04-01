@@ -491,7 +491,7 @@ export function ApiGetBlockedUsers() {
         example: {
           status: 'success',
           data: {
-            blocked_users: [
+            blockedUsers: [
               {
                 userId: '112f6e51-3927-4740-bcbf-96e791996111',
                 username: 'toxic_user',
