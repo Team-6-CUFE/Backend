@@ -46,6 +46,19 @@ export const mockCommonFollowersData = {
   total: 1,
 };
 
+export const mockSuggestedUsersData = {
+  users: [
+    {
+      userId: 'suggested-1',
+      username: 'trending_artist',
+      displayName: 'Trending Artist',
+      avatarUrl: 'https://s3.amazonaws.com/avatars/1.jpg',
+      followersCount: 5000,
+    },
+  ],
+  total: 1,
+};
+
 export const mockFollowersRepository = {
   hasBlockRelationship: jest.fn(),
   createFollow: jest.fn(),
@@ -63,6 +76,7 @@ export const mockFollowersRepository = {
   getBlockedUsers: jest.fn(),
   getBlockRelationship: jest.fn(),
   getCommonFollowers: jest.fn(),
+  getSuggestedUsers: jest.fn(),
 };
 
 export const mockUserRepository = {
@@ -82,4 +96,5 @@ export const mockFollowersService = {
   getBlockedUsers: jest.fn(),
   getBlockStatus: jest.fn(),
   getCommonFollowers: jest.fn(),
+  getSuggestedUsers: jest.fn(),
 };

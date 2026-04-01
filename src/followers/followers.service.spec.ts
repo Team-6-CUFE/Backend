@@ -18,6 +18,7 @@ import {
   mockUserRepository,
   mockUserBlock,
   mockCommonFollowersData,
+  mockSuggestedUsersData,
 } from './test/followers.mock';
 
 describe('FollowersService', () => {
@@ -593,6 +594,50 @@ describe('FollowersService', () => {
         1,
         20
       );
+    });
+  });
+
+  describe('getSuggestedUsers', () => {
+    it('should return suggested users with success status and pagination', async () => {
+      mockFollowersRepository.getSuggestedUsers.mockResolvedValue(mockSuggestedUsersData);
+
+      const result = await service.getSuggestedUsers(mockFollowerId, 1, 20, 'popular');
+
+      expect(result).toEqual({
+        status: 'success',
+        data: {
+          suggestedUsers: [
+            {
+              userId: 'suggested-1',
+              username: 'trending_artist',
+              displayName: 'Trending Artist',
+              avatarUrl: 'https://s3.amazonaws.com/avatars/1.jpg',
+              followersCount: 5000,
+            },
+          ],
+          pagination: {
+            currentPage: 1,
+            totalPages: 1,
+            totalCount: 1,
+            limit: 20,
+          },
+        },
+      });
+      expect(mockFollowersRepository.getSuggestedUsers).toHaveBeenCalledWith(
+        mockFollowerId,
+        1,
+        20,
+        'popular'
+      );
+    });
+
+    it('should handle empty suggestions gracefully', async () => {
+      mockFollowersRepository.getSuggestedUsers.mockResolvedValue({ users: [], total: 0 });
+
+      const result = await service.getSuggestedUsers(mockFollowerId, 1, 20);
+
+      expect(result.data.suggestedUsers).toHaveLength(0);
+      expect(result.data.pagination.totalCount).toBe(0);
     });
   });
 });

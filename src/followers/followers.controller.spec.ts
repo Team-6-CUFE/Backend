@@ -263,4 +263,39 @@ describe('FollowersController', () => {
       );
     });
   });
+
+  describe('getSuggestedUsers', () => {
+    it('should call service.getSuggestedUsers with correct parameters', async () => {
+      const expected = { status: 'success', data: { suggestedUsers: [], pagination: {} } };
+      mockFollowersService.getSuggestedUsers.mockResolvedValue(expected);
+
+      const result = await controller.getSuggestedUsers(mockFollowerId, 1, 10, 'genre');
+
+      expect(mockFollowersService.getSuggestedUsers).toHaveBeenCalledWith(
+        mockFollowerId,
+        1,
+        10,
+        'genre'
+      );
+      expect(result).toEqual(expected);
+    });
+
+    it('should use default pagination and undefined "by" when not provided', async () => {
+      mockFollowersService.getSuggestedUsers.mockResolvedValue({ status: 'success' });
+
+      await controller.getSuggestedUsers(
+        mockFollowerId,
+        undefined as any,
+        undefined as any,
+        undefined
+      );
+
+      expect(mockFollowersService.getSuggestedUsers).toHaveBeenCalledWith(
+        mockFollowerId,
+        1,
+        20,
+        undefined
+      );
+    });
+  });
 });
