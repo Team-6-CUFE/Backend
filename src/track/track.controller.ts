@@ -13,14 +13,23 @@ import { ApiTags } from '@nestjs/swagger';
 import { TrackService } from './track.service';
 import {
   ApiEditTrackRepost,
+  ApiGetTrackLikes,
+  ApiGetTrackLikesCount,
   ApiGetTrackReposts,
   ApiGetTrackRepostsCount,
+  ApiGetUserTrackLikes,
   ApiGetUserTrackReposts,
+  ApiLikeTrack,
+  ApiRemoveTrackLike,
   ApiRemoveTrackRepost,
   ApiRepostTrack,
+  ApiTrackComment,
+  ApiDeleteComment,
+  ApiGetTrackComments,
 } from './track.swagger';
 import { CurrentUser } from '../authentication/decorators/current-user.decorator';
 import { CheckBlock } from '../followers/decorators/no-block.decorator';
+import { AddCommentDto } from './dto/add-comment.dto';
 
 @ApiTags('Tracks')
 @Controller('tracks')
@@ -86,5 +95,87 @@ export class TrackController {
     @Query('limit') limit: number
   ) {
     return this.trackService.getUserTrackReposts(userId, myUserId, page, limit);
+  }
+
+  @ApiLikeTrack()
+  @Post(':trackId/like')
+  likeTrack(@Param('trackId', ParseUUIDPipe) trackId: string, @CurrentUser('sub') userId: string) {
+    return this.trackService.likeTrack(trackId, userId);
+  }
+
+  @ApiGetTrackLikesCount()
+  @Get(':trackId/likes/count')
+  getTrackLikessCount(
+    @Param('trackId', ParseUUIDPipe) trackId: string,
+    @CurrentUser('sub') userId: string
+  ) {
+    return this.trackService.getTrackLikesCount(trackId, userId);
+  }
+
+  @ApiRemoveTrackLike()
+  @Delete(':trackId/like')
+  removeTrackLike(
+    @Param('trackId', ParseUUIDPipe) trackId: string,
+    @CurrentUser('sub') userId: string
+  ) {
+    return this.trackService.removeTrackLike(trackId, userId);
+  }
+
+  @ApiGetTrackLikes()
+  @Get(':trackId/likes')
+  getTrackLikes(
+    @Param('trackId', ParseUUIDPipe) trackId: string,
+    @CurrentUser('sub') userId: string,
+    @Query('page') page: number,
+    @Query('limit') limit: number
+  ) {
+    return this.trackService.getTrackLikes(trackId, userId, page, limit);
+  }
+
+  @ApiGetUserTrackLikes()
+  @CheckBlock()
+  @Get('users/:user_id/likes')
+  getUserTrackLikes(
+    @Param('user_id', ParseUUIDPipe) userId: string,
+    @CurrentUser('sub') myUserId: string,
+    @Query('page') page: number,
+    @Query('limit') limit: number
+  ) {
+    return this.trackService.getUserTrackLikes(userId, myUserId, page, limit);
+  }
+
+  @ApiTrackComment()
+  @CheckBlock()
+  @Post(':trackId/comment')
+  comment(
+    @Param('trackId', ParseUUIDPipe) trackId: string,
+    @CurrentUser('sub') userId: string,
+    @Body() commentDto: AddCommentDto
+  ) {
+    return this.trackService.addComment(trackId, userId, commentDto);
+  }
+
+  @ApiDeleteComment()
+  @CheckBlock()
+  @Delete(':trackId/comments/:commentId')
+  deleteComment(
+    @Param('trackId', ParseUUIDPipe) trackId: string,
+    @Param('commentId', ParseUUIDPipe) commentId: string,
+    @CurrentUser('sub') userId: string
+  ) {
+    return this.trackService.deleteComment(trackId, commentId, userId);
+  }
+
+  @ApiGetTrackComments()
+  @Get(':trackId/comments')
+  @CheckBlock()
+  getTrackComments(
+    @Param('trackId', ParseUUIDPipe) trackId: string,
+    @CurrentUser('sub') userId: string,
+    @Query('page') page: number = 1,
+    @Query('limit') limit: number = 20,
+    @Query('order') order: 'timestamp' | 'newest' | 'oldest' = 'timestamp'
+  ) {
+    return this.trackService.getTrackComments(trackId, userId, page, limit, order);
   }
 }

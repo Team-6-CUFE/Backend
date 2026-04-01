@@ -1,16 +1,20 @@
 import { DataSource } from 'typeorm';
 import { Seeder, SeederFactoryManager } from 'typeorm-extension';
 import { User } from '../../user/entities/user.entity';
+import { Track } from '../../track/entities/track.entity';
 import { Playlist } from '../../playlist/entities/playlist.entity';
 import { PlaylistLike } from '../../playlist/entities/playlist-likes.entity';
 import { PlaylistRepost } from '../../playlist/entities/playlist-reposts.entity';
+import { PlaylistTrack } from '../../playlist/entities/playlist-tracks.entity'; // Added PlaylistTrack
 
 export class PlaylistSeeder implements Seeder {
   public async run(dataSource: DataSource, factoryManager: SeederFactoryManager): Promise<void> {
     const userRepository = dataSource.getRepository(User);
+    const trackRepository = dataSource.getRepository(Track); // Initialize Track Repo
     const playlistRepository = dataSource.getRepository(Playlist);
     const playlistLikeRepository = dataSource.getRepository(PlaylistLike);
     const playlistRepostRepository = dataSource.getRepository(PlaylistRepost);
+    const playlistTrackRepository = dataSource.getRepository(PlaylistTrack); // Initialize Junction Repo
 
     // Check if playlists already exist
     const existingPlaylists = await playlistRepository.count();
@@ -19,114 +23,119 @@ export class PlaylistSeeder implements Seeder {
       return;
     }
 
-    // We MUST have users to create playlists (Foreign Key constraint)
     const users = await userRepository.find();
-    if (users.length === 0) {
-      console.log('No users found in the database. Please run UserSeeder first.');
+    const tracks = await trackRepository.find(); // Fetch all available tracks
+
+    if (users.length === 0 || tracks.length === 0) {
+      console.log('Missing Users or Tracks. Please seed them first.');
       return;
     }
 
-    console.log('Seeding playlists...');
+    console.log('Seeding playlists and adding tracks...');
 
-    // Get factories
     const playlistFactory = factoryManager.get(Playlist);
-
     const allCreatedPlaylists: Playlist[] = [];
 
-    // 1. Create specific playlists for known users (e.g., your "artists")
-    console.log('  Creating specific test playlists...');
-
-    // Find our specific artists from the UserSeeder
+    // 1. Create specific playlists for artists
     const artist1 = users.find((u) => u.username === 'artist1');
     const artist2 = users.find((u) => u.username === 'artist2');
 
     if (artist1) {
-      const playlist1 = playlistRepository.create({
-        title: 'Late Night Lo-Fi Beats',
-        description: 'Chill beats to study and relax to.',
-        is_public: true,
-        user_id: artist1.userId,
-      });
-      allCreatedPlaylists.push(await playlistRepository.save(playlist1));
+      const p1 = await playlistRepository.save(
+        playlistRepository.create({
+          title: 'Late Night Lo-Fi Beats',
+          description: 'Chill beats to study and relax to.',
+          isPublic: true,
+          userId: artist1.userId,
+        })
+      );
+      allCreatedPlaylists.push(p1);
 
-      const playlist2 = playlistRepository.create({
-        title: 'Unreleased Demos (Private)',
-        description: 'WIP tracks.',
-        is_public: false, // Private playlist
-        user_id: artist1.userId,
-      });
-      allCreatedPlaylists.push(await playlistRepository.save(playlist2));
+      const p2 = await playlistRepository.save(
+        playlistRepository.create({
+          title: 'Unreleased Demos (Private)',
+          description: 'WIP tracks.',
+          isPublic: false,
+          userId: artist1.userId,
+        })
+      );
+      allCreatedPlaylists.push(p2);
     }
 
     if (artist2) {
-      const playlist3 = playlistRepository.create({
-        title: 'Summer Festival Mix',
-        description: 'High energy EDM and House.',
-        is_public: true,
-        user_id: artist2.userId,
-      });
-      allCreatedPlaylists.push(await playlistRepository.save(playlist3));
+      const p3 = await playlistRepository.save(
+        playlistRepository.create({
+          title: 'Summer Festival Mix',
+          description: 'High energy EDM and House.',
+          isPublic: true,
+          userId: artist2.userId,
+        })
+      );
+      allCreatedPlaylists.push(p3);
     }
 
-    // 2. Generate 30 random playlists using the factory
-    // 2. Generate 30 random playlists using the factory
-    console.log('  Generating 30 random playlists...');
-
+    // 2. Generate 30 random playlists using factory
     for (let i = 0; i < 30; i++) {
-      // Create the fake playlist object in memory
       const randomPlaylist = await playlistFactory.make();
-
-      // Pick a random user to own this playlist
       const randomOwner = users[Math.floor(Math.random() * users.length)];
 
-      // THE FIX: Use repository.create() to properly bind the relationship
-      // This forces TypeORM to recognize both the raw ID and the relation object
-      const playlistToSave = playlistRepository.create({
-        ...randomPlaylist,
-        user_id: randomOwner.userId,
-        user: randomOwner,
-      });
-
-      // Save the complete playlist to the database
-      const savedPlaylist = await playlistRepository.save(playlistToSave);
+      const savedPlaylist = await playlistRepository.save(
+        playlistRepository.create({
+          ...randomPlaylist,
+          userId: randomOwner.userId,
+          user: randomOwner,
+        })
+      );
       allCreatedPlaylists.push(savedPlaylist);
     }
 
-    // 3. Generate Likes and Reposts for all playlists
-    console.log('  Generating random likes and reposts (testing triggers)...');
+    // 3. Populate tracks, likes, and reposts
+    console.log('  Populating tracks, likes, and reposts (testing all triggers)...');
 
     for (const playlist of allCreatedPlaylists) {
-      // Shuffle users to ensure unique likers/reposters (prevents composite primary key errors)
-      const shuffledUsersForLikes = [...users].sort(() => 0.5 - Math.random());
-      const shuffledUsersForReposts = [...users].sort(() => 0.5 - Math.random());
+      // --- ADD TRACKS TO PLAYLIST ---
+      // Pick 5 to 12 random tracks
+      const numTracks = Math.floor(Math.random() * 8) + 5;
+      const selectedTracks = [...tracks].sort(() => 0.5 - Math.random()).slice(0, numTracks);
 
-      // Generate 0 to 15 likes per playlist
+      for (let i = 0; i < selectedTracks.length; i++) {
+        await playlistTrackRepository.save({
+          playlistId: playlist.playlistId,
+          trackId: selectedTracks[i].trackId,
+          position: i + 1, // Sequential position 1, 2, 3...
+        });
+      }
+
+      // --- GENERATE LIKES ---
+      const shuffledUsersForLikes = [...users].sort(() => 0.5 - Math.random());
       const numLikes = Math.floor(Math.random() * 16);
       const likers = shuffledUsersForLikes.slice(0, numLikes);
 
       for (const liker of likers) {
         await playlistLikeRepository.save({
-          playlist_id: playlist.playlist_id,
-          user_id: liker.userId,
+          playlistId: playlist.playlistId,
+          userId: liker.userId,
         });
       }
 
-      // Generate 0 to 5 reposts per playlist
+      // --- GENERATE REPOSTS ---
+      const shuffledUsersForReposts = [...users].sort(() => 0.5 - Math.random());
       const numReposts = Math.floor(Math.random() * 6);
       const reposters = shuffledUsersForReposts.slice(0, numReposts);
 
       for (const reposter of reposters) {
         await playlistRepostRepository.save({
-          playlist_id: playlist.playlist_id,
-          user_id: reposter.userId,
+          playlistId: playlist.playlistId,
+          userId: reposter.userId,
         });
       }
     }
 
-    console.log('Playlists seeded successfully!');
-    console.log(`   - Created ${allCreatedPlaylists.length} total playlists`);
+    console.log('Seeding complete!');
+    console.log(` - ${allCreatedPlaylists.length} Playlists created.`);
+    console.log(` - Tracks added (Triggers should update tracks_count).`);
     console.log(
-      `   - Random likes and reposts generated (Database triggers should have updated the counts!)`
+      ` - Likes & Reposts generated (Triggers should update likes_count & reposts_count).`
     );
   }
 }

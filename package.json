@@ -180,6 +180,7 @@
         "statements": 80
       }
     },
+    "coverageProvider": "v8",
     "maxWorkers": 2
   }
 }

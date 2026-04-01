@@ -106,10 +106,10 @@ export class User extends BaseEntity {
   playlists!: Playlist[];
 
   @OneToMany(() => PlaylistLike, (like) => like.user)
-  liked_playlists!: PlaylistLike[];
+  likedPlaylists!: PlaylistLike[];
 
   @OneToMany(() => PlaylistRepost, (repost) => repost.user)
-  reposted_playlists!: PlaylistRepost[];
+  repostedPlaylists!: PlaylistRepost[];
 
   @OneToMany(() => TrackLikes, (trackLikes) => trackLikes.user)
   trackLikes!: TrackLikes[];

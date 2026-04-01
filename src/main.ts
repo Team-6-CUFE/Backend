@@ -25,7 +25,7 @@ async function bootstrap() {
       name: 'sc.sid',
       cookie: {
         httpOnly: true,
-        secure: configService.get<string>('NODE_ENV') === 'production',
+        secure: false, // Set to true in production with HTTPS
         sameSite: 'strict',
         maxAge: 5 * 60 * 1000, // 5 minutes
       },
@@ -36,6 +36,7 @@ async function bootstrap() {
     .setTitle('Harmonica Documentation')
     .setDescription('API description')
     .setVersion('1.0')
+    .addServer('/api')
     .addCookieAuth('access_token')
     .build();
   const document = SwaggerModule.createDocument(app, config);
@@ -62,8 +63,6 @@ async function bootstrap() {
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization'],
   });
-
-  app.setGlobalPrefix('api');
 
   app.useGlobalPipes(
     new ValidationPipe({

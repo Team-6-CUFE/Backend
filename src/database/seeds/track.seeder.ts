@@ -91,15 +91,36 @@ export class TrackSeeder implements Seeder {
 
         // --- C. Seed Comments ---
         const commentCount = Math.floor(Math.random() * 9) + 2;
+        const topLevelComments: TrackComment[] = [];
         for (let i = 0; i < commentCount; i++) {
           const randomUser = allUsers[Math.floor(Math.random() * allUsers.length)];
           const comment = await commentFactory.make({
             userId: randomUser.userId,
             trackId: track.trackId,
             timestampSeconds: Math.floor(Math.random() * (track.durationSeconds || 300)),
+            parentId: null,
           });
-          await commentRepository.save(comment);
+          const saved = await commentRepository.save(comment);
+          topLevelComments.push(saved);
           totalCommentsCreated++;
+        }
+
+        // Seed replies: 40% chance each top-level comment gets 1–3 replies
+        for (const parent of topLevelComments) {
+          if (Math.random() < 0.4) {
+            const replyCount = Math.floor(Math.random() * 3) + 1;
+            for (let r = 0; r < replyCount; r++) {
+              const randomUser = allUsers[Math.floor(Math.random() * allUsers.length)];
+              const reply = await commentFactory.make({
+                userId: randomUser.userId,
+                trackId: track.trackId,
+                timestampSeconds: parent.timestampSeconds,
+                parentId: parent.commentId,
+              });
+              await commentRepository.save(reply);
+              totalCommentsCreated++;
+            }
+          }
         }
       }
     }
