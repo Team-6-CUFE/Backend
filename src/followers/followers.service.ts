@@ -1,6 +1,7 @@
 import {
   BadRequestException,
   ConflictException,
+  ForbiddenException,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
@@ -241,6 +242,143 @@ export class FollowersService {
       data: {
         blockStatus,
         ...(since && { since }),
+      },
+    };
+  }
+
+  async getFollowersYouKnow(
+    currentUserId: string,
+    targetUserId: string,
+    page: number,
+    limit: number
+  ) {
+    if (currentUserId === targetUserId) {
+      return {
+        status: 'success',
+        data: {
+          users: [],
+          pagination: {
+            current_page: page,
+            total_pages: 0,
+            total_count: 0,
+            limit,
+          },
+        },
+      };
+    }
+
+    const target = await this.userRepository.findById(targetUserId);
+
+    if (!target) {
+      throw new NotFoundException('Target user not found');
+    }
+
+    const blocks = await this.followersRepository.getBlockRelationship(currentUserId, targetUserId);
+
+    if (blocks.length > 0) {
+      throw new ForbiddenException('Action not allowed due to a block relationship');
+    }
+
+    if (!target.isPublic) {
+      const isFollowing = await this.followersRepository.isFollowing(currentUserId, targetUserId);
+      if (!isFollowing) {
+        throw new ForbiddenException('This account is private');
+      }
+    }
+
+    const { users, total } = await this.followersRepository.getCommonFollowers(
+      currentUserId,
+      targetUserId,
+      page,
+      limit
+    );
+
+    return {
+      status: 'success',
+      data: {
+        users: users.map((u) => ({
+          user_id: u.userId,
+          username: u.username,
+          display_name: u.displayName ?? null,
+          avatar_url: u.avatarUrl ?? null,
+        })),
+        pagination: {
+          current_page: page,
+          total_pages: Math.ceil(total / limit),
+          total_count: total,
+          limit,
+        },
+      },
+    };
+  }
+
+  async getCommonFollowers(
+    currentUserId: string,
+    userId: string,
+    otherUserId: string,
+    page: number,
+    limit: number
+  ) {
+    if (userId === otherUserId) {
+      throw new BadRequestException('Both user IDs cannot be the same');
+    }
+
+    const [userA, userB] = await Promise.all([
+      this.userRepository.findById(userId),
+      this.userRepository.findById(otherUserId),
+    ]);
+
+    if (!userA || !userB) {
+      throw new NotFoundException('One or both users not found');
+    }
+
+    if (currentUserId !== userId) {
+      const blocksA = await this.followersRepository.getBlockRelationship(currentUserId, userId);
+      if (blocksA.length > 0) {
+        throw new ForbiddenException('Action not allowed due to a block relationship');
+      }
+      if (!userA.isPublic) {
+        throw new ForbiddenException('One or both accounts are private');
+      }
+    }
+
+    if (currentUserId !== otherUserId) {
+      const blocksB = await this.followersRepository.getBlockRelationship(
+        currentUserId,
+        otherUserId
+      );
+      if (blocksB.length > 0) {
+        throw new ForbiddenException('Action not allowed due to a block relationship');
+      }
+      if (!userB.isPublic) {
+        throw new ForbiddenException('One or both accounts are private');
+      }
+    }
+
+    const { users, total } = await this.followersRepository.getCommonFollowers(
+      userId,
+      otherUserId,
+      page,
+      limit
+    );
+
+    return {
+      status: 'success',
+      data: {
+        user_id: userId,
+        other_user_id: otherUserId,
+        common_followers: users.map((u) => ({
+          user_id: u.userId,
+          username: u.username,
+          display_name: u.displayName ?? null,
+          avatar_url: u.avatarUrl ?? null,
+        })),
+        pagination: {
+          current_page: page,
+          total_pages: Math.ceil(total / limit),
+          total_count: total,
+          limit,
+        },
       },
     };
   }
