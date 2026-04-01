@@ -40,7 +40,9 @@ async function bootstrap() {
     .addCookieAuth('access_token')
     .build();
   const document = SwaggerModule.createDocument(app, config);
-  SwaggerModule.setup('api/docs', app, document);
+  SwaggerModule.setup('api/docs', app, document, {
+    swaggerOptions: { withCredentials: true },
+  });
 
   const allowedOrigins = configService
     .get<string>('ALLOWED_ORIGINS', '')
