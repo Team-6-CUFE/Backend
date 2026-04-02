@@ -5,17 +5,79 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { TrackRepository } from './track.repository';
-import { UserRepository } from '../user/user.repository';
-import { buildPaginationResponse } from '../common/utilities/pagination.util';
+import { InjectQueue } from '@nestjs/bullmq';
+import { Queue } from 'bullmq';
+import * as fs from 'node:fs';
+import * as os from 'node:os';
+import * as path from 'node:path';
 import { AddCommentDto } from './dto/add-comment.dto';
+import { buildPaginationResponse } from '../common/utilities/pagination.util';
+import { UserRepository } from '../user/user.repository';
+import { TrackRepository } from './track.repository';
+import { UploadTrackDto } from './dto/upload-track.dto';
+import { AudioJobData } from '../audio/audio.processor';
+import { StorageService } from '../common/storage_service';
+import { TrackVisibility } from './enums/track-visibility.enum';
 
 @Injectable()
 export class TrackService {
   constructor(
     private readonly trackRepository: TrackRepository,
-    private readonly userRepository: UserRepository
+    private readonly userRepository: UserRepository,
+    private readonly storageService: StorageService,
+    @InjectQueue('audioQueue')
+    private readonly audioQueue: Queue
   ) {}
+
+  async uploadTrack(
+    userId: string,
+    dto: UploadTrackDto,
+    audioFile: Express.Multer.File,
+    coverFile?: Express.Multer.File
+  ) {
+    // Step 1 — optionally upload cover image to S3 immediately
+    let coverImageUrl: string | undefined;
+    if (coverFile) {
+      const uploaded = await this.storageService.uploadFile(coverFile);
+      coverImageUrl = uploaded.Location;
+    }
+
+    // Step 2 — save temp audio file to disk for ffmpeg
+    const tempDir = os.tmpdir();
+    const tempFileName = `track_${Date.now()}_${audioFile.originalname}`;
+    const tempFilePath = path.join(tempDir, tempFileName);
+    fs.writeFileSync(tempFilePath, audioFile.buffer);
+
+    // Step 3 — create track record in DB with PROCESSING status
+    const savedTrack = await this.trackRepository.createTrack(userId, dto, coverImageUrl);
+
+    // Step 4 — queue the background job; jobId === trackId for SSE keying
+    const jobData: AudioJobData = {
+      trackId: savedTrack.trackId,
+      filePath: tempFilePath,
+      originalName: audioFile.originalname,
+      previewStartTime: dto.previewStartTime ?? '00:00:30',
+    };
+
+    await this.audioQueue.add('processAudio', jobData, {
+      jobId: savedTrack.trackId,
+      attempts: 3,
+      backoff: { type: 'exponential', delay: 5000 },
+      removeOnComplete: true,
+      removeOnFail: false,
+    });
+
+    return {
+      status: 'success',
+      message: 'Track upload started. Processing in background.',
+      data: {
+        trackId: savedTrack.trackId,
+        title: savedTrack.title,
+        trackStatus: savedTrack.trackStatus,
+        createdAt: savedTrack.createdAt,
+      },
+    };
+  }
 
   async repostTrack(trackId: string, userId: string, caption?: string) {
     const track = await this.trackRepository.findById(trackId);
@@ -27,7 +89,7 @@ export class TrackService {
       throw new BadRequestException('You cannot repost your own track');
     }
 
-    if (!track.isPublic) {
+    if (track.visibility !== TrackVisibility.PUBLIC) {
       throw new ForbiddenException('This track is private');
     }
 
@@ -47,7 +109,7 @@ export class TrackService {
       throw new NotFoundException('Track not found');
     }
 
-    if (!track.isPublic && track.userId !== userId) {
+    if (track.visibility === TrackVisibility.PRIVATE && track.userId !== userId) {
       throw new ForbiddenException('This track is private');
     }
     const repostsCount = await this.trackRepository.getTrackRepostsCount(trackId);
@@ -83,7 +145,7 @@ export class TrackService {
       throw new NotFoundException('Track not found');
     }
 
-    if (!track.isPublic && track.userId !== userId) {
+    if (track.visibility === TrackVisibility.PRIVATE && track.userId !== userId) {
       throw new ForbiddenException('This track is private');
     }
 
@@ -113,7 +175,7 @@ export class TrackService {
       throw new NotFoundException('User not found');
     }
 
-    if (!user.isPublic && user.userId !== myUserId) {
+    if (user.isPublic === false && user.userId !== myUserId) {
       throw new ForbiddenException('This account is private');
     }
 
@@ -151,7 +213,7 @@ export class TrackService {
       throw new BadRequestException('You cannot like your own track');
     }
 
-    if (!track.isPublic) {
+    if (track.visibility !== TrackVisibility.PUBLIC) {
       throw new ForbiddenException('This track is private');
     }
 
@@ -171,7 +233,7 @@ export class TrackService {
       throw new NotFoundException('Track not found');
     }
 
-    if (!track.isPublic && track.userId !== userId) {
+    if (track.visibility === TrackVisibility.PRIVATE && track.userId !== userId) {
       throw new ForbiddenException('This track is private');
     }
     const likesCount = await this.trackRepository.getTrackLikesCount(trackId);
@@ -199,7 +261,7 @@ export class TrackService {
       throw new NotFoundException('Track not found');
     }
 
-    if (!track.isPublic && track.userId !== userId) {
+    if (track.visibility === TrackVisibility.PRIVATE && track.userId !== userId) {
       throw new ForbiddenException('This track is private');
     }
 
@@ -223,7 +285,7 @@ export class TrackService {
       throw new NotFoundException('User not found');
     }
 
-    if (!user.isPublic && user.userId !== myUserId) {
+    if (user.isPublic === false && user.userId !== myUserId) {
       throw new ForbiddenException('This account is private');
     }
 
@@ -252,7 +314,7 @@ export class TrackService {
       throw new NotFoundException('Track not found');
     }
 
-    if (!track.isPublic) {
+    if (track.visibility !== TrackVisibility.PUBLIC) {
       throw new ForbiddenException('This track is private');
     }
 
@@ -272,7 +334,7 @@ export class TrackService {
       throw new NotFoundException('Track not found');
     }
 
-    if (!track.isPublic) {
+    if (track.visibility !== TrackVisibility.PUBLIC) {
       throw new ForbiddenException('This track is private');
     }
     const comment = await this.trackRepository.findCommentById(commentId);
@@ -303,7 +365,7 @@ export class TrackService {
     if (!track) throw new NotFoundException('Track not found');
 
     // Private track logic
-    if (!track.isPublic && track.userId !== userId) {
+    if (track.visibility === TrackVisibility.PRIVATE && track.userId !== userId) {
       throw new ForbiddenException('This track is private');
     }
 

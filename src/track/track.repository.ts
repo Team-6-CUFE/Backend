@@ -6,6 +6,9 @@ import { TrackRepost } from './entities/track-reposts.entity';
 import { TrackLikes } from './entities/track-likes.entity';
 import { TrackComment } from './entities/track-comments.entity';
 import { AddCommentDto } from './dto/add-comment.dto';
+import { UploadTrackDto } from './dto/upload-track.dto';
+import { TrackStatus } from './enums/track-status.enum';
+import { TrackVisibility } from './enums/track-visibility.enum';
 
 @Injectable()
 export class TrackRepository {
@@ -220,5 +223,32 @@ export class TrackRepository {
     }
 
     return query.skip(skip).take(limit).getManyAndCount();
+  }
+
+  async createTrack(userId: string, dto: UploadTrackDto, coverImageUrl?: string): Promise<Track> {
+    const track = this.trackRepository.create({
+      userId,
+      title: dto.title,
+      description: dto.description,
+      trackStatus: TrackStatus.PROCESSING,
+      visibility: dto.visibility ?? TrackVisibility.PUBLIC,
+      coverImage: coverImageUrl,
+      mainArtists: dto.mainArtists,
+      buyLink: dto.buyLink,
+      recordLabel: dto.recordLabel,
+      releaseDate: dto.releaseDate ? new Date(dto.releaseDate) : undefined,
+      publisher: dto.publisher,
+      isrc: dto.isrc,
+      explicitContent: dto.explicitContent ?? false,
+      pLine: dto.pLine,
+      trackLink: dto.trackLink,
+      enableDirectDownloads: dto.enableDirectDownloads ?? false,
+      offlineListening: dto.offlineListening ?? false,
+      attribution: dto.attribution ?? false,
+      noncommercial: dto.noncommercial ?? false,
+      noDerivativeWorks: dto.noDerivativeWorks ?? false,
+      shareAlike: dto.shareAlike ?? false,
+    });
+    return this.trackRepository.save(track);
   }
 }

@@ -1,6 +1,7 @@
 import { applyDecorators } from '@nestjs/common';
 import {
   ApiBody,
+  ApiConsumes,
   ApiCookieAuth,
   ApiOperation,
   ApiParam,
@@ -749,6 +750,133 @@ export function ApiGetTrackComments() {
     }),
     ApiResponse({ status: 403, description: 'Track is private' }),
     ApiResponse({ status: 404, description: 'Track not found' }),
+    ApiResponse({ status: 401, description: 'Unauthorized' })
+  );
+}
+
+export function ApiUploadTrack() {
+  return applyDecorators(
+    ApiCookieAuth('access_token'),
+    ApiOperation({
+      summary: 'Upload a new track',
+      description: `Upload an audio file along with a cover image and all track metadata in a single multipart request.
+Audio processing (transcoding HQ/standard, 20-second preview, waveform generation) runs in the background.
+Subscribe to \`GET /tracks/:trackId/status/stream\` (SSE) to receive live progress updates instead of polling.`,
+    }),
+    ApiConsumes('multipart/form-data'),
+    ApiBody({
+      schema: {
+        type: 'object',
+        required: ['audio', 'title'],
+        properties: {
+          // ── Files ────────────────────────────────────────────────────────
+          audio: {
+            type: 'string',
+            format: 'binary',
+            description: 'Audio file — MP3, WAV, FLAC or AIFF, max 4 GB',
+          },
+          cover: {
+            type: 'string',
+            format: 'binary',
+            description: 'Cover image — JPEG, PNG or WebP, max 10 MB (optional)',
+          },
+          // ── Core metadata ────────────────────────────────────────────────
+          title: { type: 'string', example: 'Midnight Drive' },
+          description: { type: 'string', example: 'Lo-fi hip-hop session recorded live.' },
+          previewStartTime: { type: 'string', example: '00:00:30', description: 'HH:MM:SS' },
+          visibility: {
+            type: 'string',
+            enum: ['public', 'private', 'follower_exclusive'],
+            default: 'public',
+          },
+          mainArtists: {
+            type: 'string',
+            description: 'Comma-separated artist names, e.g. "Artist A,Artist B"',
+            example: 'DJ Nour,Yara Senousy',
+          },
+          // ── Distribution ─────────────────────────────────────────────────
+          buyLink: { type: 'string', example: 'https://bandcamp.com/track/midnight-drive' },
+          recordLabel: { type: 'string', example: 'Interscope Records' },
+          releaseDate: { type: 'string', example: '2026-06-01', description: 'ISO 8601 date' },
+          publisher: { type: 'string', example: 'Sony Music Publishing' },
+          isrc: { type: 'string', example: 'USRC17607839' },
+          explicitContent: { type: 'boolean', default: false },
+          pLine: { type: 'string', example: '℗ 2026 Atlantic Records' },
+          trackLink: { type: 'string', example: 'midnight-drive-2026' },
+          // ── Playback permissions ─────────────────────────────────────────
+          enableDirectDownloads: { type: 'boolean', default: false },
+          offlineListening: { type: 'boolean', default: false },
+          // ── Licensing ────────────────────────────────────────────────────
+          attribution: { type: 'boolean', default: false },
+          noncommercial: { type: 'boolean', default: false },
+          noDerivativeWorks: { type: 'boolean', default: false },
+          shareAlike: { type: 'boolean', default: false },
+        },
+      },
+    }),
+    ApiResponse({
+      status: 201,
+      description: 'Track upload accepted — processing started in background',
+      schema: {
+        example: {
+          status: 'success',
+          message: 'Track upload started. Processing in background.',
+          data: {
+            trackId: '550e8400-e29b-41d4-a716-446655440001',
+            title: 'Midnight Drive',
+            trackStatus: 'processing',
+            createdAt: '2026-04-02T22:00:00Z',
+          },
+        },
+      },
+    }),
+    ApiResponse({
+      status: 400,
+      description: 'Missing audio file or invalid file type / size',
+      schema: {
+        example: { statusCode: 400, message: 'Invalid audio type. Allowed: MP3, WAV, FLAC, AIFF' },
+      },
+    }),
+    ApiResponse({ status: 401, description: 'Unauthorized' })
+  );
+}
+
+// ─── Stream Track Processing Status (SSE) ────────────────────────────────────
+
+export function ApiStreamTrackStatus() {
+  return applyDecorators(
+    ApiCookieAuth('access_token'),
+    ApiOperation({
+      summary: 'Stream track processing status (SSE)',
+      description: `Opens a Server-Sent Events stream that pushes real-time processing updates for the given track.
+
+**Connect** immediately after \`POST /tracks/upload\` using the returned \`trackId\`.
+
+**Event shapes:**
+\`\`\`
+event: progress   → data: { trackId, progress: 0–100 }
+event: completed  → data: { trackId, audioUrl, waveformUrl, durationSeconds }
+event: failed     → data: { trackId, error: "reason" }
+\`\`\`
+The stream closes automatically once \`completed\` or \`failed\` is emitted.`,
+    }),
+    ApiParam({ name: 'trackId', description: 'UUID of the track to watch', type: 'string' }),
+    ApiResponse({
+      status: 200,
+      description: 'SSE stream opened — events pushed until processing finishes',
+      content: {
+        'text/event-stream': {
+          schema: {
+            type: 'string',
+            example: [
+              'data: {"event":"progress","data":{"trackId":"550e8...","progress":45}}',
+              '',
+              'data: {"event":"completed","data":{"trackId":"550e8...","audioUrl":"https://...","waveformUrl":"https://...","durationSeconds":213}}',
+            ].join('\n'),
+          },
+        },
+      },
+    }),
     ApiResponse({ status: 401, description: 'Unauthorized' })
   );
 }
