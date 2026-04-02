@@ -52,6 +52,18 @@ export class EditTrackMetadata1775161022133 implements MigrationInterface {
     await queryRunner.query(`
       CREATE INDEX idx_tracks_visibility ON tracks(visibility)
     `);
+
+    // 5. change audio_url to be nullable
+    await queryRunner.query(`
+      ALTER TABLE tracks
+        ALTER COLUMN audio_url DROP NOT NULL
+    `);
+
+    // 6. change waveform_url to be nullable
+    await queryRunner.query(`
+      ALTER TABLE tracks
+        ALTER COLUMN waveform_url DROP NOT NULL
+    `);
   }
 
   public async down(queryRunner: QueryRunner): Promise<void> {
