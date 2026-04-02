@@ -1,6 +1,7 @@
 import { setSeederFactory } from 'typeorm-extension';
 import { Track } from '../../track/entities/track.entity';
 import { TrackStatus } from '../../track/enums/track-status.enum';
+import { TrackVisibility } from '../../track/enums/track-visibility.enum';
 
 export default setSeederFactory(Track, async () => {
   const { faker } = await import('@faker-js/faker');
@@ -26,7 +27,10 @@ export default setSeederFactory(Track, async () => {
 
   // Status & Visibility
   track.trackStatus = faker.helpers.arrayElement(Object.values(TrackStatus)) as TrackStatus;
-  track.isPublic = faker.helpers.arrayElement([true, true, true, false]); // 75% chance public
+  track.visibility = faker.helpers.weightedArrayElement([
+    { weight: 3, value: TrackVisibility.PUBLIC },
+    { weight: 1, value: TrackVisibility.PRIVATE },
+  ]);
   track.hidden = false;
 
   // Array data (PostgreSQL array type)
