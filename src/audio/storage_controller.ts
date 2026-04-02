@@ -1,6 +1,6 @@
 import { Controller, Post, UploadedFile, UseInterceptors } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
-import { StorageService } from './storage_service';
+import { StorageService } from '../common/storage_service';
 import { Public } from '../authentication/decorators/public.decorator';
 
 @Controller('audio')

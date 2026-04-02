@@ -10,7 +10,7 @@ import { AuthenticationModule } from './authentication/authentication.module';
 import { MailModule } from './mail/mail.module';
 import { FollowersModule } from './followers/followers.module';
 import { RedisModule } from './redis/redis.module';
-import { AudioStorageModule } from './audio_storage/audio_storage.module';
+import { AudioStorageModule } from './audio/audio_storage.module';
 import { PlaylistModule } from './playlist/playlist.module';
 import { TrackModule } from './track/track.module';
 import { LegalModule } from './legal/legal.module';
