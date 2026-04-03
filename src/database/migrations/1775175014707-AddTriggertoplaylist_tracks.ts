@@ -9,7 +9,7 @@ export class AddTriggertoplaylistTracks1775175014707 implements MigrationInterfa
             BEGIN
                 UPDATE playlists
                 SET 
-                    total_duration_seconds = total_duration_seconds + (SELECT duration_seconds FROM tracks WHERE track_id = NEW.track_id),
+                    total_duration_seconds = total_duration_seconds + (SELECT duration_seconds FROM tracks WHERE track_id = NEW.track_id)
                 WHERE playlist_id = NEW.playlist_id;
                 RETURN NEW;
             END;
@@ -23,7 +23,7 @@ export class AddTriggertoplaylistTracks1775175014707 implements MigrationInterfa
             BEGIN
                 UPDATE playlists
                 SET 
-                    total_duration_seconds = total_duration_seconds - (SELECT duration_seconds FROM tracks WHERE track_id = OLD.track_id),
+                    total_duration_seconds = total_duration_seconds - (SELECT duration_seconds FROM tracks WHERE track_id = OLD.track_id)
                 WHERE playlist_id = OLD.playlist_id;
                 RETURN OLD;
             END;
