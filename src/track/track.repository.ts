@@ -1,12 +1,15 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { In, Repository } from 'typeorm';
 import { Track } from './entities/track.entity';
 import { TrackRepost } from './entities/track-reposts.entity';
 import { TrackLikes } from './entities/track-likes.entity';
 import { TrackComment } from './entities/track-comments.entity';
+import { Tag } from './entities/tag.entity';
+import { Genre } from '../genre/entities/genre.entity';
 import { AddCommentDto } from './dto/add-comment.dto';
 import { UploadTrackDto } from './dto/upload-track.dto';
+import { UpdateTrackDto } from './dto/update-track.dto';
 import { TrackStatus } from './enums/track-status.enum';
 import { TrackVisibility } from './enums/track-visibility.enum';
 
@@ -23,7 +26,13 @@ export class TrackRepository {
     private readonly trackLikesRepository: Repository<TrackLikes>,
 
     @InjectRepository(TrackComment)
-    private readonly trackCommentRepository: Repository<TrackComment>
+    private readonly trackCommentRepository: Repository<TrackComment>,
+
+    @InjectRepository(Genre)
+    private readonly genreRepository: Repository<Genre>,
+
+    @InjectRepository(Tag)
+    private readonly tagRepository: Repository<Tag>
   ) {}
 
   async findById(trackId: string): Promise<Track | null> {
@@ -249,6 +258,65 @@ export class TrackRepository {
       noDerivativeWorks: dto.noDerivativeWorks ?? false,
       shareAlike: dto.shareAlike ?? false,
     });
-    return this.trackRepository.save(track);
+
+    const savedTrack = await this.trackRepository.save(track);
+
+    if (dto.genreIds?.length) {
+      savedTrack.genres = await this.genreRepository.findBy({ genreId: In(dto.genreIds) });
+    }
+    if (dto.tags?.length) {
+      savedTrack.tags = await this.findOrCreateTags(dto.tags);
+    }
+    if (dto.genreIds?.length || dto.tags?.length) {
+      await this.trackRepository.save(savedTrack);
+    }
+
+    return savedTrack;
+  }
+
+  async updateTrack(trackId: string, dto: UpdateTrackDto, coverImageUrl?: string): Promise<Track> {
+    const { genreIds, tags: tagNames, ...scalarDto } = dto;
+
+    const updates: Partial<Track> = { ...(scalarDto as Partial<Track>) };
+    if (coverImageUrl !== undefined) updates.coverImage = coverImageUrl;
+    if (dto.releaseDate !== undefined)
+      updates.releaseDate = new Date(dto.releaseDate) as unknown as Date;
+
+    await this.trackRepository.update(trackId, updates);
+
+    const track = (await this.trackRepository.findOne({
+      where: { trackId },
+      relations: ['genres', 'tags'],
+    })) as Track;
+
+    if (genreIds !== undefined) {
+      track.genres = genreIds.length
+        ? await this.genreRepository.findBy({ genreId: In(genreIds) })
+        : [];
+    }
+    if (tagNames !== undefined) {
+      track.tags = tagNames.length ? await this.findOrCreateTags(tagNames) : [];
+    }
+    if (genreIds !== undefined || tagNames !== undefined) {
+      await this.trackRepository.save(track);
+    }
+
+    return track;
+  }
+
+  async setTrackProcessing(trackId: string): Promise<void> {
+    await this.trackRepository.update(trackId, { trackStatus: TrackStatus.PROCESSING });
+  }
+
+  private async findOrCreateTags(names: string[]): Promise<Tag[]> {
+    const trimmed = names.map((n) => n.trim()).filter(Boolean);
+    const existing = await this.tagRepository.findBy({ name: In(trimmed) });
+    const existingNames = new Set(existing.map((t) => t.name));
+    const created = await Promise.all(
+      trimmed
+        .filter((n) => !existingNames.has(n))
+        .map((name) => this.tagRepository.save(this.tagRepository.create({ name })))
+    );
+    return [...existing, ...created];
   }
 }

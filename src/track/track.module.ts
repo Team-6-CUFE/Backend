@@ -7,6 +7,8 @@ import { TrackController } from './track.controller';
 import { TrackRepository } from './track.repository';
 import { TrackRepost } from './entities/track-reposts.entity';
 import { Track } from './entities/track.entity';
+import { Tag } from './entities/tag.entity';
+import { Genre } from '../genre/entities/genre.entity';
 import { UserModule } from '../user/user.module';
 import { FollowersModule } from '../followers/followers.module';
 import { TrackLikes } from './entities/track-likes.entity';
@@ -17,7 +19,7 @@ import { AudioStorageModule } from '../audio/audio_storage.module';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([Track, TrackRepost, TrackLikes, TrackComment]),
+    TypeOrmModule.forFeature([Track, TrackRepost, TrackLikes, TrackComment, Genre, Tag]),
     BullModule.forRootAsync({
       imports: [ConfigModule],
       useFactory: (configService: ConfigService) => {

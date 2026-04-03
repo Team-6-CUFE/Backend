@@ -811,6 +811,17 @@ Subscribe to \`GET /tracks/:trackId/status/stream\` (SSE) to receive live progre
           noncommercial: { type: 'boolean', default: false },
           noDerivativeWorks: { type: 'boolean', default: false },
           shareAlike: { type: 'boolean', default: false },
+          // ── Genres & Tags ────────────────────────────────────────────────
+          genreIds: {
+            type: 'string',
+            description: 'Comma-separated genre UUIDs (must exist in the genres table)',
+            example: 'uuid-1,uuid-2',
+          },
+          tags: {
+            type: 'string',
+            description: 'Comma-separated tag names — auto-created if new',
+            example: 'lo-fi,chillhop,study',
+          },
         },
       },
     }),
@@ -878,5 +889,144 @@ The stream closes automatically once \`completed\` or \`failed\` is emitted.`,
       },
     }),
     ApiResponse({ status: 401, description: 'Unauthorized' })
+  );
+}
+
+// ─── Update Track Metadata ────────────────────────────────────────────────────
+
+export function ApiUpdateTrackMetadata() {
+  return applyDecorators(
+    ApiCookieAuth('access_token'),
+    ApiOperation({
+      summary: 'Update track metadata',
+      description: `Partial update — only fields included in the request are changed. Omitted fields remain unchanged.
+Send as \`multipart/form-data\` so a new cover image can optionally be included.
+\`previewStartTime\` is stored and will take effect the next time the audio is re-processed via \`PATCH /tracks/:trackId/audio\`.`,
+    }),
+    ApiConsumes('multipart/form-data'),
+    ApiParam({ name: 'trackId', description: 'UUID of the track to update', type: 'string' }),
+    ApiBody({
+      schema: {
+        type: 'object',
+        properties: {
+          cover: {
+            type: 'string',
+            format: 'binary',
+            description: 'New cover image — JPEG, PNG or WebP, max 10 MB',
+          },
+          title: { type: 'string', example: 'Midnight Drive (Extended Mix)' },
+          description: { type: 'string' },
+          previewStartTime: {
+            type: 'string',
+            example: '00:01:00',
+            description: 'HH:MM:SS — stored, applied on next audio re-upload',
+          },
+          visibility: { type: 'string', enum: ['public', 'private', 'follower_exclusive'] },
+          mainArtists: {
+            type: 'string',
+            example: 'DJ Nour,Yara Senousy',
+            description: 'Comma-separated',
+          },
+          buyLink: { type: 'string', example: 'https://bandcamp.com/track/midnight-drive' },
+          recordLabel: { type: 'string', example: 'Interscope Records' },
+          releaseDate: { type: 'string', example: '2026-06-01' },
+          publisher: { type: 'string', example: 'Sony Music Publishing' },
+          isrc: { type: 'string', example: 'USRC17607839' },
+          explicitContent: { type: 'boolean' },
+          pLine: { type: 'string', example: '℗ 2026 Atlantic Records' },
+          trackLink: { type: 'string', example: 'midnight-drive-extended' },
+          enableDirectDownloads: { type: 'boolean' },
+          offlineListening: { type: 'boolean' },
+          attribution: { type: 'boolean' },
+          noncommercial: { type: 'boolean' },
+          noDerivativeWorks: { type: 'boolean' },
+          shareAlike: { type: 'boolean' },
+          genreIds: {
+            type: 'string',
+            description: 'Comma-separated genre UUIDs — replaces the full genre list',
+            example: 'uuid-1,uuid-2',
+          },
+          tags: {
+            type: 'string',
+            description:
+              'Comma-separated tag names — replaces the full tag list, auto-created if new',
+            example: 'lo-fi,chillhop,study',
+          },
+        },
+      },
+    }),
+    ApiResponse({
+      status: 200,
+      description: 'Track metadata updated successfully',
+      schema: {
+        example: {
+          status: 'success',
+          data: {
+            trackId: '550e8400-e29b-41d4-a716-446655440001',
+            title: 'Midnight Drive (Extended Mix)',
+            visibility: 'public',
+            coverImage: 'https://s3.amazonaws.com/covers/new_cover.jpg',
+            updatedAt: '2026-04-03T01:00:00Z',
+          },
+        },
+      },
+    }),
+    ApiResponse({ status: 400, description: 'Invalid field values or cover image type/size' }),
+    ApiResponse({ status: 401, description: 'Unauthorized' }),
+    ApiResponse({ status: 403, description: 'You do not own this track' }),
+    ApiResponse({ status: 404, description: 'Track not found' })
+  );
+}
+
+// ─── Re-upload Track Audio ────────────────────────────────────────────────────
+
+export function ApiReuploadTrackAudio() {
+  return applyDecorators(
+    ApiCookieAuth('access_token'),
+    ApiOperation({
+      summary: 'Replace track audio file',
+      description: `Replaces the existing audio with a new file. Processing (transcoding, waveform, preview) restarts in the background.
+Subscribe to \`GET /tracks/:trackId/status/stream\` for live progress — the same SSE endpoint is reused.
+Returns immediately with \`trackStatus: "processing"\`. Rejected if the track is currently being processed.`,
+    }),
+    ApiConsumes('multipart/form-data'),
+    ApiParam({ name: 'trackId', description: 'UUID of the track', type: 'string' }),
+    ApiBody({
+      schema: {
+        type: 'object',
+        required: ['audio'],
+        properties: {
+          audio: {
+            type: 'string',
+            format: 'binary',
+            description: 'New audio file — MP3, WAV, FLAC or AIFF, max 4 GB',
+          },
+          previewStartTime: {
+            type: 'string',
+            example: '00:01:30',
+            description: 'HH:MM:SS — overrides stored value for this processing run',
+          },
+        },
+      },
+    }),
+    ApiResponse({
+      status: 200,
+      description: 'Audio re-upload accepted — processing started',
+      schema: {
+        example: {
+          status: 'success',
+          message: 'Audio re-upload started. Processing in background.',
+          data: {
+            trackId: '550e8400-e29b-41d4-a716-446655440001',
+            trackStatus: 'processing',
+          },
+        },
+      },
+    }),
+    ApiResponse({ status: 400, description: 'Missing audio file or invalid file type' }),
+    ApiResponse({ status: 401, description: 'Unauthorized' }),
+    ApiResponse({ status: 403, description: 'You do not own this track' }),
+    ApiResponse({ status: 404, description: 'Track not found' }),
+    ApiResponse({ status: 409, description: 'Track is currently being processed' })
   );
 }

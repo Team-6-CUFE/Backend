@@ -15,9 +15,12 @@ import { buildPaginationResponse } from '../common/utilities/pagination.util';
 import { UserRepository } from '../user/user.repository';
 import { TrackRepository } from './track.repository';
 import { UploadTrackDto } from './dto/upload-track.dto';
-import { AudioJobData } from '../audio/audio.processor';
+import { UpdateTrackDto } from './dto/update-track.dto';
+import { AudioJobData, PreviewJobData } from '../audio/audio.processor';
 import { StorageService } from '../common/storage_service';
 import { TrackVisibility } from './enums/track-visibility.enum';
+import { TrackStatus } from './enums/track-status.enum';
+import { Track } from './entities/track.entity';
 
 @Injectable()
 export class TrackService {
@@ -76,6 +79,110 @@ export class TrackService {
         trackStatus: savedTrack.trackStatus,
         createdAt: savedTrack.createdAt,
       },
+    };
+  }
+
+  /** Fetches a track — used by the SSE controller for late-subscriber check. */
+  async getTrackById(trackId: string): Promise<Track> {
+    const track = await this.trackRepository.findById(trackId);
+    if (!track) throw new NotFoundException('Track not found');
+    return track;
+  }
+
+  async updateTrackMetadata(
+    trackId: string,
+    userId: string,
+    dto: UpdateTrackDto,
+    coverFile?: Express.Multer.File
+  ) {
+    const track = await this.trackRepository.findById(trackId);
+    if (!track) throw new NotFoundException('Track not found');
+    if (track.userId !== userId) throw new ForbiddenException('You do not own this track');
+
+    // Upload new cover and delete old one atomically
+    let coverImageUrl: string | undefined;
+    if (coverFile) {
+      const uploaded = await this.storageService.uploadFile(coverFile);
+      coverImageUrl = uploaded.Location;
+      if (track.coverImage) {
+        await this.storageService.deleteFile(track.coverImage);
+      }
+    }
+
+    const updated = await this.trackRepository.updateTrack(trackId, dto, coverImageUrl);
+
+    // If previewStartTime changed on a finished track, regenerate the preview clip
+    const previewChanged =
+      dto.previewStartTime &&
+      dto.previewStartTime !== track.previewStartTime &&
+      track.trackStatus === TrackStatus.FINISHED &&
+      track.audioUrl;
+
+    if (previewChanged) {
+      const previewJobData: PreviewJobData = {
+        trackId,
+        audioUrl: track.audioUrl,
+        startTime: dto.previewStartTime!,
+        oldPreviewUrl: track.previewAudioUrl ?? undefined,
+      };
+      await this.audioQueue.add('regeneratePreview', previewJobData, {
+        jobId: `preview_${trackId}_${Date.now()}`,
+        attempts: 3,
+        backoff: { type: 'exponential', delay: 2000 },
+        removeOnComplete: true,
+        removeOnFail: false,
+      });
+    }
+
+    return { status: 'success', data: updated };
+  }
+
+  async reuploadTrackAudio(
+    trackId: string,
+    userId: string,
+    audioFile: Express.Multer.File,
+    previewStartTime?: string
+  ) {
+    const track = await this.trackRepository.findById(trackId);
+    if (!track) throw new NotFoundException('Track not found');
+    if (track.userId !== userId) throw new ForbiddenException('You do not own this track');
+    if (track.trackStatus === TrackStatus.PROCESSING) {
+      throw new ConflictException('Track is currently being processed. Please wait.');
+    }
+
+    // Remove any existing failed/stuck job so the new one can use the same jobId
+    try {
+      await this.audioQueue.remove(trackId);
+    } catch {
+      /* no-op */
+    }
+
+    const tempDir = os.tmpdir();
+    const tempFileName = `track_${Date.now()}_${audioFile.originalname}`;
+    const tempFilePath = path.join(tempDir, tempFileName);
+    fs.writeFileSync(tempFilePath, audioFile.buffer);
+
+    await this.trackRepository.setTrackProcessing(trackId);
+
+    const jobData: AudioJobData = {
+      trackId,
+      filePath: tempFilePath,
+      originalName: audioFile.originalname,
+      previewStartTime: previewStartTime ?? track.previewStartTime ?? '00:00:30',
+    };
+
+    await this.audioQueue.add('processAudio', jobData, {
+      jobId: trackId,
+      attempts: 3,
+      backoff: { type: 'exponential', delay: 5000 },
+      removeOnComplete: true,
+      removeOnFail: false,
+    });
+
+    return {
+      status: 'success',
+      message: 'Audio re-upload started. Processing in background.',
+      data: { trackId, trackStatus: TrackStatus.PROCESSING },
     };
   }
 

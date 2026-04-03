@@ -53,6 +53,10 @@ export class FfmpegService {
     });
   }
 
+  async extractPreview(audioFilePath: string, startTime: string): Promise<string> {
+    return this.createPreview(audioFilePath, startTime);
+  }
+
   private async generateWaveform(filePath: string, numSamples = 1000): Promise<number[]> {
     const rawPcmPath = `${filePath}_pcm.raw`;
 

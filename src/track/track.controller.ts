@@ -11,11 +11,12 @@ import {
   UseInterceptors,
   BadRequestException,
   UploadedFiles,
+  UploadedFile,
   Sse,
 } from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
-import { FileFieldsInterceptor } from '@nestjs/platform-express';
-import { Observable } from 'rxjs';
+import { FileFieldsInterceptor, FileInterceptor } from '@nestjs/platform-express';
+import { Observable, from, of, switchMap } from 'rxjs';
 import { TrackService } from './track.service';
 import {
   ApiEditTrackRepost,
@@ -34,12 +35,16 @@ import {
   ApiGetTrackComments,
   ApiUploadTrack,
   ApiStreamTrackStatus,
+  ApiUpdateTrackMetadata,
+  ApiReuploadTrackAudio,
 } from './track.swagger';
 import { CurrentUser } from '../authentication/decorators/current-user.decorator';
 import { CheckBlock } from '../followers/decorators/no-block.decorator';
 import { AddCommentDto } from './dto/add-comment.dto';
 import { UploadTrackDto } from './dto/upload-track.dto';
+import { UpdateTrackDto } from './dto/update-track.dto';
 import { TrackSseService } from './services/track-sse.service';
+import { TrackStatus } from './enums/track-status.enum';
 
 const ALLOWED_AUDIO_MIME_TYPES = [
   'audio/mpeg',
@@ -254,6 +259,78 @@ export class TrackController {
   @ApiStreamTrackStatus()
   @Sse(':trackId/status/stream')
   streamTrackStatus(@Param('trackId', ParseUUIDPipe) trackId: string): Observable<MessageEvent> {
-    return this.trackSseService.getStream(trackId);
+    // if processing already finished, emit terminal event immediately
+    return from(this.trackService.getTrackById(trackId)).pipe(
+      switchMap((track) => {
+        if (track.trackStatus === TrackStatus.FINISHED) {
+          return of({
+            data: {
+              event: 'completed',
+              data: {
+                trackId,
+                audioUrl: track.audioUrl,
+                audioUrlHq: track.audioUrlHq,
+                previewAudioUrl: track.previewAudioUrl,
+                waveformUrl: track.waveformUrl,
+                durationSeconds: track.durationSeconds,
+              },
+            },
+          } as MessageEvent);
+        }
+        if (track.trackStatus === TrackStatus.FAILED) {
+          return of({
+            data: { event: 'failed', data: { trackId, error: 'Processing failed' } },
+          } as MessageEvent);
+        }
+        return this.trackSseService.getStream(trackId);
+      })
+    );
+  }
+
+  @ApiUpdateTrackMetadata()
+  @Patch(':trackId/metadata')
+  @UseInterceptors(
+    FileInterceptor('cover', {
+      limits: { fileSize: MAX_IMAGE_SIZE },
+      fileFilter: (_, file, cb) => {
+        if (ALLOWED_IMAGE_MIME_TYPES.includes(file.mimetype)) {
+          cb(null, true);
+        } else {
+          cb(new BadRequestException('Invalid cover type. Allowed: JPEG, PNG, WebP'), false);
+        }
+      },
+    })
+  )
+  updateTrackMetadata(
+    @Param('trackId', ParseUUIDPipe) trackId: string,
+    @CurrentUser('sub') userId: string,
+    @Body() dto: UpdateTrackDto,
+    @UploadedFile() coverFile?: Express.Multer.File
+  ) {
+    return this.trackService.updateTrackMetadata(trackId, userId, dto, coverFile);
+  }
+
+  @ApiReuploadTrackAudio()
+  @Patch(':trackId/audio')
+  @UseInterceptors(
+    FileInterceptor('audio', {
+      limits: { fileSize: MAX_AUDIO_SIZE },
+      fileFilter: (_, file, cb) => {
+        if (ALLOWED_AUDIO_MIME_TYPES.includes(file.mimetype)) {
+          cb(null, true);
+        } else {
+          cb(new BadRequestException('Invalid audio type. Allowed: MP3, WAV, FLAC, AIFF'), false);
+        }
+      },
+    })
+  )
+  async reuploadTrackAudio(
+    @Param('trackId', ParseUUIDPipe) trackId: string,
+    @CurrentUser('sub') userId: string,
+    @UploadedFile() audioFile: Express.Multer.File,
+    @Body('previewStartTime') previewStartTime?: string
+  ) {
+    if (!audioFile) throw new BadRequestException('Audio file is required');
+    return this.trackService.reuploadTrackAudio(trackId, userId, audioFile, previewStartTime);
   }
 }
