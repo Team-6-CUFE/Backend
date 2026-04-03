@@ -3,7 +3,9 @@ import {
   Column,
   PrimaryGeneratedColumn,
   ManyToOne,
+  ManyToMany,
   JoinColumn,
+  JoinTable,
   Relation,
   OneToMany,
 } from 'typeorm';
@@ -14,6 +16,8 @@ import { TrackComment } from './track-comments.entity';
 import { TrackRepost } from './track-reposts.entity';
 import { TrackStatus } from '../enums/track-status.enum';
 import { TrackVisibility } from '../enums/track-visibility.enum';
+import { Genre } from '../../genre/entities/genre.entity';
+import { Tag } from './tag.entity';
 
 @Entity('tracks')
 export class Track extends BaseEntity {
@@ -68,6 +72,15 @@ export class Track extends BaseEntity {
 
   @Column({ name: 'preview_audio_url', type: 'varchar', length: 500, nullable: true })
   previewAudioUrl!: string;
+
+  @Column({
+    name: 'preview_start_time',
+    type: 'varchar',
+    length: 20,
+    nullable: true,
+    default: '00:00:30',
+  })
+  previewStartTime!: string;
 
   @Column({ name: 'waveform_url', type: 'varchar', length: 500, nullable: true })
   waveformUrl!: string;
@@ -141,4 +154,20 @@ export class Track extends BaseEntity {
 
   @OneToMany(() => TrackRepost, (repost) => repost.track)
   reposts!: TrackRepost[];
+
+  @ManyToMany(() => Genre)
+  @JoinTable({
+    name: 'track_genres',
+    joinColumn: { name: 'track_id', referencedColumnName: 'trackId' },
+    inverseJoinColumn: { name: 'genre_id', referencedColumnName: 'genreId' },
+  })
+  genres!: Genre[];
+
+  @ManyToMany(() => Tag, (tag) => tag.tracks)
+  @JoinTable({
+    name: 'track_tags',
+    joinColumn: { name: 'track_id', referencedColumnName: 'trackId' },
+    inverseJoinColumn: { name: 'tag_id', referencedColumnName: 'tagId' },
+  })
+  tags!: Tag[];
 }

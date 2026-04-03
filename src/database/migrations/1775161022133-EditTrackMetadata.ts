@@ -23,6 +23,7 @@ export class EditTrackMetadata1775161022133 implements MigrationInterface {
         ADD COLUMN IF NOT EXISTS explicit_content        BOOLEAN NOT NULL DEFAULT false,
         ADD COLUMN IF NOT EXISTS p_line                  VARCHAR(500),
         ADD COLUMN IF NOT EXISTS track_link              VARCHAR(500),
+        ADD COLUMN IF NOT EXISTS preview_start_time      VARCHAR(20) NOT NULL DEFAULT '00:00:30',
         ADD COLUMN IF NOT EXISTS enable_direct_downloads BOOLEAN NOT NULL DEFAULT false,
         ADD COLUMN IF NOT EXISTS offline_listening       BOOLEAN NOT NULL DEFAULT false,
         ADD COLUMN IF NOT EXISTS attribution             BOOLEAN NOT NULL DEFAULT false,

@@ -1,11 +1,10 @@
-import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { ApiPropertyOptional } from '@nestjs/swagger';
 import {
   IsArray,
   IsBoolean,
   IsDateString,
   IsEnum,
   IsISRC,
-  IsNotEmpty,
   IsOptional,
   IsString,
   IsUrl,
@@ -14,12 +13,14 @@ import {
 import { Transform } from 'class-transformer';
 import { TrackVisibility } from '../enums/track-visibility.enum';
 
-export class UploadTrackDto {
-  @ApiProperty({ description: 'Track title', example: 'My Track' })
-  @IsNotEmpty()
+export class UpdateTrackDto {
+  // ── Core ─────────────────────────────────────────────────────────────────
+
+  @ApiPropertyOptional({ description: 'Track title', example: 'Midnight Drive (Extended Mix)' })
+  @IsOptional()
   @IsString()
   @MaxLength(255)
-  title!: string;
+  title?: string;
 
   @ApiPropertyOptional({ description: 'Track description' })
   @IsOptional()
@@ -27,8 +28,9 @@ export class UploadTrackDto {
   description?: string;
 
   @ApiPropertyOptional({
-    description: 'Preview start time in HH:MM:SS format',
-    example: '00:00:30',
+    description:
+      'Preview clip start time in HH:MM:SS format (stored; takes effect on next audio re-upload)',
+    example: '00:01:00',
   })
   @IsOptional()
   @IsString()
@@ -37,14 +39,15 @@ export class UploadTrackDto {
   @ApiPropertyOptional({
     description: 'Track visibility',
     enum: TrackVisibility,
-    default: TrackVisibility.PUBLIC,
   })
   @IsOptional()
   @IsEnum(TrackVisibility)
   visibility?: TrackVisibility;
 
+  // ── Artists ───────────────────────────────────────────────────────────────
+
   @ApiPropertyOptional({
-    description: 'Main artist names',
+    description: 'Main artist names (comma-separated string or JSON array)',
     type: [String],
     example: ['Artist A', 'Artist B'],
   })
@@ -56,95 +59,95 @@ export class UploadTrackDto {
   )
   mainArtists?: string[];
 
-  @ApiPropertyOptional({ description: 'Buy/purchase link', example: 'https://bandcamp.com/...' })
+  // ── Distribution metadata ─────────────────────────────────────────────────
+
+  @ApiPropertyOptional({ example: 'https://bandcamp.com/track/midnight-drive' })
   @IsOptional()
   @IsUrl()
   buyLink?: string;
 
-  @ApiPropertyOptional({ description: 'Record label name', example: 'Interscope Records' })
+  @ApiPropertyOptional({ example: 'Interscope Records' })
   @IsOptional()
   @IsString()
   @MaxLength(255)
   recordLabel?: string;
 
-  @ApiPropertyOptional({ description: 'Release date (ISO 8601)', example: '2026-06-01' })
+  @ApiPropertyOptional({ example: '2026-06-01' })
   @IsOptional()
   @IsDateString()
   releaseDate?: string;
 
-  @ApiPropertyOptional({ description: 'Publisher name', example: 'Sony Music Publishing' })
+  @ApiPropertyOptional({ example: 'Sony Music Publishing' })
   @IsOptional()
   @IsString()
   @MaxLength(255)
   publisher?: string;
 
-  @ApiPropertyOptional({
-    description: 'International Standard Recording Code (ISRC)',
-    example: 'USRC17607839',
-  })
+  @ApiPropertyOptional({ example: 'USRC17607839' })
   @IsOptional()
   @IsISRC()
   isrc?: string;
 
-  @ApiPropertyOptional({ description: 'Contains explicit content', default: false })
+  @ApiPropertyOptional({ default: false })
   @IsOptional()
   @IsBoolean()
   @Transform(({ value }) => value === 'true' || value === true)
   explicitContent?: boolean;
 
-  @ApiPropertyOptional({
-    description: 'Phonogram copyright line',
-    example: '℗ 2026 Atlantic Records',
-  })
+  @ApiPropertyOptional({ example: '℗ 2026 Atlantic Records' })
   @IsOptional()
   @IsString()
   @MaxLength(500)
   pLine?: string;
 
-  @ApiPropertyOptional({ description: 'Custom track permalink', example: 'my-track-2026' })
+  @ApiPropertyOptional({ example: 'midnight-drive-extended' })
   @IsOptional()
   @IsString()
   @MaxLength(500)
   trackLink?: string;
 
-  @ApiPropertyOptional({ description: 'Allow direct audio file downloads', default: false })
+  // ── Playback permissions ──────────────────────────────────────────────────
+
+  @ApiPropertyOptional({ default: false })
   @IsOptional()
   @IsBoolean()
   @Transform(({ value }) => value === 'true' || value === true)
   enableDirectDownloads?: boolean;
 
-  @ApiPropertyOptional({ description: 'Allow offline listening', default: false })
+  @ApiPropertyOptional({ default: false })
   @IsOptional()
   @IsBoolean()
   @Transform(({ value }) => value === 'true' || value === true)
   offlineListening?: boolean;
 
-  @ApiPropertyOptional({ description: 'Require attribution', default: false })
+  // ── Licensing ─────────────────────────────────────────────────────────────
+
+  @ApiPropertyOptional({ default: false })
   @IsOptional()
   @IsBoolean()
   @Transform(({ value }) => value === 'true' || value === true)
   attribution?: boolean;
 
-  @ApiPropertyOptional({ description: 'Noncommercial use only', default: false })
+  @ApiPropertyOptional({ default: false })
   @IsOptional()
   @IsBoolean()
   @Transform(({ value }) => value === 'true' || value === true)
   noncommercial?: boolean;
 
-  @ApiPropertyOptional({ description: 'No derivative works allowed', default: false })
+  @ApiPropertyOptional({ default: false })
   @IsOptional()
   @IsBoolean()
   @Transform(({ value }) => value === 'true' || value === true)
   noDerivativeWorks?: boolean;
 
-  @ApiPropertyOptional({ description: 'Share alike required', default: false })
+  @ApiPropertyOptional({ default: false })
   @IsOptional()
   @IsBoolean()
   @Transform(({ value }) => value === 'true' || value === true)
   shareAlike?: boolean;
 
   @ApiPropertyOptional({
-    description: 'Genre UUIDs to attach to this track',
+    description: 'Genre UUIDs — replaces the full genre list',
     type: [String],
     example: ['uuid-1', 'uuid-2'],
   })
@@ -157,7 +160,7 @@ export class UploadTrackDto {
   genreIds?: string[];
 
   @ApiPropertyOptional({
-    description: 'Tag names (auto-created if they do not exist)',
+    description: 'Tag names — replaces the full tag list (auto-created if new)',
     type: [String],
     example: ['lo-fi', 'chillhop', 'study'],
   })
