@@ -1,9 +1,16 @@
 import { Injectable } from '@nestjs/common';
 import ffmpeg from 'fluent-ffmpeg';
 import * as fs from 'node:fs';
+import * as ffmpegInstaller from '@ffmpeg-installer/ffmpeg';
+import * as ffprobeInstaller from '@ffprobe-installer/ffprobe';
 
 @Injectable()
 export class FfmpegService {
+  constructor() {
+    ffmpeg.setFfmpegPath(ffmpegInstaller.path);
+    ffmpeg.setFfprobePath(ffprobeInstaller.path);
+  }
+
   private transcodeHq(filePath: string, onProgress?: (percent: number) => void): Promise<string> {
     const outputPath = `${filePath}_hq.mp3`;
     return new Promise((resolve, reject) => {

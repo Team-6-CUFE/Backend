@@ -10,6 +10,14 @@ import { StorageService } from '../common/storage_service';
 import { Track } from '../track/entities/track.entity';
 import { TrackStatus } from '../track/enums/track-status.enum';
 
+export interface AudioJobResult {
+  audioUrl: string;
+  audioUrlHq: string;
+  previewAudioUrl: string;
+  waveformUrl: string;
+  durationSeconds: number;
+}
+
 export interface AudioJobData {
   trackId: string;
   filePath: string;
@@ -30,7 +38,7 @@ export class AudioProcessor extends WorkerHost {
     super();
   }
 
-  async process(job: Job<AudioJobData>): Promise<void> {
+  async process(job: Job<AudioJobData>): Promise<AudioJobResult> {
     const { trackId, filePath, originalName, previewStartTime } = job.data;
 
     this.logger.log(`Processing audio job for track ${trackId}`);
@@ -83,17 +91,24 @@ export class AudioProcessor extends WorkerHost {
       await job.updateProgress(90);
 
       // Step 3 — update track record in DB
-      await this.trackRepository.update(trackId, {
+      const result: AudioJobResult = {
         audioUrl: hqUpload.Location,
         audioUrlHq: standardUpload.Location,
         previewAudioUrl: previewUpload.Location,
         waveformUrl: waveformUpload.Location,
         durationSeconds: duration,
+      };
+
+      await this.trackRepository.update(trackId, {
+        ...result,
         trackStatus: TrackStatus.FINISHED,
       });
 
       await job.updateProgress(100);
       this.logger.log(`Track ${trackId} processed successfully`);
+
+      // Return value is serialized by BullMQ and forwarded to the QueueEvents 'completed' event
+      return result;
     } catch (error) {
       this.logger.error(`Failed to process track ${trackId}:`, error);
 
@@ -116,12 +131,12 @@ export class AudioProcessor extends WorkerHost {
 
   @OnWorkerEvent('completed')
   onCompleted(job: Job) {
-    this.logger.log(`Job ${job.id} completed for track ${job.data.track_id}`);
+    this.logger.log(`Job ${job.id} completed for track ${job.data.trackId}`);
   }
 
   @OnWorkerEvent('failed')
   onFailed(job: Job, error: Error) {
-    this.logger.error(`Job ${job.id} failed for track ${job.data.track_id}: ${error.message}`);
+    this.logger.error(`Job ${job.id} failed for track ${job.data.trackId}: ${error.message}`);
   }
 
   private cleanupTempFiles(paths: string[]) {

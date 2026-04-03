@@ -21,11 +21,21 @@ export class AudioQueueEventsListener extends QueueEventsHost {
   }
 
   @OnQueueEvent('completed')
-  onCompleted({ jobId, returnvalue }: { jobId: string; returnvalue: string }): void {
+  onCompleted({
+    jobId,
+    returnvalue,
+  }: {
+    jobId: string;
+    returnvalue: string | Record<string, unknown>;
+  }): void {
     this.logger.log(`Audio job completed for track ${jobId}`);
+
+    const parsedValue = typeof returnvalue === 'string' ? JSON.parse(returnvalue) : returnvalue;
+    const result: Record<string, unknown> = parsedValue || {};
+
     this.trackSseService.emit(jobId, {
       event: 'completed',
-      data: { trackId: jobId, ...(returnvalue ? JSON.parse(returnvalue) : {}) },
+      data: { trackId: jobId, ...result },
     });
     this.trackSseService.complete(jobId);
   }
