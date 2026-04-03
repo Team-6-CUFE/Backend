@@ -571,3 +571,71 @@ export function ApiDeletePlaylist() {
     })
   );
 }
+
+export function ApiCreatePlaylist() {
+  return applyDecorators(
+    ApiCookieAuth('access_token'),
+    ApiOperation({
+      summary: "Get a user's liked playlists",
+      description: 'Returns a paginated list of playlists that the specified user has liked.',
+    }),
+    ApiParam({ name: 'user_id', type: 'string', format: 'uuid', description: 'UUID of the user' }),
+    ApiQuery({
+      name: 'page',
+      required: false,
+      type: Number,
+      example: 1,
+      description: 'Page number (default: 1)',
+    }),
+    ApiQuery({
+      name: 'limit',
+      required: false,
+      type: Number,
+      example: 20,
+      description: 'Items per page, capped at 100 (default: 20)',
+    }),
+    ApiResponse({
+      status: 200,
+      description: 'User liked playlists retrieved successfully',
+      schema: {
+        example: {
+          status: 'success',
+          data: [
+            {
+              playlistId: '550e8400-e29b-41d4-a716-446655440000',
+              title: 'Summer Hits',
+              coverImage: 'https://example.com/cover.jpg',
+              isPublic: true,
+              tracksCount: 5,
+              likesCount: 150,
+              repostsCount: 12,
+              user: {
+                userId: '550e8400-e29b-41d4-a716-446655440002',
+                username: 'playlist_creator',
+                displayName: 'The Creator',
+              },
+              likedAt: '2026-03-31T12:00:00Z',
+            },
+          ],
+          pagination: {
+            currentPage: 1,
+            totalPages: 2,
+            totalCount: 25,
+            limit: 20,
+          },
+        },
+      },
+    }),
+    ApiResponse({ status: 401, description: 'Unauthorized' }),
+    ApiResponse({
+      status: 403,
+      description: 'This account is private',
+      schema: { example: { statusCode: 403, message: 'This account is private' } },
+    }),
+    ApiResponse({
+      status: 404,
+      description: 'User not found',
+      schema: { example: { statusCode: 404, message: 'User not found' } },
+    })
+  );
+}

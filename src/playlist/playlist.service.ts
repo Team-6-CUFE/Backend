@@ -8,6 +8,7 @@ import {
 import { PlaylistRepository } from './playlist.repository';
 import { buildPaginationResponse } from '../common/utilities/pagination.util';
 import { UserRepository } from '../user/user.repository';
+import { CreatePlaylistDto } from './dto/create-playlist.dto';
 
 @Injectable()
 export class PlaylistService {
@@ -298,5 +299,10 @@ export class PlaylistService {
       status: 'success',
       message: 'Playlist deleted successfully ',
     };
+  }
+
+  async createPlaylist(createPlaylistDto: CreatePlaylistDto) {
+    // await this.playlistRepository.createPlaylist(createPlaylistDto);
+    console.log(createPlaylistDto);
   }
 }
