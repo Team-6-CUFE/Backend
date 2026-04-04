@@ -49,15 +49,15 @@ services:
       - /etc/letsencrypt:/etc/nginx/certs:ro
     depends_on:
       - backend
-      # - frontend
+      - frontend
 
-  # frontend:
-  #   image: elhussienawad/harmonica-frontend:latest
-  #   build:
-  #     context: ../Frontend
-  #     dockerfile: Docker/Dockerfile.prod
-  #   container_name: harmonica-frontend-prod
-  #   restart: always
+  frontend:
+    image: elhussienawad/harmonica-frontend:latest
+    build:
+      context: ../Frontend
+      dockerfile: Docker/Dockerfile.prod
+    container_name: harmonica-frontend-prod
+    restart: always
 
 volumes:
   pg_data:
