@@ -8,8 +8,15 @@ import {
   Delete,
   Patch,
   Query,
+  UseInterceptors,
+  BadRequestException,
+  UploadedFiles,
+  UploadedFile,
+  Sse,
 } from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
+import { FileFieldsInterceptor, FileInterceptor } from '@nestjs/platform-express';
+import { Observable, from, of, switchMap } from 'rxjs';
 import { TrackService } from './track.service';
 import {
   ApiEditTrackRepost,
@@ -26,15 +33,37 @@ import {
   ApiTrackComment,
   ApiDeleteComment,
   ApiGetTrackComments,
+  ApiUploadTrack,
+  ApiStreamTrackStatus,
+  ApiUpdateTrackMetadata,
+  ApiReuploadTrackAudio,
 } from './track.swagger';
 import { CurrentUser } from '../authentication/decorators/current-user.decorator';
 import { CheckBlock } from '../followers/decorators/no-block.decorator';
 import { AddCommentDto } from './dto/add-comment.dto';
+import { UploadTrackDto } from './dto/upload-track.dto';
+import { UpdateTrackDto } from './dto/update-track.dto';
+import { TrackSseService } from './services/track-sse.service';
+import { TrackStatus } from './enums/track-status.enum';
+
+const ALLOWED_AUDIO_MIME_TYPES = [
+  'audio/mpeg',
+  'audio/wav',
+  'audio/flac',
+  'audio/aiff',
+  'audio/x-aiff',
+];
+const ALLOWED_IMAGE_MIME_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
+const MAX_AUDIO_SIZE = 4 * 1024 * 1024 * 1024; // 4 GB
+const MAX_IMAGE_SIZE = 10 * 1024 * 1024; // 10 MB
 
 @ApiTags('Tracks')
 @Controller('tracks')
 export class TrackController {
-  constructor(private readonly trackService: TrackService) {}
+  constructor(
+    private readonly trackService: TrackService,
+    private readonly trackSseService: TrackSseService
+  ) {}
 
   @ApiRepostTrack()
   @Post(':trackId/repost')
@@ -177,5 +206,131 @@ export class TrackController {
     @Query('order') order: 'timestamp' | 'newest' | 'oldest' = 'timestamp'
   ) {
     return this.trackService.getTrackComments(trackId, userId, page, limit, order);
+  }
+
+  @ApiUploadTrack()
+  @Post('upload')
+  @UseInterceptors(
+    FileFieldsInterceptor(
+      [
+        { name: 'audio', maxCount: 1 },
+        { name: 'cover', maxCount: 1 },
+      ],
+      {
+        limits: { fileSize: MAX_AUDIO_SIZE },
+        fileFilter: (_, file, cb) => {
+          if (file.fieldname === 'audio') {
+            if (ALLOWED_AUDIO_MIME_TYPES.includes(file.mimetype)) {
+              cb(null, true);
+            } else {
+              cb(
+                new BadRequestException('Invalid audio type. Allowed: MP3, WAV, FLAC, AIFF'),
+                false
+              );
+            }
+          } else if (file.fieldname === 'cover') {
+            if (file.size > MAX_IMAGE_SIZE) {
+              cb(new BadRequestException('Cover image must be under 10 MB'), false);
+            } else if (ALLOWED_IMAGE_MIME_TYPES.includes(file.mimetype)) {
+              cb(null, true);
+            } else {
+              cb(new BadRequestException('Invalid cover type. Allowed: JPEG, PNG, WebP'), false);
+            }
+          } else {
+            cb(null, false);
+          }
+        },
+      }
+    )
+  )
+  async uploadTrack(
+    @CurrentUser('sub') userId: string,
+    @Body() dto: UploadTrackDto,
+    @UploadedFiles() files: { audio?: Express.Multer.File[]; cover?: Express.Multer.File[] }
+  ) {
+    const audioFile = files?.audio?.[0];
+    if (!audioFile) {
+      throw new BadRequestException('Audio file is required');
+    }
+    const coverFile = files?.cover?.[0];
+    return this.trackService.uploadTrack(userId, dto, audioFile, coverFile);
+  }
+
+  @ApiStreamTrackStatus()
+  @Sse(':trackId/status/stream')
+  streamTrackStatus(@Param('trackId', ParseUUIDPipe) trackId: string): Observable<MessageEvent> {
+    // if processing already finished, emit terminal event immediately
+    return from(this.trackService.getTrackById(trackId)).pipe(
+      switchMap((track) => {
+        if (track.trackStatus === TrackStatus.FINISHED) {
+          return of({
+            data: {
+              event: 'completed',
+              data: {
+                trackId,
+                audioUrl: track.audioUrl,
+                audioUrlHq: track.audioUrlHq,
+                previewAudioUrl: track.previewAudioUrl,
+                waveformUrl: track.waveformUrl,
+                durationSeconds: track.durationSeconds,
+              },
+            },
+          } as MessageEvent);
+        }
+        if (track.trackStatus === TrackStatus.FAILED) {
+          return of({
+            data: { event: 'failed', data: { trackId, error: 'Processing failed' } },
+          } as MessageEvent);
+        }
+        return this.trackSseService.getStream(trackId);
+      })
+    );
+  }
+
+  @ApiUpdateTrackMetadata()
+  @Patch(':trackId/metadata')
+  @UseInterceptors(
+    FileInterceptor('cover', {
+      limits: { fileSize: MAX_IMAGE_SIZE },
+      fileFilter: (_, file, cb) => {
+        if (ALLOWED_IMAGE_MIME_TYPES.includes(file.mimetype)) {
+          cb(null, true);
+        } else {
+          cb(new BadRequestException('Invalid cover type. Allowed: JPEG, PNG, WebP'), false);
+        }
+      },
+    })
+  )
+  updateTrackMetadata(
+    @Param('trackId', ParseUUIDPipe) trackId: string,
+    @CurrentUser('sub') userId: string,
+    @Body() dto: UpdateTrackDto,
+    @UploadedFile() coverFile?: Express.Multer.File
+  ) {
+    return this.trackService.updateTrackMetadata(trackId, userId, dto, coverFile);
+  }
+
+  @ApiReuploadTrackAudio()
+  @Patch(':trackId/audio')
+  @UseInterceptors(
+    FileInterceptor('audio', {
+      limits: { fileSize: MAX_AUDIO_SIZE },
+      fileFilter: (_, file, cb) => {
+        if (ALLOWED_AUDIO_MIME_TYPES.includes(file.mimetype)) {
+          cb(null, true);
+        } else {
+          cb(new BadRequestException('Invalid audio type. Allowed: MP3, WAV, FLAC, AIFF'), false);
+        }
+      },
+    })
+  )
+  async reuploadTrackAudio(
+    @Param('trackId', ParseUUIDPipe) trackId: string,
+    @CurrentUser('sub') userId: string,
+    @UploadedFile() audioFile: Express.Multer.File,
+    @Body('previewStartTime') previewStartTime?: string
+  ) {
+    if (!audioFile) throw new BadRequestException('Audio file is required');
+    return this.trackService.reuploadTrackAudio(trackId, userId, audioFile, previewStartTime);
   }
 }
