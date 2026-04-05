@@ -1030,3 +1030,179 @@ Returns immediately with \`trackStatus: "processing"\`. Rejected if the track is
     ApiResponse({ status: 409, description: 'Track is currently being processed' })
   );
 }
+
+// ─── Get User Uploaded Tracks ─────────────────────────────────────────────────
+
+export function ApiGetUserTracks() {
+  return applyDecorators(
+    ApiCookieAuth('access_token'),
+    ApiOperation({
+      summary: 'Get tracks uploaded by a user',
+      description:
+        'Returns a paginated list of finished tracks uploaded by the specified user. ' +
+        'The owner sees all visibility levels (public, private, follower_exclusive). ' +
+        'Others see only public tracks. Private profiles are inaccessible to non-owners.',
+    }),
+    ApiParam({ name: 'userId', description: 'UUID of the user', type: 'string' }),
+    ApiQuery({ name: 'page', required: false, type: 'number', example: 1 }),
+    ApiQuery({
+      name: 'limit',
+      required: false,
+      type: 'number',
+      example: 20,
+      description: 'Items per page, capped at 100',
+    }),
+    ApiResponse({
+      status: 200,
+      description: 'Paginated list of uploaded tracks',
+      schema: {
+        example: {
+          status: 'success',
+          data: [
+            {
+              trackId: '550e8400-e29b-41d4-a716-446655440001',
+              title: 'Midnight Drive',
+              description: 'Lo-fi session recorded live.',
+              coverImage: 'https://s3.amazonaws.com/covers/midnight.jpg',
+              waveformUrl: 'https://s3.amazonaws.com/waveforms/midnight.json',
+              durationSeconds: 213,
+              playCount: 1500,
+              likesCount: 320,
+              repostsCount: 30,
+              commentsCount: 14,
+              visibility: 'public',
+              explicitContent: false,
+              createdAt: '2024-06-01T12:00:00Z',
+            },
+          ],
+          pagination: { currentPage: 1, totalPages: 3, totalCount: 42, limit: 20 },
+        },
+      },
+    }),
+    ApiResponse({
+      status: 403,
+      description: 'Profile is private',
+      schema: { example: { statusCode: 403, message: 'This account is private' } },
+    }),
+    ApiResponse({
+      status: 404,
+      description: 'User not found',
+      schema: { example: { statusCode: 404, message: 'User not found' } },
+    }),
+    ApiResponse({ status: 401, description: 'Unauthorized' })
+  );
+}
+
+// ─── Get Upload Quota ─────────────────────────────────────────────────────────
+
+export function ApiGetUploadQuota() {
+  return applyDecorators(
+    ApiCookieAuth('access_token'),
+    ApiOperation({
+      summary: 'Get upload quota usage',
+      description:
+        'Returns how many minutes of audio the current user has uploaded versus their plan limit. ' +
+        'Quota is calculated from total duration of all finished tracks. ' +
+        'Limits: free = 120 min, pro = 180 min, premium = unlimited.',
+    }),
+    ApiResponse({
+      status: 200,
+      description: 'Upload quota returned',
+      schema: {
+        example: {
+          status: 'success',
+          data: {
+            plan: 'pro',
+            usedMinutes: 87,
+            limitMinutes: 180,
+            remainingMinutes: 153,
+          },
+        },
+      },
+    }),
+    ApiResponse({
+      status: 200,
+      description: 'Unlimited plan example',
+      schema: {
+        example: {
+          status: 'success',
+          data: {
+            plan: 'premium',
+            usedMinutes: 312,
+            limitMinutes: null,
+            remainingMinutes: null,
+          },
+        },
+      },
+    }),
+    ApiResponse({
+      status: 404,
+      description: 'User not found',
+      schema: { example: { statusCode: 404, message: 'User does not exist' } },
+    }),
+    ApiResponse({ status: 401, description: 'Unauthorized' })
+  );
+}
+
+// ─── Get Track Playlists ──────────────────────────────────────────────────────
+
+export function ApiGetTrackPlaylists() {
+  return applyDecorators(
+    ApiCookieAuth('access_token'),
+    ApiOperation({
+      summary: 'Get playlists containing a track',
+      description:
+        'Returns a paginated list of playlists that include this track. ' +
+        'Public playlists are always shown. Private playlists are only shown to their owner. ' +
+        'Returns 403 if the track itself is private and the requester is not the owner.',
+    }),
+    ApiParam({ name: 'trackId', description: 'UUID of the track', type: 'string' }),
+    ApiQuery({ name: 'page', required: false, type: 'number', example: 1 }),
+    ApiQuery({
+      name: 'limit',
+      required: false,
+      type: 'number',
+      example: 20,
+      description: 'Items per page, capped at 100',
+    }),
+    ApiResponse({
+      status: 200,
+      description: 'Paginated list of playlists',
+      schema: {
+        example: {
+          status: 'success',
+          data: [
+            {
+              playlistId: '660e8400-e29b-41d4-a716-446655440010',
+              title: 'Late Night Vibes',
+              description: 'Chill tracks for late nights.',
+              coverImage: 'https://s3.amazonaws.com/covers/late-night.jpg',
+              isPublic: true,
+              tracksCount: 14,
+              totalDurationSeconds: 3120,
+              owner: {
+                userId: '550e8400-e29b-41d4-a716-446655440001',
+                username: 'dj_nour',
+                displayName: 'Nour',
+                avatarUrl: 'https://s3.amazonaws.com/avatars/nour.jpg',
+              },
+              addedAt: '2024-06-01T12:00:00Z',
+            },
+          ],
+          pagination: { currentPage: 1, totalPages: 2, totalCount: 18, limit: 20 },
+        },
+      },
+    }),
+    ApiResponse({
+      status: 403,
+      description: 'Track is private',
+      schema: { example: { statusCode: 403, message: 'This track is private' } },
+    }),
+    ApiResponse({
+      status: 404,
+      description: 'Track not found',
+      schema: { example: { statusCode: 404, message: 'Track not found' } },
+    }),
+    ApiResponse({ status: 401, description: 'Unauthorized' })
+  );
+}

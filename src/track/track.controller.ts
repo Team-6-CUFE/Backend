@@ -37,6 +37,9 @@ import {
   ApiStreamTrackStatus,
   ApiUpdateTrackMetadata,
   ApiReuploadTrackAudio,
+  ApiGetUploadQuota,
+  ApiGetUserTracks,
+  ApiGetTrackPlaylists,
 } from './track.swagger';
 import { CurrentUser } from '../authentication/decorators/current-user.decorator';
 import { CheckBlock } from '../followers/decorators/no-block.decorator';
@@ -332,5 +335,33 @@ export class TrackController {
   ) {
     if (!audioFile) throw new BadRequestException('Audio file is required');
     return this.trackService.reuploadTrackAudio(trackId, userId, audioFile, previewStartTime);
+  }
+
+  @ApiGetUploadQuota()
+  @Get('/users/upload-qouta')
+  async getUserTimeUser(@CurrentUser('sub') userId: string) {
+    return this.trackService.getUserQuota(userId);
+  }
+
+  @ApiGetUserTracks()
+  @Get('users/:userId/tracks')
+  async getUserUploadedTracks(
+    @Param('userId', ParseUUIDPipe) userId: string,
+    @CurrentUser('sub') currentUserId: string,
+    @Query('page') page: number,
+    @Query('limit') limit: number
+  ) {
+    return this.trackService.getUserUploadedTracks(userId, currentUserId, page, limit);
+  }
+
+  @ApiGetTrackPlaylists()
+  @Get(':trackId/playlists')
+  async getTrackPlaylists(
+    @Param('trackId', ParseUUIDPipe) userId: string,
+    @CurrentUser('sub') currentUserId: string,
+    @Query('page') page: number,
+    @Query('limit') limit: number
+  ) {
+    return this.trackService.getTrackPlaylists(userId, currentUserId, page, limit);
   }
 }
