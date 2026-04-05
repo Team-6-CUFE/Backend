@@ -13,6 +13,9 @@ import { UpdateTrackDto } from './dto/update-track.dto';
 import { TrackStatus } from './enums/track-status.enum';
 import { TrackVisibility } from './enums/track-visibility.enum';
 import { TrackPlay } from './entities/track-play.entity';
+import { RecentlyPlayed, RecentlyPlayedItemType } from './entities/recently-played.entity';
+
+const RECENTLY_PLAYED_LIMIT = 6;
 
 @Injectable()
 export class TrackRepository {
@@ -36,7 +39,10 @@ export class TrackRepository {
     private readonly tagRepository: Repository<Tag>,
 
     @InjectRepository(TrackPlay)
-    private readonly trackPlayRepository: Repository<TrackPlay>
+    private readonly trackPlayRepository: Repository<TrackPlay>,
+
+    @InjectRepository(RecentlyPlayed)
+    private readonly recentlyPlayedRepository: Repository<RecentlyPlayed>
   ) {}
 
   async findById(trackId: string): Promise<Track | null> {
@@ -324,9 +330,50 @@ export class TrackRepository {
     return [...existing, ...created];
   }
 
-  async playTrack(trackId: string, userId: string, playlistId?: string): Promise<TrackPlay> {
-    const trackPlay = this.trackPlayRepository.create({ trackId, userId, playlistId });
+  async createTrackPlay(
+    trackId: string,
+    userId: string,
+    artistId: string,
+    playlistId?: string
+  ): Promise<TrackPlay> {
+    const trackPlay = this.trackPlayRepository.create({
+      trackId,
+      userId,
+      playlistId: playlistId ?? null,
+    });
     await this.trackPlayRepository.save(trackPlay);
+
     return trackPlay;
+  }
+
+  async addToRecentlyPlayed(
+    userId: string,
+    itemId: string,
+    itemType: RecentlyPlayedItemType
+  ): Promise<RecentlyPlayed> {
+    const recentlyPlayed = this.recentlyPlayedRepository.create({
+      userId,
+      itemId,
+      itemType,
+      playedAt: new Date(),
+    });
+    return this.recentlyPlayedRepository.save(recentlyPlayed);
+  }
+
+  async deleteOldRecentlyPlayed(userId: string): Promise<void> {
+    // Keep only the 6 most recent slots per user — delete anything older
+    await this.recentlyPlayedRepository
+      .createQueryBuilder()
+      .delete()
+      .where(
+        `user_id = :userId AND (item_id, item_type::text) NOT IN (
+          SELECT item_id, item_type::text FROM recently_played
+          WHERE user_id = :userId
+          ORDER BY played_at DESC
+          LIMIT :limit
+        )`,
+        { userId, limit: RECENTLY_PLAYED_LIMIT }
+      )
+      .execute();
   }
 }

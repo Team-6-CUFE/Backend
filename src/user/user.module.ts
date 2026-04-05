@@ -14,10 +14,21 @@ import { UsernameAvailabilityService } from './username-availability.service';
 import { ExternalProfileRepository } from './external-profile.repository';
 import { SettingsService } from '../settings/settings.service';
 import { SettingsModule } from '../settings/settings.module';
+import { RecentlyPlayed } from '../track/entities/recently-played.entity';
+import { Playlist } from '../playlist/entities/playlist.entity';
+import { RecentlyPlayedRepository } from './recently-played.repository';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([User, UserEmail, ExternalProfile, SocialAccount, FavoriteGenre]),
+    TypeOrmModule.forFeature([
+      User,
+      UserEmail,
+      ExternalProfile,
+      SocialAccount,
+      FavoriteGenre,
+      RecentlyPlayed,
+      Playlist,
+    ]),
     GenreModule,
     SettingsModule,
   ],
@@ -29,6 +40,7 @@ import { SettingsModule } from '../settings/settings.module';
     UsernameAvailabilityService,
     ExternalProfileRepository,
     SettingsService,
+    RecentlyPlayedRepository,
   ],
   exports: [UserService, UserRepository, ExternalProfileRepository],
 })

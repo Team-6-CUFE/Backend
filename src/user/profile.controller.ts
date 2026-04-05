@@ -130,4 +130,9 @@ export class ProfileController {
   async updateCover(@CurrentUser('sub') userId: string, @Body() updateCoverDto: UpdateCoverDto) {
     return this.profileService.updateCover(userId, updateCoverDto.coverPhoto);
   }
+
+  @Get('/me/recently-played')
+  getRecentlyPlayed(@CurrentUser('sub') userId: string) {
+    return this.profileService.getRecentlyPlayed(userId);
+  }
 }

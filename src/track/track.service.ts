@@ -21,8 +21,8 @@ import { StorageService } from '../common/storage_service';
 import { TrackVisibility } from './enums/track-visibility.enum';
 import { TrackStatus } from './enums/track-status.enum';
 import { Track } from './entities/track.entity';
-import { TrackPlay } from './entities/track-play.entity';
 import { PlaylistService } from '../playlist/playlist.service';
+import { RecentlyPlayedItemType } from './entities/recently-played.entity';
 
 @Injectable()
 export class TrackService {
@@ -526,19 +526,24 @@ export class TrackService {
     trackId: string,
     userId: string,
     playlistId?: string
-  ): Promise<{ status: string; message: string; data: TrackPlay }> {
-    await this.getTrackById(trackId);
+  ): Promise<{ status: string; message: string; data: { trackId: string; playCount: number } }> {
+    const track = await this.getTrackById(trackId);
     if (playlistId) {
       const playlist = await this.playlistService.getPlaylistById(playlistId);
-      if (!playlist) {
-        throw new NotFoundException('Playlist not found');
-      }
+      if (!playlist) throw new NotFoundException('Playlist not found');
     }
-    const data = await this.trackRepository.playTrack(trackId, userId, playlistId);
+    await this.trackRepository.createTrackPlay(trackId, userId, track.userId, playlistId);
+
+    const artistId = track.userId;
+    const itemId = playlistId ?? artistId;
+    const itemType = playlistId ? RecentlyPlayedItemType.PLAYLIST : RecentlyPlayedItemType.ARTIST;
+
+    await this.trackRepository.addToRecentlyPlayed(userId, itemId, itemType);
+    await this.trackRepository.deleteOldRecentlyPlayed(userId);
     return {
       status: 'success',
       message: 'Track play recorded',
-      data,
+      data: { trackId, playCount: track.playCount + 1 },
     };
   }
 }

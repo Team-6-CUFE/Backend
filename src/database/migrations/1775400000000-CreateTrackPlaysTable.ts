@@ -29,9 +29,33 @@ export class CreateTrackPlaysTable1775400000000 implements MigrationInterface {
       CREATE INDEX idx_track_plays_track_played_at
       ON track_plays(track_id, played_at);
     `);
+
+    // add trigger to update play count in tracks table
+    await queryRunner.query(`
+      CREATE OR REPLACE FUNCTION update_track_play_count()
+      RETURNS TRIGGER AS $$
+      BEGIN
+        UPDATE tracks
+        SET play_count = play_count + 1
+        WHERE track_id = NEW.track_id;
+        RETURN NEW;
+      END;
+      $$ LANGUAGE plpgsql;
+    `);
+
+    await queryRunner.query(`
+      CREATE TRIGGER trigger_update_track_play_count
+      AFTER INSERT ON track_plays
+      FOR EACH ROW
+      EXECUTE FUNCTION update_track_play_count();
+    `);
   }
 
   public async down(queryRunner: QueryRunner): Promise<void> {
+    await queryRunner.query(
+      `DROP TRIGGER IF EXISTS trigger_update_track_play_count ON track_plays;`
+    );
+    await queryRunner.query(`DROP FUNCTION IF EXISTS update_track_play_count();`);
     await queryRunner.query(`DROP INDEX IF EXISTS idx_track_plays_track_played_at;`);
     await queryRunner.query(`DROP INDEX IF EXISTS idx_track_plays_track_user;`);
     await queryRunner.query(`DROP INDEX IF EXISTS idx_track_plays_user_played_at;`);

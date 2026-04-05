@@ -17,11 +17,21 @@ import { TrackSseService } from './services/track-sse.service';
 import { AudioQueueEventsListener } from './listeners/audio-queue-events.listener';
 import { StorageService } from '../common/storage_service';
 import { TrackPlay } from './entities/track-play.entity';
+import { RecentlyPlayed } from './entities/recently-played.entity';
 import { PlaylistModule } from '../playlist/playlist.module';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([Track, TrackRepost, TrackLikes, TrackComment, Genre, Tag, TrackPlay]),
+    TypeOrmModule.forFeature([
+      Track,
+      TrackRepost,
+      TrackLikes,
+      TrackComment,
+      Genre,
+      Tag,
+      TrackPlay,
+      RecentlyPlayed,
+    ]),
     PlaylistModule,
     BullModule.forRootAsync({
       imports: [ConfigModule],

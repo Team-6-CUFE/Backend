@@ -14,6 +14,7 @@ import { UsernameAvailabilityService } from './username-availability.service';
 import { CreateExternalProfileDto } from './dto/create-external-profile.dto';
 import { UpdateExternalProfileDto } from './dto/update-external-profile.dto';
 import { ExternalProfileRepository } from './external-profile.repository';
+import { RecentlyPlayedRepository } from './recently-played.repository';
 
 const MAX_EXTERNAL_PROFILES = 10;
 
@@ -23,7 +24,8 @@ export class ProfileService {
     private readonly userRepository: UserRepository,
     private readonly genreRepository: GenreRepository,
     private readonly usernameAvailabilityService: UsernameAvailabilityService,
-    private readonly externalProfileRepository: ExternalProfileRepository
+    private readonly externalProfileRepository: ExternalProfileRepository,
+    private readonly recentlyPlayedRepository: RecentlyPlayedRepository
   ) {}
 
   async updateMyPrivacy(userId: string, updatePrivacyReqDto: UpdatePrivacyReqDto) {
@@ -285,5 +287,10 @@ export class ProfileService {
         updatedAt: updated.updatedAt,
       },
     };
+  }
+
+  async getRecentlyPlayed(userId: string) {
+    const data = await this.recentlyPlayedRepository.findByUser(userId);
+    return { status: 'success', data };
   }
 }
