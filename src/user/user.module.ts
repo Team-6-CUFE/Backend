@@ -12,11 +12,14 @@ import { FavoriteGenre } from './entities/favorite-genre.entity';
 import { GenreModule } from '../genre/genre.module';
 import { UsernameAvailabilityService } from './username-availability.service';
 import { ExternalProfileRepository } from './external-profile.repository';
+import { SettingsService } from '../settings/settings.service';
+import { SettingsModule } from '../settings/settings.module';
 
 @Module({
   imports: [
     TypeOrmModule.forFeature([User, UserEmail, ExternalProfile, SocialAccount, FavoriteGenre]),
     GenreModule,
+    SettingsModule,
   ],
   controllers: [ProfileController],
   providers: [
@@ -25,6 +28,7 @@ import { ExternalProfileRepository } from './external-profile.repository';
     ProfileService,
     UsernameAvailabilityService,
     ExternalProfileRepository,
+    SettingsService,
   ],
   exports: [UserService, UserRepository, ExternalProfileRepository],
 })

@@ -10,6 +10,7 @@ import { UserEmail } from './entities/user-email.entity';
 import { UserCounts } from './types/user-counts.type';
 import { SocialAccount } from './entities/social-account.entity';
 import { OAuthUser } from '../authentication/types/oauth-user.type';
+import { SettingsService } from '../settings/settings.service';
 
 @Injectable()
 export class UserRepository {
@@ -21,7 +22,8 @@ export class UserRepository {
     @InjectRepository(UserEmail)
     private userEmailRepo: Repository<UserEmail>,
     @InjectRepository(SocialAccount)
-    private socialAccountRepo: Repository<SocialAccount>
+    private socialAccountRepo: Repository<SocialAccount>,
+    private readonly settingsService: SettingsService
   ) {}
 
   async findAllUsernames(): Promise<{ username: string }[]> {
@@ -106,6 +108,9 @@ export class UserRepository {
       isVerified: false,
     });
     await this.userEmailRepo.save(userEmail);
+
+    // Step 3 - create user settings record with defaults
+    await this.settingsService.createDefaultSettings(savedUser.userId);
     return savedUser;
   }
 
@@ -134,6 +139,10 @@ export class UserRepository {
 
     await this.userEmailRepo.save(userEmail);
     savedUser.emails = [userEmail];
+
+    // Step 3 - create user settings record with defaults
+    await this.settingsService.createDefaultSettings(savedUser.userId);
+
     return savedUser;
   }
 

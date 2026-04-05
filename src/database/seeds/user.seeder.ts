@@ -1,4 +1,4 @@
-import { DataSource } from 'typeorm';
+import { DataSource, Repository } from 'typeorm';
 import { Seeder, SeederFactoryManager } from 'typeorm-extension';
 import { User } from '../../user/entities/user.entity';
 import { UserEmail } from '../../user/entities/user-email.entity';
@@ -6,9 +6,19 @@ import { ExternalProfile } from '../../user/entities/external-profile.entity';
 import { SocialAccount } from '../../user/entities/social-account.entity';
 import { FavoriteGenre } from '../../user/entities/favorite-genre.entity';
 import { Genre } from '../../genre/entities/genre.entity';
+import { Settings } from '../../settings/entities/settings.entity';
 import * as bcrypt from 'bcrypt';
 
 export class UserSeeder implements Seeder {
+  private async createSettingsForUser(
+    userId: string,
+    settingsRepository: Repository<Settings>
+  ): Promise<void> {
+    const settings = settingsRepository.create({
+      userId,
+    });
+    await settingsRepository.save(settings);
+  }
   public async run(dataSource: DataSource, factoryManager: SeederFactoryManager): Promise<void> {
     const userRepository = dataSource.getRepository(User);
     const emailRepository = dataSource.getRepository(UserEmail);
@@ -16,6 +26,7 @@ export class UserSeeder implements Seeder {
     const socialAccountRepository = dataSource.getRepository(SocialAccount);
     const favoriteGenreRepository = dataSource.getRepository(FavoriteGenre);
     const genreRepository = dataSource.getRepository(Genre);
+    const settingsRepository = dataSource.getRepository(Settings);
 
     // Check if users already exist
     const existingUsers = await userRepository.count();
@@ -48,6 +59,7 @@ export class UserSeeder implements Seeder {
       isPublic: true,
     });
     await userRepository.save(admin);
+    await this.createSettingsForUser(admin.userId, settingsRepository);
 
     const adminEmail = emailRepository.create({
       userId: admin.userId,
@@ -118,6 +130,7 @@ export class UserSeeder implements Seeder {
         isSuspended: testUserData.isSuspended || false,
       });
       await userRepository.save(user);
+      await this.createSettingsForUser(user.userId, settingsRepository);
 
       // Create primary email
       const email = emailRepository.create({
@@ -148,6 +161,7 @@ export class UserSeeder implements Seeder {
 
     // For each random user, create associated data
     for (const user of randomUsers) {
+      await this.createSettingsForUser(user.userId, settingsRepository);
       // Create primary email
       const primaryEmail = await emailFactory.make({
         userId: user.userId,
