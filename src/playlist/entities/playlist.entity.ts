@@ -36,6 +36,9 @@ export class Playlist extends BaseEntity {
   @Column({ type: 'int', default: 0, name: 'reposts_count' })
   repostsCount!: number;
 
+  @Column({ type: 'int', default: 0, name: 'total_duration_seconds' })
+  totalDurationSeconds!: number;
+
   @Column({ type: 'uuid', name: 'user_id' })
   userId!: string;
 
