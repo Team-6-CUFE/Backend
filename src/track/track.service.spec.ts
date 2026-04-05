@@ -5,9 +5,13 @@ import {
   ForbiddenException,
   NotFoundException,
 } from '@nestjs/common';
+import { getQueueToken } from '@nestjs/bullmq';
 import { TrackService } from './track.service';
 import { TrackRepository } from './track.repository';
 import { UserRepository } from '../user/user.repository';
+import { TrackSseService } from './services/track-sse.service';
+import { StorageService } from '../common/storage_service';
+import { TrackVisibility } from './enums/track-visibility.enum';
 
 // ─── Constants ───────────────────────────────────────────────────────────────
 
@@ -45,9 +49,21 @@ const mockUserRepository = () => ({
   findById: jest.fn(),
 });
 
-const mockPublicTrack = () => ({ trackId: mockTrackId, userId: mockOtherUserId, isPublic: true });
-const mockPrivateTrack = () => ({ trackId: mockTrackId, userId: mockOtherUserId, isPublic: false });
-const mockOwnTrack = () => ({ trackId: mockTrackId, userId: mockUserId, isPublic: true });
+const mockPublicTrack = () => ({
+  trackId: mockTrackId,
+  userId: mockOtherUserId,
+  visibility: TrackVisibility.PUBLIC,
+});
+const mockPrivateTrack = () => ({
+  trackId: mockTrackId,
+  userId: mockOtherUserId,
+  visibility: TrackVisibility.PRIVATE,
+});
+const mockOwnTrack = () => ({
+  trackId: mockTrackId,
+  userId: mockUserId,
+  visibility: TrackVisibility.PUBLIC,
+});
 const mockTrackRepost = () => ({
   trackId: mockTrackId,
   userId: mockUserId,
@@ -147,6 +163,16 @@ describe('TrackService', () => {
         TrackService,
         { provide: TrackRepository, useFactory: mockTrackRepository },
         { provide: UserRepository, useFactory: mockUserRepository },
+        { provide: TrackSseService, useValue: {} },
+        {
+          provide: StorageService,
+          useValue: {
+            uploadFile: jest.fn(),
+            deleteFile: jest.fn(),
+            downloadToTemp: jest.fn(),
+          },
+        },
+        { provide: getQueueToken('audioQueue'), useValue: { add: jest.fn() } },
       ],
     }).compile();
 
