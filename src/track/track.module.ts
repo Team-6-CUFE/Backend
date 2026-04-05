@@ -15,6 +15,7 @@ import { TrackLikes } from './entities/track-likes.entity';
 import { TrackComment } from './entities/track-comments.entity';
 import { TrackSseService } from './services/track-sse.service';
 import { AudioQueueEventsListener } from './listeners/audio-queue-events.listener';
+import { StorageService } from '../common/storage_service';
 
 @Module({
   imports: [
@@ -40,7 +41,13 @@ import { AudioQueueEventsListener } from './listeners/audio-queue-events.listene
     FollowersModule,
   ],
   controllers: [TrackController],
-  providers: [TrackService, TrackRepository, TrackSseService, AudioQueueEventsListener],
+  providers: [
+    TrackService,
+    TrackRepository,
+    TrackSseService,
+    AudioQueueEventsListener,
+    StorageService,
+  ],
   exports: [TrackService, TrackRepository],
 })
 export class TrackModule {}

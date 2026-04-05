@@ -5,6 +5,7 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
 import { AudioProcessor } from './audio.processor';
 import { FfmpegModule } from './ffmpeg.module';
 import { Track } from '../track/entities/track.entity';
+import { StorageService } from '../common/storage_service';
 
 @Module({
   imports: [
@@ -28,6 +29,6 @@ import { Track } from '../track/entities/track.entity';
     BullModule.registerQueue({ name: 'audioQueue' }),
     FfmpegModule,
   ],
-  providers: [AudioProcessor],
+  providers: [AudioProcessor, StorageService],
 })
 export class AudioProcessorModule {}
