@@ -15,7 +15,6 @@ import { TrackLikes } from './entities/track-likes.entity';
 import { TrackComment } from './entities/track-comments.entity';
 import { TrackSseService } from './services/track-sse.service';
 import { AudioQueueEventsListener } from './listeners/audio-queue-events.listener';
-import { AudioStorageModule } from '../audio/audio_storage.module';
 
 @Module({
   imports: [
@@ -39,7 +38,6 @@ import { AudioStorageModule } from '../audio/audio_storage.module';
     BullModule.registerQueue({ name: 'audioQueue' }),
     UserModule,
     FollowersModule,
-    AudioStorageModule,
   ],
   controllers: [TrackController],
   providers: [TrackService, TrackRepository, TrackSseService, AudioQueueEventsListener],
