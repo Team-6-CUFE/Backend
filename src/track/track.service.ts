@@ -21,6 +21,8 @@ import { StorageService } from '../common/storage_service';
 import { TrackVisibility } from './enums/track-visibility.enum';
 import { TrackStatus } from './enums/track-status.enum';
 import { Track } from './entities/track.entity';
+import { TrackPlay } from './entities/track-play.entity';
+import { PlaylistService } from '../playlist/playlist.service';
 
 @Injectable()
 export class TrackService {
@@ -28,6 +30,7 @@ export class TrackService {
     private readonly trackRepository: TrackRepository,
     private readonly userRepository: UserRepository,
     private readonly storageService: StorageService,
+    private readonly playlistService: PlaylistService,
     @InjectQueue('audioQueue')
     private readonly audioQueue: Queue
   ) {}
@@ -516,6 +519,26 @@ export class TrackService {
     return {
       status: 'success',
       ...buildPaginationResponse(mappedComments, total, page, cappedLimit),
+    };
+  }
+
+  async playTrack(
+    trackId: string,
+    userId: string,
+    playlistId?: string
+  ): Promise<{ status: string; message: string; data: TrackPlay }> {
+    await this.getTrackById(trackId);
+    if (playlistId) {
+      const playlist = await this.playlistService.getPlaylistById(playlistId);
+      if (!playlist) {
+        throw new NotFoundException('Playlist not found');
+      }
+    }
+    const data = await this.trackRepository.playTrack(trackId, userId, playlistId);
+    return {
+      status: 'success',
+      message: 'Track play recorded',
+      data,
     };
   }
 }

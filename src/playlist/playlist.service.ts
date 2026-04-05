@@ -8,6 +8,7 @@ import {
 import { PlaylistRepository } from './playlist.repository';
 import { buildPaginationResponse } from '../common/utilities/pagination.util';
 import { UserRepository } from '../user/user.repository';
+import { Playlist } from './entities/playlist.entity';
 
 @Injectable()
 export class PlaylistService {
@@ -15,6 +16,11 @@ export class PlaylistService {
     private readonly playlistRepository: PlaylistRepository,
     private readonly userRepository: UserRepository
   ) {}
+
+  async getPlaylistById(playlistId: string): Promise<Playlist | null> {
+    const playlist = await this.playlistRepository.findPlaylistById(playlistId);
+    return playlist;
+  }
 
   async repostPlaylist(playlistId: string, userId: string) {
     const playlist = await this.playlistRepository.findPlaylistById(playlistId);

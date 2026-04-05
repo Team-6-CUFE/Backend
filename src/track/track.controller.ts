@@ -333,4 +333,13 @@ export class TrackController {
     if (!audioFile) throw new BadRequestException('Audio file is required');
     return this.trackService.reuploadTrackAudio(trackId, userId, audioFile, previewStartTime);
   }
+
+  @Post(':id/play')
+  async playTrack(
+    @Param('id', ParseUUIDPipe) trackId: string,
+    @CurrentUser('sub') userId: string,
+    @Body('playlistId', ParseUUIDPipe) playlistId?: string
+  ) {
+    return this.trackService.playTrack(trackId, userId, playlistId);
+  }
 }

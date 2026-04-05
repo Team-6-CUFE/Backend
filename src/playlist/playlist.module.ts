@@ -17,5 +17,6 @@ import { FollowersModule } from '../followers/followers.module';
   ],
   controllers: [PlaylistController],
   providers: [PlaylistService, PlaylistRepository],
+  exports: [PlaylistService, PlaylistRepository],
 })
 export class PlaylistModule {}

@@ -12,6 +12,7 @@ import { UploadTrackDto } from './dto/upload-track.dto';
 import { UpdateTrackDto } from './dto/update-track.dto';
 import { TrackStatus } from './enums/track-status.enum';
 import { TrackVisibility } from './enums/track-visibility.enum';
+import { TrackPlay } from './entities/track-play.entity';
 
 @Injectable()
 export class TrackRepository {
@@ -32,7 +33,10 @@ export class TrackRepository {
     private readonly genreRepository: Repository<Genre>,
 
     @InjectRepository(Tag)
-    private readonly tagRepository: Repository<Tag>
+    private readonly tagRepository: Repository<Tag>,
+
+    @InjectRepository(TrackPlay)
+    private readonly trackPlayRepository: Repository<TrackPlay>
   ) {}
 
   async findById(trackId: string): Promise<Track | null> {
@@ -318,5 +322,11 @@ export class TrackRepository {
         .map((name) => this.tagRepository.save(this.tagRepository.create({ name })))
     );
     return [...existing, ...created];
+  }
+
+  async playTrack(trackId: string, userId: string, playlistId?: string): Promise<TrackPlay> {
+    const trackPlay = this.trackPlayRepository.create({ trackId, userId, playlistId });
+    await this.trackPlayRepository.save(trackPlay);
+    return trackPlay;
   }
 }

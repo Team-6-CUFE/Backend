@@ -16,10 +16,13 @@ import { TrackComment } from './entities/track-comments.entity';
 import { TrackSseService } from './services/track-sse.service';
 import { AudioQueueEventsListener } from './listeners/audio-queue-events.listener';
 import { StorageService } from '../common/storage_service';
+import { TrackPlay } from './entities/track-play.entity';
+import { PlaylistModule } from '../playlist/playlist.module';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([Track, TrackRepost, TrackLikes, TrackComment, Genre, Tag]),
+    TypeOrmModule.forFeature([Track, TrackRepost, TrackLikes, TrackComment, Genre, Tag, TrackPlay]),
+    PlaylistModule,
     BullModule.forRootAsync({
       imports: [ConfigModule],
       useFactory: (configService: ConfigService) => {
