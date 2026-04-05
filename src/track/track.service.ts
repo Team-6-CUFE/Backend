@@ -10,6 +10,7 @@ import { Queue } from 'bullmq';
 import * as fs from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
+import { plainToInstance } from 'class-transformer';
 import { AddCommentDto } from './dto/add-comment.dto';
 import { buildPaginationResponse } from '../common/utilities/pagination.util';
 import { UserRepository } from '../user/user.repository';
@@ -21,9 +22,19 @@ import { StorageService } from '../common/storage_service';
 import { TrackVisibility } from './enums/track-visibility.enum';
 import { TrackStatus } from './enums/track-status.enum';
 import { Track } from './entities/track.entity';
+import { User } from '../user/entities/user.entity';
+import { UPLOAD_LIMIT_SECONDS } from './constants/quota.constants';
+import { UserTrackResponseDto } from './dto/user-track-res.dto';
+import { UploadQuotaResponseDto } from './dto/upload-quota.res.dto';
+import { PlaylistOwnerDto } from './dto/playlist-owner.dto';
+import { TrackPlaylistResponseDto } from './dto/track-playlist-res.dto';
+import { PlaylistTrack } from '../playlist/entities/playlist-tracks.entity';
+import { Playlist } from '../playlist/entities/playlist.entity';
 
 @Injectable()
 export class TrackService {
+  playlistRepository: any;
+
   constructor(
     private readonly trackRepository: TrackRepository,
     private readonly userRepository: UserRepository,
@@ -517,5 +528,99 @@ export class TrackService {
       status: 'success',
       ...buildPaginationResponse(mappedComments, total, page, cappedLimit),
     };
+  }
+
+  async getTrackPlaylists(
+    trackId: string,
+    currentUserId: string,
+    page: number = 1,
+    limit: number = 20
+  ) {
+    const track = await this.trackRepository.findById(trackId);
+    if (!track) throw new NotFoundException('Track not found');
+
+    if (track.visibility === TrackVisibility.PRIVATE && track.userId !== currentUserId) {
+      throw new ForbiddenException('This track is private');
+    }
+
+    const cappedLimit = Math.min(limit, 100);
+    const [entries, total] = await this.playlistRepository.getTrackPlaylists(
+      trackId,
+      currentUserId,
+      page,
+      cappedLimit
+    );
+
+    const shaped = (entries as Array<PlaylistTrack & { playlist: Playlist & { user: User } }>).map(
+      (entry) => ({
+        playlistId: entry.playlist.playlistId,
+        title: entry.playlist.title,
+        description: entry.playlist.description ?? null,
+        coverImage: entry.playlist.coverImage ?? null,
+        isPublic: entry.playlist.isPublic,
+        tracksCount: entry.playlist.tracksCount,
+        totalDurationSeconds: entry.playlist.totalDurationSeconds,
+        owner: plainToInstance(PlaylistOwnerDto, entry.playlist.user, {
+          excludeExtraneousValues: true,
+        }),
+        addedAt: entry.addedAt,
+      })
+    );
+
+    const data: TrackPlaylistResponseDto[] = plainToInstance(TrackPlaylistResponseDto, shaped, {
+      excludeExtraneousValues: true,
+    });
+
+    return { status: 'success', ...buildPaginationResponse(data, total, page, cappedLimit) };
+  }
+
+  async getUserUploadedTracks(
+    userId: string,
+    currentUserId: string,
+    page: number = 1,
+    limit: number = 20
+  ) {
+    const user = await this.userRepository.findById(userId);
+    if (!user) throw new NotFoundException('User does not exist');
+
+    if (!user.isPublic && user.userId !== currentUserId) {
+      throw new ForbiddenException('This account is private');
+    }
+
+    const cappedLimit = Math.min(limit, 100);
+    const [tracks, total] = await this.trackRepository.getUserTracks(
+      userId,
+      currentUserId,
+      page,
+      cappedLimit
+    );
+
+    const data = plainToInstance(UserTrackResponseDto, tracks, {
+      excludeExtraneousValues: true,
+    });
+
+    return { status: 'success', ...buildPaginationResponse(data, total, page, cappedLimit) };
+  }
+
+  async getUserQuota(userId: string) {
+    const user = await this.userRepository.findById(userId);
+    if (!user) throw new NotFoundException('User does not exist');
+
+    const usedSeconds = await this.trackRepository.getUserUploadedSeconds(userId);
+    const plan = user.plan ?? 'free';
+    const limitSeconds = UPLOAD_LIMIT_SECONDS[plan] ?? UPLOAD_LIMIT_SECONDS.free;
+
+    const usedMinutes = Math.floor(usedSeconds / 60);
+    const limitMinutes = limitSeconds !== null ? Math.floor(limitSeconds / 60) : null;
+    const remainingMinutes =
+      limitSeconds !== null ? Math.max(0, Math.floor((limitSeconds - usedSeconds) / 60)) : null;
+
+    const data = plainToInstance(
+      UploadQuotaResponseDto,
+      { plan, usedMinutes, limitMinutes, remainingMinutes },
+      { excludeExtraneousValues: true }
+    );
+
+    return { status: 'success', data };
   }
 }

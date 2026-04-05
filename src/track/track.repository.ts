@@ -319,4 +319,33 @@ export class TrackRepository {
     );
     return [...existing, ...created];
   }
+
+  async getUserUploadedSeconds(userId: string): Promise<number> {
+    const sum = await this.trackRepository.sum('durationSeconds', {
+      userId,
+      trackStatus: TrackStatus.FINISHED,
+    });
+    return sum ?? 0;
+  }
+
+  async getUserTracks(
+    userId: string,
+    requesterId: string,
+    page: number,
+    limit: number
+  ): Promise<[Track[], number]> {
+    const skip = (page - 1) * limit;
+    const isOwner = userId === requesterId;
+
+    const query = this.trackRepository
+      .createQueryBuilder('track')
+      .where('track.userId = :userId', { userId })
+      .andWhere('track.trackStatus = :status', { status: TrackStatus.FINISHED });
+
+    if (!isOwner) {
+      query.andWhere('track.visibility = :visibility', { visibility: TrackVisibility.PUBLIC });
+    }
+
+    return query.orderBy('track.createdAt', 'DESC').skip(skip).take(limit).getManyAndCount();
+  }
 }

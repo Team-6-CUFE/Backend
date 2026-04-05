@@ -4,6 +4,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Playlist } from './entities/playlist.entity';
 import { PlaylistRepost } from './entities/playlist-reposts.entity';
 import { PlaylistLike } from './entities/playlist-likes.entity';
+import { PlaylistTrack } from './entities/playlist-tracks.entity';
 
 @Injectable()
 export class PlaylistRepository {
@@ -13,7 +14,9 @@ export class PlaylistRepository {
     @InjectRepository(PlaylistRepost)
     private readonly playlistRepostRepository: Repository<PlaylistRepost>,
     @InjectRepository(PlaylistLike)
-    private readonly playlistLikesRepository: Repository<PlaylistLike>
+    private readonly playlistLikesRepository: Repository<PlaylistLike>,
+    @InjectRepository(PlaylistTrack)
+    private readonly playlistTrackRepository: Repository<PlaylistTrack>
   ) {}
 
   async findPlaylistById(playlistId: string): Promise<Playlist | null> {
@@ -123,6 +126,26 @@ export class PlaylistRepository {
       .innerJoinAndSelect('playlist.user', 'user')
       .where('like.userId = :userId', { userId })
       .orderBy('like.createdAt', 'DESC')
+      .skip(skip)
+      .take(limit)
+      .getManyAndCount();
+  }
+
+  async getTrackPlaylists(
+    trackId: string,
+    requesterId: string,
+    page: number,
+    limit: number
+  ): Promise<[any[], number]> {
+    const skip = (page - 1) * limit;
+
+    return this.playlistTrackRepository
+      .createQueryBuilder('pt')
+      .innerJoinAndSelect('pt.playlist', 'playlist')
+      .innerJoinAndSelect('playlist.user', 'user')
+      .where('pt.trackId = :trackId', { trackId })
+      .andWhere('(playlist.isPublic = true OR playlist.userId = :requesterId)', { requesterId })
+      .orderBy('pt.addedAt', 'DESC')
       .skip(skip)
       .take(limit)
       .getManyAndCount();
