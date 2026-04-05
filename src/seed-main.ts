@@ -5,6 +5,7 @@ import { AppModule } from './app.module';
 import { UserSeeder } from './database/seeds/user.seeder';
 import { PlaylistSeeder } from './database/seeds/playlist.seeder';
 import { TrackSeeder } from './database/seeds/track.seeder';
+import { TrackPlaysSeeder } from './database/seeds/track-plays.seeder';
 
 async function bootstrap() {
   // Create an application context (no web server started)
@@ -18,6 +19,7 @@ async function bootstrap() {
     await runSeeder(dataSource, UserSeeder);
     await runSeeder(dataSource, TrackSeeder);
     await runSeeder(dataSource, PlaylistSeeder);
+    await runSeeder(dataSource, TrackPlaysSeeder);
     console.log('Seeding complete!');
   } catch (error) {
     console.error('Seeding failed:');
