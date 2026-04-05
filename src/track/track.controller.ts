@@ -338,7 +338,7 @@ export class TrackController {
   async playTrack(
     @Param('id', ParseUUIDPipe) trackId: string,
     @CurrentUser('sub') userId: string,
-    @Body('playlistId', ParseUUIDPipe) playlistId?: string
+    @Body('playlistId', new ParseUUIDPipe({ optional: true })) playlistId?: string
   ) {
     return this.trackService.playTrack(trackId, userId, playlistId);
   }
