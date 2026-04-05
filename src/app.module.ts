@@ -14,6 +14,7 @@ import { AudioProcessorModule } from './audio/audio-processor.module';
 import { PlaylistModule } from './playlist/playlist.module';
 import { TrackModule } from './track/track.module';
 import { LegalModule } from './legal/legal.module';
+import { SettingsModule } from './settings/settings.module';
 
 @Module({
   imports: [
@@ -45,6 +46,7 @@ import { LegalModule } from './legal/legal.module';
     PlaylistModule,
     TrackModule,
     LegalModule,
+    SettingsModule,
   ],
 })
 export class AppModule {}
