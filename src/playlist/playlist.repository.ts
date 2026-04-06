@@ -127,4 +127,8 @@ export class PlaylistRepository {
       .take(limit)
       .getManyAndCount();
   }
+
+  async deletePlaylist(playlistId: string) {
+    await this.playlistRepository.delete(playlistId);
+  }
 }

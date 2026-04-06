@@ -7,6 +7,9 @@ import { PlaylistLike } from '../../playlist/entities/playlist-likes.entity';
 import { PlaylistRepost } from '../../playlist/entities/playlist-reposts.entity';
 import { PlaylistTrack } from '../../playlist/entities/playlist-tracks.entity';
 
+// Import your custom utility function
+import { generateVerificationToken } from '../../common/utilities/tokens.util';
+
 export class PlaylistSeeder implements Seeder {
   public async run(dataSource: DataSource, factoryManager: SeederFactoryManager): Promise<void> {
     const userRepository = dataSource.getRepository(User);
@@ -54,6 +57,7 @@ export class PlaylistSeeder implements Seeder {
           title: 'Late Night Lo-Fi Beats',
           description: 'Chill beats to study and relax to.',
           isPublic: true,
+          secretToken: null,
           userId: artist1.userId,
         })
       );
@@ -64,6 +68,7 @@ export class PlaylistSeeder implements Seeder {
           title: 'Unreleased Demos (Private)',
           description: 'WIP tracks.',
           isPublic: false,
+          secretToken: generateVerificationToken(), // Using your utility!
           userId: artist1.userId,
         })
       );
@@ -76,6 +81,7 @@ export class PlaylistSeeder implements Seeder {
           title: 'Summer Festival Mix',
           description: 'High energy EDM and House.',
           isPublic: true,
+          secretToken: null,
           userId: artist2.userId,
         })
       );
@@ -86,9 +92,13 @@ export class PlaylistSeeder implements Seeder {
       const randomPlaylist = await playlistFactory.make();
       const randomOwner = users[Math.floor(Math.random() * users.length)];
 
+      // Generate a token ONLY if the playlist is private using your utility
+      const generatedToken = !randomPlaylist.isPublic ? generateVerificationToken() : null;
+
       const savedPlaylist = await playlistRepository.save(
         createPlaylistBase({
           ...randomPlaylist,
+          secretToken: generatedToken,
           userId: randomOwner.userId,
           user: randomOwner,
         })
@@ -104,7 +114,6 @@ export class PlaylistSeeder implements Seeder {
       const selectedTracks = [...tracks].sort(() => 0.5 - Math.random()).slice(0, numTracks);
 
       for (let i = 0; i < selectedTracks.length; i++) {
-        // Trigger 'fn_playlist_track_added' fires here
         await playlistTrackRepository.save({
           playlistId: playlist.playlistId,
           trackId: selectedTracks[i].trackId,
@@ -117,7 +126,6 @@ export class PlaylistSeeder implements Seeder {
       const likers = [...users].sort(() => 0.5 - Math.random()).slice(0, numLikes);
 
       for (const liker of likers) {
-        // Assuming you have a trigger for likes_count as well
         await playlistLikeRepository.save({
           playlistId: playlist.playlistId,
           userId: liker.userId,
@@ -129,7 +137,6 @@ export class PlaylistSeeder implements Seeder {
       const reposters = [...users].sort(() => 0.5 - Math.random()).slice(0, numReposts);
 
       for (const reposter of reposters) {
-        // Assuming you have a trigger for reposts_count as well
         await playlistRepostRepository.save({
           playlistId: playlist.playlistId,
           userId: reposter.userId,
@@ -139,6 +146,7 @@ export class PlaylistSeeder implements Seeder {
 
     console.log('Seeding complete!');
     console.log(` - ${allCreatedPlaylists.length} Playlists created.`);
+    console.log(` - Secret tokens generated for private playlists using tokens.util.`);
     console.log(` - Triggers automatically updated totalDurationSeconds and tracks_count.`);
   }
 }

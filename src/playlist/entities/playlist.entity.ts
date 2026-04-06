@@ -45,6 +45,9 @@ export class Playlist extends BaseEntity {
   @Column({ type: 'int', name: 'tracks_count' })
   tracksCount!: number;
 
+  @Column({ type: 'varchar', length: 255, nullable: true, name: 'secret_token' })
+  secretToken?: string | null;
+
   // Relationship
   @ManyToOne(() => User, { onDelete: 'CASCADE' })
   @JoinColumn({ name: 'user_id' })
