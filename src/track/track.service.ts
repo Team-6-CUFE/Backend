@@ -30,6 +30,15 @@ import { PlaylistOwnerDto } from './dto/playlist-owner.dto';
 import { TrackPlaylistResponseDto } from './dto/track-playlist-res.dto';
 import { PlaylistTrack } from '../playlist/entities/playlist-tracks.entity';
 import { Playlist } from '../playlist/entities/playlist.entity';
+import { GenreRepository } from '../genre/genre.repository';
+import { JwtPayload } from '../authentication/strategies/jwt.strategy';
+import { TrackGenreDto } from './dto/track-genre.dto';
+import { TrackOwnerDto } from './dto/track-owner.dto';
+import { GetTrackResDto } from './dto/get-track-res.dto';
+import { TrackAudioResDto } from './dto/get-track-audio-res.dto';
+import { BlockedRegionsDto } from './dto/blocked-regions.dto';
+import { GenresResDto } from './dto/get-genres-res.dto';
+import { TrackTagDto } from './dto/track-tag.dto';
 
 @Injectable()
 export class TrackService {
@@ -39,9 +48,16 @@ export class TrackService {
     private readonly trackRepository: TrackRepository,
     private readonly userRepository: UserRepository,
     private readonly storageService: StorageService,
+    private readonly genreRepository: GenreRepository,
     @InjectQueue('audioQueue')
     private readonly audioQueue: Queue
   ) {}
+
+  private resolveAudioUrl(track: Track, user?: JwtPayload): string | null {
+    const isHqEligible = user?.plan === 'pro' || user?.plan === 'go+';
+    if (isHqEligible && track.audioUrlHq) return track.audioUrlHq;
+    return track.audioUrl ?? null;
+  }
 
   async uploadTrack(
     userId: string,
@@ -621,6 +637,68 @@ export class TrackService {
       { excludeExtraneousValues: true }
     );
 
+    return { status: 'success', data };
+  }
+
+  async getTrack(trackId: string, user?: JwtPayload) {
+    const track = await this.trackRepository.findByIdWithRelations(trackId);
+    if (!track) throw new NotFoundException('Track not found');
+
+    if (track.visibility === TrackVisibility.PRIVATE && track.userId !== user?.sub) {
+      throw new ForbiddenException('This track is private');
+    }
+    const shaped: GetTrackResDto = {
+      ...track,
+      genres: plainToInstance(TrackGenreDto, track.genres, { excludeExtraneousValues: true }),
+      tags: plainToInstance(TrackTagDto, track.tags, { excludeExtraneousValues: true }),
+      owner: plainToInstance(TrackOwnerDto, track.user, { excludeExtraneousValues: true }),
+    };
+    const data = plainToInstance(UserTrackResponseDto, shaped, { excludeExtraneousValues: true });
+    return { status: 'success', data };
+  }
+
+  async getTrackAudio(trackId: string, user?: JwtPayload) {
+    const track = await this.trackRepository.findById(trackId);
+    if (!track) throw new NotFoundException('Track not found');
+
+    if (track.visibility === TrackVisibility.PRIVATE && track.userId !== user?.sub) {
+      throw new ForbiddenException('This track is private');
+    }
+
+    if (track.trackStatus !== TrackStatus.FINISHED) {
+      throw new ConflictException('Track audio is not available yet');
+    }
+
+    const data = plainToInstance(
+      TrackAudioResDto,
+      {
+        audioUrl: this.resolveAudioUrl(track, user),
+        previewAudioUrl: track.previewAudioUrl ?? null,
+        durationSeconds: track.durationSeconds,
+      },
+      { excludeExtraneousValues: true }
+    );
+
+    return { status: 'success', data };
+  }
+
+  async updateBlockedRegions(trackId: string, userId: string, dto: BlockedRegionsDto) {
+    const track = await this.trackRepository.findById(trackId);
+    if (!track) throw new NotFoundException('Track not found');
+    if (track.userId !== userId) throw new ForbiddenException('You do not own this track');
+
+    const updated = await this.trackRepository.updateBlockedRegions(trackId, dto.blockedRegions);
+    return {
+      status: 'success',
+      data: { trackId: updated.trackId, blockedRegions: updated.blockedRegions },
+    };
+  }
+
+  async getAllGenres() {
+    const genres = await this.genreRepository.findAll();
+    const data: GenresResDto[] = plainToInstance(GenresResDto, genres, {
+      excludeExtraneousValues: true,
+    });
     return { status: 'success', data };
   }
 }

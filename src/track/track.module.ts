@@ -16,6 +16,7 @@ import { TrackComment } from './entities/track-comments.entity';
 import { TrackSseService } from './services/track-sse.service';
 import { AudioQueueEventsListener } from './listeners/audio-queue-events.listener';
 import { StorageService } from '../common/storage_service';
+import { GenreRepository } from '../genre/genre.repository';
 
 @Module({
   imports: [
@@ -47,6 +48,7 @@ import { StorageService } from '../common/storage_service';
     TrackSseService,
     AudioQueueEventsListener,
     StorageService,
+    GenreRepository,
   ],
   exports: [TrackService, TrackRepository],
 })

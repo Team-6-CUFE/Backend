@@ -41,6 +41,16 @@ export class TrackRepository {
     });
   }
 
+  async findByIdWithRelations(trackId: string): Promise<Track | null> {
+    return this.trackRepository
+      .createQueryBuilder('track')
+      .leftJoinAndSelect('track.genres', 'genre')
+      .leftJoinAndSelect('track.tags', 'tag')
+      .leftJoinAndSelect('track.user', 'user')
+      .where('track.trackId = :trackId', { trackId })
+      .getOne();
+  }
+
   async repostTrack(trackId: string, userId: string, caption?: string): Promise<TrackRepost> {
     const trackRepost = this.trackRepostRepository.create({
       trackId,
@@ -347,5 +357,10 @@ export class TrackRepository {
     }
 
     return query.orderBy('track.createdAt', 'DESC').skip(skip).take(limit).getManyAndCount();
+  }
+
+  async updateBlockedRegions(trackId: string, regions: string[]): Promise<Track> {
+    await this.trackRepository.update(trackId, { blockedRegions: regions });
+    return (await this.trackRepository.findOne({ where: { trackId } })) as Track;
   }
 }
