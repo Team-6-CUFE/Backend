@@ -271,7 +271,10 @@ export class TrackService {
       caption: repost.caption,
       repostedAt: repost.createdAt,
     }));
-    return { status: 'success', ...buildPaginationResponse(mappedReposters, total, page, limit) };
+    return {
+      status: 'success',
+      ...buildPaginationResponse(mappedReposters, total, page, cappedLimit),
+    };
   }
 
   async getUserTrackReposts(
@@ -310,7 +313,10 @@ export class TrackService {
       caption: repost.caption,
       repostedAt: repost.createdAt,
     }));
-    return { status: 'success', ...buildPaginationResponse(mappedReposts, total, page, limit) };
+    return {
+      status: 'success',
+      ...buildPaginationResponse(mappedReposts, total, page, cappedLimit),
+    };
   }
 
   async likeTrack(trackId: string, userId: string) {
@@ -386,7 +392,10 @@ export class TrackService {
       followersCount: like.user.followersCount,
       likedAt: like.createdAt,
     }));
-    return { status: 'success', ...buildPaginationResponse(mappedReposters, total, page, limit) };
+    return {
+      status: 'success',
+      ...buildPaginationResponse(mappedReposters, total, page, cappedLimit),
+    };
   }
 
   async getUserTrackLikes(userId: string, myUserId: string, page: number = 1, limit: number = 20) {
@@ -415,7 +424,7 @@ export class TrackService {
       },
       likedAt: like.createdAt,
     }));
-    return { status: 'success', ...buildPaginationResponse(mappedLikes, total, page, limit) };
+    return { status: 'success', ...buildPaginationResponse(mappedLikes, total, page, cappedLimit) };
   }
 
   async addComment(trackId: string, userId: string, commentDto: AddCommentDto) {
