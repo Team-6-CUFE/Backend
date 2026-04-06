@@ -532,7 +532,7 @@ export class TrackService {
       const playlist = await this.playlistService.getPlaylistById(playlistId);
       if (!playlist) throw new NotFoundException('Playlist not found');
     }
-    await this.trackRepository.createTrackPlay(trackId, userId, track.userId, playlistId);
+    await this.trackRepository.createTrackPlay(trackId, userId, playlistId);
 
     const artistId = track.userId;
     const itemId = playlistId ?? artistId;

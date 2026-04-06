@@ -330,12 +330,7 @@ export class TrackRepository {
     return [...existing, ...created];
   }
 
-  async createTrackPlay(
-    trackId: string,
-    userId: string,
-    artistId: string,
-    playlistId?: string
-  ): Promise<TrackPlay> {
+  async createTrackPlay(trackId: string, userId: string, playlistId?: string): Promise<TrackPlay> {
     const trackPlay = this.trackPlayRepository.create({
       trackId,
       userId,
@@ -350,14 +345,14 @@ export class TrackRepository {
     userId: string,
     itemId: string,
     itemType: RecentlyPlayedItemType
-  ): Promise<RecentlyPlayed> {
-    const recentlyPlayed = this.recentlyPlayedRepository.create({
-      userId,
-      itemId,
-      itemType,
-      playedAt: new Date(),
-    });
-    return this.recentlyPlayedRepository.save(recentlyPlayed);
+  ): Promise<void> {
+    await this.recentlyPlayedRepository
+      .createQueryBuilder()
+      .insert()
+      .into(RecentlyPlayed)
+      .values({ userId, itemId, itemType, playedAt: new Date() })
+      .orUpdate(['played_at'], ['user_id', 'item_id', 'item_type'])
+      .execute();
   }
 
   async deleteOldRecentlyPlayed(userId: string): Promise<void> {
