@@ -1206,3 +1206,214 @@ export function ApiGetTrackPlaylists() {
     ApiResponse({ status: 401, description: 'Unauthorized' })
   );
 }
+
+// ─── Get Track ────────────────────────────────────────────────────────────────
+
+export function ApiGetTrack() {
+  return applyDecorators(
+    ApiCookieAuth('access_token'),
+    ApiOperation({
+      summary: 'Get a track',
+      description:
+        'Returns the full track object including metadata, genres, tags, waveform URL, and owner. ' +
+        'Auth is optional — unauthenticated users can access public tracks. ' +
+        'Private tracks require the owner to be authenticated. ' +
+        'Audio URL is not returned, use GET track audio',
+    }),
+    ApiParam({ name: 'trackId', description: 'UUID of the track', type: 'string' }),
+    ApiResponse({
+      status: 200,
+      description: 'Track retrieved successfully',
+      schema: {
+        example: {
+          status: 'success',
+          data: {
+            trackId: '550e8400-e29b-41d4-a716-446655440010',
+            title: 'Summer Nights',
+            description: 'A deep house track recorded live in Cairo.',
+            coverImage: 'https://s3.amazonaws.com/covers/track_123.jpg',
+            durationSeconds: 214,
+            trackStatus: 'finished',
+            waveformUrl: 'https://s3.amazonaws.com/waveforms/track_123.json',
+            playCount: 1042,
+            likesCount: 87,
+            repostsCount: 14,
+            commentsCount: 5,
+            visibility: 'public',
+            explicitContent: false,
+            releaseDate: '2025-06-01',
+            genres: [
+              { genreId: 'genre_001', name: 'Electronic' },
+              { genreId: 'genre_004', name: 'House' },
+            ],
+            tags: ['deep house', 'cairo', 'summer', 'live'],
+            owner: {
+              userId: '550e8400-e29b-41d4-a716-446655440001',
+              username: 'yara_senousy',
+              displayName: 'Yara Senousy',
+              avatarUrl: 'https://s3.amazonaws.com/avatars/user_123.jpg',
+            },
+            createdAt: '2025-06-01T10:00:00Z',
+            updatedAt: '2025-06-10T09:15:00Z',
+          },
+        },
+      },
+    }),
+    ApiResponse({
+      status: 401,
+      description: 'Track is private and no valid token provided',
+      schema: { example: { statusCode: 401, message: 'Unauthorized' } },
+    }),
+    ApiResponse({
+      status: 403,
+      description: 'Track is private and belongs to another user',
+      schema: { example: { statusCode: 403, message: 'This track is private' } },
+    }),
+    ApiResponse({
+      status: 404,
+      description: 'Track not found',
+      schema: { example: { statusCode: 404, message: 'Track not found' } },
+    })
+  );
+}
+
+// ─── Get Track Audio ──────────────────────────────────────────────────────────
+
+export function ApiGetTrackAudio() {
+  return applyDecorators(
+    ApiCookieAuth('access_token'),
+    ApiOperation({
+      summary: 'Get track audio URLs',
+      description:
+        'Returns the audio URL, preview URL, and duration for a finished track. ' +
+        'Auth is optional — unauthenticated and free-tier users receive the standard audio URL. ' +
+        'Pro and Go+ users receive the HQ audio URL. ' +
+        'Returns 409 if the track is still processing.',
+    }),
+    ApiParam({ name: 'trackId', description: 'UUID of the track', type: 'string' }),
+    ApiResponse({
+      status: 200,
+      description: 'Audio URLs returned successfully',
+      schema: {
+        example: {
+          status: 'success',
+          data: {
+            audioUrl: 'https://s3.amazonaws.com/audio/track_123.mp3',
+            previewAudioUrl: 'https://s3.amazonaws.com/previews/track_123.mp3',
+            durationSeconds: 214,
+          },
+        },
+      },
+    }),
+    ApiResponse({
+      status: 403,
+      description: 'Track is private and belongs to another user',
+      schema: { example: { statusCode: 403, message: 'This track is private' } },
+    }),
+    ApiResponse({
+      status: 404,
+      description: 'Track not found',
+      schema: { example: { statusCode: 404, message: 'Track not found' } },
+    }),
+    ApiResponse({
+      status: 409,
+      description: 'Track is still processing',
+      schema: { example: { statusCode: 409, message: 'Track audio is not available yet' } },
+    })
+  );
+}
+
+// ─── Update Blocked Regions ───────────────────────────────────────────────────
+
+export function ApiUpdateBlockedRegions() {
+  return applyDecorators(
+    ApiCookieAuth('access_token'),
+    ApiOperation({
+      summary: 'Set blocked regions for a track',
+      description:
+        "Replaces the track's blocked regions list entirely. " +
+        'Pass an empty array to unblock all regions. ' +
+        'Country names must match the format used by the geoip-lite lookup ' +
+        '(e.g. "Egypt", "United States", "Germany"). ' +
+        'Only the track owner can call this endpoint.',
+    }),
+    ApiParam({ name: 'trackId', description: 'UUID of the track', type: 'string' }),
+    ApiBody({
+      schema: {
+        type: 'object',
+        required: ['blockedRegions'],
+        properties: {
+          blockedRegions: {
+            type: 'array',
+            items: { type: 'string' },
+            example: ['Egypt', 'United States', 'Germany'],
+            description: 'Full list of country names to block. Replaces existing list entirely.',
+          },
+        },
+      },
+    }),
+    ApiResponse({
+      status: 200,
+      description: 'Blocked regions updated successfully',
+      schema: {
+        example: {
+          status: 'success',
+          data: {
+            trackId: '550e8400-e29b-41d4-a716-446655440010',
+            blockedRegions: ['Egypt', 'United States', 'Germany'],
+          },
+        },
+      },
+    }),
+    ApiResponse({
+      status: 400,
+      description: 'Invalid request body',
+      schema: {
+        example: {
+          statusCode: 400,
+          message: ['blockedRegions must be an array of non-empty strings'],
+        },
+      },
+    }),
+    ApiResponse({
+      status: 403,
+      description: 'You do not own this track',
+      schema: { example: { statusCode: 403, message: 'You do not own this track' } },
+    }),
+    ApiResponse({
+      status: 404,
+      description: 'Track not found',
+      schema: { example: { statusCode: 404, message: 'Track not found' } },
+    }),
+    ApiResponse({ status: 401, description: 'Unauthorized' })
+  );
+}
+
+// ─── Get All Genres ───────────────────────────────────────────────────────────
+
+export function ApiGetAllGenres() {
+  return applyDecorators(
+    ApiOperation({
+      summary: 'Get all genres',
+      description:
+        'Returns the full list of available genres. No authentication required. ' +
+        'Used to populate genre selector dropdowns in the track upload flow.',
+    }),
+    ApiResponse({
+      status: 200,
+      description: 'Genres retrieved successfully',
+      schema: {
+        example: {
+          status: 'success',
+          data: [
+            { genreId: 'genre_001', name: 'Electronic' },
+            { genreId: 'genre_002', name: 'Hip-Hop' },
+            { genreId: 'genre_003', name: 'Jazz' },
+            { genreId: 'genre_004', name: 'House' },
+            { genreId: 'genre_005', name: 'Techno' },
+          ],
+        },
+      },
+    })
+  );
+}
