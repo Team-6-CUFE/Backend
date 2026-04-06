@@ -123,7 +123,7 @@ export class PlaylistController {
 
   @ApiCreatePlaylist()
   @Post('create-playlist')
-  createPlaylist(@Body() createPlaylistDto: CreatePlaylistDto) {
-    return this.playlistService.createPlaylist(createPlaylistDto);
+  createPlaylist(@Body() createPlaylistDto: CreatePlaylistDto, @CurrentUser('sub') userId: string) {
+    return this.playlistService.createPlaylist(createPlaylistDto, userId);
   }
 }

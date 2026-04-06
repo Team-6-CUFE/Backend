@@ -5,6 +5,7 @@ import {
   ConflictException,
   NotFoundException,
 } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { PlaylistRepository } from './playlist.repository';
 import { buildPaginationResponse } from '../common/utilities/pagination.util';
 import { UserRepository } from '../user/user.repository';
@@ -14,7 +15,8 @@ import { CreatePlaylistDto } from './dto/create-playlist.dto';
 export class PlaylistService {
   constructor(
     private readonly playlistRepository: PlaylistRepository,
-    private readonly userRepository: UserRepository
+    private readonly userRepository: UserRepository,
+    private configService: ConfigService
   ) {}
 
   async repostPlaylist(playlistId: string, userId: string) {
@@ -286,8 +288,29 @@ export class PlaylistService {
     return { status: 'success', ...buildPaginationResponse(mappedLikes, total, page, limit) };
   }
 
-  async createPlaylist(createPlaylistDto: CreatePlaylistDto) {
-    // await this.playlistRepository.createPlaylist(createPlaylistDto);
-    console.log(createPlaylistDto);
+  async createPlaylist(createPlaylistDto: CreatePlaylistDto, userId: string) {
+    const playlistCreated = await this.playlistRepository.createPlaylist(createPlaylistDto, userId);
+    let shareUrl = '';
+    if (createPlaylistDto.isPublic) {
+      shareUrl = `${this.configService.get('HARMONICA_BASE_URL')}/playlist/${playlistCreated.playlistId}`;
+    } else {
+      shareUrl = `${this.configService.get('HARMONICA_BASE_URL')}/playlist/secret/${playlistCreated.secretToken}`;
+    }
+    console.log('created playlist: ', playlistCreated);
+    return {
+      status: 'sucesss',
+      data: {
+        playlistId: playlistCreated.playlistId,
+        title: playlistCreated.title,
+        isPublic: playlistCreated.isPublic,
+        trackCount: playlistCreated.tracksCount,
+        durationSeconds: playlistCreated.totalDurationSeconds,
+        likesCount: playlistCreated.likesCount,
+        repostsCount: playlistCreated.repostsCount,
+        secretToken: playlistCreated.secretToken,
+        shareUrl,
+        createdAt: playlistCreated.createdAt,
+      },
+    };
   }
 }
