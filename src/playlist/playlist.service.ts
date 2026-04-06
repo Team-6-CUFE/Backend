@@ -286,21 +286,6 @@ export class PlaylistService {
     return { status: 'success', ...buildPaginationResponse(mappedLikes, total, page, limit) };
   }
 
-  async deletePlaylist(playlistId: string, userId: string) {
-    const playlist = await this.playlistRepository.findPlaylistById(playlistId);
-    if (!playlist) {
-      throw new NotFoundException('Playlist Not found');
-    }
-    if (playlist.userId !== userId) {
-      throw new ForbiddenException('Cannot delete playlist. You are not the owner');
-    }
-    await this.playlistRepository.deletePlaylist(playlistId);
-    return {
-      status: 'success',
-      message: 'Playlist deleted successfully ',
-    };
-  }
-
   async createPlaylist(createPlaylistDto: CreatePlaylistDto) {
     // await this.playlistRepository.createPlaylist(createPlaylistDto);
     console.log(createPlaylistDto);
