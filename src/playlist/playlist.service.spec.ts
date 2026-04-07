@@ -48,6 +48,7 @@ const mockPlaylistRepository = () => ({
   findTrackInPlaylist: jest.fn(),
   removeTrackAndReorder: jest.fn(),
   deletePlaylist: jest.fn(),
+  getPlaylistDetails: jest.fn(),
 });
 
 const mockStorageService = () => ({
@@ -1110,6 +1111,33 @@ describe('PlaylistService', () => {
       const result = await service.deletePlaylist('id', 'my-user');
       expect(result.status).toBe('success');
       expect(playlistRepo.deletePlaylist).toHaveBeenCalledWith('id');
+    });
+  });
+
+  describe('getPlaylist', () => {
+    it('should allow access to public playlist for guests', async () => {
+      playlistRepo.getPlaylistDetails.mockResolvedValue({ isPublic: true, playlistTracks: [] });
+      const result = await service.getPlaylist('id', null);
+      expect(result.status).toBe('success');
+    });
+
+    it('should throw Forbidden if private and no token/not owner', async () => {
+      playlistRepo.getPlaylistDetails.mockResolvedValue({
+        isPublic: false,
+        userId: 'owner-id',
+        secretToken: 'shh',
+      });
+      await expect(service.getPlaylist('id', 'stranger-id')).rejects.toThrow(ForbiddenException);
+    });
+
+    it('should allow access to private playlist if valid secret token is provided', async () => {
+      playlistRepo.getPlaylistDetails.mockResolvedValue({
+        isPublic: false,
+        secretToken: 'valid-token',
+        playlistTracks: [],
+      });
+      const result = await service.getPlaylist('id', null, 'valid-token');
+      expect(result.status).toBe('success');
     });
   });
 });
