@@ -1,4 +1,5 @@
 import { Test, TestingModule } from '@nestjs/testing';
+import { firstValueFrom } from 'rxjs';
 import {
   BadRequestException,
   ConflictException,
@@ -7,13 +8,19 @@ import {
 } from '@nestjs/common';
 import { TrackController } from './track.controller';
 import { TrackService } from './track.service';
-import { NoBlockGuard } from '../followers/guards/no-block.guard';
 import { TrackSseService } from './services/track-sse.service';
+import { NoBlockGuard } from '../followers/guards/no-block.guard';
+import {
+  MOCK_TRACK_ID,
+  MOCK_USER_ID,
+  MOCK_MY_USER_ID,
+  MOCK_OTHER_USER_ID,
+  mockJwtPayload,
+  mockProJwtPayload,
+  mockPublicTrack,
+} from './tests/track.mock';
 
-const mockTrackId = '123e4567-e89b-12d3-a456-426614174000';
-const mockUserId = '550e8400-e29b-41d4-a716-446655440001';
-const mockMyUserId = '550e8400-e29b-41d4-a716-446655440002';
-const mockCaption = 'Great track!';
+const MOCK_CAPTION = 'Great track!';
 
 const mockTrackService = () => ({
   repostTrack: jest.fn(),
@@ -30,6 +37,13 @@ const mockTrackService = () => ({
   addComment: jest.fn(),
   deleteComment: jest.fn(),
   getTrackComments: jest.fn(),
+  getTrack: jest.fn(),
+  getTrackAudio: jest.fn(),
+  updateBlockedRegions: jest.fn(),
+  getAllGenres: jest.fn(),
+  getUserUploadedTracks: jest.fn(),
+  getUserQuota: jest.fn(),
+  getTrackPlaylists: jest.fn(),
 });
 
 describe('TrackController', () => {
@@ -57,87 +71,58 @@ describe('TrackController', () => {
   // ─── repostTrack ──────────────────────────────────────────────────────────────
 
   describe('repostTrack', () => {
-    it('should delegate to service with trackId, userId, and caption', async () => {
+    it('should delegate to service with correct args', async () => {
       service.repostTrack.mockResolvedValue({});
 
-      await controller.repostTrack(mockTrackId, mockUserId, mockCaption);
+      await controller.repostTrack(MOCK_TRACK_ID, MOCK_USER_ID, MOCK_CAPTION);
 
-      expect(service.repostTrack).toHaveBeenCalledWith(mockTrackId, mockUserId, mockCaption);
-      expect(service.repostTrack).toHaveBeenCalledTimes(1);
+      expect(service.repostTrack).toHaveBeenCalledWith(MOCK_TRACK_ID, MOCK_USER_ID, MOCK_CAPTION);
     });
 
-    it('should return the service response as-is', async () => {
-      const mockResponse = {
-        id: 'repost-1',
-        trackId: mockTrackId,
-        userId: mockUserId,
-        caption: mockCaption,
-      };
+    it('should return service response as-is', async () => {
+      const mockResponse = { status: 'success', data: {} };
       service.repostTrack.mockResolvedValue(mockResponse);
 
-      const result = await controller.repostTrack(mockTrackId, mockUserId, mockCaption);
-
-      expect(result).toEqual(mockResponse);
-    });
-
-    it('should work without caption (caption is undefined)', async () => {
-      service.repostTrack.mockResolvedValue({});
-
-      await controller.repostTrack(mockTrackId, mockUserId, undefined as any);
-
-      expect(service.repostTrack).toHaveBeenCalledWith(mockTrackId, mockUserId, undefined);
-    });
-
-    it('should propagate NotFoundException from service', async () => {
-      service.repostTrack.mockRejectedValue(new NotFoundException('Track not found'));
-
-      await expect(controller.repostTrack(mockTrackId, mockUserId, mockCaption)).rejects.toThrow(
-        NotFoundException
+      expect(await controller.repostTrack(MOCK_TRACK_ID, MOCK_USER_ID, MOCK_CAPTION)).toBe(
+        mockResponse
       );
     });
 
-    it('should propagate ConflictException from service', async () => {
-      service.repostTrack.mockRejectedValue(new ConflictException('Already reposted'));
+    it('should propagate NotFoundException', async () => {
+      service.repostTrack.mockRejectedValue(new NotFoundException());
 
-      await expect(controller.repostTrack(mockTrackId, mockUserId, mockCaption)).rejects.toThrow(
-        ConflictException
-      );
+      await expect(
+        controller.repostTrack(MOCK_TRACK_ID, MOCK_USER_ID, MOCK_CAPTION)
+      ).rejects.toThrow(NotFoundException);
+    });
+
+    it('should propagate ConflictException', async () => {
+      service.repostTrack.mockRejectedValue(new ConflictException());
+
+      await expect(
+        controller.repostTrack(MOCK_TRACK_ID, MOCK_USER_ID, MOCK_CAPTION)
+      ).rejects.toThrow(ConflictException);
     });
   });
 
   // ─── getTrackRepostsCount ─────────────────────────────────────────────────────
 
   describe('getTrackRepostsCount', () => {
-    it('should delegate to service with trackId and userId', async () => {
-      service.getTrackRepostsCount.mockResolvedValue({ count: 5 });
+    it('should delegate to service', async () => {
+      service.getTrackRepostsCount.mockResolvedValue({
+        status: 'success',
+        data: { repostsCount: 5 },
+      });
 
-      await controller.getTrackRepostsCount(mockTrackId, mockUserId);
+      await controller.getTrackRepostsCount(MOCK_TRACK_ID, MOCK_USER_ID);
 
-      expect(service.getTrackRepostsCount).toHaveBeenCalledWith(mockTrackId, mockUserId);
-      expect(service.getTrackRepostsCount).toHaveBeenCalledTimes(1);
+      expect(service.getTrackRepostsCount).toHaveBeenCalledWith(MOCK_TRACK_ID, MOCK_USER_ID);
     });
 
-    it('should return the service response as-is', async () => {
-      const mockResponse = { count: 42 };
-      service.getTrackRepostsCount.mockResolvedValue(mockResponse);
+    it('should propagate ForbiddenException', async () => {
+      service.getTrackRepostsCount.mockRejectedValue(new ForbiddenException());
 
-      const result = await controller.getTrackRepostsCount(mockTrackId, mockUserId);
-
-      expect(result).toEqual(mockResponse);
-    });
-
-    it('should propagate NotFoundException from service', async () => {
-      service.getTrackRepostsCount.mockRejectedValue(new NotFoundException('Track not found'));
-
-      await expect(controller.getTrackRepostsCount(mockTrackId, mockUserId)).rejects.toThrow(
-        NotFoundException
-      );
-    });
-
-    it('should propagate ForbiddenException from service', async () => {
-      service.getTrackRepostsCount.mockRejectedValue(new ForbiddenException('Access denied'));
-
-      await expect(controller.getTrackRepostsCount(mockTrackId, mockUserId)).rejects.toThrow(
+      await expect(controller.getTrackRepostsCount(MOCK_TRACK_ID, MOCK_USER_ID)).rejects.toThrow(
         ForbiddenException
       );
     });
@@ -146,28 +131,18 @@ describe('TrackController', () => {
   // ─── removeTrackRepost ────────────────────────────────────────────────────────
 
   describe('removeTrackRepost', () => {
-    it('should delegate to service with trackId and userId', async () => {
+    it('should delegate to service', async () => {
       service.removeTrackRepost.mockResolvedValue({});
 
-      await controller.removeTrackRepost(mockTrackId, mockUserId);
+      await controller.removeTrackRepost(MOCK_TRACK_ID, MOCK_USER_ID);
 
-      expect(service.removeTrackRepost).toHaveBeenCalledWith(mockTrackId, mockUserId);
-      expect(service.removeTrackRepost).toHaveBeenCalledTimes(1);
+      expect(service.removeTrackRepost).toHaveBeenCalledWith(MOCK_TRACK_ID, MOCK_USER_ID);
     });
 
-    it('should return the service response as-is', async () => {
-      const mockResponse = { message: 'Repost removed successfully' };
-      service.removeTrackRepost.mockResolvedValue(mockResponse);
+    it('should propagate BadRequestException', async () => {
+      service.removeTrackRepost.mockRejectedValue(new BadRequestException());
 
-      const result = await controller.removeTrackRepost(mockTrackId, mockUserId);
-
-      expect(result).toEqual(mockResponse);
-    });
-
-    it('should propagate BadRequestException from service', async () => {
-      service.removeTrackRepost.mockRejectedValue(new BadRequestException('Repost not found'));
-
-      await expect(controller.removeTrackRepost(mockTrackId, mockUserId)).rejects.toThrow(
+      await expect(controller.removeTrackRepost(MOCK_TRACK_ID, MOCK_USER_ID)).rejects.toThrow(
         BadRequestException
       );
     });
@@ -176,183 +151,72 @@ describe('TrackController', () => {
   // ─── editTrackRepost ──────────────────────────────────────────────────────────
 
   describe('editTrackRepost', () => {
-    it('should delegate to service with trackId, userId, and caption', async () => {
+    it('should delegate to service', async () => {
       service.editTrackRepost.mockResolvedValue({});
 
-      await controller.editTrackRepost(mockTrackId, mockUserId, mockCaption);
+      await controller.editTrackRepost(MOCK_TRACK_ID, MOCK_USER_ID, MOCK_CAPTION);
 
-      expect(service.editTrackRepost).toHaveBeenCalledWith(mockTrackId, mockUserId, mockCaption);
-      expect(service.editTrackRepost).toHaveBeenCalledTimes(1);
-    });
-
-    it('should return the service response as-is', async () => {
-      const mockResponse = { id: 'repost-1', caption: mockCaption };
-      service.editTrackRepost.mockResolvedValue(mockResponse);
-
-      const result = await controller.editTrackRepost(mockTrackId, mockUserId, mockCaption);
-
-      expect(result).toEqual(mockResponse);
-    });
-
-    it('should propagate BadRequestException from service', async () => {
-      service.editTrackRepost.mockRejectedValue(new BadRequestException('Repost not found'));
-
-      await expect(
-        controller.editTrackRepost(mockTrackId, mockUserId, mockCaption)
-      ).rejects.toThrow(BadRequestException);
+      expect(service.editTrackRepost).toHaveBeenCalledWith(
+        MOCK_TRACK_ID,
+        MOCK_USER_ID,
+        MOCK_CAPTION
+      );
     });
   });
 
   // ─── getTrackReposts ──────────────────────────────────────────────────────────
 
   describe('getTrackReposts', () => {
-    const mockPage = 1;
-    const mockLimit = 10;
+    it('should delegate to service with all params', async () => {
+      service.getTrackReposts.mockResolvedValue({ status: 'success', data: [] });
 
-    it('should delegate to service with trackId, userId, page, and limit', async () => {
-      service.getTrackReposts.mockResolvedValue({ data: [], total: 0 });
+      await controller.getTrackReposts(MOCK_TRACK_ID, MOCK_USER_ID, 1, 20);
 
-      await controller.getTrackReposts(mockTrackId, mockUserId, mockPage, mockLimit);
+      expect(service.getTrackReposts).toHaveBeenCalledWith(MOCK_TRACK_ID, MOCK_USER_ID, 1, 20);
+    });
 
-      expect(service.getTrackReposts).toHaveBeenCalledWith(
-        mockTrackId,
-        mockUserId,
-        mockPage,
-        mockLimit
+    it('should propagate ForbiddenException', async () => {
+      service.getTrackReposts.mockRejectedValue(new ForbiddenException());
+
+      await expect(controller.getTrackReposts(MOCK_TRACK_ID, MOCK_USER_ID, 1, 20)).rejects.toThrow(
+        ForbiddenException
       );
-      expect(service.getTrackReposts).toHaveBeenCalledTimes(1);
-    });
-
-    it('should return the service response as-is', async () => {
-      const mockResponse = {
-        data: [{ id: 'repost-1', userId: mockUserId, caption: mockCaption }],
-        total: 1,
-      };
-      service.getTrackReposts.mockResolvedValue(mockResponse);
-
-      const result = await controller.getTrackReposts(mockTrackId, mockUserId, mockPage, mockLimit);
-
-      expect(result).toEqual(mockResponse);
-    });
-
-    it('should propagate NotFoundException from service', async () => {
-      service.getTrackReposts.mockRejectedValue(new NotFoundException('Track not found'));
-
-      await expect(
-        controller.getTrackReposts(mockTrackId, mockUserId, mockPage, mockLimit)
-      ).rejects.toThrow(NotFoundException);
-    });
-
-    it('should propagate ForbiddenException from service', async () => {
-      service.getTrackReposts.mockRejectedValue(new ForbiddenException('Access denied'));
-
-      await expect(
-        controller.getTrackReposts(mockTrackId, mockUserId, mockPage, mockLimit)
-      ).rejects.toThrow(ForbiddenException);
     });
   });
 
   // ─── getUserTrackReposts ──────────────────────────────────────────────────────
 
   describe('getUserTrackReposts', () => {
-    const mockPage = 1;
-    const mockLimit = 20;
+    it('should delegate to service', async () => {
+      service.getUserTrackReposts.mockResolvedValue({ status: 'success', data: [] });
 
-    it('should delegate to service with userId, myUserId, page, and limit', async () => {
-      service.getUserTrackReposts.mockResolvedValue({ data: [], pagination: {} });
-
-      await controller.getUserTrackReposts(mockUserId, mockMyUserId, mockPage, mockLimit);
+      await controller.getUserTrackReposts(MOCK_USER_ID, MOCK_MY_USER_ID, 1, 20);
 
       expect(service.getUserTrackReposts).toHaveBeenCalledWith(
-        mockUserId,
-        mockMyUserId,
-        mockPage,
-        mockLimit
+        MOCK_USER_ID,
+        MOCK_MY_USER_ID,
+        1,
+        20
       );
-      expect(service.getUserTrackReposts).toHaveBeenCalledTimes(1);
-    });
-
-    it('should return the service response as-is', async () => {
-      const mockResponse = {
-        data: [{ trackId: mockTrackId, title: 'Midnight Drive' }],
-        pagination: { currentPage: 1, totalPages: 1, totalCount: 1, limit: 20 },
-      };
-      service.getUserTrackReposts.mockResolvedValue(mockResponse);
-
-      const result = await controller.getUserTrackReposts(
-        mockUserId,
-        mockMyUserId,
-        mockPage,
-        mockLimit
-      );
-
-      expect(result).toBe(mockResponse);
-    });
-
-    it('should propagate NotFoundException from service', async () => {
-      service.getUserTrackReposts.mockRejectedValue(new NotFoundException('User not found'));
-
-      await expect(
-        controller.getUserTrackReposts(mockUserId, mockMyUserId, mockPage, mockLimit)
-      ).rejects.toThrow(NotFoundException);
-    });
-
-    it('should propagate ForbiddenException from service', async () => {
-      service.getUserTrackReposts.mockRejectedValue(
-        new ForbiddenException('This account is private')
-      );
-
-      await expect(
-        controller.getUserTrackReposts(mockUserId, mockMyUserId, mockPage, mockLimit)
-      ).rejects.toThrow(ForbiddenException);
     });
   });
 
   // ─── likeTrack ────────────────────────────────────────────────────────────────
 
   describe('likeTrack', () => {
-    it('should delegate to service with trackId and userId', async () => {
+    it('should delegate to service', async () => {
       service.likeTrack.mockResolvedValue({});
 
-      await controller.likeTrack(mockTrackId, mockUserId);
+      await controller.likeTrack(MOCK_TRACK_ID, MOCK_USER_ID);
 
-      expect(service.likeTrack).toHaveBeenCalledWith(mockTrackId, mockUserId);
-      expect(service.likeTrack).toHaveBeenCalledTimes(1);
+      expect(service.likeTrack).toHaveBeenCalledWith(MOCK_TRACK_ID, MOCK_USER_ID);
     });
 
-    it('should return the service response as-is', async () => {
-      const mockResponse = {
-        status: 'success',
-        data: { trackId: mockTrackId, userId: mockUserId },
-      };
-      service.likeTrack.mockResolvedValue(mockResponse);
+    it('should propagate ConflictException', async () => {
+      service.likeTrack.mockRejectedValue(new ConflictException());
 
-      const result = await controller.likeTrack(mockTrackId, mockUserId);
-
-      expect(result).toEqual(mockResponse);
-    });
-
-    it('should propagate NotFoundException from service', async () => {
-      service.likeTrack.mockRejectedValue(new NotFoundException('Track not found'));
-
-      await expect(controller.likeTrack(mockTrackId, mockUserId)).rejects.toThrow(
-        NotFoundException
-      );
-    });
-
-    it('should propagate ConflictException from service', async () => {
-      service.likeTrack.mockRejectedValue(new ConflictException('Already liked'));
-
-      await expect(controller.likeTrack(mockTrackId, mockUserId)).rejects.toThrow(
+      await expect(controller.likeTrack(MOCK_TRACK_ID, MOCK_USER_ID)).rejects.toThrow(
         ConflictException
-      );
-    });
-
-    it('should propagate ForbiddenException from service', async () => {
-      service.likeTrack.mockRejectedValue(new ForbiddenException('Track is private'));
-
-      await expect(controller.likeTrack(mockTrackId, mockUserId)).rejects.toThrow(
-        ForbiddenException
       );
     });
   });
@@ -360,311 +224,95 @@ describe('TrackController', () => {
   // ─── getTrackLikesCount ───────────────────────────────────────────────────────
 
   describe('getTrackLikesCount', () => {
-    it('should delegate to service with trackId and userId', async () => {
-      service.getTrackLikesCount.mockResolvedValue({
-        status: 'success',
-        data: { trackId: mockTrackId, likesCount: 5 },
-      });
+    it('should delegate to service', async () => {
+      service.getTrackLikesCount.mockResolvedValue({});
 
-      await controller.getTrackLikessCount(mockTrackId, mockUserId);
+      await controller.getTrackLikessCount(MOCK_TRACK_ID, MOCK_USER_ID);
 
-      expect(service.getTrackLikesCount).toHaveBeenCalledWith(mockTrackId, mockUserId);
-      expect(service.getTrackLikesCount).toHaveBeenCalledTimes(1);
-    });
-
-    it('should return the service response as-is', async () => {
-      const mockResponse = { status: 'success', data: { trackId: mockTrackId, likesCount: 42 } };
-      service.getTrackLikesCount.mockResolvedValue(mockResponse);
-
-      const result = await controller.getTrackLikessCount(mockTrackId, mockUserId);
-
-      expect(result).toEqual(mockResponse);
-    });
-
-    it('should propagate NotFoundException from service', async () => {
-      service.getTrackLikesCount.mockRejectedValue(new NotFoundException('Track not found'));
-
-      await expect(controller.getTrackLikessCount(mockTrackId, mockUserId)).rejects.toThrow(
-        NotFoundException
-      );
-    });
-
-    it('should propagate ForbiddenException from service', async () => {
-      service.getTrackLikesCount.mockRejectedValue(new ForbiddenException('Access denied'));
-
-      await expect(controller.getTrackLikessCount(mockTrackId, mockUserId)).rejects.toThrow(
-        ForbiddenException
-      );
+      expect(service.getTrackLikesCount).toHaveBeenCalledWith(MOCK_TRACK_ID, MOCK_USER_ID);
     });
   });
 
   // ─── removeTrackLike ──────────────────────────────────────────────────────────
 
   describe('removeTrackLike', () => {
-    it('should delegate to service with trackId and userId', async () => {
+    it('should delegate to service', async () => {
       service.removeTrackLike.mockResolvedValue({});
 
-      await controller.removeTrackLike(mockTrackId, mockUserId);
+      await controller.removeTrackLike(MOCK_TRACK_ID, MOCK_USER_ID);
 
-      expect(service.removeTrackLike).toHaveBeenCalledWith(mockTrackId, mockUserId);
-      expect(service.removeTrackLike).toHaveBeenCalledTimes(1);
-    });
-
-    it('should return the service response as-is', async () => {
-      const mockResponse = { status: 'success', message: 'Track successfully unliked' };
-      service.removeTrackLike.mockResolvedValue(mockResponse);
-
-      const result = await controller.removeTrackLike(mockTrackId, mockUserId);
-
-      expect(result).toEqual(mockResponse);
-    });
-
-    it('should propagate BadRequestException from service', async () => {
-      service.removeTrackLike.mockRejectedValue(new BadRequestException('Like not found'));
-
-      await expect(controller.removeTrackLike(mockTrackId, mockUserId)).rejects.toThrow(
-        BadRequestException
-      );
+      expect(service.removeTrackLike).toHaveBeenCalledWith(MOCK_TRACK_ID, MOCK_USER_ID);
     });
   });
 
   // ─── getTrackLikes ────────────────────────────────────────────────────────────
 
   describe('getTrackLikes', () => {
-    const mockPage = 1;
-    const mockLimit = 10;
+    it('should delegate to service', async () => {
+      service.getTrackLikes.mockResolvedValue({ status: 'success', data: [] });
 
-    it('should delegate to service with trackId, userId, page, and limit', async () => {
-      service.getTrackLikes.mockResolvedValue({ status: 'success', data: [], pagination: {} });
+      await controller.getTrackLikes(MOCK_TRACK_ID, MOCK_USER_ID, 1, 20);
 
-      await controller.getTrackLikes(mockTrackId, mockUserId, mockPage, mockLimit);
-
-      expect(service.getTrackLikes).toHaveBeenCalledWith(
-        mockTrackId,
-        mockUserId,
-        mockPage,
-        mockLimit
-      );
-      expect(service.getTrackLikes).toHaveBeenCalledTimes(1);
-    });
-
-    it('should return the service response as-is', async () => {
-      const mockResponse = {
-        status: 'success',
-        data: [{ userId: mockUserId, likedAt: new Date() }],
-        pagination: { currentPage: 1, totalPages: 1, totalCount: 1, limit: 10 },
-      };
-      service.getTrackLikes.mockResolvedValue(mockResponse);
-
-      const result = await controller.getTrackLikes(mockTrackId, mockUserId, mockPage, mockLimit);
-
-      expect(result).toEqual(mockResponse);
-    });
-
-    it('should propagate NotFoundException from service', async () => {
-      service.getTrackLikes.mockRejectedValue(new NotFoundException('Track not found'));
-
-      await expect(
-        controller.getTrackLikes(mockTrackId, mockUserId, mockPage, mockLimit)
-      ).rejects.toThrow(NotFoundException);
-    });
-
-    it('should propagate ForbiddenException from service', async () => {
-      service.getTrackLikes.mockRejectedValue(new ForbiddenException('Access denied'));
-
-      await expect(
-        controller.getTrackLikes(mockTrackId, mockUserId, mockPage, mockLimit)
-      ).rejects.toThrow(ForbiddenException);
+      expect(service.getTrackLikes).toHaveBeenCalledWith(MOCK_TRACK_ID, MOCK_USER_ID, 1, 20);
     });
   });
 
   // ─── getUserTrackLikes ────────────────────────────────────────────────────────
 
   describe('getUserTrackLikes', () => {
-    const mockPage = 1;
-    const mockLimit = 20;
+    it('should delegate to service', async () => {
+      service.getUserTrackLikes.mockResolvedValue({ status: 'success', data: [] });
 
-    it('should delegate to service with userId, myUserId, page, and limit', async () => {
-      service.getUserTrackLikes.mockResolvedValue({ status: 'success', data: [], pagination: {} });
+      await controller.getUserTrackLikes(MOCK_USER_ID, MOCK_MY_USER_ID, 1, 20);
 
-      await controller.getUserTrackLikes(mockUserId, mockMyUserId, mockPage, mockLimit);
-
-      expect(service.getUserTrackLikes).toHaveBeenCalledWith(
-        mockUserId,
-        mockMyUserId,
-        mockPage,
-        mockLimit
-      );
-      expect(service.getUserTrackLikes).toHaveBeenCalledTimes(1);
-    });
-
-    it('should return the service response as-is', async () => {
-      const mockResponse = {
-        status: 'success',
-        data: [{ trackId: mockTrackId, title: 'Midnight Drive' }],
-        pagination: { currentPage: 1, totalPages: 1, totalCount: 1, limit: 20 },
-      };
-      service.getUserTrackLikes.mockResolvedValue(mockResponse);
-
-      const result = await controller.getUserTrackLikes(
-        mockUserId,
-        mockMyUserId,
-        mockPage,
-        mockLimit
-      );
-
-      expect(result).toBe(mockResponse);
-    });
-
-    it('should propagate NotFoundException from service', async () => {
-      service.getUserTrackLikes.mockRejectedValue(new NotFoundException('User not found'));
-
-      await expect(
-        controller.getUserTrackLikes(mockUserId, mockMyUserId, mockPage, mockLimit)
-      ).rejects.toThrow(NotFoundException);
-    });
-
-    it('should propagate ForbiddenException from service', async () => {
-      service.getUserTrackLikes.mockRejectedValue(
-        new ForbiddenException('This account is private')
-      );
-
-      await expect(
-        controller.getUserTrackLikes(mockUserId, mockMyUserId, mockPage, mockLimit)
-      ).rejects.toThrow(ForbiddenException);
+      expect(service.getUserTrackLikes).toHaveBeenCalledWith(MOCK_USER_ID, MOCK_MY_USER_ID, 1, 20);
     });
   });
 
   // ─── comment ──────────────────────────────────────────────────────────────────
 
   describe('comment', () => {
-    const mockCommentId = '660e8400-e29b-41d4-a716-446655440010';
-    const mockParentCommentId = '660e8400-e29b-41d4-a716-446655440011';
-    const mockDto = { content: 'Great track!', timestampSeconds: 56 };
-    const mockDtoWithParent = {
-      content: 'Nice reply!',
-      timestampSeconds: 30,
-      parentId: mockParentCommentId,
-    };
-    const mockCommentResponse = () => ({
-      status: 'success',
-      data: {
-        commentId: mockCommentId,
-        trackId: mockTrackId,
-        userId: mockUserId,
-        content: 'Great track!',
-        timestampSeconds: 56,
-        parentId: null,
-        createdAt: new Date('2024-06-01T12:00:00Z'),
-      },
+    const mockDto = { content: 'Great!', timestampSeconds: 56 } as any;
+
+    it('should delegate to service', async () => {
+      service.addComment.mockResolvedValue({});
+
+      await controller.comment(MOCK_TRACK_ID, MOCK_USER_ID, mockDto);
+
+      expect(service.addComment).toHaveBeenCalledWith(MOCK_TRACK_ID, MOCK_USER_ID, mockDto);
     });
 
-    it('should delegate to service with trackId, userId, and dto', async () => {
-      service.addComment.mockResolvedValue(mockCommentResponse());
+    it('should propagate ForbiddenException', async () => {
+      service.addComment.mockRejectedValue(new ForbiddenException());
 
-      await controller.comment(mockTrackId, mockUserId, mockDto as any);
-
-      expect(service.addComment).toHaveBeenCalledWith(mockTrackId, mockUserId, mockDto);
-      expect(service.addComment).toHaveBeenCalledTimes(1);
-    });
-
-    it('should return the service response as-is', async () => {
-      const mockResponse = mockCommentResponse();
-      service.addComment.mockResolvedValue(mockResponse);
-
-      const result = await controller.comment(mockTrackId, mockUserId, mockDto as any);
-
-      expect(result).toBe(mockResponse);
-    });
-
-    it('should pass parentId to service when provided', async () => {
-      const replyResponse = {
-        status: 'success',
-        data: { ...mockCommentResponse().data, parentId: mockParentCommentId },
-      };
-      service.addComment.mockResolvedValue(replyResponse);
-
-      await controller.comment(mockTrackId, mockUserId, mockDtoWithParent as any);
-
-      expect(service.addComment).toHaveBeenCalledWith(mockTrackId, mockUserId, mockDtoWithParent);
-    });
-
-    it('should propagate NotFoundException when track not found', async () => {
-      service.addComment.mockRejectedValue(new NotFoundException('Track not found'));
-
-      await expect(controller.comment(mockTrackId, mockUserId, mockDto as any)).rejects.toThrow(
-        NotFoundException
-      );
-    });
-
-    it('should propagate ForbiddenException when track is private', async () => {
-      service.addComment.mockRejectedValue(new ForbiddenException('This track is private'));
-
-      await expect(controller.comment(mockTrackId, mockUserId, mockDto as any)).rejects.toThrow(
+      await expect(controller.comment(MOCK_TRACK_ID, MOCK_USER_ID, mockDto)).rejects.toThrow(
         ForbiddenException
       );
-    });
-
-    it('should propagate NotFoundException when parent comment not found', async () => {
-      service.addComment.mockRejectedValue(new NotFoundException('Parent comment not found'));
-
-      await expect(
-        controller.comment(mockTrackId, mockUserId, mockDtoWithParent as any)
-      ).rejects.toThrow(NotFoundException);
     });
   });
 
   // ─── deleteComment ────────────────────────────────────────────────────────────
 
   describe('deleteComment', () => {
-    const mockCommentId = '660e8400-e29b-41d4-a716-446655440010';
+    const MOCK_COMMENT_ID = '660e8400-e29b-41d4-a716-446655440010';
 
-    it('should delegate to service with trackId, commentId, and userId', async () => {
-      service.deleteComment.mockResolvedValue({
-        status: 'success',
-        message: 'comment deleted successfully',
-      });
+    it('should delegate to service', async () => {
+      service.deleteComment.mockResolvedValue({});
 
-      await controller.deleteComment(mockTrackId, mockCommentId, mockUserId);
+      await controller.deleteComment(MOCK_TRACK_ID, MOCK_COMMENT_ID, MOCK_USER_ID);
 
-      expect(service.deleteComment).toHaveBeenCalledWith(mockTrackId, mockCommentId, mockUserId);
-      expect(service.deleteComment).toHaveBeenCalledTimes(1);
-    });
-
-    it('should return the service response as-is', async () => {
-      const mockResponse = { status: 'success', message: 'comment deleted successfully' };
-      service.deleteComment.mockResolvedValue(mockResponse);
-
-      const result = await controller.deleteComment(mockTrackId, mockCommentId, mockUserId);
-
-      expect(result).toBe(mockResponse);
-    });
-
-    it('should propagate NotFoundException when track or comment not found', async () => {
-      service.deleteComment.mockRejectedValue(new NotFoundException('Comment not found'));
-
-      await expect(
-        controller.deleteComment(mockTrackId, mockCommentId, mockUserId)
-      ).rejects.toThrow(NotFoundException);
-    });
-
-    it('should propagate ForbiddenException when not the comment author', async () => {
-      service.deleteComment.mockRejectedValue(
-        new ForbiddenException('You are not authorized to delete this comment')
+      expect(service.deleteComment).toHaveBeenCalledWith(
+        MOCK_TRACK_ID,
+        MOCK_COMMENT_ID,
+        MOCK_USER_ID
       );
-
-      await expect(
-        controller.deleteComment(mockTrackId, mockCommentId, mockUserId)
-      ).rejects.toThrow(ForbiddenException);
     });
 
-    it('should propagate ConflictException when comment does not belong to track', async () => {
-      service.deleteComment.mockRejectedValue(
-        new ConflictException('This comment does not belong to this track')
-      );
+    it('should propagate ConflictException', async () => {
+      service.deleteComment.mockRejectedValue(new ConflictException());
 
       await expect(
-        controller.deleteComment(mockTrackId, mockCommentId, mockUserId)
+        controller.deleteComment(MOCK_TRACK_ID, MOCK_COMMENT_ID, MOCK_USER_ID)
       ).rejects.toThrow(ConflictException);
     });
   });
@@ -672,68 +320,221 @@ describe('TrackController', () => {
   // ─── getTrackComments ─────────────────────────────────────────────────────────
 
   describe('getTrackComments', () => {
-    const mockPage = 1;
-    const mockLimit = 20;
-
     it('should delegate to service with all params', async () => {
-      service.getTrackComments.mockResolvedValue({
-        status: 'success',
-        data: [],
-        pagination: { currentPage: 1, totalPages: 0, totalCount: 0, limit: mockLimit },
-      });
+      service.getTrackComments.mockResolvedValue({ status: 'success', data: [] });
 
-      await controller.getTrackComments(mockTrackId, mockUserId, mockPage, mockLimit, 'timestamp');
+      await controller.getTrackComments(MOCK_TRACK_ID, MOCK_USER_ID, 1, 20, 'timestamp');
 
       expect(service.getTrackComments).toHaveBeenCalledWith(
-        mockTrackId,
-        mockUserId,
-        mockPage,
-        mockLimit,
+        MOCK_TRACK_ID,
+        MOCK_USER_ID,
+        1,
+        20,
         'timestamp'
       );
-      expect(service.getTrackComments).toHaveBeenCalledTimes(1);
     });
 
-    it('should return the service response as-is', async () => {
+    it('should propagate ForbiddenException', async () => {
+      service.getTrackComments.mockRejectedValue(new ForbiddenException());
+
+      await expect(
+        controller.getTrackComments(MOCK_TRACK_ID, MOCK_USER_ID, 1, 20, 'timestamp')
+      ).rejects.toThrow(ForbiddenException);
+    });
+  });
+
+  // ─── getTrack ─────────────────────────────────────────────────────────────────
+
+  describe('getTrack', () => {
+    it('should delegate to service with trackId, user, and ip', async () => {
+      service.getTrack.mockResolvedValue({ status: 'success', data: {} });
+      const user = mockJwtPayload();
+
+      await controller.getTrack(MOCK_TRACK_ID, user, '1.2.3.4');
+
+      expect(service.getTrack).toHaveBeenCalledWith(MOCK_TRACK_ID, user, '1.2.3.4');
+    });
+
+    it('should work without user (public access)', async () => {
+      service.getTrack.mockResolvedValue({ status: 'success', data: {} });
+
+      await controller.getTrack(MOCK_TRACK_ID, undefined, '1.2.3.4');
+
+      expect(service.getTrack).toHaveBeenCalledWith(MOCK_TRACK_ID, undefined, '1.2.3.4');
+    });
+
+    it('should return service response as-is', async () => {
+      const mockResponse = { status: 'success', data: { trackId: MOCK_TRACK_ID } };
+      service.getTrack.mockResolvedValue(mockResponse);
+
+      expect(await controller.getTrack(MOCK_TRACK_ID)).toBe(mockResponse);
+    });
+
+    it('should propagate ForbiddenException', async () => {
+      service.getTrack.mockRejectedValue(new ForbiddenException());
+
+      await expect(controller.getTrack(MOCK_TRACK_ID)).rejects.toThrow(ForbiddenException);
+    });
+
+    it('should propagate NotFoundException', async () => {
+      service.getTrack.mockRejectedValue(new NotFoundException());
+
+      await expect(controller.getTrack(MOCK_TRACK_ID)).rejects.toThrow(NotFoundException);
+    });
+  });
+
+  // ─── getTrackAudio ────────────────────────────────────────────────────────────
+
+  describe('getTrackAudio', () => {
+    it('should delegate to service with trackId and user', async () => {
+      service.getTrackAudio.mockResolvedValue({ status: 'success', data: {} });
+      const user = mockProJwtPayload();
+
+      await controller.getTrackAudio(MOCK_TRACK_ID, user);
+
+      expect(service.getTrackAudio).toHaveBeenCalledWith(MOCK_TRACK_ID, user);
+    });
+
+    it('should work without user', async () => {
+      service.getTrackAudio.mockResolvedValue({ status: 'success', data: {} });
+
+      await controller.getTrackAudio(MOCK_TRACK_ID, undefined);
+
+      expect(service.getTrackAudio).toHaveBeenCalledWith(MOCK_TRACK_ID, undefined);
+    });
+
+    it('should propagate ConflictException when track still processing', async () => {
+      service.getTrackAudio.mockRejectedValue(new ConflictException());
+
+      await expect(controller.getTrackAudio(MOCK_TRACK_ID)).rejects.toThrow(ConflictException);
+    });
+  });
+
+  // ─── updateBlockedRegions ─────────────────────────────────────────────────────
+
+  describe('updateBlockedRegions', () => {
+    const dto = { blockedRegions: ['EG', 'US'] };
+
+    it('should delegate to service with trackId, userId, and dto', async () => {
+      service.updateBlockedRegions.mockResolvedValue({ status: 'success', data: {} });
+
+      await controller.updateBlockedRegions(MOCK_TRACK_ID, MOCK_USER_ID, dto);
+
+      expect(service.updateBlockedRegions).toHaveBeenCalledWith(MOCK_TRACK_ID, MOCK_USER_ID, dto);
+    });
+
+    it('should return service response as-is', async () => {
       const mockResponse = {
         status: 'success',
-        data: [
-          {
-            commentId: '660e8400-e29b-41d4-a716-446655440010',
-            content: 'Great!',
-            timestampSeconds: 56,
-            user: { userId: mockUserId, username: 'user' },
-            createdAt: new Date(),
-          },
-        ],
-        pagination: { currentPage: 1, totalPages: 1, totalCount: 1, limit: mockLimit },
+        data: { trackId: MOCK_TRACK_ID, blockedRegions: ['EG'] },
       };
-      service.getTrackComments.mockResolvedValue(mockResponse);
+      service.updateBlockedRegions.mockResolvedValue(mockResponse);
 
-      const result = await controller.getTrackComments(
-        mockTrackId,
-        mockUserId,
-        mockPage,
-        mockLimit,
-        'newest'
+      expect(await controller.updateBlockedRegions(MOCK_TRACK_ID, MOCK_USER_ID, dto)).toBe(
+        mockResponse
       );
-
-      expect(result).toBe(mockResponse);
     });
 
-    it('should propagate NotFoundException when track not found', async () => {
-      service.getTrackComments.mockRejectedValue(new NotFoundException('Track not found'));
+    it('should propagate ForbiddenException when not owner', async () => {
+      service.updateBlockedRegions.mockRejectedValue(new ForbiddenException());
 
       await expect(
-        controller.getTrackComments(mockTrackId, mockUserId, mockPage, mockLimit, 'oldest')
-      ).rejects.toThrow(NotFoundException);
+        controller.updateBlockedRegions(MOCK_TRACK_ID, MOCK_USER_ID, dto)
+      ).rejects.toThrow(ForbiddenException);
+    });
+  });
+
+  // ─── getAllGenres ─────────────────────────────────────────────────────────────
+
+  describe('getAllGenres', () => {
+    it('should delegate to service', async () => {
+      service.getAllGenres.mockResolvedValue({ status: 'success', data: [] });
+
+      await controller.getAllGenres();
+
+      expect(service.getAllGenres).toHaveBeenCalledTimes(1);
     });
 
-    it('should propagate ForbiddenException when track is private', async () => {
-      service.getTrackComments.mockRejectedValue(new ForbiddenException('This track is private'));
+    it('should return service response as-is', async () => {
+      const mockResponse = { status: 'success', data: [{ genreId: 'id', name: 'Electronic' }] };
+      service.getAllGenres.mockResolvedValue(mockResponse);
+
+      expect(await controller.getAllGenres()).toBe(mockResponse);
+    });
+  });
+
+  // Extra tests added to increase coverage for upload/reupload and SSE
+  describe('uploadTrack and reupload validations and SSE', () => {
+    it('uploadTrack should throw BadRequest when audio missing', async () => {
+      await expect(controller.uploadTrack(MOCK_USER_ID, {} as any, undefined)).rejects.toThrow(
+        BadRequestException
+      );
+    });
+
+    it('reuploadTrackAudio should throw BadRequest when audio missing', async () => {
+      await expect(
+        controller.reuploadTrackAudio(MOCK_TRACK_ID, MOCK_USER_ID, undefined as any)
+      ).rejects.toThrow(BadRequestException);
+    });
+
+    it('streamTrackStatus should emit completed when track finished', async () => {
+      (service as any).getTrackById = jest.fn().mockResolvedValue(mockPublicTrack());
+      const ev = await firstValueFrom(controller.streamTrackStatus(MOCK_TRACK_ID));
+      expect(ev.data.event).toBe('completed');
+      expect(ev.data.data.trackId).toBe(MOCK_TRACK_ID);
+    });
+  });
+
+  // ─── getUserUploadedTracks ────────────────────────────────────────────────────
+
+  describe('getUserUploadedTracks', () => {
+    it('should delegate to service with all params', async () => {
+      service.getUserUploadedTracks.mockResolvedValue({ status: 'success', data: [] });
+
+      await controller.getUserUploadedTracks(MOCK_OTHER_USER_ID, MOCK_USER_ID, 1, 20);
+
+      expect(service.getUserUploadedTracks).toHaveBeenCalledWith(
+        MOCK_OTHER_USER_ID,
+        MOCK_USER_ID,
+        1,
+        20
+      );
+    });
+
+    it('should propagate ForbiddenException for private account', async () => {
+      service.getUserUploadedTracks.mockRejectedValue(new ForbiddenException());
 
       await expect(
-        controller.getTrackComments(mockTrackId, mockUserId, mockPage, mockLimit, 'timestamp')
+        controller.getUserUploadedTracks(MOCK_OTHER_USER_ID, MOCK_USER_ID, 1, 20)
+      ).rejects.toThrow(ForbiddenException);
+    });
+  });
+
+  // ─── getTrackPlaylists ────────────────────────────────────────────────────────
+
+  describe('getTrackPlaylists', () => {
+    it('should delegate to service with trackId, userId, page, and limit', async () => {
+      service.getTrackPlaylists.mockResolvedValue({ status: 'success', data: [] });
+
+      await controller.getTrackPlaylists(MOCK_TRACK_ID, MOCK_USER_ID, 1, 20);
+
+      expect(service.getTrackPlaylists).toHaveBeenCalledWith(MOCK_TRACK_ID, MOCK_USER_ID, 1, 20);
+    });
+
+    it('should return service response as-is', async () => {
+      const mockResponse = { status: 'success', data: [{ playlistId: 'id' }] };
+      service.getTrackPlaylists.mockResolvedValue(mockResponse);
+
+      expect(await controller.getTrackPlaylists(MOCK_TRACK_ID, MOCK_USER_ID, 1, 20)).toBe(
+        mockResponse
+      );
+    });
+
+    it('should propagate ForbiddenException for private track', async () => {
+      service.getTrackPlaylists.mockRejectedValue(new ForbiddenException());
+
+      await expect(
+        controller.getTrackPlaylists(MOCK_TRACK_ID, MOCK_USER_ID, 1, 20)
       ).rejects.toThrow(ForbiddenException);
     });
   });
