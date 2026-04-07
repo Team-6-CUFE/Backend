@@ -14,7 +14,8 @@ import { UsernameAvailabilityService } from './username-availability.service';
 import { CreateExternalProfileDto } from './dto/create-external-profile.dto';
 import { UpdateExternalProfileDto } from './dto/update-external-profile.dto';
 import { ExternalProfileRepository } from './external-profile.repository';
-import { RecentlyPlayedRepository } from './recently-played.repository';
+import { TrackRepository } from './user_track.repository';
+import { buildPaginationResponse } from '../common/utilities/pagination.util';
 
 const MAX_EXTERNAL_PROFILES = 10;
 
@@ -25,7 +26,7 @@ export class ProfileService {
     private readonly genreRepository: GenreRepository,
     private readonly usernameAvailabilityService: UsernameAvailabilityService,
     private readonly externalProfileRepository: ExternalProfileRepository,
-    private readonly recentlyPlayedRepository: RecentlyPlayedRepository
+    private readonly trackRepository: TrackRepository
   ) {}
 
   async updateMyPrivacy(userId: string, updatePrivacyReqDto: UpdatePrivacyReqDto) {
@@ -290,7 +291,40 @@ export class ProfileService {
   }
 
   async getRecentlyPlayed(userId: string) {
-    const data = await this.recentlyPlayedRepository.findByUser(userId);
+    const data = await this.trackRepository.findByUser(userId);
     return { status: 'success', data };
+  }
+
+  async getListeningHistory(userId: string, page: number = 1, limit: number = 10) {
+    const cappedLimit = Math.min(limit, 50);
+    const [history, total] = await this.trackRepository.getListeningHistory(
+      userId,
+      page,
+      cappedLimit
+    );
+    const mappedHistory = history.map((play) => ({
+      track_play_id: play.trackPlayId,
+      playedAt: play.playedAt,
+      track: {
+        trackId: play.track.trackId,
+        title: play.track.title,
+        coverImage: play.track.coverImage,
+        durationSeconds: play.track.durationSeconds,
+        tags: play.track.tags?.map((t) => t.name) || [],
+        likesCount: play.track.likesCount,
+        repostsCount: play.track.repostsCount,
+        playCount: play.track.playCount,
+        commentsCount: play.track.commentsCount,
+        owner: {
+          userId: play.track.user.userId,
+          username: play.track.user.username,
+          displayName: play.track.user.displayName,
+        },
+      },
+    }));
+    return {
+      status: 'success',
+      ...buildPaginationResponse(mappedHistory, total, page, cappedLimit),
+    };
   }
 }

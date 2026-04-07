@@ -16,7 +16,8 @@ import { SettingsService } from '../settings/settings.service';
 import { SettingsModule } from '../settings/settings.module';
 import { RecentlyPlayed } from '../track/entities/recently-played.entity';
 import { Playlist } from '../playlist/entities/playlist.entity';
-import { RecentlyPlayedRepository } from './recently-played.repository';
+import { TrackRepository } from './user_track.repository';
+import { TrackPlay } from '../track/entities/track-play.entity';
 
 @Module({
   imports: [
@@ -28,6 +29,7 @@ import { RecentlyPlayedRepository } from './recently-played.repository';
       FavoriteGenre,
       RecentlyPlayed,
       Playlist,
+      TrackPlay,
     ]),
     GenreModule,
     SettingsModule,
@@ -40,7 +42,7 @@ import { RecentlyPlayedRepository } from './recently-played.repository';
     UsernameAvailabilityService,
     ExternalProfileRepository,
     SettingsService,
-    RecentlyPlayedRepository,
+    TrackRepository,
   ],
   exports: [UserService, UserRepository, ExternalProfileRepository],
 })

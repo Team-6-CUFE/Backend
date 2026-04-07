@@ -135,4 +135,13 @@ export class ProfileController {
   getRecentlyPlayed(@CurrentUser('sub') userId: string) {
     return this.profileService.getRecentlyPlayed(userId);
   }
+
+  @Get('/me/listening-history')
+  getListeningHistory(
+    @CurrentUser('sub') userId: string,
+    @Query('page') page: number,
+    @Query('limit') limit: number
+  ) {
+    return this.profileService.getListeningHistory(userId, page, limit);
+  }
 }

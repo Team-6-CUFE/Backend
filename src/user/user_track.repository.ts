@@ -4,6 +4,7 @@ import { In, Repository } from 'typeorm';
 import { RecentlyPlayed, RecentlyPlayedItemType } from '../track/entities/recently-played.entity';
 import { User } from './entities/user.entity';
 import { Playlist } from '../playlist/entities/playlist.entity';
+import { TrackPlay } from '../track/entities/track-play.entity';
 
 export interface RecentlyPlayedArtistRow {
   type: 'artist';
@@ -32,7 +33,7 @@ export interface RecentlyPlayedPlaylistRow {
 export type RecentlyPlayedRow = RecentlyPlayedArtistRow | RecentlyPlayedPlaylistRow;
 
 @Injectable()
-export class RecentlyPlayedRepository {
+export class TrackRepository {
   constructor(
     @InjectRepository(RecentlyPlayed)
     private readonly recentlyPlayedRepository: Repository<RecentlyPlayed>,
@@ -41,7 +42,10 @@ export class RecentlyPlayedRepository {
     private readonly userRepository: Repository<User>,
 
     @InjectRepository(Playlist)
-    private readonly playlistRepository: Repository<Playlist>
+    private readonly playlistRepository: Repository<Playlist>,
+
+    @InjectRepository(TrackPlay)
+    private readonly trackPlayRepository: Repository<TrackPlay>
   ) {}
 
   async findByUser(userId: string): Promise<RecentlyPlayedRow[]> {
@@ -106,5 +110,23 @@ export class RecentlyPlayedRepository {
         },
       };
     });
+  }
+
+  async getListeningHistory(
+    userId: string,
+    page: number,
+    limit: number
+  ): Promise<[TrackPlay[], number]> {
+    const skip = (page - 1) * limit;
+    return this.trackPlayRepository
+      .createQueryBuilder('play')
+      .innerJoinAndSelect('play.track', 'track')
+      .leftJoinAndSelect('track.user', 'owner')
+      .leftJoinAndSelect('track.tags', 'tags')
+      .where('play.userId = :userId', { userId })
+      .orderBy('play.playedAt', 'DESC')
+      .skip(skip)
+      .take(limit)
+      .getManyAndCount();
   }
 }
