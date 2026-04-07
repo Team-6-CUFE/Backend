@@ -382,4 +382,47 @@ export class PlaylistService {
       },
     };
   }
+
+  async addTrackToPlaylist(playlistId: string, trackId: string, userId: string) {
+    // 1. Check playlist existence and ownership
+    const playlist = await this.playlistRepository.findPlaylistById(playlistId);
+    if (!playlist) throw new NotFoundException('Playlist not found');
+    if (playlist.userId !== userId) {
+      throw new ForbiddenException('You can only add tracks to your own playlists');
+    }
+
+    // 2. Check track existence
+    const track = await this.playlistRepository.findTrackById(trackId);
+    if (!track) throw new NotFoundException('Track not found');
+
+    // 3. Get current count to determine next position
+    const currentCount = await this.playlistRepository.countTracksInPlaylist(playlistId);
+
+    try {
+      await this.playlistRepository.addTrackToPlaylist(playlistId, trackId, currentCount + 1);
+    } catch (error) {
+      if (error.code === '23505') {
+        // Postgres Unique Violation code
+        throw new ConflictException('Track is already in this playlist');
+      }
+      throw error;
+    }
+
+    // 4. Update Playlist Metadata (Count and Duration)
+    await this.playlistRepository.updatePlaylistStats(
+      playlistId,
+      currentCount + 1,
+      track.durationSeconds || 0 // Assuming your track entity has durationSeconds
+    );
+
+    return {
+      status: 'success',
+      message: 'Track added to playlist',
+      data: {
+        playlistId,
+        trackId,
+        position: currentCount + 1,
+      },
+    };
+  }
 }
