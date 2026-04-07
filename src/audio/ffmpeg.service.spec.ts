@@ -1,31 +1,39 @@
 import * as fs from 'node:fs';
 
+import ffmpeg from 'fluent-ffmpeg';
 import { FfmpegService } from './ffmpeg.service';
 
-const mockFfmpegInstance = {
-  audioCodec: jest.fn().mockReturnThis(),
-  audioBitrate: jest.fn().mockReturnThis(),
-  audioChannels: jest.fn().mockReturnThis(),
-  audioFrequency: jest.fn().mockReturnThis(),
-  format: jest.fn().mockReturnThis(),
-  setStartTime: jest.fn().mockReturnThis(),
-  setDuration: jest.fn().mockReturnThis(),
-  on: jest.fn().mockReturnThis(),
-  save: jest.fn().mockReturnThis(),
-};
-
 const mockFfprobe = jest.fn();
-const mockFfmpegConstructor: any = jest.fn(() => mockFfmpegInstance);
-mockFfmpegConstructor.setFfmpegPath = jest.fn();
-mockFfmpegConstructor.setFfprobePath = jest.fn();
-mockFfmpegConstructor.ffprobe = mockFfprobe;
 
-jest.mock('fluent-ffmpeg', () => mockFfmpegConstructor);
+jest.mock('fluent-ffmpeg', () => {
+  const mockFfmpegInstance = {
+    audioCodec: jest.fn().mockReturnThis(),
+    audioBitrate: jest.fn().mockReturnThis(),
+    audioChannels: jest.fn().mockReturnThis(),
+    audioFrequency: jest.fn().mockReturnThis(),
+    format: jest.fn().mockReturnThis(),
+    setStartTime: jest.fn().mockReturnThis(),
+    setDuration: jest.fn().mockReturnThis(),
+    on: jest.fn().mockReturnThis(),
+    save: jest.fn().mockReturnThis(),
+  };
+
+  const mockConstructor: any = jest.fn(() => mockFfmpegInstance);
+
+  mockConstructor.setFfmpegPath = jest.fn();
+  mockConstructor.setFfprobePath = jest.fn();
+  mockConstructor.ffprobe = mockFfprobe;
+
+  return mockConstructor;
+});
+
 jest.mock('@ffmpeg-installer/ffmpeg', () => ({ path: '/mock/ffmpeg' }));
 jest.mock('@ffprobe-installer/ffprobe', () => ({ path: '/mock/ffprobe' }));
 jest.mock('node:fs');
 
 const mockFs = fs as jest.Mocked<typeof fs>;
+const mockFfmpegConstructor = ffmpeg as unknown as jest.MockedFunction<any>;
+const mockFfmpegInstance = mockFfmpegConstructor();
 
 describe('FfmpegService', () => {
   let service: FfmpegService;
@@ -45,7 +53,7 @@ describe('FfmpegService', () => {
     service = new FfmpegService();
   });
 
-  // ─── constructor ──────────────────────────────────────────────────────────────
+  // ─── constructor ─────────────────────────────────────────────
 
   describe('constructor', () => {
     it('should set ffmpeg and ffprobe paths on construction', () => {
@@ -54,7 +62,7 @@ describe('FfmpegService', () => {
     });
   });
 
-  // ─── getDuration ──────────────────────────────────────────────────────────────
+  // ─── getDuration ─────────────────────────────────────────────
 
   describe('getDuration', () => {
     it('should return floored duration from ffprobe metadata', async () => {
@@ -86,7 +94,7 @@ describe('FfmpegService', () => {
     });
   });
 
-  // ─── extractPreview ───────────────────────────────────────────────────────────
+  // ─── extractPreview ───────────────────────────────────────────
 
   describe('extractPreview', () => {
     it('should create preview at the given start time', async () => {
@@ -113,15 +121,17 @@ describe('FfmpegService', () => {
     });
   });
 
-  // ─── processAudio ─────────────────────────────────────────────────────────────
+  // ─── processAudio ─────────────────────────────────────────────
 
   describe('processAudio', () => {
     beforeEach(() => {
       const mockBuffer = Buffer.alloc(4000);
       const view = new DataView(mockBuffer.buffer);
+
       for (let i = 0; i < 2000; i += 1) {
         view.setInt16(i * 2, i % 32767, true);
       }
+
       mockFs.readFileSync.mockReturnValue(mockBuffer as any);
       mockFs.unlinkSync.mockReturnValue(undefined);
 
@@ -148,6 +158,7 @@ describe('FfmpegService', () => {
         previewPath: '/tmp/track.mp3_standard.mp3_preview.mp3',
         duration: 213,
       });
+
       expect(Array.isArray(result.waveform)).toBe(true);
       expect(result.waveform).toHaveLength(1000);
     });
@@ -160,6 +171,7 @@ describe('FfmpegService', () => {
 
     it('should produce waveform values between 0 and 1', async () => {
       const result = await service.processAudio('/tmp/track.mp3', '00:00:30', jest.fn());
+
       result.waveform.forEach((value) => {
         expect(value).toBeGreaterThanOrEqual(0);
         expect(value).toBeLessThanOrEqual(1);

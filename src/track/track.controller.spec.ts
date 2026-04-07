@@ -466,7 +466,7 @@ describe('TrackController', () => {
   // Extra tests added to increase coverage for upload/reupload and SSE
   describe('uploadTrack and reupload validations and SSE', () => {
     it('uploadTrack should throw BadRequest when audio missing', async () => {
-      await expect(controller.uploadTrack(MOCK_USER_ID, {} as any, undefined)).rejects.toThrow(
+      await expect(controller.uploadTrack(MOCK_USER_ID, {} as any, undefined!)).rejects.toThrow(
         BadRequestException
       );
     });
