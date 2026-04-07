@@ -252,4 +252,48 @@ export class PlaylistRepository {
       },
     });
   }
+
+  async reorderTrack(
+    playlistId: string,
+    trackId: string,
+    oldPos: number,
+    newPos: number
+  ): Promise<void> {
+    await this.playlistTrackRepository.manager.transaction(async (tm) => {
+      // 1. Temporarily move the target track to a "buffer" position (e.g., -1)
+      // to avoid unique constraint violations during the shift.
+      await tm.update(PlaylistTrack, { playlistId, trackId }, { position: -1 });
+
+      if (newPos < oldPos) {
+        // Moving UP: Shift tracks between newPos and oldPos-1 DOWN (+1)
+        await tm
+          .createQueryBuilder()
+          .update(PlaylistTrack)
+          .set({ position: () => 'position + 1' })
+          .where('playlistId = :playlistId AND position >= :newPos AND position < :oldPos', {
+            playlistId,
+            newPos,
+            oldPos,
+          })
+          .execute();
+      } else {
+        // Moving DOWN: Shift tracks between oldPos+1 and newPos UP (-1)
+        await tm
+          .createQueryBuilder()
+          .update(PlaylistTrack)
+          .set({ position: () => 'position - 1' })
+          .where('playlistId = :playlistId AND position > :oldPos AND position <= :newPos', {
+            playlistId,
+            oldPos,
+            newPos,
+          })
+          .execute();
+      }
+
+      // 2. Set the target track to its final destination
+      await tm.update(PlaylistTrack, { playlistId, trackId: -1 as any }, { position: newPos });
+      // Note: Use the actual primary key/criteria to find that 'buffered' track
+      await tm.update(PlaylistTrack, { playlistId, position: -1 }, { position: newPos });
+    });
+  }
 }
