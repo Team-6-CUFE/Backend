@@ -189,4 +189,12 @@ export class PlaylistController {
   ) {
     return this.playlistService.removeTrackFromPlaylist(playlistId, trackId, userId);
   }
+
+  @Delete(':playlistId')
+  async deletePlaylist(
+    @Param('playlistId', ParseUUIDPipe) playlistId: string,
+    @CurrentUser('sub') userId: string
+  ) {
+    return this.playlistService.deletePlaylist(playlistId, userId);
+  }
 }
