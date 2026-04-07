@@ -704,9 +704,17 @@ export function ApiUpdatePlaylist() {
 export function ApiAddTrackToPlaylist() {
   return applyDecorators(
     ApiCookieAuth('access_token'),
-    ApiOperation({ summary: 'Add a track to a playlist' }),
-    ApiParam({ name: 'playlistId', format: 'uuid' }),
-    ApiBody({ type: AddTrackDto }), // Added this
+    ApiOperation({
+      summary: 'Add a track to a playlist',
+      description: 'Adds a track to the end of a playlist. Only the owner can add tracks.',
+    }),
+    ApiParam({
+      name: 'playlistId',
+      description: 'UUID of the playlist',
+      format: 'uuid',
+      example: '550e8400-e29b-41d4-a716-446655440000',
+    }),
+    ApiBody({ type: AddTrackDto }),
     ApiResponse({
       status: 201,
       description: 'Track added successfully',
@@ -714,10 +722,10 @@ export function ApiAddTrackToPlaylist() {
         example: {
           status: 'success',
           data: {
-            playlistId: 'pl_abc123',
-            trackId: 't_001',
+            playlistId: '550e8400-e29b-41d4-a716-446655440000',
+            trackId: '550e8400-e29b-41d4-a716-446655440005',
             position: 13,
-            addedAt: '2025-03-03T10:00:00Z',
+            addedAt: '2026-04-07T10:00:00Z',
             playlist: {
               trackCount: 13,
               durationSeconds: 3061,
@@ -725,6 +733,22 @@ export function ApiAddTrackToPlaylist() {
           },
         },
       },
+    }),
+    ApiResponse({ status: 401, description: 'Unauthorized' }),
+    ApiResponse({
+      status: 403,
+      description: 'Forbidden - Not the playlist owner',
+      schema: { example: { statusCode: 403, message: 'Forbidden resource' } },
+    }),
+    ApiResponse({
+      status: 404,
+      description: 'Playlist or Track not found',
+      schema: { example: { statusCode: 404, message: 'Track not found' } },
+    }),
+    ApiResponse({
+      status: 409,
+      description: 'Conflict - Track already in playlist',
+      schema: { example: { statusCode: 409, message: 'Track is already in this playlist' } },
     })
   );
 }
