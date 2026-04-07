@@ -5,7 +5,6 @@ import {
   ConflictException,
   NotFoundException,
 } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
 import { PlaylistRepository } from './playlist.repository';
 import { buildPaginationResponse } from '../common/utilities/pagination.util';
 import { UserRepository } from '../user/user.repository';
@@ -15,8 +14,7 @@ import { CreatePlaylistDto } from './dto/create-playlist.dto';
 export class PlaylistService {
   constructor(
     private readonly playlistRepository: PlaylistRepository,
-    private readonly userRepository: UserRepository,
-    private configService: ConfigService
+    private readonly userRepository: UserRepository
   ) {}
 
   async repostPlaylist(playlistId: string, userId: string) {
@@ -288,174 +286,23 @@ export class PlaylistService {
     return { status: 'success', ...buildPaginationResponse(mappedLikes, total, page, limit) };
   }
 
-  async createPlaylist(createPlaylistDto: CreatePlaylistDto, userId: string) {
-    const playlistCreated = await this.playlistRepository.createPlaylist(createPlaylistDto, userId);
-    let shareUrl = '';
-    if (createPlaylistDto.isPublic) {
-      shareUrl = `${this.configService.get('HARMONICA_BASE_URL')}/playlist/${playlistCreated.playlistId}`;
-    } else {
-      shareUrl = `${this.configService.get('HARMONICA_BASE_URL')}/playlist/secret/${playlistCreated.secretToken}`;
-    }
-    console.log('created playlist: ', playlistCreated);
-    return {
-      status: 'sucesss',
-      data: {
-        playlistId: playlistCreated.playlistId,
-        title: playlistCreated.title,
-        isPublic: playlistCreated.isPublic,
-        trackCount: playlistCreated.tracksCount,
-        durationSeconds: playlistCreated.totalDurationSeconds,
-        likesCount: playlistCreated.likesCount,
-        repostsCount: playlistCreated.repostsCount,
-        secretToken: playlistCreated.secretToken,
-        shareUrl,
-        createdAt: playlistCreated.createdAt,
-      },
-    };
-  }
-
-  async getPublicPlaylist(playlistId: string, userId: string) {
-    const playlist = await this.playlistRepository.getPublicPlaylist(playlistId);
-
-    if (!playlist) {
-      throw new NotFoundException('Playlist not found or is private');
-    }
-    if (!playlist?.isPublic && userId !== playlist?.userId) {
-      throw new ForbiddenException('secret playlist is requested');
-    }
-    console.log('playlist:', playlist);
-    return {
-      status: 'success',
-      data: {
-        playlisId: playlist.playlistId,
-        title: playlist.title,
-        description: playlist.description,
-        coverImage: playlist.coverImage,
-        isPublic: playlist.isPublic,
-        tracksCount: playlist.tracksCount,
-        durationSeconds: playlist.totalDurationSeconds,
-        likesCount: playlist.likesCount,
-        repostsCount: playlist.repostsCount,
-        createdAt: playlist.createdAt,
-        updatedAt: playlist.updatedAt,
-        user: {
-          user_id: playlist.user.userId,
-          displayName: playlist.user.displayName,
-          avatarUrl: playlist.user.avatarUrl,
-        },
-        tracks: playlist.playlistTracks.map((pt) => ({
-          position: pt.position,
-          trackId: pt.track.trackId,
-          title: pt.track.title,
-          duration_seconds: pt.track.durationSeconds,
-          coverImage: pt.track.coverImage,
-          playCount: pt.track.playCount,
-          likesCount: pt.track.likesCount,
-          repostsCount: pt.track.repostsCount,
-          commentsCount: pt.track.commentsCount,
-        })),
-      },
-    };
-  }
-
-  async getSecretPlaylist(secretToken: string) {
-    const playlist = await this.playlistRepository.getSecretPlaylist(secretToken);
-
-    if (!playlist) {
-      throw new NotFoundException('Playlist not found');
-    }
-
-    console.log('playlist:', playlist);
-    return {
-      status: 'success',
-      data: {
-        playlisId: playlist.playlistId,
-        title: playlist.title,
-        description: playlist.description,
-        coverImage: playlist.coverImage,
-        isPublic: playlist.isPublic,
-        tracksCount: playlist.tracksCount,
-        durationSeconds: playlist.totalDurationSeconds,
-        likesCount: playlist.likesCount,
-        repostsCount: playlist.repostsCount,
-        createdAt: playlist.createdAt,
-        updatedAt: playlist.updatedAt,
-        user: {
-          user_id: playlist.user.userId,
-          displayName: playlist.user.displayName,
-          avatarUrl: playlist.user.avatarUrl,
-        },
-        tracks: playlist.playlistTracks.map((pt) => ({
-          position: pt.position,
-          trackId: pt.track.trackId,
-          title: pt.track.title,
-          duration_seconds: pt.track.durationSeconds,
-          coverImage: pt.track.coverImage,
-          playCount: pt.track.playCount,
-          likesCount: pt.track.likesCount,
-          repostsCount: pt.track.repostsCount,
-          commentsCount: pt.track.commentsCount,
-        })),
-      },
-    };
-  }
-
-  async resetSecretToken(playlistId: string, userId: string) {
+  async deletePlaylist(playlistId: string, userId: string) {
     const playlist = await this.playlistRepository.findPlaylistById(playlistId);
     if (!playlist) {
-      throw new NotFoundException('playlist not found');
+      throw new NotFoundException('Playlist Not found');
     }
-    if (playlist.isPublic) {
-      throw new BadRequestException('Playlist is public');
+    if (playlist.userId !== userId) {
+      throw new ForbiddenException('Cannot delete playlist. You are not the owner');
     }
-    if (!playlist.isPublic && userId !== playlist.userId) {
-      throw new ForbiddenException('You are not the owner of this playlist');
-    }
-    const newSecretToken = await this.playlistRepository.resetSecretToken(playlistId);
+    await this.playlistRepository.deletePlaylist(playlistId);
     return {
       status: 'success',
-      data: {
-        playlistId: playlist.playlistId,
-        secretToken: newSecretToken,
-        shareUrl: `${this.configService.get('HARMONICA_BASE_URL')}/playlist/secret/${newSecretToken}`,
-      },
+      message: 'Playlist deleted successfully ',
     };
   }
 
-  async changePlaylistPrivacy(playlisId: string, isPublic: boolean, userId: string) {
-    const playlist = await this.playlistRepository.findPlaylistById(playlisId);
-    if (!playlist) {
-      throw new NotFoundException('playlist not found');
-    }
-    if (userId !== playlist?.userId) {
-      throw new ForbiddenException('you are not the playlist owner');
-    }
-    if (isPublic && playlist.isPublic === true) {
-      throw new BadRequestException('playlist already public');
-    }
-    if (!isPublic && playlist.isPublic === false) {
-      throw new BadRequestException('playlist already private');
-    }
-    if (!isPublic) {
-      const newToken = await this.playlistRepository.changePlaylistPrivacy(playlisId, isPublic);
-      return {
-        status: 'success',
-        data: {
-          playlisId,
-          isPublic: false,
-          secretToken: newToken,
-          shareUrl: `${this.configService.get('HARMONICA_BASE_URL')}/playlist/secret/${newToken}`,
-        },
-      };
-    }
-    await this.playlistRepository.changePlaylistPrivacy(playlisId, isPublic);
-    return {
-      status: 'sucess',
-      data: {
-        playlisId,
-        isPublic: true,
-        shareUrl: `${this.configService.get('HARMONICA_BASE_URL')}/playlist/${playlisId}`,
-      },
-    };
+  async createPlaylist(createPlaylistDto: CreatePlaylistDto) {
+    // await this.playlistRepository.createPlaylist(createPlaylistDto);
+    console.log(createPlaylistDto);
   }
 }
