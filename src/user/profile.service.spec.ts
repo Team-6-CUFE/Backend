@@ -5,6 +5,7 @@ import { UserRepository } from './user.repository';
 import { GenreRepository } from '../genre/genre.repository';
 import { UsernameAvailabilityService } from './username-availability.service';
 import { ExternalProfileRepository } from './external-profile.repository';
+import { TrackRepository } from './user_track.repository';
 import {
   mockUserRepository,
   mockGenreRepository,
@@ -13,6 +14,7 @@ import {
   mockUserId,
   mockUsername,
   mockExternalProfileRepository,
+  mockUserTrackRepository,
 } from './test/user.mock';
 
 describe('ProfileService', () => {
@@ -20,6 +22,7 @@ describe('ProfileService', () => {
   let userRepo: ReturnType<typeof mockUserRepository>;
   let genreRepo: ReturnType<typeof mockGenreRepository>;
   let usernameAvailability: ReturnType<typeof mockUsernameAvailabilityService>;
+  let trackRepo: ReturnType<typeof mockUserTrackRepository>;
 
   let externalRepo: any;
   const mockProfileId = 'prof-999';
@@ -32,6 +35,7 @@ describe('ProfileService', () => {
         { provide: GenreRepository, useFactory: mockGenreRepository },
         { provide: UsernameAvailabilityService, useFactory: mockUsernameAvailabilityService },
         { provide: ExternalProfileRepository, useFactory: mockExternalProfileRepository },
+        { provide: TrackRepository, useFactory: mockUserTrackRepository },
       ],
     }).compile();
 
@@ -39,6 +43,7 @@ describe('ProfileService', () => {
     userRepo = module.get(UserRepository);
     genreRepo = module.get(GenreRepository);
     usernameAvailability = module.get(UsernameAvailabilityService);
+    trackRepo = module.get(TrackRepository);
 
     externalRepo = module.get(ExternalProfileRepository);
 
@@ -420,6 +425,163 @@ describe('ProfileService', () => {
       } catch (e: any) {
         expect(e).toBeInstanceOf(NotFoundException);
       }
+    });
+  });
+
+  // ─── getRecentlyPlayed ────────────────────────────────────────────────────────
+
+  describe('getRecentlyPlayed', () => {
+    it('should return recently played items wrapped in success envelope', async () => {
+      const rows = [
+        {
+          type: 'artist' as const,
+          playedAt: new Date('2024-06-02T12:00:00Z'),
+          artist: {
+            userId: 'artist-uuid',
+            username: 'dj_nour',
+            displayName: 'Nour',
+            avatarUrl: 'https://example.com/avatar.jpg',
+            followersCount: 500,
+          },
+        },
+      ];
+      trackRepo.findByUser.mockResolvedValue(rows);
+
+      const result = await service.getRecentlyPlayed(mockUserId);
+
+      expect(trackRepo.findByUser).toHaveBeenCalledWith(mockUserId);
+      expect(result).toEqual({ status: 'success', data: rows });
+    });
+
+    it('should return empty data array when no history', async () => {
+      trackRepo.findByUser.mockResolvedValue([]);
+
+      const result = await service.getRecentlyPlayed(mockUserId);
+
+      expect(result.data).toEqual([]);
+    });
+
+    it('should return playlist rows as well', async () => {
+      const rows = [
+        {
+          type: 'playlist' as const,
+          playedAt: new Date('2024-06-02T10:00:00Z'),
+          playlist: {
+            playlistId: 'pl-uuid',
+            title: 'Late Night Vibes',
+            coverImage: 'https://example.com/cover.jpg',
+            tracksCount: 14,
+            owner: { userId: 'owner-uuid', username: 'owner', displayName: 'Owner' },
+          },
+        },
+      ];
+      trackRepo.findByUser.mockResolvedValue(rows);
+
+      const result = await service.getRecentlyPlayed(mockUserId);
+
+      expect(result.data).toHaveLength(1);
+      expect(result.data[0].type).toBe('playlist');
+    });
+  });
+
+  // ─── getListeningHistory ──────────────────────────────────────────────────────
+
+  describe('getListeningHistory', () => {
+    const mockPlay = (overrides?: object) => ({
+      trackPlayId: 'play-uuid-1',
+      playedAt: new Date('2024-06-02T12:00:00Z'),
+      track: {
+        trackId: 'track-uuid-1',
+        title: 'Midnight Drive',
+        coverImage: 'https://example.com/cover.jpg',
+        durationSeconds: 213,
+        genre: { genreId: 'genre-uuid', name: 'Electronic' },
+        likesCount: 100,
+        repostsCount: 20,
+        playCount: 5000,
+        commentsCount: 10,
+        user: { userId: 'owner-uuid', username: 'dj_nour', displayName: 'Nour' },
+      },
+      ...overrides,
+    });
+
+    it('should return paginated history with mapped track fields', async () => {
+      const plays = [mockPlay()];
+      trackRepo.getListeningHistory.mockResolvedValue([plays, 1]);
+
+      const result = await service.getListeningHistory(mockUserId);
+
+      expect(trackRepo.getListeningHistory).toHaveBeenCalledWith(mockUserId, 1, 10);
+      expect(result.status).toBe('success');
+      expect(result.data[0].track_play_id).toBe('play-uuid-1');
+      expect(result.data[0].track.trackId).toBe('track-uuid-1');
+      expect(result.data[0].track.owner.username).toBe('dj_nour');
+    });
+
+    it('should map genre correctly when genre exists', async () => {
+      const plays = [mockPlay()];
+      trackRepo.getListeningHistory.mockResolvedValue([plays, 1]);
+
+      const result = await service.getListeningHistory(mockUserId);
+
+      expect(result.data[0].track.genre).toEqual({ id: 'genre-uuid', name: 'Electronic' });
+    });
+
+    it('should map genre as null when track has no genre', async () => {
+      const plays = [mockPlay({ track: { ...mockPlay().track, genre: null } })];
+      trackRepo.getListeningHistory.mockResolvedValue([plays, 1]);
+
+      const result = await service.getListeningHistory(mockUserId);
+
+      expect(result.data[0].track.genre).toBeNull();
+    });
+
+    it('should use default page 1 and limit 10', async () => {
+      trackRepo.getListeningHistory.mockResolvedValue([[], 0]);
+
+      await service.getListeningHistory(mockUserId);
+
+      expect(trackRepo.getListeningHistory).toHaveBeenCalledWith(mockUserId, 1, 10);
+    });
+
+    it('should cap limit at 50', async () => {
+      trackRepo.getListeningHistory.mockResolvedValue([[], 0]);
+
+      await service.getListeningHistory(mockUserId, 1, 200);
+
+      expect(trackRepo.getListeningHistory).toHaveBeenCalledWith(mockUserId, 1, 50);
+    });
+
+    it('should include pagination metadata in response', async () => {
+      trackRepo.getListeningHistory.mockResolvedValue([[], 47]);
+
+      const result = await service.getListeningHistory(mockUserId, 2, 10);
+
+      expect(result.pagination).toBeDefined();
+      expect(result.pagination.totalCount).toBe(47);
+      expect(result.pagination.currentPage).toBe(2);
+    });
+  });
+
+  // ─── deleteUserHistory ────────────────────────────────────────────────────────
+
+  describe('deleteUserHistory', () => {
+    it('should call deleteUserHistory on repo and return success message', async () => {
+      trackRepo.deleteUserHistory.mockResolvedValue(undefined);
+
+      const result = await service.deleteUserHistory(mockUserId);
+
+      expect(trackRepo.deleteUserHistory).toHaveBeenCalledWith(mockUserId);
+      expect(result).toEqual({
+        status: 'success',
+        message: 'Listening history and Recently Played cleared successfully',
+      });
+    });
+
+    it('should propagate errors from repository', async () => {
+      trackRepo.deleteUserHistory.mockRejectedValue(new Error('DB error'));
+
+      await expect(service.deleteUserHistory(mockUserId)).rejects.toThrow('DB error');
     });
   });
 });

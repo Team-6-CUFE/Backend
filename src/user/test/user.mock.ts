@@ -77,4 +77,13 @@ export const mockProfileService = () => ({
   deleteExternalProfile: jest.fn(),
   updateAvatar: jest.fn(),
   updateCover: jest.fn(),
+  getRecentlyPlayed: jest.fn(),
+  getListeningHistory: jest.fn(),
+  deleteUserHistory: jest.fn(),
+});
+
+export const mockUserTrackRepository = () => ({
+  findByUser: jest.fn(),
+  getListeningHistory: jest.fn(),
+  deleteUserHistory: jest.fn(),
 });

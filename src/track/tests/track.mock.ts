@@ -273,6 +273,10 @@ export const mockTrackRepository = () => ({
   createTrack: jest.fn(),
   updateTrack: jest.fn(),
   setTrackProcessing: jest.fn(),
+  createTrackPlay: jest.fn(),
+  addToRecentlyPlayed: jest.fn(),
+  deleteOldRecentlyPlayed: jest.fn(),
+  getTrackPlaylists: jest.fn(),
 });
 
 export const mockUserRepository = () => ({
@@ -302,4 +306,52 @@ export const mockTrackSseService = () => ({
 export const mockAudioQueue = () => ({
   add: jest.fn(),
   remove: jest.fn(),
+});
+
+export const mockFansService = () => ({
+  getTopFans: jest.fn(),
+  getFirstFans: jest.fn(),
+  refreshTopFans: jest.fn(),
+  triggerFirstFansSnapshot: jest.fn(),
+  refreshAllTopFans: jest.fn(),
+  snapshotAllPendingFirstFans: jest.fn(),
+});
+
+export const mockPlaylistService = () => ({
+  getPlaylistById: jest.fn(),
+});
+
+export const mockTrackPlay = (overrides?: object) => ({
+  trackPlayId: '550e8400-e29b-41d4-a716-446655441111',
+  trackId: MOCK_TRACK_ID,
+  userId: MOCK_USER_ID,
+  playedAt: new Date('2024-06-02T12:00:00Z'),
+  durationPlayed: 180,
+  playlistId: null,
+  ...overrides,
+});
+
+export const mockRecentlyPlayedArtistRow = (overrides?: object) => ({
+  type: 'artist' as const,
+  playedAt: new Date('2024-06-02T12:00:00Z'),
+  artist: {
+    userId: MOCK_OTHER_USER_ID,
+    username: 'dj_nour',
+    displayName: 'Nour',
+    avatarUrl: 'https://example.com/avatar.jpg',
+    followersCount: 500,
+  },
+  ...overrides,
+});
+
+export const mockFanResult = (overrides?: object) => ({
+  rank: 1,
+  playCount: 42,
+  user: {
+    userId: MOCK_USER_ID,
+    username: 'test_user',
+    displayName: 'Test User',
+    avatarUrl: 'https://example.com/avatar.jpg',
+  },
+  ...overrides,
 });

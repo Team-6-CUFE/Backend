@@ -135,4 +135,72 @@ describe('ProfileController', () => {
 
     expect(service.updateCover).toHaveBeenCalledWith(mockUserId, dto.coverPhoto);
   });
+
+  // ─── getRecentlyPlayed ────────────────────────────────────────────────────────
+
+  it('getRecentlyPlayed → delegates to service with userId', async () => {
+    const mockData = [{ type: 'artist', playedAt: new Date(), artist: {} }];
+    service.getRecentlyPlayed.mockResolvedValue({ status: 'success', data: mockData });
+
+    await controller.getRecentlyPlayed(mockUserId);
+
+    expect(service.getRecentlyPlayed).toHaveBeenCalledWith(mockUserId);
+  });
+
+  it('getRecentlyPlayed → returns service response', async () => {
+    const expected = { status: 'success', data: [] };
+    service.getRecentlyPlayed.mockResolvedValue(expected);
+
+    const result = await controller.getRecentlyPlayed(mockUserId);
+
+    expect(result).toBe(expected);
+  });
+
+  // ─── getListeningHistory ──────────────────────────────────────────────────────
+
+  it('getListeningHistory → delegates to service with userId, page, and limit', async () => {
+    service.getListeningHistory.mockResolvedValue({ status: 'success', data: [], pagination: {} });
+
+    await controller.getListeningHistory(mockUserId, 2, 20);
+
+    expect(service.getListeningHistory).toHaveBeenCalledWith(mockUserId, 2, 20);
+  });
+
+  it('getListeningHistory → returns service response', async () => {
+    const expected = {
+      status: 'success',
+      data: [{ track_play_id: 'p1' }],
+      pagination: { currentPage: 1, totalPages: 1, totalCount: 1, limit: 10 },
+    };
+    service.getListeningHistory.mockResolvedValue(expected);
+
+    const result = await controller.getListeningHistory(mockUserId, 1, 10);
+
+    expect(result).toBe(expected);
+  });
+
+  // ─── deleteUserHistory ────────────────────────────────────────────────────────
+
+  it('deleteUserHistory → delegates to service with userId', async () => {
+    service.deleteUserHistory.mockResolvedValue({
+      status: 'success',
+      message: 'Listening history and Recently Played cleared successfully',
+    });
+
+    await controller.deleteUserHistory(mockUserId);
+
+    expect(service.deleteUserHistory).toHaveBeenCalledWith(mockUserId);
+  });
+
+  it('deleteUserHistory → returns success message', async () => {
+    const expected = {
+      status: 'success',
+      message: 'Listening history and Recently Played cleared successfully',
+    };
+    service.deleteUserHistory.mockResolvedValue(expected);
+
+    const result = await controller.deleteUserHistory(mockUserId);
+
+    expect(result).toBe(expected);
+  });
 });

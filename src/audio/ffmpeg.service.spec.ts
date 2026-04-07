@@ -3,8 +3,6 @@ import * as fs from 'node:fs';
 import ffmpeg from 'fluent-ffmpeg';
 import { FfmpegService } from './ffmpeg.service';
 
-const mockFfprobe = jest.fn();
-
 jest.mock('fluent-ffmpeg', () => {
   const mockFfmpegInstance = {
     audioCodec: jest.fn().mockReturnThis(),
@@ -22,7 +20,7 @@ jest.mock('fluent-ffmpeg', () => {
 
   mockConstructor.setFfmpegPath = jest.fn();
   mockConstructor.setFfprobePath = jest.fn();
-  mockConstructor.ffprobe = mockFfprobe;
+  mockConstructor.ffprobe = jest.fn();
 
   return mockConstructor;
 });
@@ -34,6 +32,7 @@ jest.mock('node:fs');
 const mockFs = fs as jest.Mocked<typeof fs>;
 const mockFfmpegConstructor = ffmpeg as unknown as jest.MockedFunction<any>;
 const mockFfmpegInstance = mockFfmpegConstructor();
+const mockFfprobe = mockFfmpegConstructor.ffprobe as jest.Mock;
 
 describe('FfmpegService', () => {
   let service: FfmpegService;

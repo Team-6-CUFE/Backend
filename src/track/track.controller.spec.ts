@@ -1,5 +1,5 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { firstValueFrom } from 'rxjs';
+import { firstValueFrom, of } from 'rxjs';
 import {
   BadRequestException,
   ConflictException,
@@ -44,18 +44,26 @@ const mockTrackService = () => ({
   getUserUploadedTracks: jest.fn(),
   getUserQuota: jest.fn(),
   getTrackPlaylists: jest.fn(),
+  uploadTrack: jest.fn(),
+  updateTrackMetadata: jest.fn(),
+  reuploadTrackAudio: jest.fn(),
+  getTrackById: jest.fn(),
+  playTrack: jest.fn(),
+  getTopFans: jest.fn(),
+  getFirstFans: jest.fn(),
 });
 
 describe('TrackController', () => {
   let controller: TrackController;
   let service: ReturnType<typeof mockTrackService>;
+  let sseService: { getStream: jest.Mock };
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       controllers: [TrackController],
       providers: [
         { provide: TrackService, useFactory: mockTrackService },
-        { provide: TrackSseService, useValue: {} },
+        { provide: TrackSseService, useValue: { getStream: jest.fn() } },
       ],
     })
       .overrideGuard(NoBlockGuard)
@@ -64,6 +72,7 @@ describe('TrackController', () => {
 
     controller = module.get(TrackController);
     service = module.get(TrackService);
+    sseService = module.get(TrackSseService);
   });
 
   afterEach(() => jest.clearAllMocks());
@@ -536,6 +545,325 @@ describe('TrackController', () => {
       await expect(
         controller.getTrackPlaylists(MOCK_TRACK_ID, MOCK_USER_ID, 1, 20)
       ).rejects.toThrow(ForbiddenException);
+    });
+  });
+
+  // ─── uploadTrack ─────────────────────────────────────────────────────────────
+
+  describe('uploadTrack', () => {
+    const mockAudioFile = {
+      originalname: 'track.mp3',
+      mimetype: 'audio/mpeg',
+      buffer: Buffer.from('audio'),
+    } as Express.Multer.File;
+
+    it('should delegate audio and dto to service', async () => {
+      const dto = { title: 'Midnight Drive' };
+      service.uploadTrack.mockResolvedValue({
+        status: 'success',
+        data: { trackId: MOCK_TRACK_ID },
+      });
+
+      await controller.uploadTrack(MOCK_USER_ID, dto as any, { audio: [mockAudioFile] });
+
+      expect(service.uploadTrack).toHaveBeenCalledWith(MOCK_USER_ID, dto, mockAudioFile, undefined);
+    });
+
+    it('should throw BadRequestException when no audio file provided', async () => {
+      await expect(controller.uploadTrack(MOCK_USER_ID, {} as any, {})).rejects.toThrow(
+        BadRequestException
+      );
+    });
+
+    it('should pass cover file to service when present', async () => {
+      const coverFile = {
+        originalname: 'cover.jpg',
+        mimetype: 'image/jpeg',
+        buffer: Buffer.from('img'),
+      } as Express.Multer.File;
+      service.uploadTrack.mockResolvedValue({ status: 'success', data: {} });
+
+      await controller.uploadTrack(MOCK_USER_ID, {} as any, {
+        audio: [mockAudioFile],
+        cover: [coverFile],
+      });
+
+      expect(service.uploadTrack).toHaveBeenCalledWith(MOCK_USER_ID, {}, mockAudioFile, coverFile);
+    });
+
+    it('should return service response', async () => {
+      const expected = {
+        status: 'success',
+        message: 'Track upload started.',
+        data: { trackId: MOCK_TRACK_ID },
+      };
+      service.uploadTrack.mockResolvedValue(expected);
+
+      const result = await controller.uploadTrack(MOCK_USER_ID, {} as any, {
+        audio: [mockAudioFile],
+      });
+
+      expect(result).toBe(expected);
+    });
+  });
+
+  // ─── updateTrackMetadata ──────────────────────────────────────────────────────
+
+  describe('updateTrackMetadata', () => {
+    it('should delegate to service with trackId, userId, dto and optional cover', async () => {
+      const dto = { title: 'Updated' };
+      service.updateTrackMetadata.mockResolvedValue({ status: 'success', data: {} });
+
+      await controller.updateTrackMetadata(MOCK_TRACK_ID, MOCK_USER_ID, dto as any, undefined);
+
+      expect(service.updateTrackMetadata).toHaveBeenCalledWith(
+        MOCK_TRACK_ID,
+        MOCK_USER_ID,
+        dto,
+        undefined
+      );
+    });
+
+    it('should return service response as-is', async () => {
+      const expected = { status: 'success', data: { title: 'Updated' } };
+      service.updateTrackMetadata.mockResolvedValue(expected);
+
+      const result = await controller.updateTrackMetadata(
+        MOCK_TRACK_ID,
+        MOCK_USER_ID,
+        {} as any,
+        undefined
+      );
+
+      expect(result).toBe(expected);
+    });
+
+    it('should propagate ForbiddenException', async () => {
+      service.updateTrackMetadata.mockRejectedValue(new ForbiddenException());
+
+      await expect(
+        controller.updateTrackMetadata(MOCK_TRACK_ID, MOCK_USER_ID, {} as any, undefined)
+      ).rejects.toThrow(ForbiddenException);
+    });
+
+    it('should propagate NotFoundException', async () => {
+      service.updateTrackMetadata.mockRejectedValue(new NotFoundException());
+
+      await expect(
+        controller.updateTrackMetadata(MOCK_TRACK_ID, MOCK_USER_ID, {} as any, undefined)
+      ).rejects.toThrow(NotFoundException);
+    });
+  });
+
+  // ─── reuploadTrackAudio ───────────────────────────────────────────────────────
+
+  describe('reuploadTrackAudio', () => {
+    const audioFile = {
+      originalname: 'new.mp3',
+      buffer: Buffer.from('audio'),
+    } as Express.Multer.File;
+
+    it('should delegate to service', async () => {
+      service.reuploadTrackAudio.mockResolvedValue({
+        status: 'success',
+        data: { trackStatus: 'processing' },
+      });
+
+      await controller.reuploadTrackAudio(MOCK_TRACK_ID, MOCK_USER_ID, audioFile);
+
+      expect(service.reuploadTrackAudio).toHaveBeenCalledWith(
+        MOCK_TRACK_ID,
+        MOCK_USER_ID,
+        audioFile,
+        undefined
+      );
+    });
+
+    it('should throw BadRequestException when no audio file provided', async () => {
+      await expect(
+        controller.reuploadTrackAudio(MOCK_TRACK_ID, MOCK_USER_ID, undefined as any)
+      ).rejects.toThrow(BadRequestException);
+    });
+
+    it('should propagate ConflictException', async () => {
+      service.reuploadTrackAudio.mockRejectedValue(new ConflictException());
+
+      await expect(
+        controller.reuploadTrackAudio(MOCK_TRACK_ID, MOCK_USER_ID, audioFile)
+      ).rejects.toThrow(ConflictException);
+    });
+
+    it('should return service response', async () => {
+      const expected = {
+        status: 'success',
+        data: { trackId: MOCK_TRACK_ID, trackStatus: 'processing' },
+      };
+      service.reuploadTrackAudio.mockResolvedValue(expected);
+
+      const result = await controller.reuploadTrackAudio(MOCK_TRACK_ID, MOCK_USER_ID, audioFile);
+
+      expect(result).toBe(expected);
+    });
+  });
+
+  // ─── streamTrackStatus (GET processing status) ────────────────────────────────
+
+  describe('streamTrackStatus', () => {
+    it('should emit completed event immediately when track is already finished', async () => {
+      const finishedTrack = mockPublicTrack({
+        trackStatus: 'finished',
+        audioUrl: 'https://s3/track.mp3',
+        waveformUrl: 'https://s3/track.json',
+        durationSeconds: 213,
+      });
+      service.getTrackById.mockResolvedValue(finishedTrack);
+
+      const stream$ = controller.streamTrackStatus(MOCK_TRACK_ID);
+      const event = await firstValueFrom(stream$);
+
+      expect((event as any).data.event).toBe('completed');
+      expect((event as any).data.data.trackId).toBe(MOCK_TRACK_ID);
+    });
+
+    it('should emit failed event immediately when track is in failed status', async () => {
+      const failedTrack = mockPublicTrack({ trackStatus: 'failed' });
+      service.getTrackById.mockResolvedValue(failedTrack);
+
+      const stream$ = controller.streamTrackStatus(MOCK_TRACK_ID);
+      const event = await firstValueFrom(stream$);
+
+      expect((event as any).data.event).toBe('failed');
+    });
+
+    it('should propagate NotFoundException when track not found', async () => {
+      service.getTrackById.mockRejectedValue(new NotFoundException('Track not found'));
+
+      const stream$ = controller.streamTrackStatus(MOCK_TRACK_ID);
+
+      await expect(firstValueFrom(stream$)).rejects.toThrow(NotFoundException);
+    });
+  });
+
+  // ─── playTrack ────────────────────────────────────────────────────────────────
+
+  describe('playTrack', () => {
+    it('should delegate to service with trackId, userId and optional playlistId', async () => {
+      service.playTrack.mockResolvedValue({
+        status: 'success',
+        message: 'Track play recorded',
+        data: { trackId: MOCK_TRACK_ID, playCount: 1 },
+      });
+
+      await controller.playTrack(MOCK_TRACK_ID, MOCK_USER_ID, undefined);
+
+      expect(service.playTrack).toHaveBeenCalledWith(MOCK_TRACK_ID, MOCK_USER_ID, undefined);
+    });
+
+    it('should return service response', async () => {
+      const expected = {
+        status: 'success',
+        message: 'Track play recorded',
+        data: { trackId: MOCK_TRACK_ID, playCount: 11 },
+      };
+      service.playTrack.mockResolvedValue(expected);
+
+      const result = await controller.playTrack(MOCK_TRACK_ID, MOCK_USER_ID, undefined);
+
+      expect(result).toBe(expected);
+    });
+
+    it('should propagate NotFoundException', async () => {
+      service.playTrack.mockRejectedValue(new NotFoundException());
+
+      await expect(controller.playTrack(MOCK_TRACK_ID, MOCK_USER_ID, undefined)).rejects.toThrow(
+        NotFoundException
+      );
+    });
+  });
+
+  // ─── getTopFans ───────────────────────────────────────────────────────────────
+
+  describe('getTopFans', () => {
+    it('should delegate to service', async () => {
+      service.getTopFans.mockResolvedValue({ status: 'success', data: [] });
+
+      await controller.getTopFans(MOCK_TRACK_ID);
+
+      expect(service.getTopFans).toHaveBeenCalledWith(MOCK_TRACK_ID);
+    });
+
+    it('should return service response as-is', async () => {
+      const expected = { status: 'success', data: [{ rank: 1, playCount: 50, user: {} }] };
+      service.getTopFans.mockResolvedValue(expected);
+
+      const result = await controller.getTopFans(MOCK_TRACK_ID);
+
+      expect(result).toBe(expected);
+    });
+
+    it('should propagate NotFoundException', async () => {
+      service.getTopFans.mockRejectedValue(new NotFoundException());
+
+      await expect(controller.getTopFans(MOCK_TRACK_ID)).rejects.toThrow(NotFoundException);
+    });
+  });
+
+  // ─── getFirstFans ─────────────────────────────────────────────────────────────
+
+  describe('getFirstFans', () => {
+    it('should delegate to service', async () => {
+      service.getFirstFans.mockResolvedValue({ status: 'success', data: [] });
+
+      await controller.getFirstFans(MOCK_TRACK_ID);
+
+      expect(service.getFirstFans).toHaveBeenCalledWith(MOCK_TRACK_ID);
+    });
+
+    it('should return service response as-is', async () => {
+      const expected = { status: 'success', data: [{ rank: 1, playCount: 30, user: {} }] };
+      service.getFirstFans.mockResolvedValue(expected);
+
+      const result = await controller.getFirstFans(MOCK_TRACK_ID);
+
+      expect(result).toBe(expected);
+    });
+
+    it('should propagate NotFoundException', async () => {
+      service.getFirstFans.mockRejectedValue(new NotFoundException());
+
+      await expect(controller.getFirstFans(MOCK_TRACK_ID)).rejects.toThrow(NotFoundException);
+    });
+  });
+
+  // ─── streamTrackStatus (processing path) ──────────────────────────────────
+
+  describe('streamTrackStatus — processing path', () => {
+    it('should delegate to TrackSseService.getStream when track is still processing', async () => {
+      const processingTrack = mockPublicTrack({ trackStatus: 'processing' });
+      service.getTrackById.mockResolvedValue(processingTrack);
+
+      const sentinel = { data: { event: 'processing' } };
+      sseService.getStream.mockReturnValue(of(sentinel));
+
+      const stream$ = controller.streamTrackStatus(MOCK_TRACK_ID);
+      const event = await firstValueFrom(stream$);
+
+      expect(sseService.getStream).toHaveBeenCalledWith(MOCK_TRACK_ID);
+      expect(event).toBe(sentinel);
+    });
+  });
+
+  // ─── getUserQuota ──────────────────────────────────────────────────────────
+
+  describe('getUserTimeUser (getUserQuota)', () => {
+    it('should delegate to service.getUserQuota with userId', async () => {
+      const quota = { totalDurationMs: 3_600_000, usedDurationMs: 1_200_000 };
+      service.getUserQuota.mockResolvedValue(quota);
+
+      const result = await controller.getUserTimeUser(MOCK_USER_ID);
+
+      expect(service.getUserQuota).toHaveBeenCalledWith(MOCK_USER_ID);
+      expect(result).toBe(quota);
     });
   });
 });

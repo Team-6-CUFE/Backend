@@ -13,6 +13,8 @@ import { GenreRepository } from '../genre/genre.repository';
 import { TrackSseService } from './services/track-sse.service';
 import { StorageService } from '../common/storage_service';
 import { PlaylistRepository } from '../playlist/playlist.repository';
+import { PlaylistService } from '../playlist/playlist.service';
+import { FansService } from './services/fans.service';
 import { TrackVisibility } from './enums/track-visibility.enum';
 import { TrackStatus } from './enums/track-status.enum';
 import * as geolocationUtil from '../common/utilities/geolocation.util';
@@ -50,6 +52,10 @@ import {
   mockPlaylistRepository,
   mockStorageService,
   mockAudioQueue,
+  mockFansService,
+  mockPlaylistService,
+  mockTrackPlay,
+  mockFanResult,
 } from './tests/track.mock';
 
 const MOCK_CAPTION = 'Great track!';
@@ -60,6 +66,8 @@ describe('TrackService', () => {
   let userRepo: ReturnType<typeof mockUserRepository>;
   let genreRepo: ReturnType<typeof mockGenreRepository>;
   let playlistRepo: ReturnType<typeof mockPlaylistRepository>;
+  let fansService: ReturnType<typeof mockFansService>;
+  let playlistService: ReturnType<typeof mockPlaylistService>;
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
@@ -72,6 +80,8 @@ describe('TrackService', () => {
         { provide: TrackSseService, useValue: {} },
         { provide: StorageService, useFactory: mockStorageService },
         { provide: getQueueToken('audioQueue'), useFactory: mockAudioQueue },
+        { provide: FansService, useFactory: mockFansService },
+        { provide: PlaylistService, useFactory: mockPlaylistService },
       ],
     }).compile();
 
@@ -80,6 +90,8 @@ describe('TrackService', () => {
     userRepo = module.get(UserRepository);
     genreRepo = module.get(GenreRepository);
     playlistRepo = module.get(PlaylistRepository);
+    fansService = module.get(FansService);
+    playlistService = module.get(PlaylistService);
 
     (service as any).playlistRepository = playlistRepo;
   });
@@ -329,6 +341,14 @@ describe('TrackService', () => {
       expect(result).toEqual({ status: 'success', data: like });
     });
 
+    it('should throw NotFoundException when track not found', async () => {
+      trackRepo.findById.mockResolvedValue(null);
+
+      await expect(service.likeTrack(MOCK_TRACK_ID, MOCK_USER_ID)).rejects.toThrow(
+        NotFoundException
+      );
+    });
+
     it('should throw BadRequestException when liking own track', async () => {
       trackRepo.findById.mockResolvedValue(mockOwnTrack());
 
@@ -368,6 +388,14 @@ describe('TrackService', () => {
         status: 'success',
         data: { trackId: MOCK_TRACK_ID, likesCount: 7 },
       });
+    });
+
+    it('should throw NotFoundException when track not found', async () => {
+      trackRepo.findById.mockResolvedValue(null);
+
+      await expect(service.getTrackLikesCount(MOCK_TRACK_ID, MOCK_USER_ID)).rejects.toThrow(
+        NotFoundException
+      );
     });
 
     it('should throw ForbiddenException when track is private and user is not owner', async () => {
@@ -414,6 +442,14 @@ describe('TrackService', () => {
       expect(result.data[0]).toMatchObject({ userId: MOCK_OTHER_USER_ID });
     });
 
+    it('should throw NotFoundException when track not found', async () => {
+      trackRepo.findById.mockResolvedValue(null);
+
+      await expect(service.getTrackLikes(MOCK_TRACK_ID, MOCK_USER_ID)).rejects.toThrow(
+        NotFoundException
+      );
+    });
+
     it('should throw ForbiddenException for private track', async () => {
       trackRepo.findById.mockResolvedValue(mockPrivateTrack());
 
@@ -445,6 +481,14 @@ describe('TrackService', () => {
       expect(result.status).toBe('success');
     });
 
+    it('should throw NotFoundException when user not found', async () => {
+      userRepo.findById.mockResolvedValue(null);
+
+      await expect(service.getUserTrackLikes(MOCK_OTHER_USER_ID, MOCK_MY_USER_ID)).rejects.toThrow(
+        NotFoundException
+      );
+    });
+
     it('should throw ForbiddenException for private account', async () => {
       userRepo.findById.mockResolvedValue(mockPrivateUser());
 
@@ -472,6 +516,14 @@ describe('TrackService', () => {
       const result = await service.addComment(MOCK_TRACK_ID, MOCK_USER_ID, mockDto);
 
       expect(result).toEqual({ status: 'success', data: comment });
+    });
+
+    it('should throw NotFoundException when track not found', async () => {
+      trackRepo.findById.mockResolvedValue(null);
+
+      await expect(service.addComment(MOCK_TRACK_ID, MOCK_USER_ID, mockDto)).rejects.toThrow(
+        NotFoundException
+      );
     });
 
     it('should throw ForbiddenException when track is private', async () => {
@@ -538,6 +590,14 @@ describe('TrackService', () => {
       expect(result).toEqual({ status: 'success', message: 'comment deleted successfully' });
     });
 
+    it('should throw NotFoundException when track not found', async () => {
+      trackRepo.findById.mockResolvedValue(null);
+
+      await expect(
+        service.deleteComment(MOCK_TRACK_ID, MOCK_COMMENT_ID, MOCK_USER_ID)
+      ).rejects.toThrow(NotFoundException);
+    });
+
     it('should throw ForbiddenException when track is private', async () => {
       trackRepo.findById.mockResolvedValue(mockPrivateTrack());
 
@@ -579,6 +639,46 @@ describe('TrackService', () => {
   // ─── getTrackComments ─────────────────────────────────────────────────────────
 
   describe('getTrackComments', () => {
+    it('should throw NotFoundException when track not found', async () => {
+      trackRepo.findById.mockResolvedValue(null);
+
+      await expect(service.getTrackComments(MOCK_TRACK_ID, MOCK_USER_ID)).rejects.toThrow(
+        NotFoundException
+      );
+    });
+
+    it('should map replies when a comment has nested replies', async () => {
+      const reply = mockTrackComment({
+        commentId: '99999',
+        parentId: MOCK_COMMENT_ID,
+        userId: MOCK_OTHER_USER_ID,
+        content: 'Nice reply!',
+        timestampSeconds: 60,
+        user: {
+          userId: MOCK_OTHER_USER_ID,
+          username: 'other_user',
+          displayName: 'Other',
+          avatarUrl: 'https://example.com/other.jpg',
+        },
+      });
+      const commentWithReply = mockTrackComment({ replies: [reply] });
+      trackRepo.findById.mockResolvedValue(mockPublicTrack());
+      trackRepo.getTrackComments.mockResolvedValue([[commentWithReply], 1]);
+
+      const result = await service.getTrackComments(
+        MOCK_TRACK_ID,
+        MOCK_USER_ID,
+        1,
+        20,
+        'timestamp'
+      );
+
+      expect(result.data[0].replies).toHaveLength(1);
+      expect(result.data[0].replies[0].commentId).toBe('99999');
+      expect(result.data[0].replies[0].content).toBe('Nice reply!');
+      expect(result.data[0].replies[0].user.userId).toBe(MOCK_OTHER_USER_ID);
+    });
+
     it('should return paginated comments', async () => {
       const comment = mockTrackComment();
       trackRepo.findById.mockResolvedValue(mockPublicTrack());
@@ -1118,6 +1218,380 @@ describe('TrackService', () => {
         expect(res.status).toBe('success');
         expect(res.data.trackId).toBe(MOCK_TRACK_ID);
       });
+    });
+  });
+
+  // ─── uploadTrack ─────────────────────────────────────────────────────────────
+
+  describe('uploadTrack', () => {
+    const mockAudioFile = {
+      originalname: 'track.mp3',
+      mimetype: 'audio/mpeg',
+      buffer: Buffer.from('audio'),
+    } as Express.Multer.File;
+
+    const mockCoverFile = {
+      originalname: 'cover.jpg',
+      mimetype: 'image/jpeg',
+      buffer: Buffer.from('image'),
+    } as Express.Multer.File;
+
+    const dto = { title: 'Midnight Drive' };
+
+    it('should create track record and queue audio job', async () => {
+      const savedTrack = {
+        trackId: MOCK_TRACK_ID,
+        title: 'Midnight Drive',
+        trackStatus: 'processing',
+        createdAt: new Date(),
+      };
+      (trackRepo as any).createTrack.mockResolvedValue(savedTrack);
+      const { audioQueue } = service as any;
+      audioQueue.add.mockResolvedValue({});
+
+      const result = await service.uploadTrack(MOCK_USER_ID, dto as any, mockAudioFile);
+
+      expect((trackRepo as any).createTrack).toHaveBeenCalledWith(MOCK_USER_ID, dto, undefined);
+      expect(audioQueue.add).toHaveBeenCalledWith(
+        'processAudio',
+        expect.objectContaining({ trackId: MOCK_TRACK_ID }),
+        expect.any(Object)
+      );
+      expect(result.status).toBe('success');
+      expect(result.data.trackId).toBe(MOCK_TRACK_ID);
+    });
+
+    it('should upload cover and pass url to createTrack when cover file provided', async () => {
+      const savedTrack = {
+        trackId: MOCK_TRACK_ID,
+        title: 'Midnight Drive',
+        trackStatus: 'processing',
+        createdAt: new Date(),
+      };
+      const { storageService } = service as any;
+      storageService.uploadFile.mockResolvedValue({ Location: 'https://s3/cover.jpg' });
+      (trackRepo as any).createTrack.mockResolvedValue(savedTrack);
+      (service as any).audioQueue.add.mockResolvedValue({});
+
+      await service.uploadTrack(MOCK_USER_ID, dto as any, mockAudioFile, mockCoverFile);
+
+      expect(storageService.uploadFile).toHaveBeenCalledWith(mockCoverFile);
+      expect((trackRepo as any).createTrack).toHaveBeenCalledWith(
+        MOCK_USER_ID,
+        dto,
+        'https://s3/cover.jpg'
+      );
+    });
+
+    it('should return message and processing trackStatus', async () => {
+      const savedTrack = {
+        trackId: MOCK_TRACK_ID,
+        title: 'Midnight Drive',
+        trackStatus: 'processing',
+        createdAt: new Date(),
+      };
+      (trackRepo as any).createTrack.mockResolvedValue(savedTrack);
+      (service as any).audioQueue.add.mockResolvedValue({});
+
+      const result = await service.uploadTrack(MOCK_USER_ID, dto as any, mockAudioFile);
+
+      expect(result.message).toBe('Track upload started. Processing in background.');
+      expect(result.data.trackStatus).toBe('processing');
+    });
+  });
+
+  // ─── updateTrackMetadata ──────────────────────────────────────────────────────
+
+  describe('updateTrackMetadata', () => {
+    it('should update and return success', async () => {
+      const updatedTrack = {
+        trackId: MOCK_TRACK_ID,
+        title: 'New Title',
+        trackStatus: 'finished',
+        previewStartTime: null,
+      };
+      trackRepo.findById.mockResolvedValue(mockOwnTrack());
+      trackRepo.updateTrack.mockResolvedValue(updatedTrack);
+
+      const result = await service.updateTrackMetadata(MOCK_TRACK_ID, MOCK_USER_ID, {
+        title: 'New Title',
+      } as any);
+
+      expect(trackRepo.updateTrack).toHaveBeenCalledWith(
+        MOCK_TRACK_ID,
+        { title: 'New Title' },
+        undefined
+      );
+      expect(result).toEqual({ status: 'success', data: updatedTrack });
+    });
+
+    it('should throw NotFoundException when track not found', async () => {
+      trackRepo.findById.mockResolvedValue(null);
+
+      await expect(
+        service.updateTrackMetadata(MOCK_TRACK_ID, MOCK_USER_ID, {} as any)
+      ).rejects.toThrow(NotFoundException);
+    });
+
+    it('should throw ForbiddenException when user does not own track', async () => {
+      trackRepo.findById.mockResolvedValue(mockPublicTrack()); // userId is MOCK_OTHER_USER_ID
+
+      await expect(
+        service.updateTrackMetadata(MOCK_TRACK_ID, MOCK_USER_ID, {} as any)
+      ).rejects.toThrow(ForbiddenException);
+    });
+
+    it('should upload new cover and delete old one when coverFile provided', async () => {
+      const coverFile = {
+        originalname: 'new.jpg',
+        buffer: Buffer.from('img'),
+      } as Express.Multer.File;
+      const ownTrack = mockOwnTrack({ coverImage: 'https://s3/old.jpg', trackStatus: 'finished' });
+      const updatedTrack = {
+        ...ownTrack,
+        coverImage: 'https://s3/new.jpg',
+        previewStartTime: null,
+      };
+      trackRepo.findById.mockResolvedValue(ownTrack);
+      trackRepo.updateTrack.mockResolvedValue(updatedTrack);
+      const { storageService } = service as any;
+      storageService.uploadFile.mockResolvedValue({ Location: 'https://s3/new.jpg' });
+      storageService.deleteFile.mockResolvedValue(undefined);
+
+      const result = await service.updateTrackMetadata(
+        MOCK_TRACK_ID,
+        MOCK_USER_ID,
+        {} as any,
+        coverFile
+      );
+
+      expect(storageService.uploadFile).toHaveBeenCalledWith(coverFile);
+      expect(storageService.deleteFile).toHaveBeenCalledWith('https://s3/old.jpg');
+      expect(trackRepo.updateTrack).toHaveBeenCalledWith(MOCK_TRACK_ID, {}, 'https://s3/new.jpg');
+      expect(result.status).toBe('success');
+    });
+
+    it('should queue regeneratePreview job when previewStartTime changed on finished track', async () => {
+      const ownTrack = mockOwnTrack({
+        trackStatus: 'finished',
+        previewStartTime: '00:00:30',
+        audioUrl: 'https://s3/track.mp3',
+      });
+      trackRepo.findById.mockResolvedValue(ownTrack);
+      trackRepo.updateTrack.mockResolvedValue({ ...ownTrack, previewStartTime: '00:01:00' });
+      (service as any).audioQueue.add.mockResolvedValue({});
+
+      await service.updateTrackMetadata(MOCK_TRACK_ID, MOCK_USER_ID, {
+        previewStartTime: '00:01:00',
+      } as any);
+
+      expect((service as any).audioQueue.add).toHaveBeenCalledWith(
+        'regeneratePreview',
+        expect.objectContaining({ trackId: MOCK_TRACK_ID, startTime: '00:01:00' }),
+        expect.any(Object)
+      );
+    });
+  });
+
+  // ─── reuploadTrackAudio ───────────────────────────────────────────────────────
+
+  describe('reuploadTrackAudio', () => {
+    const audioFile = {
+      originalname: 'new.mp3',
+      buffer: Buffer.from('audio'),
+    } as Express.Multer.File;
+
+    it('should queue processAudio job and return processing status', async () => {
+      trackRepo.findById.mockResolvedValue(
+        mockOwnTrack({ trackStatus: 'finished', audioUrl: 'https://s3/old.mp3' })
+      );
+      trackRepo.setTrackProcessing.mockResolvedValue(undefined);
+      (service as any).audioQueue.remove.mockRejectedValue(new Error('no job'));
+      (service as any).audioQueue.add.mockResolvedValue({});
+
+      const result = await service.reuploadTrackAudio(MOCK_TRACK_ID, MOCK_USER_ID, audioFile);
+
+      expect(trackRepo.setTrackProcessing).toHaveBeenCalledWith(MOCK_TRACK_ID);
+      expect((service as any).audioQueue.add).toHaveBeenCalledWith(
+        'processAudio',
+        expect.objectContaining({ trackId: MOCK_TRACK_ID }),
+        expect.any(Object)
+      );
+      expect(result.status).toBe('success');
+      expect(result.data.trackStatus).toBe('processing');
+    });
+
+    it('should throw NotFoundException when track not found', async () => {
+      trackRepo.findById.mockResolvedValue(null);
+
+      await expect(
+        service.reuploadTrackAudio(MOCK_TRACK_ID, MOCK_USER_ID, audioFile)
+      ).rejects.toThrow(NotFoundException);
+    });
+
+    it('should throw ForbiddenException when user does not own track', async () => {
+      trackRepo.findById.mockResolvedValue(mockPublicTrack()); // owned by MOCK_OTHER_USER_ID
+
+      await expect(
+        service.reuploadTrackAudio(MOCK_TRACK_ID, MOCK_USER_ID, audioFile)
+      ).rejects.toThrow(ForbiddenException);
+    });
+
+    it('should throw ConflictException when track is already processing', async () => {
+      trackRepo.findById.mockResolvedValue(mockOwnTrack({ trackStatus: 'processing' }));
+
+      await expect(
+        service.reuploadTrackAudio(MOCK_TRACK_ID, MOCK_USER_ID, audioFile)
+      ).rejects.toThrow(ConflictException);
+    });
+  });
+
+  // ─── playTrack ────────────────────────────────────────────────────────────────
+
+  describe('playTrack', () => {
+    it('should record play and return incremented playCount', async () => {
+      trackRepo.findById.mockResolvedValue(mockPublicTrack({ playCount: 10 }));
+      (trackRepo as any).createTrackPlay.mockResolvedValue(mockTrackPlay());
+      (trackRepo as any).addToRecentlyPlayed.mockResolvedValue(undefined);
+      (trackRepo as any).deleteOldRecentlyPlayed.mockResolvedValue(undefined);
+
+      const result = await service.playTrack(MOCK_TRACK_ID, MOCK_USER_ID);
+
+      expect((trackRepo as any).createTrackPlay).toHaveBeenCalledWith(
+        MOCK_TRACK_ID,
+        MOCK_USER_ID,
+        undefined
+      );
+      expect(result).toEqual({
+        status: 'success',
+        message: 'Track play recorded',
+        data: { trackId: MOCK_TRACK_ID, playCount: 11 },
+      });
+    });
+
+    it('should not count play when user is the artist', async () => {
+      trackRepo.findById.mockResolvedValue(mockOwnTrack({ playCount: 5 })); // userId: MOCK_USER_ID
+
+      const result = await service.playTrack(MOCK_TRACK_ID, MOCK_USER_ID);
+
+      expect((trackRepo as any).createTrackPlay).not.toHaveBeenCalled();
+      expect(result.message).toBe('Artist play - not counted');
+      expect(result.data.playCount).toBe(5);
+    });
+
+    it('should throw NotFoundException when track not found', async () => {
+      trackRepo.findById.mockResolvedValue(null);
+
+      await expect(service.playTrack(MOCK_TRACK_ID, MOCK_USER_ID)).rejects.toThrow(
+        NotFoundException
+      );
+    });
+
+    it('should not count play when playlist belongs to artist', async () => {
+      const MOCK_PLAYLIST_ID = '770e8400-e29b-41d4-a716-446655440020';
+      trackRepo.findById.mockResolvedValue(mockPublicTrack({ playCount: 10 }));
+      playlistService.getPlaylistById.mockResolvedValue({
+        playlistId: MOCK_PLAYLIST_ID,
+        userId: MOCK_USER_ID,
+      });
+
+      const result = await service.playTrack(MOCK_TRACK_ID, MOCK_USER_ID, MOCK_PLAYLIST_ID);
+
+      expect((trackRepo as any).createTrackPlay).not.toHaveBeenCalled();
+      expect(result.message).toBe('Artist play - not counted');
+    });
+
+    it('should throw NotFoundException when playlist not found', async () => {
+      const MOCK_PLAYLIST_ID = '770e8400-e29b-41d4-a716-446655440020';
+      trackRepo.findById.mockResolvedValue(mockPublicTrack());
+      playlistService.getPlaylistById.mockResolvedValue(null);
+
+      await expect(
+        service.playTrack(MOCK_TRACK_ID, MOCK_USER_ID, MOCK_PLAYLIST_ID)
+      ).rejects.toThrow(NotFoundException);
+    });
+
+    it('should add recently played with ARTIST type when no playlistId', async () => {
+      const track = mockPublicTrack({ playCount: 5 });
+      trackRepo.findById.mockResolvedValue(track);
+      (trackRepo as any).createTrackPlay.mockResolvedValue(undefined);
+      (trackRepo as any).addToRecentlyPlayed.mockResolvedValue(undefined);
+      (trackRepo as any).deleteOldRecentlyPlayed.mockResolvedValue(undefined);
+
+      await service.playTrack(MOCK_TRACK_ID, MOCK_USER_ID);
+
+      expect((trackRepo as any).addToRecentlyPlayed).toHaveBeenCalledWith(
+        MOCK_USER_ID,
+        track.userId,
+        'artist'
+      );
+    });
+  });
+
+  // ─── getTopFans ───────────────────────────────────────────────────────────────
+
+  describe('getTopFans', () => {
+    it('should delegate to fansService and wrap in success envelope', async () => {
+      const fans = [mockFanResult()];
+      fansService.getTopFans.mockResolvedValue(fans);
+
+      const result = await service.getTopFans(MOCK_TRACK_ID);
+
+      expect(fansService.getTopFans).toHaveBeenCalledWith(MOCK_TRACK_ID);
+      expect(result).toEqual({ status: 'success', data: fans });
+    });
+
+    it('should return empty array when fansService returns empty list', async () => {
+      fansService.getTopFans.mockResolvedValue([]);
+
+      const result = await service.getTopFans(MOCK_TRACK_ID);
+
+      expect(result.data).toEqual([]);
+    });
+
+    it('should propagate NotFoundException from fansService', async () => {
+      fansService.getTopFans.mockRejectedValue(new NotFoundException('Track not found'));
+
+      await expect(service.getTopFans(MOCK_TRACK_ID)).rejects.toThrow(NotFoundException);
+    });
+  });
+
+  // ─── getFirstFans ─────────────────────────────────────────────────────────────
+
+  describe('getFirstFans', () => {
+    it('should delegate to fansService and wrap in success envelope', async () => {
+      const fans = [
+        mockFanResult({ rank: 1 }),
+        mockFanResult({
+          rank: 2,
+          user: {
+            userId: MOCK_OTHER_USER_ID,
+            username: 'other',
+            displayName: 'Other',
+            avatarUrl: '',
+          },
+        }),
+      ];
+      fansService.getFirstFans.mockResolvedValue(fans);
+
+      const result = await service.getFirstFans(MOCK_TRACK_ID);
+
+      expect(fansService.getFirstFans).toHaveBeenCalledWith(MOCK_TRACK_ID);
+      expect(result).toEqual({ status: 'success', data: fans });
+    });
+
+    it('should return empty array when feature is disabled for artist', async () => {
+      fansService.getFirstFans.mockResolvedValue([]);
+
+      const result = await service.getFirstFans(MOCK_TRACK_ID);
+
+      expect(result.data).toEqual([]);
+    });
+
+    it('should propagate NotFoundException when track does not exist', async () => {
+      fansService.getFirstFans.mockRejectedValue(new NotFoundException('Track not found'));
+
+      await expect(service.getFirstFans(MOCK_TRACK_ID)).rejects.toThrow(NotFoundException);
     });
   });
 });
