@@ -29,11 +29,14 @@ import {
   ApiLikePlaylist,
   ApiUnlikePlaylist,
   ApiCreatePlaylist,
+  ApiAddTrackToPlaylist,
+  ApiUpdatePlaylist,
 } from './playlist.swagger';
 import { CurrentUser } from '../authentication/decorators/current-user.decorator';
 import { CheckBlock } from '../followers/decorators/no-block.decorator';
 import { CreatePlaylistDto } from './dto/create-playlist.dto';
 import { UpdatePlaylistDto } from './dto/update-playlist.dto';
+import { AddTrackDto } from './dto/add-track.dto';
 
 @ApiTags('Playlist')
 @Controller('playlist')
@@ -144,6 +147,7 @@ export class PlaylistController {
     return this.playlistService.createPlaylist(createPlaylistDto, userId);
   }
 
+  @ApiUpdatePlaylist()
   @UseInterceptors(FileInterceptor('coverImage'))
   @Patch(':playlistId')
   async updatePlaylist(
@@ -162,5 +166,16 @@ export class PlaylistController {
     file?: Express.Multer.File
   ) {
     return this.playlistService.updatePlaylist(userId, playlistId, updatePlaylistDto, file);
+  }
+
+  @ApiAddTrackToPlaylist()
+  @Post(':playlistId/tracks') // Removed :trackId from path
+  async addTrackToPlaylist(
+    @Param('playlistId', ParseUUIDPipe) playlistId: string,
+    @Body() addTrackDto: AddTrackDto, // Now coming from Body
+    @CurrentUser('sub') userId: string
+  ) {
+    // Service remains the same, we just pass addTrackDto.trackId
+    return this.playlistService.addTrackToPlaylist(playlistId, addTrackDto.trackId, userId);
   }
 }

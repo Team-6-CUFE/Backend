@@ -19,7 +19,7 @@ export class PlaylistRepository {
     @InjectRepository(PlaylistLike)
     private readonly playlistLikesRepository: Repository<PlaylistLike>,
     @InjectRepository(PlaylistTrack)
-    private readonly playlistTrackRepository: Repository<PlaylistTrack>,
+    private readonly playlistTrackRepository: Repository<PlaylistTrack>, // Use Repository here
     @InjectRepository(Track)
     private readonly trackRepository: Repository<Track>
   ) {}
@@ -167,14 +167,22 @@ export class PlaylistRepository {
   }
 
   async findTrackById(trackId: string): Promise<Track | null> {
-    return this.trackRepository.findOne({ where: { trackId } as any });
+    return this.trackRepository.findOne({
+      where: { trackId },
+      select: ['trackId', 'durationSeconds'],
+    });
   }
 
-  async countTracksInPlaylist(playlistId: string): Promise<number> {
-    return this.playlistTrackRepository.count({ where: { playlistId } });
+  async updatePlaylistStats(playlistId: string, durationDelta: number): Promise<Playlist | null> {
+    // Atomic updates to avoid race conditions
+    await this.playlistRepository.increment({ playlistId }, 'tracksCount', 1);
+    await this.playlistRepository.increment({ playlistId }, 'totalDurationSeconds', durationDelta);
+
+    return this.findPlaylistById(playlistId);
   }
 
   async addTrackToPlaylist(playlistId: string, trackId: string, position: number) {
+    // Instead of calling a separate file, we do the logic here:
     const newEntry = this.playlistTrackRepository.create({
       playlistId,
       trackId,
@@ -183,8 +191,14 @@ export class PlaylistRepository {
     return this.playlistTrackRepository.save(newEntry);
   }
 
-  async updatePlaylistStats(playlistId: string, tracksCount: number, durationDelta: number) {
-    await this.playlistRepository.increment({ playlistId }, 'totalDurationSeconds', durationDelta);
-    await this.playlistRepository.update({ playlistId }, { tracksCount });
+  // You'll need this for Task #3 later (removing tracks)
+  async findMaxPosition(playlistId: string): Promise<number> {
+    const result = await this.playlistTrackRepository
+      .createQueryBuilder('pt')
+      .select('MAX(pt.position)', 'max')
+      .where('pt.playlistId = :playlistId', { playlistId })
+      .getRawOne();
+
+    return result?.max ? parseInt(result.max, 10) : 0;
   }
 }

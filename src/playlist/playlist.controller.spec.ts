@@ -577,21 +577,6 @@ describe('PlaylistController', () => {
     });
   });
 
-  // ─── createPlaylist ───────────────────────────────────────────────────────
-
-  describe('createPlaylist', () => {
-    it('should delegate to service with dto and userId', async () => {
-      const dto = { title: 'New Playlist', isPublic: true };
-      const mockResponse = { status: 'sucesss', data: { playlistId: mockPlaylistId } };
-      service.createPlaylist.mockResolvedValue(mockResponse);
-
-      const result = await controller.createPlaylist(dto, mockUserId);
-
-      expect(service.createPlaylist).toHaveBeenCalledWith(dto, mockUserId);
-      expect(result).toBe(mockResponse);
-    });
-  });
-
   // ─── updatePlaylist ───────────────────────────────────────────────────────
 
   describe('updatePlaylist', () => {

@@ -8,6 +8,7 @@ import {
   ApiBody,
   ApiConsumes,
 } from '@nestjs/swagger';
+import { AddTrackDto } from './dto/add-track.dto';
 
 export function ApiRepostPlaylist() {
   return applyDecorators(
@@ -697,5 +698,33 @@ export function ApiUpdatePlaylist() {
     ApiResponse({ status: 401, description: 'Unauthorized' }),
     ApiResponse({ status: 403, description: 'Not the owner of the playlist' }),
     ApiResponse({ status: 404, description: 'Playlist not found' })
+  );
+}
+
+export function ApiAddTrackToPlaylist() {
+  return applyDecorators(
+    ApiCookieAuth('access_token'),
+    ApiOperation({ summary: 'Add a track to a playlist' }),
+    ApiParam({ name: 'playlistId', format: 'uuid' }),
+    ApiBody({ type: AddTrackDto }), // Added this
+    ApiResponse({
+      status: 201,
+      description: 'Track added successfully',
+      schema: {
+        example: {
+          status: 'success',
+          data: {
+            playlistId: 'pl_abc123',
+            trackId: 't_001',
+            position: 13,
+            addedAt: '2025-03-03T10:00:00Z',
+            playlist: {
+              trackCount: 13,
+              durationSeconds: 3061,
+            },
+          },
+        },
+      },
+    })
   );
 }

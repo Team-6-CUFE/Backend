@@ -14,6 +14,7 @@ import { CreatePlaylistDto } from './dto/create-playlist.dto';
 import { Playlist } from './entities/playlist.entity';
 import { UpdatePlaylistDto } from './dto/update-playlist.dto';
 import { StorageService } from '../common/storage_service';
+import { PlaylistTrack } from './entities/playlist-tracks.entity';
 
 @Injectable()
 export class PlaylistService {
@@ -384,44 +385,54 @@ export class PlaylistService {
   }
 
   async addTrackToPlaylist(playlistId: string, trackId: string, userId: string) {
-    // 1. Check playlist existence and ownership
+    // 1. Ownership & Existence Check
     const playlist = await this.playlistRepository.findPlaylistById(playlistId);
     if (!playlist) throw new NotFoundException('Playlist not found');
     if (playlist.userId !== userId) {
-      throw new ForbiddenException('You can only add tracks to your own playlists');
+      throw new ForbiddenException('You are not the owner of this playlist');
     }
 
-    // 2. Check track existence
+    // 2. Track Existence Check
     const track = await this.playlistRepository.findTrackById(trackId);
     if (!track) throw new NotFoundException('Track not found');
 
-    // 3. Get current count to determine next position
-    const currentCount = await this.playlistRepository.countTracksInPlaylist(playlistId);
+    // 3. Add relation (Position is current count + 1)
+    const nextPosition = playlist.tracksCount + 1;
+    let savedRelation: PlaylistTrack;
 
+    // src/playlist/playlist.service.ts around line 410
     try {
-      await this.playlistRepository.addTrackToPlaylist(playlistId, trackId, currentCount + 1);
-    } catch (error) {
+      savedRelation = await this.playlistRepository.addTrackToPlaylist(
+        playlistId,
+        trackId,
+        nextPosition
+      );
+    } catch (error: any) {
+      // Option A: Quick fix using 'any'
       if (error.code === '23505') {
-        // Postgres Unique Violation code
-        throw new ConflictException('Track is already in this playlist');
+        throw new ConflictException('Track already in playlist');
       }
       throw error;
     }
 
-    // 4. Update Playlist Metadata (Count and Duration)
-    await this.playlistRepository.updatePlaylistStats(
+    // 4. Update the Playlist table stats
+    const updatedPlaylist = await this.playlistRepository.updatePlaylistStats(
       playlistId,
-      currentCount + 1,
-      track.durationSeconds || 0 // Assuming your track entity has durationSeconds
+      track.durationSeconds || 0
     );
 
+    // 5. Response matching your docs
     return {
       status: 'success',
-      message: 'Track added to playlist',
       data: {
-        playlistId,
-        trackId,
-        position: currentCount + 1,
+        playlistId: savedRelation.playlistId,
+        trackId: savedRelation.trackId,
+        position: savedRelation.position,
+        addedAt: savedRelation.addedAt,
+        playlist: {
+          trackCount: updatedPlaylist?.tracksCount,
+          durationSeconds: updatedPlaylist?.totalDurationSeconds,
+        },
       },
     };
   }
