@@ -178,4 +178,14 @@ export class PlaylistController {
     // Service remains the same, we just pass addTrackDto.trackId
     return this.playlistService.addTrackToPlaylist(playlistId, addTrackDto.trackId, userId);
   }
+
+  @Delete(':playlistId/tracks/:trackId')
+  // @ApiRemoveTrackFromPlaylist() // Swagger decorator
+  async removeTrack(
+    @Param('playlistId', ParseUUIDPipe) playlistId: string,
+    @Param('trackId', ParseUUIDPipe) trackId: string,
+    @CurrentUser('sub') userId: string
+  ) {
+    return this.playlistService.removeTrackFromPlaylist(playlistId, trackId, userId);
+  }
 }
