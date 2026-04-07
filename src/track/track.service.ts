@@ -10,6 +10,7 @@ import { Queue } from 'bullmq';
 import * as fs from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
+import { plainToInstance } from 'class-transformer';
 import { AddCommentDto } from './dto/add-comment.dto';
 import { buildPaginationResponse } from '../common/utilities/pagination.util';
 import { UserRepository } from '../user/user.repository';
@@ -21,21 +22,48 @@ import { StorageService } from '../common/storage_service';
 import { TrackVisibility } from './enums/track-visibility.enum';
 import { TrackStatus } from './enums/track-status.enum';
 import { Track } from './entities/track.entity';
+import { User } from '../user/entities/user.entity';
+import { UPLOAD_LIMIT_SECONDS } from './constants/quota.constants';
+import { UserTrackResponseDto } from './dto/user-track-res.dto';
+import { UploadQuotaResponseDto } from './dto/upload-quota.res.dto';
+import { PlaylistOwnerDto } from './dto/playlist-owner.dto';
+import { TrackPlaylistResponseDto } from './dto/track-playlist-res.dto';
+import { PlaylistTrack } from '../playlist/entities/playlist-tracks.entity';
+import { Playlist } from '../playlist/entities/playlist.entity';
+import { GenreRepository } from '../genre/genre.repository';
+import { JwtPayload } from '../authentication/strategies/jwt.strategy';
+import { TrackGenreDto } from './dto/track-genre.dto';
+import { TrackOwnerDto } from './dto/track-owner.dto';
+import { GetTrackResDto } from './dto/get-track-res.dto';
+import { TrackAudioResDto } from './dto/get-track-audio-res.dto';
+import { BlockedRegionsDto } from './dto/blocked-regions.dto';
+import { GenresResDto } from './dto/get-genres-res.dto';
+import { TrackTagDto } from './dto/track-tag.dto';
+import { getLocationFromIp } from '../common/utilities/geolocation.util';
 import { PlaylistService } from '../playlist/playlist.service';
 import { RecentlyPlayedItemType } from './entities/recently-played.entity';
 import { FansService } from './services/fans.service';
 
 @Injectable()
 export class TrackService {
+  playlistRepository: any;
+
   constructor(
     private readonly trackRepository: TrackRepository,
     private readonly userRepository: UserRepository,
     private readonly storageService: StorageService,
+    private readonly genreRepository: GenreRepository,
     private readonly playlistService: PlaylistService,
     private readonly fansService: FansService,
     @InjectQueue('audioQueue')
     private readonly audioQueue: Queue
   ) {}
+
+  private resolveAudioUrl(track: Track, user?: JwtPayload): string | null {
+    const isHqEligible = user?.plan === 'pro' || user?.plan === 'go+';
+    if (isHqEligible && track.audioUrlHq) return track.audioUrlHq;
+    return track.audioUrl ?? null;
+  }
 
   async uploadTrack(
     userId: string,
@@ -572,5 +600,168 @@ export class TrackService {
       status: 'success',
       data,
     };
+  }
+
+  async getTrackPlaylists(
+    trackId: string,
+    currentUserId: string,
+    page: number = 1,
+    limit: number = 20
+  ) {
+    const track = await this.trackRepository.findById(trackId);
+    if (!track) throw new NotFoundException('Track not found');
+
+    if (track.visibility === TrackVisibility.PRIVATE && track.userId !== currentUserId) {
+      throw new ForbiddenException('This track is private');
+    }
+
+    const cappedLimit = Math.min(limit, 100);
+    const [entries, total] = await this.playlistRepository.getTrackPlaylists(
+      trackId,
+      currentUserId,
+      page,
+      cappedLimit
+    );
+
+    const shaped = (entries as Array<PlaylistTrack & { playlist: Playlist & { user: User } }>).map(
+      (entry) => ({
+        playlistId: entry.playlist.playlistId,
+        title: entry.playlist.title,
+        description: entry.playlist.description ?? null,
+        coverImage: entry.playlist.coverImage ?? null,
+        isPublic: entry.playlist.isPublic,
+        tracksCount: entry.playlist.tracksCount,
+        totalDurationSeconds: entry.playlist.totalDurationSeconds,
+        owner: plainToInstance(PlaylistOwnerDto, entry.playlist.user, {
+          excludeExtraneousValues: true,
+        }),
+        addedAt: entry.addedAt,
+      })
+    );
+
+    const data: TrackPlaylistResponseDto[] = plainToInstance(TrackPlaylistResponseDto, shaped, {
+      excludeExtraneousValues: true,
+    });
+
+    return { status: 'success', ...buildPaginationResponse(data, total, page, cappedLimit) };
+  }
+
+  async getUserUploadedTracks(
+    userId: string,
+    currentUserId: string,
+    page: number = 1,
+    limit: number = 20
+  ) {
+    const user = await this.userRepository.findById(userId);
+    if (!user) throw new NotFoundException('User does not exist');
+
+    if (!user.isPublic && user.userId !== currentUserId) {
+      throw new ForbiddenException('This account is private');
+    }
+
+    const cappedLimit = Math.min(limit, 100);
+    const [tracks, total] = await this.trackRepository.getUserTracks(
+      userId,
+      currentUserId,
+      page,
+      cappedLimit
+    );
+
+    const data = plainToInstance(UserTrackResponseDto, tracks, {
+      excludeExtraneousValues: true,
+    });
+
+    return { status: 'success', ...buildPaginationResponse(data, total, page, cappedLimit) };
+  }
+
+  async getUserQuota(userId: string) {
+    const user = await this.userRepository.findById(userId);
+    if (!user) throw new NotFoundException('User does not exist');
+
+    const usedSeconds = await this.trackRepository.getUserUploadedSeconds(userId);
+    const plan = user.plan ?? 'free';
+    const limitSeconds =
+      plan in UPLOAD_LIMIT_SECONDS ? UPLOAD_LIMIT_SECONDS[plan] : UPLOAD_LIMIT_SECONDS.free;
+
+    const usedMinutes = Math.floor(usedSeconds / 60);
+    const limitMinutes = limitSeconds !== null ? Math.floor(limitSeconds / 60) : null;
+    const remainingMinutes =
+      limitSeconds !== null ? Math.max(0, Math.floor((limitSeconds - usedSeconds) / 60)) : null;
+
+    const data = plainToInstance(
+      UploadQuotaResponseDto,
+      { plan, usedMinutes, limitMinutes, remainingMinutes },
+      { excludeExtraneousValues: true }
+    );
+
+    return { status: 'success', data };
+  }
+
+  async getTrack(trackId: string, user?: JwtPayload, ip?: string) {
+    const track = await this.trackRepository.findByIdWithRelations(trackId);
+    if (!track) throw new NotFoundException('Track not found');
+
+    if (track.visibility === TrackVisibility.PRIVATE && track.userId !== user?.sub) {
+      throw new ForbiddenException('This track is private');
+    }
+    if (track.userId !== user?.sub && track.blockedRegions?.length > 0 && ip) {
+      const { country } = getLocationFromIp(ip);
+      if (country && track.blockedRegions.includes(country)) {
+        throw new ForbiddenException('This track is not available in your region');
+      }
+    }
+    const shaped: GetTrackResDto = {
+      ...track,
+      genres: plainToInstance(TrackGenreDto, track.genres, { excludeExtraneousValues: true }),
+      tags: plainToInstance(TrackTagDto, track.tags, { excludeExtraneousValues: true }),
+      owner: plainToInstance(TrackOwnerDto, track.user, { excludeExtraneousValues: true }),
+    };
+    const data = plainToInstance(GetTrackResDto, shaped, { excludeExtraneousValues: true });
+    return { status: 'success', data };
+  }
+
+  async getTrackAudio(trackId: string, user?: JwtPayload) {
+    const track = await this.trackRepository.findById(trackId);
+    if (!track) throw new NotFoundException('Track not found');
+
+    if (track.visibility === TrackVisibility.PRIVATE && track.userId !== user?.sub) {
+      throw new ForbiddenException('This track is private');
+    }
+
+    if (track.trackStatus !== TrackStatus.FINISHED) {
+      throw new ConflictException('Track audio is not available yet');
+    }
+
+    const data = plainToInstance(
+      TrackAudioResDto,
+      {
+        audioUrl: this.resolveAudioUrl(track, user),
+        previewAudioUrl: track.previewAudioUrl ?? null,
+        durationSeconds: track.durationSeconds,
+      },
+      { excludeExtraneousValues: true }
+    );
+
+    return { status: 'success', data };
+  }
+
+  async updateBlockedRegions(trackId: string, userId: string, dto: BlockedRegionsDto) {
+    const track = await this.trackRepository.findById(trackId);
+    if (!track) throw new NotFoundException('Track not found');
+    if (track.userId !== userId) throw new ForbiddenException('You do not own this track');
+
+    const updated = await this.trackRepository.updateBlockedRegions(trackId, dto.blockedRegions);
+    return {
+      status: 'success',
+      data: { trackId: updated.trackId, blockedRegions: updated.blockedRegions },
+    };
+  }
+
+  async getAllGenres() {
+    const genres = await this.genreRepository.findAll();
+    const data: GenresResDto[] = plainToInstance(GenresResDto, genres, {
+      excludeExtraneousValues: true,
+    });
+    return { status: 'success', data };
   }
 }

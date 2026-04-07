@@ -8,10 +8,11 @@ import { PlaylistLike } from './entities/playlist-likes.entity';
 import { PlaylistRepository } from './playlist.repository';
 import { UserModule } from '../user/user.module';
 import { FollowersModule } from '../followers/followers.module';
+import { PlaylistTrack } from './entities/playlist-tracks.entity';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([Playlist, PlaylistRepost, PlaylistLike]),
+    TypeOrmModule.forFeature([Playlist, PlaylistRepost, PlaylistLike, PlaylistTrack]),
     UserModule,
     FollowersModule,
   ],

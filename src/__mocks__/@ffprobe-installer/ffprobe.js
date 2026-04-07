@@ -1,0 +1,1 @@
+module.exports = { path: '/usr/bin/ffprobe', version: '0.0.0' };

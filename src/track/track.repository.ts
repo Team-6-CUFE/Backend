@@ -51,6 +51,16 @@ export class TrackRepository {
     });
   }
 
+  async findByIdWithRelations(trackId: string): Promise<Track | null> {
+    return this.trackRepository
+      .createQueryBuilder('track')
+      .leftJoinAndSelect('track.genres', 'genre')
+      .leftJoinAndSelect('track.tags', 'tag')
+      .leftJoinAndSelect('track.user', 'user')
+      .where('track.trackId = :trackId', { trackId })
+      .getOne();
+  }
+
   async repostTrack(trackId: string, userId: string, caption?: string): Promise<TrackRepost> {
     const trackRepost = this.trackRepostRepository.create({
       trackId,
@@ -370,5 +380,39 @@ export class TrackRepository {
         { userId, limit: RECENTLY_PLAYED_LIMIT }
       )
       .execute();
+  }
+
+  async getUserUploadedSeconds(userId: string): Promise<number> {
+    const sum = await this.trackRepository.sum('durationSeconds', {
+      userId,
+      trackStatus: TrackStatus.FINISHED,
+    });
+    return sum ?? 0;
+  }
+
+  async getUserTracks(
+    userId: string,
+    requesterId: string,
+    page: number,
+    limit: number
+  ): Promise<[Track[], number]> {
+    const skip = (page - 1) * limit;
+    const isOwner = userId === requesterId;
+
+    const query = this.trackRepository
+      .createQueryBuilder('track')
+      .where('track.userId = :userId', { userId })
+      .andWhere('track.trackStatus = :status', { status: TrackStatus.FINISHED });
+
+    if (!isOwner) {
+      query.andWhere('track.visibility = :visibility', { visibility: TrackVisibility.PUBLIC });
+    }
+
+    return query.orderBy('track.createdAt', 'DESC').skip(skip).take(limit).getManyAndCount();
+  }
+
+  async updateBlockedRegions(trackId: string, regions: string[]): Promise<Track> {
+    await this.trackRepository.update(trackId, { blockedRegions: regions });
+    return (await this.trackRepository.findOne({ where: { trackId } })) as Track;
   }
 }

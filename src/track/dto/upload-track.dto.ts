@@ -52,7 +52,12 @@ export class UploadTrackDto {
   @IsArray()
   @IsString({ each: true })
   @Transform(({ value }) =>
-    typeof value === 'string' ? value.split(',').map((s: string) => s.trim()) : value
+    typeof value === 'string'
+      ? value
+          .split(',')
+          .map((s: string) => s.trim())
+          .filter(Boolean)
+      : value
   )
   mainArtists?: string[];
 
@@ -152,7 +157,12 @@ export class UploadTrackDto {
   @IsArray()
   @IsString({ each: true })
   @Transform(({ value }) =>
-    typeof value === 'string' ? value.split(',').map((s: string) => s.trim()) : value
+    typeof value === 'string'
+      ? value
+          .split(',')
+          .map((s: string) => s.trim())
+          .filter(Boolean)
+      : value
   )
   genreIds?: string[];
 
@@ -165,7 +175,12 @@ export class UploadTrackDto {
   @IsArray()
   @IsString({ each: true })
   @Transform(({ value }) =>
-    typeof value === 'string' ? value.split(',').map((s: string) => s.trim()) : value
+    typeof value === 'string'
+      ? value
+          .split(',')
+          .map((s: string) => s.trim())
+          .filter(Boolean)
+      : value
   )
   tags?: string[];
 }

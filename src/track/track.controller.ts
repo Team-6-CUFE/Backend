@@ -13,6 +13,7 @@ import {
   UploadedFiles,
   UploadedFile,
   Sse,
+  Ip,
 } from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
 import { FileFieldsInterceptor, FileInterceptor } from '@nestjs/platform-express';
@@ -40,6 +41,13 @@ import {
   ApiPlayTrack,
   ApiGetTopFans,
   ApiGetFirstFans,
+  ApiGetUploadQuota,
+  ApiGetUserTracks,
+  ApiGetTrackPlaylists,
+  ApiGetAllGenres,
+  ApiGetTrack,
+  ApiGetTrackAudio,
+  ApiUpdateBlockedRegions,
 } from './track.swagger';
 import { CurrentUser } from '../authentication/decorators/current-user.decorator';
 import { CheckBlock } from '../followers/decorators/no-block.decorator';
@@ -48,6 +56,10 @@ import { UploadTrackDto } from './dto/upload-track.dto';
 import { UpdateTrackDto } from './dto/update-track.dto';
 import { TrackSseService } from './services/track-sse.service';
 import { TrackStatus } from './enums/track-status.enum';
+import { Public } from '../authentication/decorators/public.decorator';
+import { OptionalCurrentUser } from '../authentication/decorators/optional-current-user.decorator';
+import { JwtPayload } from '../authentication/strategies/jwt.strategy';
+import { BlockedRegionsDto } from './dto/blocked-regions.dto';
 
 const ALLOWED_AUDIO_MIME_TYPES = [
   'audio/mpeg',
@@ -357,5 +369,71 @@ export class TrackController {
   @Get(':trackId/first-fans')
   getFirstFans(@Param('trackId', ParseUUIDPipe) trackId: string) {
     return this.trackService.getFirstFans(trackId);
+  }
+
+  @ApiGetUploadQuota()
+  @Get('/users/upload-qouta')
+  async getUserTimeUser(@CurrentUser('sub') userId: string) {
+    return this.trackService.getUserQuota(userId);
+  }
+
+  @ApiGetUserTracks()
+  @Get('users/:userId/tracks')
+  async getUserUploadedTracks(
+    @Param('userId', ParseUUIDPipe) userId: string,
+    @CurrentUser('sub') currentUserId: string,
+    @Query('page') page: number,
+    @Query('limit') limit: number
+  ) {
+    return this.trackService.getUserUploadedTracks(userId, currentUserId, page, limit);
+  }
+
+  @ApiGetTrackPlaylists()
+  @Get(':trackId/playlists')
+  async getTrackPlaylists(
+    @Param('trackId', ParseUUIDPipe) userId: string,
+    @CurrentUser('sub') currentUserId: string,
+    @Query('page') page: number,
+    @Query('limit') limit: number
+  ) {
+    return this.trackService.getTrackPlaylists(userId, currentUserId, page, limit);
+  }
+
+  @ApiGetAllGenres()
+  @Public()
+  @Get('genres')
+  getAllGenres() {
+    return this.trackService.getAllGenres();
+  }
+
+  @ApiGetTrack()
+  @Public()
+  @Get(':trackId')
+  getTrack(
+    @Param('trackId', ParseUUIDPipe) trackId: string,
+    @OptionalCurrentUser() user?: JwtPayload,
+    @Ip() ip?: string
+  ) {
+    return this.trackService.getTrack(trackId, user, ip);
+  }
+
+  @ApiGetTrackAudio()
+  @Public()
+  @Get(':trackId/stream')
+  getTrackAudio(
+    @Param('trackId', ParseUUIDPipe) trackId: string,
+    @OptionalCurrentUser() user?: JwtPayload
+  ) {
+    return this.trackService.getTrackAudio(trackId, user);
+  }
+
+  @ApiUpdateBlockedRegions()
+  @Post(':trackId/blocked-regions')
+  updateBlockedRegions(
+    @Param('trackId', ParseUUIDPipe) trackId: string,
+    @CurrentUser('sub') userId: string,
+    @Body() dto: BlockedRegionsDto
+  ) {
+    return this.trackService.updateBlockedRegions(trackId, userId, dto);
   }
 }

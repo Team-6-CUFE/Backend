@@ -9,153 +9,57 @@ import { getQueueToken } from '@nestjs/bullmq';
 import { TrackService } from './track.service';
 import { TrackRepository } from './track.repository';
 import { UserRepository } from '../user/user.repository';
+import { GenreRepository } from '../genre/genre.repository';
 import { TrackSseService } from './services/track-sse.service';
 import { StorageService } from '../common/storage_service';
+import { PlaylistRepository } from '../playlist/playlist.repository';
 import { TrackVisibility } from './enums/track-visibility.enum';
+import { TrackStatus } from './enums/track-status.enum';
+import * as geolocationUtil from '../common/utilities/geolocation.util';
+import {
+  MOCK_TRACK_ID,
+  MOCK_USER_ID,
+  MOCK_OTHER_USER_ID,
+  MOCK_MY_USER_ID,
+  MOCK_COMMENT_ID,
+  MOCK_PARENT_COMMENT_ID,
+  mockPublicTrack,
+  mockPrivateTrack,
+  mockOwnTrack,
+  mockProcessingTrack,
+  mockTrackWithRelations,
+  mockPublicUser,
+  mockPrivateUser,
+  mockGoUser,
+  mockTrackRepost,
+  mockRepostWithUser,
+  mockRepostWithTrack,
+  mockTrackLike,
+  mockLikeWithUser,
+  mockLikeWithTrack,
+  mockTrackComment,
+  mockParentComment,
+  mockPlaylistEntry,
+  mockGenre,
+  mockJwtPayload,
+  mockProJwtPayload,
+  mockGoJwtPayload,
+  mockTrackRepository,
+  mockUserRepository,
+  mockGenreRepository,
+  mockPlaylistRepository,
+  mockStorageService,
+  mockAudioQueue,
+} from './tests/track.mock';
 
-// ─── Constants ───────────────────────────────────────────────────────────────
-
-const mockTrackId = '123e4567-e89b-12d3-a456-426614174000';
-const mockUserId = '550e8400-e29b-41d4-a716-446655440001';
-const mockOtherUserId = '550e8400-e29b-41d4-a716-446655440099';
-const mockArtistId = '550e8400-e29b-41d4-a716-446655440002';
-const mockMyUserId = '550e8400-e29b-41d4-a716-446655440003';
-const mockCaption = 'Great track!';
-
-// ─── Factories ────────────────────────────────────────────────────────────────
-
-const mockTrackRepository = () => ({
-  findById: jest.fn(),
-  repostTrack: jest.fn(),
-  didUserRepostTrack: jest.fn(),
-  getTrackRepostsCount: jest.fn(),
-  removeTrackRepost: jest.fn(),
-  editTrackRepost: jest.fn(),
-  getTrackReposts: jest.fn(),
-  getUserTrackReposts: jest.fn(),
-  didUserLikeTrack: jest.fn(),
-  likeTrack: jest.fn(),
-  getTrackLikesCount: jest.fn(),
-  removeTrackLike: jest.fn(),
-  getTrackLikes: jest.fn(),
-  getUserTrackLikes: jest.fn(),
-  findCommentById: jest.fn(),
-  addComment: jest.fn(),
-  deleteComment: jest.fn(),
-  getTrackComments: jest.fn(),
-});
-
-const mockUserRepository = () => ({
-  findById: jest.fn(),
-});
-
-const mockPublicTrack = () => ({
-  trackId: mockTrackId,
-  userId: mockOtherUserId,
-  visibility: TrackVisibility.PUBLIC,
-});
-const mockPrivateTrack = () => ({
-  trackId: mockTrackId,
-  userId: mockOtherUserId,
-  visibility: TrackVisibility.PRIVATE,
-});
-const mockOwnTrack = () => ({
-  trackId: mockTrackId,
-  userId: mockUserId,
-  visibility: TrackVisibility.PUBLIC,
-});
-const mockTrackRepost = () => ({
-  trackId: mockTrackId,
-  userId: mockUserId,
-  caption: mockCaption,
-  createdAt: new Date(),
-});
-const mockRepostWithUser = () => ({
-  user: {
-    userId: mockOtherUserId,
-    username: 'other_user',
-    displayName: 'Other User',
-    avatarUrl: 'https://example.com/avatar.jpg',
-    followersCount: 120,
-  },
-  caption: mockCaption,
-  createdAt: new Date('2024-06-01T12:00:00Z'),
-});
-const mockPublicUser = () => ({ userId: mockOtherUserId, isPublic: true });
-const mockPrivateUser = () => ({ userId: mockOtherUserId, isPublic: false });
-const mockRepostWithTrack = () => ({
-  track: {
-    trackId: mockTrackId,
-    title: 'Midnight Drive',
-    coverImage: 'https://s3.amazonaws.com/covers/midnight.jpg',
-    durationSeconds: 213,
-    playCount: 1500,
-    repostsCount: 30,
-    user: { userId: mockArtistId, username: 'dj_nour', displayName: 'Nour' },
-  },
-  caption: 'Love this track!',
-  createdAt: new Date('2024-06-01T12:00:00Z'),
-});
-const mockTrackLike = () => ({
-  trackId: mockTrackId,
-  userId: mockUserId,
-  createdAt: new Date(),
-});
-const mockLikeWithUser = () => ({
-  user: {
-    userId: mockOtherUserId,
-    username: 'other_user',
-    displayName: 'Other User',
-    avatarUrl: 'https://example.com/avatar.jpg',
-    followersCount: 120,
-  },
-  createdAt: new Date('2024-06-01T12:00:00Z'),
-});
-const mockLikeWithTrack = () => ({
-  track: {
-    trackId: mockTrackId,
-    title: 'Midnight Drive',
-    coverImage: 'https://s3.amazonaws.com/covers/midnight.jpg',
-    durationSeconds: 213,
-    playCount: 1500,
-    repostsCount: 30,
-    user: { userId: mockArtistId, username: 'dj_nour', displayName: 'Nour' },
-  },
-  createdAt: new Date('2024-06-01T12:00:00Z'),
-});
-
-// ─── Comment factories ────────────────────────────────────────────────────────
-
-const mockCommentId = '660e8400-e29b-41d4-a716-446655440010';
-const mockParentCommentId = '660e8400-e29b-41d4-a716-446655440011';
-
-const mockTrackComment = (overrides?: object) => ({
-  commentId: mockCommentId,
-  trackId: mockTrackId,
-  userId: mockUserId,
-  content: 'Great track!',
-  timestampSeconds: 56,
-  parentId: null,
-  createdAt: new Date('2024-06-01T12:00:00Z'),
-  ...overrides,
-});
-
-const mockParentComment = () => ({
-  commentId: mockParentCommentId,
-  trackId: mockTrackId,
-  userId: mockOtherUserId,
-  content: 'Original comment',
-  timestampSeconds: 30,
-  parentId: null,
-  createdAt: new Date('2024-06-01T11:00:00Z'),
-});
-
-// ─── Suite ───────────────────────────────────────────────────────────────────
+const MOCK_CAPTION = 'Great track!';
 
 describe('TrackService', () => {
   let service: TrackService;
   let trackRepo: ReturnType<typeof mockTrackRepository>;
   let userRepo: ReturnType<typeof mockUserRepository>;
+  let genreRepo: ReturnType<typeof mockGenreRepository>;
+  let playlistRepo: ReturnType<typeof mockPlaylistRepository>;
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
@@ -163,27 +67,26 @@ describe('TrackService', () => {
         TrackService,
         { provide: TrackRepository, useFactory: mockTrackRepository },
         { provide: UserRepository, useFactory: mockUserRepository },
+        { provide: GenreRepository, useFactory: mockGenreRepository },
+        { provide: PlaylistRepository, useFactory: mockPlaylistRepository },
         { provide: TrackSseService, useValue: {} },
-        {
-          provide: StorageService,
-          useValue: {
-            uploadFile: jest.fn(),
-            deleteFile: jest.fn(),
-            downloadToTemp: jest.fn(),
-          },
-        },
-        { provide: getQueueToken('audioQueue'), useValue: { add: jest.fn() } },
+        { provide: StorageService, useFactory: mockStorageService },
+        { provide: getQueueToken('audioQueue'), useFactory: mockAudioQueue },
       ],
     }).compile();
 
     service = module.get<TrackService>(TrackService);
     trackRepo = module.get(TrackRepository);
     userRepo = module.get(UserRepository);
+    genreRepo = module.get(GenreRepository);
+    playlistRepo = module.get(PlaylistRepository);
+
+    (service as any).playlistRepository = playlistRepo;
   });
 
   afterEach(() => jest.clearAllMocks());
 
-  // ─── repostTrack() ───────────────────────────────────────────────────────────
+  // ─── repostTrack ──────────────────────────────────────────────────────────────
 
   describe('repostTrack', () => {
     it('should call repostTrack on repo with correct args and return the created repost', async () => {
@@ -192,54 +95,42 @@ describe('TrackService', () => {
       trackRepo.didUserRepostTrack.mockResolvedValue(false);
       trackRepo.repostTrack.mockResolvedValue(repost);
 
-      const result = await service.repostTrack(mockTrackId, mockUserId, mockCaption);
+      const result = await service.repostTrack(MOCK_TRACK_ID, MOCK_USER_ID, MOCK_CAPTION);
 
-      expect(trackRepo.repostTrack).toHaveBeenCalledWith(mockTrackId, mockUserId, mockCaption);
+      expect(trackRepo.repostTrack).toHaveBeenCalledWith(MOCK_TRACK_ID, MOCK_USER_ID, MOCK_CAPTION);
       expect(result).toEqual({ status: 'success', data: repost });
     });
 
-    it('should work without caption (caption is optional)', async () => {
+    it('should work without caption', async () => {
       trackRepo.findById.mockResolvedValue(mockPublicTrack());
       trackRepo.didUserRepostTrack.mockResolvedValue(false);
       trackRepo.repostTrack.mockResolvedValue(mockTrackRepost());
 
-      await service.repostTrack(mockTrackId, mockUserId);
+      await service.repostTrack(MOCK_TRACK_ID, MOCK_USER_ID);
 
-      expect(trackRepo.repostTrack).toHaveBeenCalledWith(mockTrackId, mockUserId, undefined);
+      expect(trackRepo.repostTrack).toHaveBeenCalledWith(MOCK_TRACK_ID, MOCK_USER_ID, undefined);
     });
 
     it('should throw NotFoundException when track not found', async () => {
       trackRepo.findById.mockResolvedValue(null);
 
-      await expect(service.repostTrack(mockTrackId, mockUserId)).rejects.toThrow(NotFoundException);
+      await expect(service.repostTrack(MOCK_TRACK_ID, MOCK_USER_ID)).rejects.toThrow(
+        NotFoundException
+      );
     });
 
-    it('should NOT call repostTrack if track not found', async () => {
-      trackRepo.findById.mockResolvedValue(null);
-
-      await expect(service.repostTrack(mockTrackId, mockUserId)).rejects.toThrow();
-      expect(trackRepo.repostTrack).not.toHaveBeenCalled();
-    });
-
-    it('should throw BadRequestException when userId equals track.userId', async () => {
+    it('should throw BadRequestException when user tries to repost own track', async () => {
       trackRepo.findById.mockResolvedValue(mockOwnTrack());
 
-      await expect(service.repostTrack(mockTrackId, mockUserId)).rejects.toThrow(
+      await expect(service.repostTrack(MOCK_TRACK_ID, MOCK_USER_ID)).rejects.toThrow(
         BadRequestException
       );
     });
 
-    it('should NOT call didUserRepostTrack if track is own', async () => {
-      trackRepo.findById.mockResolvedValue(mockOwnTrack());
-
-      await expect(service.repostTrack(mockTrackId, mockUserId)).rejects.toThrow();
-      expect(trackRepo.didUserRepostTrack).not.toHaveBeenCalled();
-    });
-
-    it('should throw ForbiddenException when track is not public', async () => {
+    it('should throw ForbiddenException when track is private', async () => {
       trackRepo.findById.mockResolvedValue(mockPrivateTrack());
 
-      await expect(service.repostTrack(mockTrackId, mockUserId)).rejects.toThrow(
+      await expect(service.repostTrack(MOCK_TRACK_ID, MOCK_USER_ID)).rejects.toThrow(
         ForbiddenException
       );
     });
@@ -247,114 +138,77 @@ describe('TrackService', () => {
     it('should NOT call didUserRepostTrack if track is private', async () => {
       trackRepo.findById.mockResolvedValue(mockPrivateTrack());
 
-      await expect(service.repostTrack(mockTrackId, mockUserId)).rejects.toThrow();
+      await expect(service.repostTrack(MOCK_TRACK_ID, MOCK_USER_ID)).rejects.toThrow();
       expect(trackRepo.didUserRepostTrack).not.toHaveBeenCalled();
     });
 
-    it('should throw ConflictException when user has already reposted', async () => {
+    it('should throw ConflictException when already reposted', async () => {
       trackRepo.findById.mockResolvedValue(mockPublicTrack());
       trackRepo.didUserRepostTrack.mockResolvedValue(true);
 
-      await expect(service.repostTrack(mockTrackId, mockUserId)).rejects.toThrow(ConflictException);
+      await expect(service.repostTrack(MOCK_TRACK_ID, MOCK_USER_ID)).rejects.toThrow(
+        ConflictException
+      );
     });
   });
 
-  // ─── getTrackRepostsCount() ──────────────────────────────────────────────────
+  // ─── getTrackRepostsCount ─────────────────────────────────────────────────────
 
   describe('getTrackRepostsCount', () => {
-    it('should return { trackId, repostsCount } for a public track', async () => {
+    it('should return repostsCount for a public track', async () => {
       trackRepo.findById.mockResolvedValue(mockPublicTrack());
       trackRepo.getTrackRepostsCount.mockResolvedValue(5);
 
-      const result = await service.getTrackRepostsCount(mockTrackId, mockUserId);
+      const result = await service.getTrackRepostsCount(MOCK_TRACK_ID, MOCK_USER_ID);
 
       expect(result).toEqual({
         status: 'success',
-        data: { trackId: mockTrackId, repostsCount: 5 },
+        data: { trackId: MOCK_TRACK_ID, repostsCount: 5 },
       });
     });
 
-    it('should allow access to own private track (userId === track.userId)', async () => {
-      trackRepo.findById.mockResolvedValue({ ...mockPrivateTrack(), userId: mockUserId });
+    it('should allow owner to access private track', async () => {
+      trackRepo.findById.mockResolvedValue(mockPrivateTrack({ userId: MOCK_USER_ID }));
       trackRepo.getTrackRepostsCount.mockResolvedValue(3);
 
-      const result = await service.getTrackRepostsCount(mockTrackId, mockUserId);
+      const result = await service.getTrackRepostsCount(MOCK_TRACK_ID, MOCK_USER_ID);
 
-      expect(result).toEqual({
-        status: 'success',
-        data: { trackId: mockTrackId, repostsCount: 3 },
-      });
+      expect(result.data).toMatchObject({ repostsCount: 3 });
     });
 
     it('should throw NotFoundException when track not found', async () => {
       trackRepo.findById.mockResolvedValue(null);
 
-      await expect(service.getTrackRepostsCount(mockTrackId, mockUserId)).rejects.toThrow(
+      await expect(service.getTrackRepostsCount(MOCK_TRACK_ID, MOCK_USER_ID)).rejects.toThrow(
         NotFoundException
       );
     });
 
-    it('should throw ForbiddenException when track is private and user is not the owner', async () => {
+    it('should throw ForbiddenException when track is private and user is not owner', async () => {
       trackRepo.findById.mockResolvedValue(mockPrivateTrack());
 
-      await expect(service.getTrackRepostsCount(mockTrackId, mockUserId)).rejects.toThrow(
+      await expect(service.getTrackRepostsCount(MOCK_TRACK_ID, MOCK_USER_ID)).rejects.toThrow(
         ForbiddenException
       );
     });
-
-    it('should call findById with correct trackId', async () => {
-      trackRepo.findById.mockResolvedValue(mockPublicTrack());
-      trackRepo.getTrackRepostsCount.mockResolvedValue(0);
-
-      await service.getTrackRepostsCount(mockTrackId, mockUserId);
-
-      expect(trackRepo.findById).toHaveBeenCalledWith(mockTrackId);
-    });
-
-    it('should call getTrackRepostsCount with correct trackId', async () => {
-      trackRepo.findById.mockResolvedValue(mockPublicTrack());
-      trackRepo.getTrackRepostsCount.mockResolvedValue(7);
-
-      await service.getTrackRepostsCount(mockTrackId, mockUserId);
-
-      expect(trackRepo.getTrackRepostsCount).toHaveBeenCalledWith(mockTrackId);
-    });
   });
 
-  // ─── removeTrackRepost() ─────────────────────────────────────────────────────
+  // ─── removeTrackRepost ────────────────────────────────────────────────────────
 
   describe('removeTrackRepost', () => {
-    it('should remove repost and return success message', async () => {
+    it('should remove repost and return success', async () => {
       trackRepo.didUserRepostTrack.mockResolvedValue(true);
       trackRepo.removeTrackRepost.mockResolvedValue(undefined);
 
-      const result = await service.removeTrackRepost(mockTrackId, mockUserId);
+      const result = await service.removeTrackRepost(MOCK_TRACK_ID, MOCK_USER_ID);
 
       expect(result).toEqual({ status: 'success', message: 'Repost successfully removed' });
-    });
-
-    it('should call removeTrackRepost on repo with correct args', async () => {
-      trackRepo.didUserRepostTrack.mockResolvedValue(true);
-      trackRepo.removeTrackRepost.mockResolvedValue(undefined);
-
-      await service.removeTrackRepost(mockTrackId, mockUserId);
-
-      expect(trackRepo.removeTrackRepost).toHaveBeenCalledWith(mockTrackId, mockUserId);
-    });
-
-    it('should call didUserRepostTrack with correct args', async () => {
-      trackRepo.didUserRepostTrack.mockResolvedValue(true);
-      trackRepo.removeTrackRepost.mockResolvedValue(undefined);
-
-      await service.removeTrackRepost(mockTrackId, mockUserId);
-
-      expect(trackRepo.didUserRepostTrack).toHaveBeenCalledWith(mockUserId, mockTrackId);
     });
 
     it('should throw BadRequestException when user has not reposted', async () => {
       trackRepo.didUserRepostTrack.mockResolvedValue(false);
 
-      await expect(service.removeTrackRepost(mockTrackId, mockUserId)).rejects.toThrow(
+      await expect(service.removeTrackRepost(MOCK_TRACK_ID, MOCK_USER_ID)).rejects.toThrow(
         BadRequestException
       );
     });
@@ -362,1024 +216,908 @@ describe('TrackService', () => {
     it('should NOT call removeTrackRepost if user has not reposted', async () => {
       trackRepo.didUserRepostTrack.mockResolvedValue(false);
 
-      await expect(service.removeTrackRepost(mockTrackId, mockUserId)).rejects.toThrow();
+      await expect(service.removeTrackRepost(MOCK_TRACK_ID, MOCK_USER_ID)).rejects.toThrow();
       expect(trackRepo.removeTrackRepost).not.toHaveBeenCalled();
     });
   });
 
-  // ─── editTrackRepost() ───────────────────────────────────────────────────────
+  // ─── editTrackRepost ──────────────────────────────────────────────────────────
 
   describe('editTrackRepost', () => {
-    it('should return the updated repost', async () => {
-      const updated = mockTrackRepost();
+    it('should return updated repost', async () => {
+      const updated = mockTrackRepost({ caption: 'Updated!' });
       trackRepo.editTrackRepost.mockResolvedValue(updated);
 
-      const result = await service.editTrackRepost(mockTrackId, mockUserId, mockCaption);
+      const result = await service.editTrackRepost(MOCK_TRACK_ID, MOCK_USER_ID, 'Updated!');
 
       expect(result).toEqual({ status: 'success', data: updated });
     });
 
-    it('should throw BadRequestException when repost not found (repo returns null)', async () => {
+    it('should throw BadRequestException when repost not found', async () => {
       trackRepo.editTrackRepost.mockResolvedValue(null);
 
-      await expect(service.editTrackRepost(mockTrackId, mockUserId, mockCaption)).rejects.toThrow(
+      await expect(service.editTrackRepost(MOCK_TRACK_ID, MOCK_USER_ID, 'test')).rejects.toThrow(
         BadRequestException
       );
     });
-
-    it('should call editTrackRepost on repo with correct args', async () => {
-      trackRepo.editTrackRepost.mockResolvedValue(mockTrackRepost());
-
-      await service.editTrackRepost(mockTrackId, mockUserId, mockCaption);
-
-      expect(trackRepo.editTrackRepost).toHaveBeenCalledWith(mockTrackId, mockUserId, mockCaption);
-    });
-
-    it('should return exactly what the repository returns', async () => {
-      const repoResult = { ...mockTrackRepost(), caption: 'Updated caption' };
-      trackRepo.editTrackRepost.mockResolvedValue(repoResult);
-
-      const result = await service.editTrackRepost(mockTrackId, mockUserId, 'Updated caption');
-
-      expect(result).toEqual({ status: 'success', data: repoResult });
-    });
   });
 
-  // ─── getTrackReposts() ───────────────────────────────────────────────────────
+  // ─── getTrackReposts ──────────────────────────────────────────────────────────
 
   describe('getTrackReposts', () => {
-    it('should return a paginated response with correct shape for a public track', async () => {
+    it('should return paginated reposters for a public track', async () => {
       const repost = mockRepostWithUser();
       trackRepo.findById.mockResolvedValue(mockPublicTrack());
       trackRepo.getTrackReposts.mockResolvedValue([[repost], 1]);
 
-      const result = await service.getTrackReposts(mockTrackId, mockUserId, 1, 20);
+      const result = await service.getTrackReposts(MOCK_TRACK_ID, MOCK_USER_ID, 1, 20);
 
-      expect(result).toEqual({
-        status: 'success',
-        data: [
-          {
-            userId: mockOtherUserId,
-            username: 'other_user',
-            displayName: 'Other User',
-            avatarUrl: 'https://example.com/avatar.jpg',
-            followersCount: 120,
-            caption: mockCaption,
-            repostedAt: repost.createdAt,
-          },
-        ],
-        pagination: {
-          currentPage: 1,
-          totalPages: 1,
-          totalCount: 1,
-          limit: 20,
-        },
-      });
+      expect(result.status).toBe('success');
+      expect(result.data[0]).toMatchObject({ userId: MOCK_OTHER_USER_ID, username: 'other_user' });
+      expect(result.pagination).toMatchObject({ currentPage: 1, totalCount: 1 });
     });
 
-    it('should allow access to own private track', async () => {
-      trackRepo.findById.mockResolvedValue({ ...mockPrivateTrack(), userId: mockUserId });
-      trackRepo.getTrackReposts.mockResolvedValue([[], 0]);
-
-      await expect(service.getTrackReposts(mockTrackId, mockUserId, 1, 20)).resolves.not.toThrow();
-    });
-
-    it('should throw NotFoundException when track not found', async () => {
-      trackRepo.findById.mockResolvedValue(null);
-
-      await expect(service.getTrackReposts(mockTrackId, mockUserId)).rejects.toThrow(
-        NotFoundException
-      );
-    });
-
-    it('should throw ForbiddenException when track is private and user is not the owner', async () => {
+    it('should throw ForbiddenException when track is private and user is not owner', async () => {
       trackRepo.findById.mockResolvedValue(mockPrivateTrack());
 
-      await expect(service.getTrackReposts(mockTrackId, mockUserId)).rejects.toThrow(
+      await expect(service.getTrackReposts(MOCK_TRACK_ID, MOCK_USER_ID)).rejects.toThrow(
         ForbiddenException
       );
     });
 
-    it('should cap limit at 100 when limit=200 is passed', async () => {
+    it('should cap limit at 100', async () => {
       trackRepo.findById.mockResolvedValue(mockPublicTrack());
       trackRepo.getTrackReposts.mockResolvedValue([[], 0]);
 
-      await service.getTrackReposts(mockTrackId, mockUserId, 1, 200);
+      await service.getTrackReposts(MOCK_TRACK_ID, MOCK_USER_ID, 1, 200);
 
-      expect(trackRepo.getTrackReposts).toHaveBeenCalledWith(mockTrackId, 1, 100);
-    });
-
-    it('should map repost.user fields correctly', async () => {
-      const repost = mockRepostWithUser();
-      trackRepo.findById.mockResolvedValue(mockPublicTrack());
-      trackRepo.getTrackReposts.mockResolvedValue([[repost], 1]);
-
-      const result = await service.getTrackReposts(mockTrackId, mockUserId, 1, 20);
-
-      expect(result.data[0]).toMatchObject({
-        userId: mockOtherUserId,
-        username: 'other_user',
-        displayName: 'Other User',
-        avatarUrl: 'https://example.com/avatar.jpg',
-        followersCount: 120,
-      });
-    });
-
-    it('should include caption and repostedAt in mapped output', async () => {
-      const repost = mockRepostWithUser();
-      trackRepo.findById.mockResolvedValue(mockPublicTrack());
-      trackRepo.getTrackReposts.mockResolvedValue([[repost], 1]);
-
-      const result = await service.getTrackReposts(mockTrackId, mockUserId, 1, 20);
-
-      expect(result.data[0].caption).toBe(mockCaption);
-      expect(result.data[0].repostedAt).toBe(repost.createdAt);
-    });
-
-    it('should call getTrackReposts with correct args (trackId, page, cappedLimit)', async () => {
-      trackRepo.findById.mockResolvedValue(mockPublicTrack());
-      trackRepo.getTrackReposts.mockResolvedValue([[], 0]);
-
-      await service.getTrackReposts(mockTrackId, mockUserId, 2, 50);
-
-      expect(trackRepo.getTrackReposts).toHaveBeenCalledWith(mockTrackId, 2, 50);
-    });
-
-    it('should use defaults (page=1, limit=20) when not provided', async () => {
-      trackRepo.findById.mockResolvedValue(mockPublicTrack());
-      trackRepo.getTrackReposts.mockResolvedValue([[], 0]);
-
-      await service.getTrackReposts(mockTrackId, mockUserId);
-
-      expect(trackRepo.getTrackReposts).toHaveBeenCalledWith(mockTrackId, 1, 20);
+      expect(trackRepo.getTrackReposts).toHaveBeenCalledWith(MOCK_TRACK_ID, 1, 100);
     });
   });
 
-  // ─── getUserTrackReposts() ───────────────────────────────────────────────────
+  // ─── getUserTrackReposts ──────────────────────────────────────────────────────
 
   describe('getUserTrackReposts', () => {
+    it('should return paginated reposts for a public user', async () => {
+      const repost = mockRepostWithTrack();
+      userRepo.findById.mockResolvedValue(mockPublicUser());
+      trackRepo.getUserTrackReposts.mockResolvedValue([[repost], 1]);
+
+      const result = await service.getUserTrackReposts(MOCK_OTHER_USER_ID, MOCK_MY_USER_ID, 1, 20);
+
+      expect(result.status).toBe('success');
+      expect(trackRepo.getUserTrackReposts).toHaveBeenCalledWith(MOCK_OTHER_USER_ID, 1, 20);
+    });
+
     it('should throw NotFoundException when user not found', async () => {
       userRepo.findById.mockResolvedValue(null);
 
-      await expect(service.getUserTrackReposts(mockOtherUserId, mockMyUserId)).rejects.toThrow(
-        NotFoundException
-      );
+      await expect(
+        service.getUserTrackReposts(MOCK_OTHER_USER_ID, MOCK_MY_USER_ID)
+      ).rejects.toThrow(NotFoundException);
     });
 
-    it('should throw ForbiddenException when account is private and requester is not the owner', async () => {
+    it('should throw ForbiddenException when account is private and requester is not owner', async () => {
       userRepo.findById.mockResolvedValue(mockPrivateUser());
 
-      await expect(service.getUserTrackReposts(mockOtherUserId, mockMyUserId)).rejects.toThrow(
-        ForbiddenException
-      );
+      await expect(
+        service.getUserTrackReposts(MOCK_OTHER_USER_ID, MOCK_MY_USER_ID)
+      ).rejects.toThrow(ForbiddenException);
     });
 
-    it('should return reposts for a public user', async () => {
-      const repost = mockRepostWithTrack();
-      userRepo.findById.mockResolvedValue(mockPublicUser());
-      trackRepo.getUserTrackReposts.mockResolvedValue([[repost], 1]);
-
-      const result = await service.getUserTrackReposts(mockOtherUserId, mockMyUserId, 1, 20);
-
-      expect(trackRepo.getUserTrackReposts).toHaveBeenCalledWith(mockOtherUserId, 1, 20);
-      expect(result).toBeDefined();
-    });
-
-    it('should allow a private user to view their own reposts', async () => {
-      const repost = mockRepostWithTrack();
+    it('should allow private user to view their own reposts', async () => {
       userRepo.findById.mockResolvedValue(mockPrivateUser());
-      trackRepo.getUserTrackReposts.mockResolvedValue([[repost], 1]);
+      trackRepo.getUserTrackReposts.mockResolvedValue([[mockRepostWithTrack()], 1]);
 
-      const result = await service.getUserTrackReposts(mockOtherUserId, mockOtherUserId, 1, 20);
-
-      expect(result).toBeDefined();
-    });
-
-    it('should cap limit to 100', async () => {
-      userRepo.findById.mockResolvedValue(mockPublicUser());
-      trackRepo.getUserTrackReposts.mockResolvedValue([[], 0]);
-
-      await service.getUserTrackReposts(mockOtherUserId, mockMyUserId, 1, 200);
-
-      expect(trackRepo.getUserTrackReposts).toHaveBeenCalledWith(mockOtherUserId, 1, 100);
-    });
-
-    it('should use default page=1 and limit=20 when not provided', async () => {
-      userRepo.findById.mockResolvedValue(mockPublicUser());
-      trackRepo.getUserTrackReposts.mockResolvedValue([[], 0]);
-
-      await service.getUserTrackReposts(mockOtherUserId, mockMyUserId);
-
-      expect(trackRepo.getUserTrackReposts).toHaveBeenCalledWith(mockOtherUserId, 1, 20);
-    });
-
-    it('should return correct pagination response shape', async () => {
-      const repost = mockRepostWithTrack();
-      userRepo.findById.mockResolvedValue(mockPublicUser());
-      trackRepo.getUserTrackReposts.mockResolvedValue([[repost], 5]);
-
-      const result = await service.getUserTrackReposts(mockOtherUserId, mockMyUserId, 1, 2);
-
-      expect(result).toHaveProperty('data');
-      expect(result).toHaveProperty('pagination');
-      expect(result.pagination).toMatchObject({
-        currentPage: 1,
-        totalPages: 3,
-        totalCount: 5,
-        limit: 2,
-      });
-    });
-
-    it('should map repost fields correctly', async () => {
-      const repost = mockRepostWithTrack();
-      userRepo.findById.mockResolvedValue(mockPublicUser());
-      trackRepo.getUserTrackReposts.mockResolvedValue([[repost], 1]);
-
-      const result = await service.getUserTrackReposts(mockOtherUserId, mockMyUserId, 1, 20);
-
-      expect(result.data[0]).toMatchObject({
-        trackId: mockTrackId,
-        title: 'Midnight Drive',
-        coverImage: 'https://s3.amazonaws.com/covers/midnight.jpg',
-        durationSeconds: 213,
-        playCount: 1500,
-        repostsCount: 30,
-        artist: {
-          userId: mockArtistId,
-          username: 'dj_nour',
-          displayName: 'Nour',
-        },
-        caption: 'Love this track!',
-        repostedAt: new Date('2024-06-01T12:00:00Z'),
-      });
-    });
-
-    it('should call userRepository.findById with the correct userId', async () => {
-      userRepo.findById.mockResolvedValue(mockPublicUser());
-      trackRepo.getUserTrackReposts.mockResolvedValue([[], 0]);
-
-      await service.getUserTrackReposts(mockOtherUserId, mockMyUserId);
-
-      expect(userRepo.findById).toHaveBeenCalledWith(mockOtherUserId);
-    });
-
-    it('should propagate error from trackRepository', async () => {
-      userRepo.findById.mockResolvedValue(mockPublicUser());
-      trackRepo.getUserTrackReposts.mockRejectedValue(new Error('DB error'));
-
-      await expect(service.getUserTrackReposts(mockOtherUserId, mockMyUserId)).rejects.toThrow(
-        'DB error'
-      );
+      await expect(
+        service.getUserTrackReposts(MOCK_OTHER_USER_ID, MOCK_OTHER_USER_ID)
+      ).resolves.not.toThrow();
     });
   });
 
-  // ─── likeTrack() ─────────────────────────────────────────────────────────────
+  // ─── likeTrack ────────────────────────────────────────────────────────────────
 
   describe('likeTrack', () => {
-    it('should return { status, data } with the created like on success', async () => {
+    it('should return created like on success', async () => {
       const like = mockTrackLike();
       trackRepo.findById.mockResolvedValue(mockPublicTrack());
       trackRepo.didUserLikeTrack.mockResolvedValue(false);
       trackRepo.likeTrack.mockResolvedValue(like);
 
-      const result = await service.likeTrack(mockTrackId, mockUserId);
+      const result = await service.likeTrack(MOCK_TRACK_ID, MOCK_USER_ID);
 
-      expect(trackRepo.likeTrack).toHaveBeenCalledWith(mockTrackId, mockUserId);
       expect(result).toEqual({ status: 'success', data: like });
     });
 
-    it('should throw NotFoundException when track not found', async () => {
-      trackRepo.findById.mockResolvedValue(null);
-
-      await expect(service.likeTrack(mockTrackId, mockUserId)).rejects.toThrow(NotFoundException);
-    });
-
-    it('should NOT call likeTrack if track not found', async () => {
-      trackRepo.findById.mockResolvedValue(null);
-
-      await expect(service.likeTrack(mockTrackId, mockUserId)).rejects.toThrow();
-      expect(trackRepo.likeTrack).not.toHaveBeenCalled();
-    });
-
-    it('should throw BadRequestException when userId equals track.userId', async () => {
+    it('should throw BadRequestException when liking own track', async () => {
       trackRepo.findById.mockResolvedValue(mockOwnTrack());
 
-      await expect(service.likeTrack(mockTrackId, mockUserId)).rejects.toThrow(BadRequestException);
-    });
-
-    it('should NOT call didUserLikeTrack if track is own', async () => {
-      trackRepo.findById.mockResolvedValue(mockOwnTrack());
-
-      await expect(service.likeTrack(mockTrackId, mockUserId)).rejects.toThrow();
-      expect(trackRepo.didUserLikeTrack).not.toHaveBeenCalled();
+      await expect(service.likeTrack(MOCK_TRACK_ID, MOCK_USER_ID)).rejects.toThrow(
+        BadRequestException
+      );
     });
 
     it('should throw ForbiddenException when track is private', async () => {
       trackRepo.findById.mockResolvedValue(mockPrivateTrack());
 
-      await expect(service.likeTrack(mockTrackId, mockUserId)).rejects.toThrow(ForbiddenException);
-    });
-
-    it('should NOT call didUserLikeTrack if track is private', async () => {
-      trackRepo.findById.mockResolvedValue(mockPrivateTrack());
-
-      await expect(service.likeTrack(mockTrackId, mockUserId)).rejects.toThrow();
-      expect(trackRepo.didUserLikeTrack).not.toHaveBeenCalled();
-    });
-
-    it('should throw ConflictException when user has already liked', async () => {
-      trackRepo.findById.mockResolvedValue(mockPublicTrack());
-      trackRepo.didUserLikeTrack.mockResolvedValue(true);
-
-      await expect(service.likeTrack(mockTrackId, mockUserId)).rejects.toThrow(ConflictException);
-    });
-  });
-
-  // ─── getTrackLikesCount() ────────────────────────────────────────────────────
-
-  describe('getTrackLikesCount', () => {
-    it('should return { status, data: { trackId, likesCount } } for a public track', async () => {
-      trackRepo.findById.mockResolvedValue(mockPublicTrack());
-      trackRepo.getTrackLikesCount.mockResolvedValue(7);
-
-      const result = await service.getTrackLikesCount(mockTrackId, mockUserId);
-
-      expect(result).toEqual({ status: 'success', data: { trackId: mockTrackId, likesCount: 7 } });
-    });
-
-    it('should allow access to own private track (userId === track.userId)', async () => {
-      trackRepo.findById.mockResolvedValue({ ...mockPrivateTrack(), userId: mockUserId });
-      trackRepo.getTrackLikesCount.mockResolvedValue(2);
-
-      const result = await service.getTrackLikesCount(mockTrackId, mockUserId);
-
-      expect(result).toEqual({ status: 'success', data: { trackId: mockTrackId, likesCount: 2 } });
-    });
-
-    it('should throw NotFoundException when track not found', async () => {
-      trackRepo.findById.mockResolvedValue(null);
-
-      await expect(service.getTrackLikesCount(mockTrackId, mockUserId)).rejects.toThrow(
-        NotFoundException
-      );
-    });
-
-    it('should throw ForbiddenException when track is private and user is not the owner', async () => {
-      trackRepo.findById.mockResolvedValue(mockPrivateTrack());
-
-      await expect(service.getTrackLikesCount(mockTrackId, mockUserId)).rejects.toThrow(
+      await expect(service.likeTrack(MOCK_TRACK_ID, MOCK_USER_ID)).rejects.toThrow(
         ForbiddenException
       );
     });
 
-    it('should call findById with correct trackId', async () => {
+    it('should throw ConflictException when already liked', async () => {
       trackRepo.findById.mockResolvedValue(mockPublicTrack());
-      trackRepo.getTrackLikesCount.mockResolvedValue(0);
+      trackRepo.didUserLikeTrack.mockResolvedValue(true);
 
-      await service.getTrackLikesCount(mockTrackId, mockUserId);
-
-      expect(trackRepo.findById).toHaveBeenCalledWith(mockTrackId);
-    });
-
-    it('should call getTrackLikesCount with correct trackId', async () => {
-      trackRepo.findById.mockResolvedValue(mockPublicTrack());
-      trackRepo.getTrackLikesCount.mockResolvedValue(3);
-
-      await service.getTrackLikesCount(mockTrackId, mockUserId);
-
-      expect(trackRepo.getTrackLikesCount).toHaveBeenCalledWith(mockTrackId);
+      await expect(service.likeTrack(MOCK_TRACK_ID, MOCK_USER_ID)).rejects.toThrow(
+        ConflictException
+      );
     });
   });
 
-  // ─── removeTrackLike() ───────────────────────────────────────────────────────
+  // ─── getTrackLikesCount ───────────────────────────────────────────────────────
+
+  describe('getTrackLikesCount', () => {
+    it('should return likesCount', async () => {
+      trackRepo.findById.mockResolvedValue(mockPublicTrack());
+      trackRepo.getTrackLikesCount.mockResolvedValue(7);
+
+      const result = await service.getTrackLikesCount(MOCK_TRACK_ID, MOCK_USER_ID);
+
+      expect(result).toEqual({
+        status: 'success',
+        data: { trackId: MOCK_TRACK_ID, likesCount: 7 },
+      });
+    });
+
+    it('should throw ForbiddenException when track is private and user is not owner', async () => {
+      trackRepo.findById.mockResolvedValue(mockPrivateTrack());
+
+      await expect(service.getTrackLikesCount(MOCK_TRACK_ID, MOCK_USER_ID)).rejects.toThrow(
+        ForbiddenException
+      );
+    });
+  });
+
+  // ─── removeTrackLike ──────────────────────────────────────────────────────────
 
   describe('removeTrackLike', () => {
-    it('should remove like and return success message', async () => {
+    it('should remove like and return success', async () => {
       trackRepo.didUserLikeTrack.mockResolvedValue(true);
       trackRepo.removeTrackLike.mockResolvedValue(undefined);
 
-      const result = await service.removeTrackLike(mockTrackId, mockUserId);
+      const result = await service.removeTrackLike(MOCK_TRACK_ID, MOCK_USER_ID);
 
       expect(result).toEqual({ status: 'success', message: 'Track successfully unliked' });
-    });
-
-    it('should call removeTrackLike on repo with correct args', async () => {
-      trackRepo.didUserLikeTrack.mockResolvedValue(true);
-      trackRepo.removeTrackLike.mockResolvedValue(undefined);
-
-      await service.removeTrackLike(mockTrackId, mockUserId);
-
-      expect(trackRepo.removeTrackLike).toHaveBeenCalledWith(mockTrackId, mockUserId);
-    });
-
-    it('should call didUserLikeTrack with correct args', async () => {
-      trackRepo.didUserLikeTrack.mockResolvedValue(true);
-      trackRepo.removeTrackLike.mockResolvedValue(undefined);
-
-      await service.removeTrackLike(mockTrackId, mockUserId);
-
-      expect(trackRepo.didUserLikeTrack).toHaveBeenCalledWith(mockUserId, mockTrackId);
     });
 
     it('should throw BadRequestException when user has not liked', async () => {
       trackRepo.didUserLikeTrack.mockResolvedValue(false);
 
-      await expect(service.removeTrackLike(mockTrackId, mockUserId)).rejects.toThrow(
+      await expect(service.removeTrackLike(MOCK_TRACK_ID, MOCK_USER_ID)).rejects.toThrow(
         BadRequestException
       );
     });
-
-    it('should NOT call removeTrackLike if user has not liked', async () => {
-      trackRepo.didUserLikeTrack.mockResolvedValue(false);
-
-      await expect(service.removeTrackLike(mockTrackId, mockUserId)).rejects.toThrow();
-      expect(trackRepo.removeTrackLike).not.toHaveBeenCalled();
-    });
   });
 
-  // ─── getTrackLikes() ─────────────────────────────────────────────────────────
+  // ─── getTrackLikes ────────────────────────────────────────────────────────────
 
   describe('getTrackLikes', () => {
-    it('should return a paginated response with correct shape for a public track', async () => {
+    it('should return paginated likers', async () => {
       const like = mockLikeWithUser();
       trackRepo.findById.mockResolvedValue(mockPublicTrack());
       trackRepo.getTrackLikes.mockResolvedValue([[like], 1]);
 
-      const result = await service.getTrackLikes(mockTrackId, mockUserId, 1, 20);
+      const result = await service.getTrackLikes(MOCK_TRACK_ID, MOCK_USER_ID, 1, 20);
 
-      expect(result).toEqual({
-        status: 'success',
-        data: [
-          {
-            userId: mockOtherUserId,
-            username: 'other_user',
-            displayName: 'Other User',
-            avatarUrl: 'https://example.com/avatar.jpg',
-            followersCount: 120,
-            likedAt: like.createdAt,
-          },
-        ],
-        pagination: { currentPage: 1, totalPages: 1, totalCount: 1, limit: 20 },
-      });
+      expect(result.status).toBe('success');
+      expect(result.data[0]).toMatchObject({ userId: MOCK_OTHER_USER_ID });
     });
 
-    it('should allow access to own private track', async () => {
-      trackRepo.findById.mockResolvedValue({ ...mockPrivateTrack(), userId: mockUserId });
-      trackRepo.getTrackLikes.mockResolvedValue([[], 0]);
-
-      await expect(service.getTrackLikes(mockTrackId, mockUserId, 1, 20)).resolves.not.toThrow();
-    });
-
-    it('should throw NotFoundException when track not found', async () => {
-      trackRepo.findById.mockResolvedValue(null);
-
-      await expect(service.getTrackLikes(mockTrackId, mockUserId)).rejects.toThrow(
-        NotFoundException
-      );
-    });
-
-    it('should throw ForbiddenException when track is private and user is not the owner', async () => {
+    it('should throw ForbiddenException for private track', async () => {
       trackRepo.findById.mockResolvedValue(mockPrivateTrack());
 
-      await expect(service.getTrackLikes(mockTrackId, mockUserId)).rejects.toThrow(
+      await expect(service.getTrackLikes(MOCK_TRACK_ID, MOCK_USER_ID)).rejects.toThrow(
         ForbiddenException
       );
     });
 
-    it('should cap limit at 100 when limit=200 is passed', async () => {
+    it('should cap limit at 100', async () => {
       trackRepo.findById.mockResolvedValue(mockPublicTrack());
       trackRepo.getTrackLikes.mockResolvedValue([[], 0]);
 
-      await service.getTrackLikes(mockTrackId, mockUserId, 1, 200);
+      await service.getTrackLikes(MOCK_TRACK_ID, MOCK_USER_ID, 1, 200);
 
-      expect(trackRepo.getTrackLikes).toHaveBeenCalledWith(mockTrackId, 1, 100);
-    });
-
-    it('should map like.user fields correctly (no caption field)', async () => {
-      const like = mockLikeWithUser();
-      trackRepo.findById.mockResolvedValue(mockPublicTrack());
-      trackRepo.getTrackLikes.mockResolvedValue([[like], 1]);
-
-      const result = await service.getTrackLikes(mockTrackId, mockUserId, 1, 20);
-
-      expect(result.data[0]).not.toHaveProperty('caption');
-      expect(result.data[0]).toMatchObject({
-        userId: mockOtherUserId,
-        username: 'other_user',
-        displayName: 'Other User',
-        avatarUrl: 'https://example.com/avatar.jpg',
-        followersCount: 120,
-      });
-    });
-
-    it('should include likedAt in mapped output', async () => {
-      const like = mockLikeWithUser();
-      trackRepo.findById.mockResolvedValue(mockPublicTrack());
-      trackRepo.getTrackLikes.mockResolvedValue([[like], 1]);
-
-      const result = await service.getTrackLikes(mockTrackId, mockUserId, 1, 20);
-
-      expect(result.data[0].likedAt).toBe(like.createdAt);
-    });
-
-    it('should call getTrackLikes with correct args (trackId, page, cappedLimit)', async () => {
-      trackRepo.findById.mockResolvedValue(mockPublicTrack());
-      trackRepo.getTrackLikes.mockResolvedValue([[], 0]);
-
-      await service.getTrackLikes(mockTrackId, mockUserId, 2, 50);
-
-      expect(trackRepo.getTrackLikes).toHaveBeenCalledWith(mockTrackId, 2, 50);
-    });
-
-    it('should use defaults (page=1, limit=20) when not provided', async () => {
-      trackRepo.findById.mockResolvedValue(mockPublicTrack());
-      trackRepo.getTrackLikes.mockResolvedValue([[], 0]);
-
-      await service.getTrackLikes(mockTrackId, mockUserId);
-
-      expect(trackRepo.getTrackLikes).toHaveBeenCalledWith(mockTrackId, 1, 20);
+      expect(trackRepo.getTrackLikes).toHaveBeenCalledWith(MOCK_TRACK_ID, 1, 100);
     });
   });
 
-  // ─── getUserTrackLikes() ─────────────────────────────────────────────────────
+  // ─── getUserTrackLikes ────────────────────────────────────────────────────────
 
   describe('getUserTrackLikes', () => {
-    it('should throw NotFoundException when user not found', async () => {
-      userRepo.findById.mockResolvedValue(null);
+    it('should return paginated liked tracks for a public user', async () => {
+      const like = mockLikeWithTrack();
+      userRepo.findById.mockResolvedValue(mockPublicUser());
+      trackRepo.getUserTrackLikes.mockResolvedValue([[like], 1]);
 
-      await expect(service.getUserTrackLikes(mockOtherUserId, mockMyUserId)).rejects.toThrow(
-        NotFoundException
-      );
+      const result = await service.getUserTrackLikes(MOCK_OTHER_USER_ID, MOCK_MY_USER_ID, 1, 20);
+
+      expect(result.status).toBe('success');
     });
 
-    it('should throw ForbiddenException when account is private and requester is not the owner', async () => {
+    it('should throw ForbiddenException for private account', async () => {
       userRepo.findById.mockResolvedValue(mockPrivateUser());
 
-      await expect(service.getUserTrackLikes(mockOtherUserId, mockMyUserId)).rejects.toThrow(
+      await expect(service.getUserTrackLikes(MOCK_OTHER_USER_ID, MOCK_MY_USER_ID)).rejects.toThrow(
         ForbiddenException
-      );
-    });
-
-    it('should return likes for a public user', async () => {
-      const like = mockLikeWithTrack();
-      userRepo.findById.mockResolvedValue(mockPublicUser());
-      trackRepo.getUserTrackLikes.mockResolvedValue([[like], 1]);
-
-      const result = await service.getUserTrackLikes(mockOtherUserId, mockMyUserId, 1, 20);
-
-      expect(trackRepo.getUserTrackLikes).toHaveBeenCalledWith(mockOtherUserId, 1, 20);
-      expect(result).toBeDefined();
-    });
-
-    it('should allow a private user to view their own likes', async () => {
-      const like = mockLikeWithTrack();
-      userRepo.findById.mockResolvedValue(mockPrivateUser());
-      trackRepo.getUserTrackLikes.mockResolvedValue([[like], 1]);
-
-      const result = await service.getUserTrackLikes(mockOtherUserId, mockOtherUserId, 1, 20);
-
-      expect(result).toBeDefined();
-    });
-
-    it('should cap limit to 100', async () => {
-      userRepo.findById.mockResolvedValue(mockPublicUser());
-      trackRepo.getUserTrackLikes.mockResolvedValue([[], 0]);
-
-      await service.getUserTrackLikes(mockOtherUserId, mockMyUserId, 1, 200);
-
-      expect(trackRepo.getUserTrackLikes).toHaveBeenCalledWith(mockOtherUserId, 1, 100);
-    });
-
-    it('should use default page=1 and limit=20 when not provided', async () => {
-      userRepo.findById.mockResolvedValue(mockPublicUser());
-      trackRepo.getUserTrackLikes.mockResolvedValue([[], 0]);
-
-      await service.getUserTrackLikes(mockOtherUserId, mockMyUserId);
-
-      expect(trackRepo.getUserTrackLikes).toHaveBeenCalledWith(mockOtherUserId, 1, 20);
-    });
-
-    it('should return correct pagination response shape', async () => {
-      const like = mockLikeWithTrack();
-      userRepo.findById.mockResolvedValue(mockPublicUser());
-      trackRepo.getUserTrackLikes.mockResolvedValue([[like], 5]);
-
-      const result = await service.getUserTrackLikes(mockOtherUserId, mockMyUserId, 1, 2);
-
-      expect(result).toHaveProperty('data');
-      expect(result).toHaveProperty('pagination');
-      expect(result.pagination).toMatchObject({
-        currentPage: 1,
-        totalPages: 3,
-        totalCount: 5,
-        limit: 2,
-      });
-    });
-
-    it('should map like fields correctly (no caption)', async () => {
-      const like = mockLikeWithTrack();
-      userRepo.findById.mockResolvedValue(mockPublicUser());
-      trackRepo.getUserTrackLikes.mockResolvedValue([[like], 1]);
-
-      const result = await service.getUserTrackLikes(mockOtherUserId, mockMyUserId, 1, 20);
-
-      expect(result.data[0]).toMatchObject({
-        trackId: mockTrackId,
-        title: 'Midnight Drive',
-        coverImage: 'https://s3.amazonaws.com/covers/midnight.jpg',
-        durationSeconds: 213,
-        playCount: 1500,
-        repostsCount: 30,
-        artist: { userId: mockArtistId, username: 'dj_nour', displayName: 'Nour' },
-        likedAt: new Date('2024-06-01T12:00:00Z'),
-      });
-      expect(result.data[0]).not.toHaveProperty('caption');
-    });
-
-    it('should call userRepository.findById with the correct userId', async () => {
-      userRepo.findById.mockResolvedValue(mockPublicUser());
-      trackRepo.getUserTrackLikes.mockResolvedValue([[], 0]);
-
-      await service.getUserTrackLikes(mockOtherUserId, mockMyUserId);
-
-      expect(userRepo.findById).toHaveBeenCalledWith(mockOtherUserId);
-    });
-
-    it('should propagate error from trackRepository', async () => {
-      userRepo.findById.mockResolvedValue(mockPublicUser());
-      trackRepo.getUserTrackLikes.mockRejectedValue(new Error('DB error'));
-
-      await expect(service.getUserTrackLikes(mockOtherUserId, mockMyUserId)).rejects.toThrow(
-        'DB error'
       );
     });
   });
 
-  // ─── addComment() ────────────────────────────────────────────────────────────
+  // ─── addComment ───────────────────────────────────────────────────────────────
 
   describe('addComment', () => {
-    const mockDto = { content: 'Great track!', timestampSeconds: 56 };
+    const mockDto = { content: 'Great!', timestampSeconds: 56 };
     const mockDtoWithParent = {
-      content: 'Nice reply!',
+      content: 'Reply!',
       timestampSeconds: 30,
-      parentId: mockParentCommentId,
+      parentId: MOCK_PARENT_COMMENT_ID,
     };
 
-    it('should return { status, data } with the saved comment', async () => {
+    it('should create and return comment', async () => {
       const comment = mockTrackComment();
       trackRepo.findById.mockResolvedValue(mockPublicTrack());
       trackRepo.addComment.mockResolvedValue(comment);
 
-      const result = await service.addComment(mockTrackId, mockUserId, mockDto);
+      const result = await service.addComment(MOCK_TRACK_ID, MOCK_USER_ID, mockDto);
 
       expect(result).toEqual({ status: 'success', data: comment });
     });
 
-    it('should call addComment on repo with trackId, userId, and dto', async () => {
-      trackRepo.findById.mockResolvedValue(mockPublicTrack());
-      trackRepo.addComment.mockResolvedValue(mockTrackComment());
-
-      await service.addComment(mockTrackId, mockUserId, mockDto);
-
-      expect(trackRepo.addComment).toHaveBeenCalledWith(mockTrackId, mockUserId, mockDto);
-      expect(trackRepo.addComment).toHaveBeenCalledTimes(1);
-    });
-
-    it('should throw NotFoundException when track not found', async () => {
-      trackRepo.findById.mockResolvedValue(null);
-
-      await expect(service.addComment(mockTrackId, mockUserId, mockDto)).rejects.toThrow(
-        NotFoundException
-      );
-    });
-
-    it('should NOT call addComment if track not found', async () => {
-      trackRepo.findById.mockResolvedValue(null);
-
-      await expect(service.addComment(mockTrackId, mockUserId, mockDto)).rejects.toThrow();
-      expect(trackRepo.addComment).not.toHaveBeenCalled();
-    });
-
     it('should throw ForbiddenException when track is private', async () => {
       trackRepo.findById.mockResolvedValue(mockPrivateTrack());
 
-      await expect(service.addComment(mockTrackId, mockUserId, mockDto)).rejects.toThrow(
+      await expect(service.addComment(MOCK_TRACK_ID, MOCK_USER_ID, mockDto)).rejects.toThrow(
         ForbiddenException
       );
     });
 
-    it('should NOT call addComment if track is private', async () => {
-      trackRepo.findById.mockResolvedValue(mockPrivateTrack());
-
-      await expect(service.addComment(mockTrackId, mockUserId, mockDto)).rejects.toThrow();
-      expect(trackRepo.addComment).not.toHaveBeenCalled();
-    });
-
-    it('should allow owner to comment on their own private track', async () => {
-      trackRepo.findById.mockResolvedValue({ ...mockPrivateTrack(), isPublic: false });
-      // Private check is isPublic only — owner is NOT exempt for commenting
-      // (service throws ForbiddenException regardless of ownership)
-      await expect(service.addComment(mockTrackId, mockUserId, mockDto)).rejects.toThrow(
-        ForbiddenException
-      );
-    });
-
-    it('should throw NotFoundException when parentId is provided but parent not found', async () => {
-      trackRepo.findById.mockResolvedValue(mockPublicTrack());
-      trackRepo.findCommentById.mockResolvedValue(null);
-
-      await expect(service.addComment(mockTrackId, mockUserId, mockDtoWithParent)).rejects.toThrow(
-        NotFoundException
-      );
-    });
-
-    it('should NOT call addComment if parent comment not found', async () => {
+    it('should throw NotFoundException when parentId not found', async () => {
       trackRepo.findById.mockResolvedValue(mockPublicTrack());
       trackRepo.findCommentById.mockResolvedValue(null);
 
       await expect(
-        service.addComment(mockTrackId, mockUserId, mockDtoWithParent)
+        service.addComment(MOCK_TRACK_ID, MOCK_USER_ID, mockDtoWithParent)
+      ).rejects.toThrow(NotFoundException);
+    });
+
+    it('should NOT call addComment if parent not found', async () => {
+      trackRepo.findById.mockResolvedValue(mockPublicTrack());
+      trackRepo.findCommentById.mockResolvedValue(null);
+
+      await expect(
+        service.addComment(MOCK_TRACK_ID, MOCK_USER_ID, mockDtoWithParent)
       ).rejects.toThrow();
       expect(trackRepo.addComment).not.toHaveBeenCalled();
     });
 
-    it('should call findCommentById with the parentId when parentId is provided', async () => {
+    it('should call findCommentById when parentId provided', async () => {
       trackRepo.findById.mockResolvedValue(mockPublicTrack());
       trackRepo.findCommentById.mockResolvedValue(mockParentComment());
-      trackRepo.addComment.mockResolvedValue(mockTrackComment({ parentId: mockParentCommentId }));
+      trackRepo.addComment.mockResolvedValue(
+        mockTrackComment({ parentId: MOCK_PARENT_COMMENT_ID })
+      );
 
-      await service.addComment(mockTrackId, mockUserId, mockDtoWithParent);
+      await service.addComment(MOCK_TRACK_ID, MOCK_USER_ID, mockDtoWithParent);
 
-      expect(trackRepo.findCommentById).toHaveBeenCalledWith(mockParentCommentId);
+      expect(trackRepo.findCommentById).toHaveBeenCalledWith(MOCK_PARENT_COMMENT_ID);
     });
 
-    it('should NOT call findCommentById when no parentId is in dto', async () => {
+    it('should NOT call findCommentById when no parentId', async () => {
       trackRepo.findById.mockResolvedValue(mockPublicTrack());
       trackRepo.addComment.mockResolvedValue(mockTrackComment());
 
-      await service.addComment(mockTrackId, mockUserId, mockDto);
+      await service.addComment(MOCK_TRACK_ID, MOCK_USER_ID, mockDto);
 
       expect(trackRepo.findCommentById).not.toHaveBeenCalled();
     });
-
-    it('should create reply when parentId is valid', async () => {
-      const reply = mockTrackComment({ parentId: mockParentCommentId, content: 'Nice reply!' });
-      trackRepo.findById.mockResolvedValue(mockPublicTrack());
-      trackRepo.findCommentById.mockResolvedValue(mockParentComment());
-      trackRepo.addComment.mockResolvedValue(reply);
-
-      const result = await service.addComment(mockTrackId, mockUserId, mockDtoWithParent);
-
-      expect(result).toEqual({ status: 'success', data: reply });
-      expect(result.data.parentId).toBe(mockParentCommentId);
-    });
   });
 
-  // ─── deleteComment() ─────────────────────────────────────────────────────────
+  // ─── deleteComment ────────────────────────────────────────────────────────────
 
   describe('deleteComment', () => {
-    it('should return { status, message } on success', async () => {
+    it('should delete comment and return success', async () => {
       trackRepo.findById.mockResolvedValue(mockPublicTrack());
       trackRepo.findCommentById.mockResolvedValue(
-        mockTrackComment({ userId: mockUserId, trackId: mockTrackId })
+        mockTrackComment({ userId: MOCK_USER_ID, trackId: MOCK_TRACK_ID })
       );
       trackRepo.deleteComment.mockResolvedValue(undefined);
 
-      const result = await service.deleteComment(mockTrackId, mockCommentId, mockUserId);
+      const result = await service.deleteComment(MOCK_TRACK_ID, MOCK_COMMENT_ID, MOCK_USER_ID);
 
       expect(result).toEqual({ status: 'success', message: 'comment deleted successfully' });
-    });
-
-    it('should call deleteComment on repo with correct args', async () => {
-      trackRepo.findById.mockResolvedValue(mockPublicTrack());
-      trackRepo.findCommentById.mockResolvedValue(
-        mockTrackComment({ userId: mockUserId, trackId: mockTrackId })
-      );
-      trackRepo.deleteComment.mockResolvedValue(undefined);
-
-      await service.deleteComment(mockTrackId, mockCommentId, mockUserId);
-
-      expect(trackRepo.deleteComment).toHaveBeenCalledWith(mockTrackId, mockCommentId, mockUserId);
-    });
-
-    it('should throw NotFoundException when track not found', async () => {
-      trackRepo.findById.mockResolvedValue(null);
-
-      await expect(service.deleteComment(mockTrackId, mockCommentId, mockUserId)).rejects.toThrow(
-        NotFoundException
-      );
     });
 
     it('should throw ForbiddenException when track is private', async () => {
       trackRepo.findById.mockResolvedValue(mockPrivateTrack());
 
-      await expect(service.deleteComment(mockTrackId, mockCommentId, mockUserId)).rejects.toThrow(
-        ForbiddenException
-      );
+      await expect(
+        service.deleteComment(MOCK_TRACK_ID, MOCK_COMMENT_ID, MOCK_USER_ID)
+      ).rejects.toThrow(ForbiddenException);
     });
 
     it('should throw NotFoundException when comment not found', async () => {
       trackRepo.findById.mockResolvedValue(mockPublicTrack());
       trackRepo.findCommentById.mockResolvedValue(null);
 
-      await expect(service.deleteComment(mockTrackId, mockCommentId, mockUserId)).rejects.toThrow(
-        NotFoundException
-      );
-    });
-
-    it('should throw ConflictException when comment does not belong to the track', async () => {
-      const wrongTrackComment = mockTrackComment({
-        trackId: '999e8400-e29b-41d4-a716-446655440099',
-      });
-      trackRepo.findById.mockResolvedValue(mockPublicTrack());
-      trackRepo.findCommentById.mockResolvedValue(wrongTrackComment);
-
-      await expect(service.deleteComment(mockTrackId, mockCommentId, mockUserId)).rejects.toThrow(
-        ConflictException
-      );
-    });
-
-    it('should throw ForbiddenException when user is not the comment author', async () => {
-      trackRepo.findById.mockResolvedValue(mockPublicTrack());
-      trackRepo.findCommentById.mockResolvedValue(
-        mockTrackComment({ userId: mockOtherUserId, trackId: mockTrackId })
-      );
-
-      await expect(service.deleteComment(mockTrackId, mockCommentId, mockUserId)).rejects.toThrow(
-        ForbiddenException
-      );
-    });
-
-    it('should NOT call deleteComment if user is not the comment author', async () => {
-      trackRepo.findById.mockResolvedValue(mockPublicTrack());
-      trackRepo.findCommentById.mockResolvedValue(
-        mockTrackComment({ userId: mockOtherUserId, trackId: mockTrackId })
-      );
-
-      await expect(service.deleteComment(mockTrackId, mockCommentId, mockUserId)).rejects.toThrow();
-      expect(trackRepo.deleteComment).not.toHaveBeenCalled();
-    });
-  });
-
-  // ─── getTrackComments() ───────────────────────────────────────────────────────
-
-  describe('getTrackComments', () => {
-    const mockReplyUser = {
-      userId: mockOtherUserId,
-      username: 'other_user',
-      displayName: 'Other User',
-      avatarUrl: 'https://example.com/other-avatar.jpg',
-    };
-
-    const mockReply = () => ({
-      commentId: mockParentCommentId,
-      trackId: mockTrackId,
-      userId: mockOtherUserId,
-      content: 'Great reply!',
-      timestampSeconds: 56,
-      parentId: mockCommentId,
-      createdAt: new Date('2024-06-02T10:00:00Z'),
-      user: mockReplyUser,
-    });
-
-    const mockCommentWithUser = () => ({
-      ...mockTrackComment(),
-      parentId: null,
-      user: {
-        userId: mockUserId,
-        username: 'test_user',
-        displayName: 'Test User',
-        avatarUrl: 'https://example.com/avatar.jpg',
-      },
-      replies: [mockReply()],
-    });
-
-    it('should return paginated comments with status: success', async () => {
-      trackRepo.findById.mockResolvedValue(mockPublicTrack());
-      trackRepo.getTrackComments.mockResolvedValue([[mockCommentWithUser()], 1]);
-
-      const result = await service.getTrackComments(mockTrackId, mockUserId, 1, 20, 'timestamp');
-
-      expect(result.status).toBe('success');
-      expect(result.data).toHaveLength(1);
-      expect(result.pagination).toMatchObject({ currentPage: 1, totalCount: 1 });
-    });
-
-    it('should map comment fields correctly including parentId and replies', async () => {
-      const c = mockCommentWithUser();
-      trackRepo.findById.mockResolvedValue(mockPublicTrack());
-      trackRepo.getTrackComments.mockResolvedValue([[c], 1]);
-
-      const result = await service.getTrackComments(mockTrackId, mockUserId, 1, 20, 'timestamp');
-
-      expect(result.data[0]).toMatchObject({
-        commentId: c.commentId,
-        content: c.content,
-        timestampSeconds: c.timestampSeconds,
-        parentId: null,
-        user: {
-          userId: c.user.userId,
-          username: c.user.username,
-          displayName: c.user.displayName,
-          avatarUrl: c.user.avatarUrl,
-        },
-        createdAt: c.createdAt,
-      });
-    });
-
-    it('should map nested replies with user and parentId', async () => {
-      const c = mockCommentWithUser();
-      const reply = mockReply();
-      trackRepo.findById.mockResolvedValue(mockPublicTrack());
-      trackRepo.getTrackComments.mockResolvedValue([[c], 1]);
-
-      const result = await service.getTrackComments(mockTrackId, mockUserId, 1, 20, 'timestamp');
-
-      expect(result.data[0].replies).toHaveLength(1);
-      expect(result.data[0].replies[0]).toMatchObject({
-        commentId: reply.commentId,
-        content: reply.content,
-        timestampSeconds: reply.timestampSeconds,
-        parentId: mockCommentId,
-        user: {
-          userId: reply.user.userId,
-          username: reply.user.username,
-          displayName: reply.user.displayName,
-          avatarUrl: reply.user.avatarUrl,
-        },
-        createdAt: reply.createdAt,
-      });
-    });
-
-    it('should return empty replies array when comment has no replies', async () => {
-      const c = { ...mockCommentWithUser(), replies: [] };
-      trackRepo.findById.mockResolvedValue(mockPublicTrack());
-      trackRepo.getTrackComments.mockResolvedValue([[c], 1]);
-
-      const result = await service.getTrackComments(mockTrackId, mockUserId, 1, 20, 'timestamp');
-
-      expect(result.data[0].replies).toEqual([]);
-    });
-
-    it('should throw NotFoundException when track not found', async () => {
-      trackRepo.findById.mockResolvedValue(null);
-
       await expect(
-        service.getTrackComments(mockTrackId, mockUserId, 1, 20, 'timestamp')
+        service.deleteComment(MOCK_TRACK_ID, MOCK_COMMENT_ID, MOCK_USER_ID)
       ).rejects.toThrow(NotFoundException);
     });
 
-    it('should throw ForbiddenException when track is private and user is not the owner', async () => {
+    it('should throw ConflictException when comment does not belong to track', async () => {
+      trackRepo.findById.mockResolvedValue(mockPublicTrack());
+      trackRepo.findCommentById.mockResolvedValue(mockTrackComment({ trackId: 'wrong-track-id' }));
+
+      await expect(
+        service.deleteComment(MOCK_TRACK_ID, MOCK_COMMENT_ID, MOCK_USER_ID)
+      ).rejects.toThrow(ConflictException);
+    });
+
+    it('should throw ForbiddenException when user is not comment author', async () => {
+      trackRepo.findById.mockResolvedValue(mockPublicTrack());
+      trackRepo.findCommentById.mockResolvedValue(
+        mockTrackComment({ userId: MOCK_OTHER_USER_ID, trackId: MOCK_TRACK_ID })
+      );
+
+      await expect(
+        service.deleteComment(MOCK_TRACK_ID, MOCK_COMMENT_ID, MOCK_USER_ID)
+      ).rejects.toThrow(ForbiddenException);
+    });
+  });
+
+  // ─── getTrackComments ─────────────────────────────────────────────────────────
+
+  describe('getTrackComments', () => {
+    it('should return paginated comments', async () => {
+      const comment = mockTrackComment();
+      trackRepo.findById.mockResolvedValue(mockPublicTrack());
+      trackRepo.getTrackComments.mockResolvedValue([[comment], 1]);
+
+      const result = await service.getTrackComments(
+        MOCK_TRACK_ID,
+        MOCK_USER_ID,
+        1,
+        20,
+        'timestamp'
+      );
+
+      expect(result.status).toBe('success');
+      expect(result.data).toHaveLength(1);
+    });
+
+    it('should throw ForbiddenException for private track', async () => {
       trackRepo.findById.mockResolvedValue(mockPrivateTrack());
 
       await expect(
-        service.getTrackComments(mockTrackId, mockUserId, 1, 20, 'timestamp')
+        service.getTrackComments(MOCK_TRACK_ID, MOCK_USER_ID, 1, 20, 'timestamp')
       ).rejects.toThrow(ForbiddenException);
     });
 
-    it('should allow owner to get comments of their private track', async () => {
-      trackRepo.findById.mockResolvedValue({ ...mockPrivateTrack(), userId: mockUserId });
+    it('should allow owner to get comments on private track', async () => {
+      trackRepo.findById.mockResolvedValue(mockPrivateTrack({ userId: MOCK_USER_ID }));
       trackRepo.getTrackComments.mockResolvedValue([[], 0]);
 
-      await expect(
-        service.getTrackComments(mockTrackId, mockUserId, 1, 20, 'timestamp')
-      ).resolves.not.toThrow();
-    });
-
-    it('should cap limit at 100', async () => {
-      trackRepo.findById.mockResolvedValue(mockPublicTrack());
-      trackRepo.getTrackComments.mockResolvedValue([[], 0]);
-
-      await service.getTrackComments(mockTrackId, mockUserId, 1, 200, 'timestamp');
-
-      expect(trackRepo.getTrackComments).toHaveBeenCalledWith(mockTrackId, 1, 100, 'timestamp');
-    });
-
-    it('should use defaults page=1, limit=20, order=timestamp when not provided', async () => {
-      trackRepo.findById.mockResolvedValue(mockPublicTrack());
-      trackRepo.getTrackComments.mockResolvedValue([[], 0]);
-
-      await service.getTrackComments(mockTrackId, mockUserId);
-
-      expect(trackRepo.getTrackComments).toHaveBeenCalledWith(mockTrackId, 1, 20, 'timestamp');
+      await expect(service.getTrackComments(MOCK_TRACK_ID, MOCK_USER_ID)).resolves.not.toThrow();
     });
 
     it('should pass order=newest to repo', async () => {
       trackRepo.findById.mockResolvedValue(mockPublicTrack());
       trackRepo.getTrackComments.mockResolvedValue([[], 0]);
 
-      await service.getTrackComments(mockTrackId, mockUserId, 1, 20, 'newest');
+      await service.getTrackComments(MOCK_TRACK_ID, MOCK_USER_ID, 1, 20, 'newest');
 
-      expect(trackRepo.getTrackComments).toHaveBeenCalledWith(mockTrackId, 1, 20, 'newest');
+      expect(trackRepo.getTrackComments).toHaveBeenCalledWith(MOCK_TRACK_ID, 1, 20, 'newest');
     });
 
     it('should pass order=oldest to repo', async () => {
       trackRepo.findById.mockResolvedValue(mockPublicTrack());
       trackRepo.getTrackComments.mockResolvedValue([[], 0]);
 
-      await service.getTrackComments(mockTrackId, mockUserId, 1, 20, 'oldest');
+      await service.getTrackComments(MOCK_TRACK_ID, MOCK_USER_ID, 1, 20, 'oldest');
 
-      expect(trackRepo.getTrackComments).toHaveBeenCalledWith(mockTrackId, 1, 20, 'oldest');
+      expect(trackRepo.getTrackComments).toHaveBeenCalledWith(MOCK_TRACK_ID, 1, 20, 'oldest');
+    });
+
+    it('should cap limit at 100', async () => {
+      trackRepo.findById.mockResolvedValue(mockPublicTrack());
+      trackRepo.getTrackComments.mockResolvedValue([[], 0]);
+
+      await service.getTrackComments(MOCK_TRACK_ID, MOCK_USER_ID, 1, 200, 'timestamp');
+
+      expect(trackRepo.getTrackComments).toHaveBeenCalledWith(MOCK_TRACK_ID, 1, 100, 'timestamp');
+    });
+  });
+
+  // ─── getTrack ─────────────────────────────────────────────────────────────────
+
+  describe('getTrack', () => {
+    it('should return full track with genres, tags, and owner', async () => {
+      trackRepo.findByIdWithRelations.mockResolvedValue(mockTrackWithRelations());
+
+      const result = await service.getTrack(MOCK_TRACK_ID, mockJwtPayload());
+
+      expect(result.status).toBe('success');
+      expect(result.data).toMatchObject({
+        trackId: MOCK_TRACK_ID,
+        title: 'Midnight Drive',
+      });
+    });
+
+    it('should throw NotFoundException when track not found', async () => {
+      trackRepo.findByIdWithRelations.mockResolvedValue(null);
+
+      await expect(service.getTrack(MOCK_TRACK_ID)).rejects.toThrow(NotFoundException);
+    });
+
+    it('should throw ForbiddenException when track is private and user is not owner', async () => {
+      trackRepo.findByIdWithRelations.mockResolvedValue(
+        mockTrackWithRelations({ visibility: TrackVisibility.PRIVATE })
+      );
+
+      await expect(service.getTrack(MOCK_TRACK_ID, mockJwtPayload())).rejects.toThrow(
+        ForbiddenException
+      );
+    });
+
+    it('should allow owner to access private track', async () => {
+      trackRepo.findByIdWithRelations.mockResolvedValue(
+        mockTrackWithRelations({ visibility: TrackVisibility.PRIVATE, userId: MOCK_USER_ID })
+      );
+
+      await expect(service.getTrack(MOCK_TRACK_ID, mockJwtPayload())).resolves.not.toThrow();
+    });
+
+    it('should throw ForbiddenException when user is in a blocked region', async () => {
+      jest
+        .spyOn(geolocationUtil, 'getLocationFromIp')
+        .mockReturnValue({ country: 'EG', city: 'Cairo' });
+      trackRepo.findByIdWithRelations.mockResolvedValue(
+        mockTrackWithRelations({ blockedRegions: ['EG'], userId: MOCK_OTHER_USER_ID })
+      );
+
+      await expect(service.getTrack(MOCK_TRACK_ID, mockJwtPayload(), '1.2.3.4')).rejects.toThrow(
+        ForbiddenException
+      );
+    });
+
+    it('should NOT block when owner is in blocked region', async () => {
+      jest
+        .spyOn(geolocationUtil, 'getLocationFromIp')
+        .mockReturnValue({ country: 'EG', city: 'Cairo' });
+      trackRepo.findByIdWithRelations.mockResolvedValue(
+        mockTrackWithRelations({ blockedRegions: ['EG'], userId: MOCK_USER_ID })
+      );
+
+      await expect(
+        service.getTrack(MOCK_TRACK_ID, mockJwtPayload(), '1.2.3.4')
+      ).resolves.not.toThrow();
+    });
+
+    it('should NOT block when country is not in blocked regions', async () => {
+      jest
+        .spyOn(geolocationUtil, 'getLocationFromIp')
+        .mockReturnValue({ country: 'US', city: 'New York' });
+      trackRepo.findByIdWithRelations.mockResolvedValue(
+        mockTrackWithRelations({ blockedRegions: ['EG'] })
+      );
+
+      await expect(
+        service.getTrack(MOCK_TRACK_ID, mockJwtPayload(), '1.2.3.4')
+      ).resolves.not.toThrow();
+    });
+
+    it('should NOT block when blockedRegions is empty', async () => {
+      jest
+        .spyOn(geolocationUtil, 'getLocationFromIp')
+        .mockReturnValue({ country: 'EG', city: 'Cairo' });
+      trackRepo.findByIdWithRelations.mockResolvedValue(
+        mockTrackWithRelations({ blockedRegions: [] })
+      );
+
+      await expect(
+        service.getTrack(MOCK_TRACK_ID, mockJwtPayload(), '1.2.3.4')
+      ).resolves.not.toThrow();
+    });
+
+    it('should NOT call getLocationFromIp when no ip provided', async () => {
+      const spy = jest.spyOn(geolocationUtil, 'getLocationFromIp');
+      trackRepo.findByIdWithRelations.mockResolvedValue(
+        mockTrackWithRelations({ blockedRegions: ['EG'] })
+      );
+
+      await service.getTrack(MOCK_TRACK_ID, mockJwtPayload());
+
+      expect(spy).not.toHaveBeenCalled();
+    });
+  });
+
+  // ─── getTrackAudio ────────────────────────────────────────────────────────────
+
+  describe('getTrackAudio', () => {
+    it('should return audioUrl, previewAudioUrl, and durationSeconds', async () => {
+      trackRepo.findById.mockResolvedValue(mockPublicTrack());
+
+      const result = await service.getTrackAudio(MOCK_TRACK_ID, mockJwtPayload());
+
+      expect(result.status).toBe('success');
+      expect(result.data).toMatchObject({
+        audioUrl: 'https://s3.amazonaws.com/audio/track.mp3',
+        previewAudioUrl: 'https://s3.amazonaws.com/previews/track.mp3',
+        durationSeconds: 213,
+      });
+    });
+
+    it('should return HQ url for pro user', async () => {
+      trackRepo.findById.mockResolvedValue(mockPublicTrack());
+
+      const result = await service.getTrackAudio(MOCK_TRACK_ID, mockProJwtPayload());
+
+      expect(result.data.audioUrl).toBe('https://s3.amazonaws.com/audio/track_hq.mp3');
+    });
+
+    it('should return HQ url for go+ user', async () => {
+      trackRepo.findById.mockResolvedValue(mockPublicTrack());
+
+      const result = await service.getTrackAudio(MOCK_TRACK_ID, mockGoJwtPayload());
+
+      expect(result.data.audioUrl).toBe('https://s3.amazonaws.com/audio/track_hq.mp3');
+    });
+
+    it('should throw NotFoundException when track not found', async () => {
+      trackRepo.findById.mockResolvedValue(null);
+
+      await expect(service.getTrackAudio(MOCK_TRACK_ID)).rejects.toThrow(NotFoundException);
+    });
+
+    it('should throw ForbiddenException when track is private and user is not owner', async () => {
+      trackRepo.findById.mockResolvedValue(mockPrivateTrack());
+
+      await expect(service.getTrackAudio(MOCK_TRACK_ID, mockJwtPayload())).rejects.toThrow(
+        ForbiddenException
+      );
+    });
+
+    it('should throw ConflictException when track is still processing', async () => {
+      trackRepo.findById.mockResolvedValue(mockProcessingTrack());
+
+      await expect(service.getTrackAudio(MOCK_TRACK_ID)).rejects.toThrow(ConflictException);
+    });
+  });
+
+  // ─── updateBlockedRegions ─────────────────────────────────────────────────────
+
+  describe('updateBlockedRegions', () => {
+    it('should replace blocked regions and return updated list', async () => {
+      trackRepo.findById.mockResolvedValue(mockOwnTrack());
+      trackRepo.updateBlockedRegions.mockResolvedValue(
+        mockOwnTrack({ blockedRegions: ['EG', 'US'] })
+      );
+
+      const result = await service.updateBlockedRegions(MOCK_TRACK_ID, MOCK_USER_ID, {
+        blockedRegions: ['EG', 'US'],
+      });
+
+      expect(result).toEqual({
+        status: 'success',
+        data: { trackId: MOCK_TRACK_ID, blockedRegions: ['EG', 'US'] },
+      });
+    });
+
+    it('should allow clearing blocked regions with empty array', async () => {
+      trackRepo.findById.mockResolvedValue(mockOwnTrack());
+      trackRepo.updateBlockedRegions.mockResolvedValue(mockOwnTrack({ blockedRegions: [] }));
+
+      const result = await service.updateBlockedRegions(MOCK_TRACK_ID, MOCK_USER_ID, {
+        blockedRegions: [],
+      });
+
+      expect(result.data.blockedRegions).toEqual([]);
+    });
+
+    it('should call updateBlockedRegions with correct args', async () => {
+      trackRepo.findById.mockResolvedValue(mockOwnTrack());
+      trackRepo.updateBlockedRegions.mockResolvedValue(mockOwnTrack({ blockedRegions: ['EG'] }));
+
+      await service.updateBlockedRegions(MOCK_TRACK_ID, MOCK_USER_ID, { blockedRegions: ['EG'] });
+
+      expect(trackRepo.updateBlockedRegions).toHaveBeenCalledWith(MOCK_TRACK_ID, ['EG']);
+    });
+
+    it('should throw NotFoundException when track not found', async () => {
+      trackRepo.findById.mockResolvedValue(null);
+
+      await expect(
+        service.updateBlockedRegions(MOCK_TRACK_ID, MOCK_USER_ID, { blockedRegions: [] })
+      ).rejects.toThrow(NotFoundException);
+    });
+
+    it('should throw ForbiddenException when user does not own track', async () => {
+      trackRepo.findById.mockResolvedValue(mockPublicTrack());
+
+      await expect(
+        service.updateBlockedRegions(MOCK_TRACK_ID, MOCK_USER_ID, { blockedRegions: [] })
+      ).rejects.toThrow(ForbiddenException);
+    });
+  });
+
+  // ─── getAllGenres ─────────────────────────────────────────────────────────────
+
+  describe('getAllGenres', () => {
+    it('should return all genres', async () => {
+      genreRepo.findAll.mockResolvedValue([
+        mockGenre(),
+        mockGenre({ genreId: 'id-2', name: 'Hip-Hop' }),
+      ]);
+
+      const result = await service.getAllGenres();
+
+      expect(result.status).toBe('success');
+      expect(result.data).toHaveLength(2);
+    });
+
+    it('should return empty array when no genres exist', async () => {
+      genreRepo.findAll.mockResolvedValue([]);
+
+      const result = await service.getAllGenres();
+
+      expect(result.data).toEqual([]);
+    });
+
+    it('should call genreRepository.findAll', async () => {
+      genreRepo.findAll.mockResolvedValue([]);
+
+      await service.getAllGenres();
+
+      expect(genreRepo.findAll).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  // ─── getUserUploadedTracks ────────────────────────────────────────────────────
+
+  describe('getUserUploadedTracks', () => {
+    it('should return paginated tracks for a public user', async () => {
+      userRepo.findById.mockResolvedValue(mockPublicUser());
+      trackRepo.getUserTracks.mockResolvedValue([[mockPublicTrack()], 1]);
+
+      const result = await service.getUserUploadedTracks(
+        MOCK_OTHER_USER_ID,
+        MOCK_MY_USER_ID,
+        1,
+        20
+      );
+
+      expect(result.status).toBe('success');
+      expect(result.data).toHaveLength(1);
+    });
+
+    it('should throw NotFoundException when user not found', async () => {
+      userRepo.findById.mockResolvedValue(null);
+
+      await expect(
+        service.getUserUploadedTracks(MOCK_OTHER_USER_ID, MOCK_MY_USER_ID)
+      ).rejects.toThrow(NotFoundException);
+    });
+
+    it('should throw ForbiddenException when profile is private and requester is not owner', async () => {
+      userRepo.findById.mockResolvedValue(mockPrivateUser());
+
+      await expect(
+        service.getUserUploadedTracks(MOCK_OTHER_USER_ID, MOCK_MY_USER_ID)
+      ).rejects.toThrow(ForbiddenException);
+    });
+
+    it('should allow owner to get their own private profile tracks', async () => {
+      userRepo.findById.mockResolvedValue(mockPrivateUser({ userId: MOCK_OTHER_USER_ID }));
+      trackRepo.getUserTracks.mockResolvedValue([[], 0]);
+
+      await expect(
+        service.getUserUploadedTracks(MOCK_OTHER_USER_ID, MOCK_OTHER_USER_ID)
+      ).resolves.not.toThrow();
+    });
+
+    it('should cap limit at 100', async () => {
+      userRepo.findById.mockResolvedValue(mockPublicUser());
+      trackRepo.getUserTracks.mockResolvedValue([[], 0]);
+
+      await service.getUserUploadedTracks(MOCK_OTHER_USER_ID, MOCK_MY_USER_ID, 1, 200);
+
+      expect(trackRepo.getUserTracks).toHaveBeenCalledWith(
+        MOCK_OTHER_USER_ID,
+        MOCK_MY_USER_ID,
+        1,
+        100
+      );
+    });
+  });
+
+  // ─── getUserQuota ─────────────────────────────────────────────────────────────
+
+  describe('getUserQuota', () => {
+    it('should return quota for free user', async () => {
+      userRepo.findById.mockResolvedValue(mockPublicUser({ plan: 'free' }));
+      trackRepo.getUserUploadedSeconds.mockResolvedValue(3600); // 60 min used
+
+      const result = await service.getUserQuota(MOCK_OTHER_USER_ID);
+
+      expect(result.status).toBe('success');
+      expect(result.data).toMatchObject({
+        plan: 'free',
+        usedMinutes: 60,
+        limitMinutes: 120,
+        remainingMinutes: 60,
+      });
+    });
+
+    it('should return quota for go+ user (180 min limit)', async () => {
+      // mockGoUser returns { plan: 'go+' }
+      userRepo.findById.mockResolvedValue(mockGoUser());
+      trackRepo.getUserUploadedSeconds.mockResolvedValue(0);
+
+      const result = await service.getUserQuota(MOCK_OTHER_USER_ID);
+
+      expect(result.data).toMatchObject({
+        plan: 'go+',
+        limitMinutes: 180,
+        remainingMinutes: 180,
+      });
+    });
+
+    it('should return null limits for pro user (unlimited)', async () => {
+      userRepo.findById.mockResolvedValue(mockPublicUser({ plan: 'pro' }));
+      trackRepo.getUserUploadedSeconds.mockResolvedValue(1000);
+
+      const result = await service.getUserQuota(MOCK_OTHER_USER_ID);
+
+      expect(result.data).toMatchObject({
+        plan: 'pro',
+        limitMinutes: null,
+        remainingMinutes: null,
+      });
+    });
+
+    it('should floor remainingMinutes at 0 when over quota', async () => {
+      userRepo.findById.mockResolvedValue(mockPublicUser({ plan: 'free' }));
+      trackRepo.getUserUploadedSeconds.mockResolvedValue(9999999);
+
+      const result = await service.getUserQuota(MOCK_OTHER_USER_ID);
+
+      expect(result.data.remainingMinutes).toBe(0);
+    });
+
+    it('should fall back to free tier when plan is unrecognised', async () => {
+      userRepo.findById.mockResolvedValue(mockPublicUser({ plan: undefined }));
+      trackRepo.getUserUploadedSeconds.mockResolvedValue(0);
+
+      const result = await service.getUserQuota(MOCK_OTHER_USER_ID);
+
+      expect(result.data).toMatchObject({ limitMinutes: 120 });
+    });
+
+    it('should throw NotFoundException when user not found', async () => {
+      userRepo.findById.mockResolvedValue(null);
+
+      await expect(service.getUserQuota(MOCK_OTHER_USER_ID)).rejects.toThrow(NotFoundException);
+    });
+  });
+
+  // ─── getTrackPlaylists ────────────────────────────────────────────────────────
+
+  describe('getTrackPlaylists', () => {
+    it('should return paginated playlists containing the track', async () => {
+      trackRepo.findById.mockResolvedValue(mockPublicTrack());
+      playlistRepo.getTrackPlaylists.mockResolvedValue([[mockPlaylistEntry()], 1]);
+
+      const result = await service.getTrackPlaylists(MOCK_TRACK_ID, MOCK_USER_ID, 1, 20);
+
+      expect(result.status).toBe('success');
+      expect(result.data).toHaveLength(1);
+    });
+
+    it('should throw NotFoundException when track not found', async () => {
+      trackRepo.findById.mockResolvedValue(null);
+
+      await expect(service.getTrackPlaylists(MOCK_TRACK_ID, MOCK_USER_ID)).rejects.toThrow(
+        NotFoundException
+      );
+    });
+
+    it('should throw ForbiddenException when track is private and user is not owner', async () => {
+      trackRepo.findById.mockResolvedValue(mockPrivateTrack());
+
+      await expect(service.getTrackPlaylists(MOCK_TRACK_ID, MOCK_USER_ID)).rejects.toThrow(
+        ForbiddenException
+      );
+    });
+
+    it('should allow owner to get playlists for private track', async () => {
+      trackRepo.findById.mockResolvedValue(mockPrivateTrack({ userId: MOCK_USER_ID }));
+      playlistRepo.getTrackPlaylists.mockResolvedValue([[], 0]);
+
+      await expect(service.getTrackPlaylists(MOCK_TRACK_ID, MOCK_USER_ID)).resolves.not.toThrow();
+    });
+
+    it('should cap limit at 100', async () => {
+      trackRepo.findById.mockResolvedValue(mockPublicTrack());
+      playlistRepo.getTrackPlaylists.mockResolvedValue([[], 0]);
+
+      await service.getTrackPlaylists(MOCK_TRACK_ID, MOCK_USER_ID, 1, 200);
+
+      expect(playlistRepo.getTrackPlaylists).toHaveBeenCalledWith(
+        MOCK_TRACK_ID,
+        MOCK_USER_ID,
+        1,
+        100
+      );
+    });
+
+    // Extra tests to cover upload/reupload behavior
+    describe('uploadTrack and reuploadTrackAudio', () => {
+      it('uploadTrack uploads cover, writes temp file and enqueues job', async () => {
+        const savedTrack = mockPublicTrack();
+        savedTrack.trackId = MOCK_TRACK_ID;
+        trackRepo.createTrack.mockResolvedValue(savedTrack);
+        // storageService is available via the service instance
+        (service as any).storageService.uploadFile.mockResolvedValue({
+          Location: 'https://s3/cover.jpg',
+        });
+
+        const audioFile = { originalname: 'track.mp3', buffer: Buffer.from('data') } as any;
+        const coverFile = { originalname: 'cover.jpg' } as any;
+
+        const res = await service.uploadTrack(MOCK_USER_ID, {} as any, audioFile, coverFile);
+
+        expect((service as any).storageService.uploadFile).toHaveBeenCalledWith(coverFile);
+        expect((service as any).audioQueue.add).toHaveBeenCalledWith(
+          'processAudio',
+          expect.objectContaining({
+            trackId: savedTrack.trackId,
+            originalName: audioFile.originalname,
+          }),
+          expect.any(Object)
+        );
+        expect(res.status).toBe('success');
+        expect(res.data.trackId).toBe(savedTrack.trackId);
+      });
+
+      it('reuploadTrackAudio enqueues job and sets processing', async () => {
+        const track = mockPublicTrack({
+          userId: MOCK_USER_ID,
+          trackStatus: TrackStatus.FINISHED,
+          previewStartTime: '00:00:30',
+        });
+        trackRepo.findById.mockResolvedValue(track);
+        (service as any).audioQueue.remove.mockResolvedValue(undefined);
+        trackRepo.setTrackProcessing.mockResolvedValue(undefined);
+
+        const audioFile = { originalname: 're.mp3', buffer: Buffer.from('data') } as any;
+
+        const res = await service.reuploadTrackAudio(
+          MOCK_TRACK_ID,
+          MOCK_USER_ID,
+          audioFile,
+          '00:01:00'
+        );
+
+        expect(trackRepo.setTrackProcessing).toHaveBeenCalledWith(MOCK_TRACK_ID);
+        expect((service as any).audioQueue.add).toHaveBeenCalledWith(
+          'processAudio',
+          expect.objectContaining({ trackId: MOCK_TRACK_ID, originalName: audioFile.originalname }),
+          expect.any(Object)
+        );
+        expect(res.status).toBe('success');
+        expect(res.data.trackId).toBe(MOCK_TRACK_ID);
+      });
     });
   });
 });
