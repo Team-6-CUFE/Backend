@@ -201,4 +201,39 @@ export class PlaylistRepository {
 
     return result?.max ? parseInt(result.max, 10) : 0;
   }
+
+  async findTrackInPlaylist(playlistId: string, trackId: string): Promise<PlaylistTrack | null> {
+    return this.playlistTrackRepository.findOne({
+      where: { playlistId, trackId },
+    });
+  }
+
+  async removeTrackAndReorder(
+    playlistId: string,
+    trackId: string,
+    position: number,
+    duration: number
+  ) {
+    return this.playlistTrackRepository.manager.transaction(async (transactionalEntityManager) => {
+      // 1. Remove the track
+      await transactionalEntityManager.delete(PlaylistTrack, { playlistId, trackId });
+
+      // 2. Shift positions of subsequent tracks (SET position = position - 1 WHERE position > removed_position)
+      await transactionalEntityManager
+        .createQueryBuilder()
+        .update(PlaylistTrack)
+        .set({ position: () => 'position - 1' })
+        .where('playlistId = :playlistId AND position > :position', { playlistId, position })
+        .execute();
+
+      // 3. Update Playlist Stats (Atomic decrement)
+      await transactionalEntityManager.decrement(Playlist, { playlistId }, 'tracksCount', 1);
+      await transactionalEntityManager.decrement(
+        Playlist,
+        { playlistId },
+        'totalDurationSeconds',
+        duration
+      );
+    });
+  }
 }
