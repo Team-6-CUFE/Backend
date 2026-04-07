@@ -6,6 +6,7 @@ import {
   ApiQuery,
   ApiCookieAuth,
   ApiBody,
+  ApiConsumes,
 } from '@nestjs/swagger';
 
 export function ApiGetMyProfile() {
@@ -309,19 +310,21 @@ export function ApiUpdatePrivacy() {
 export function ApiUpdateAvatar() {
   return applyDecorators(
     ApiCookieAuth('access_token'),
+    ApiConsumes('multipart/form-data'),
     ApiOperation({
       summary: 'Update profile picture',
-      description: "Updates the authenticated user's avatar/profile picture URL.",
+      description:
+        "Updates the authenticated user's avatar/profile picture. The image is optimized, converted to WebP, and saved to S3.",
     }),
     ApiBody({
       schema: {
         type: 'object',
-        required: ['avatarUrl'],
+        required: ['file'],
         properties: {
-          avatarUrl: {
+          file: {
             type: 'string',
-            format: 'uri',
-            example: 'https://cdn.example.com/avatars/moaaz.jpg',
+            format: 'binary',
+            description: 'Image file (JPEG, PNG, WebP) max 5MB',
           },
         },
       },
@@ -334,7 +337,8 @@ export function ApiUpdateAvatar() {
           status: 'Success',
           message: 'Profile picture updated successfully',
           data: {
-            avatarUrl: 'https://cdn.example.com/avatars/moaaz.jpg',
+            avatarUrl:
+              'https://harmonica-s3-storage-287109772507-us-east-1-an.s3.amazonaws.com/profiles/1f2561b1-adbc-4319-b5bb-53102bb92ab2/avatar_1775521418796.webp',
             updatedAt: '2025-03-01T12:00:00.000Z',
           },
         },
@@ -342,12 +346,12 @@ export function ApiUpdateAvatar() {
     }),
     ApiResponse({
       status: 400,
-      description: 'Invalid or missing URL',
+      description: 'Invalid file or size limit exceeded',
       schema: {
         example: {
           status: 'error',
           message: 'Invalid file',
-          errors: [{ field: 'avatarUrl', message: 'File size exceeds 5MB limit' }],
+          errors: [{ field: 'file', message: 'File size exceeds 5MB limit or invalid file type' }],
         },
       },
     }),
@@ -360,19 +364,20 @@ export function ApiUpdateAvatar() {
 export function ApiUpdateCover() {
   return applyDecorators(
     ApiCookieAuth('access_token'),
+    ApiConsumes('multipart/form-data'),
     ApiOperation({
       summary: 'Update cover photo',
-      description: "Updates the authenticated user's cover photo URL.",
+      description: "Updates the authenticated user's cover photo and saves it to S3.",
     }),
     ApiBody({
       schema: {
         type: 'object',
-        required: ['coverPhoto'],
+        required: ['file'],
         properties: {
-          coverPhoto: {
+          file: {
             type: 'string',
-            format: 'uri',
-            example: 'https://cdn.example.com/covers/moaaz.jpg',
+            format: 'binary',
+            description: 'Image file (JPEG, PNG, WebP) max 5MB',
           },
         },
       },
@@ -385,7 +390,8 @@ export function ApiUpdateCover() {
           status: 'Success',
           message: 'Cover photo updated successfully',
           data: {
-            coverPhoto: 'https://cdn.example.com/covers/moaaz.jpg',
+            coverPhoto:
+              'https://harmonica-s3-storage-287109772507-us-east-1-an.s3.amazonaws.com/profiles/1f2561b1-adbc-4319-b5bb-53102bb92ab2/cover_1775522879552.jpeg',
             updatedAt: '2025-03-01T12:00:00.000Z',
           },
         },
@@ -393,12 +399,12 @@ export function ApiUpdateCover() {
     }),
     ApiResponse({
       status: 400,
-      description: 'Invalid or missing URL',
+      description: 'Invalid file or size limit exceeded',
       schema: {
         example: {
           status: 'error',
           message: 'Validation failed',
-          errors: [{ field: 'coverPhoto', message: 'Please provide a valid URL' }],
+          errors: [{ field: 'file', message: 'File size exceeds 5MB limit or invalid file type' }],
         },
       },
     }),
