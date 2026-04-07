@@ -39,6 +39,7 @@ const mockPlaylistService = () => ({
   findTrackInPlaylist: jest.fn(),
   removeTrackAndReorder: jest.fn(),
   removeTrackFromPlaylist: jest.fn(),
+  deletePlaylist: jest.fn(),
 });
 
 // ─── Suite ────────────────────────────────────────────────────────────────────
@@ -713,6 +714,18 @@ describe('PlaylistController', () => {
         'track-id',
         mockUserId
       );
+      expect(result).toBe(mockResponse);
+    });
+  });
+
+  describe('deletePlaylist', () => {
+    it('should delegate to service', async () => {
+      const mockResponse = { status: 'success', message: 'deleted' };
+      service.deletePlaylist.mockResolvedValue(mockResponse);
+
+      const result = await controller.deletePlaylist(mockPlaylistId, mockUserId);
+
+      expect(service.deletePlaylist).toHaveBeenCalledWith(mockPlaylistId, mockUserId);
       expect(result).toBe(mockResponse);
     });
   });

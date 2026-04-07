@@ -47,6 +47,7 @@ const mockPlaylistRepository = () => ({
   findMaxPosition: jest.fn(),
   findTrackInPlaylist: jest.fn(),
   removeTrackAndReorder: jest.fn(),
+  deletePlaylist: jest.fn(),
 });
 
 const mockStorageService = () => ({
@@ -1088,6 +1089,27 @@ describe('PlaylistService', () => {
 
       expect(playlistRepo.removeTrackAndReorder).toHaveBeenCalledWith('p1', 't1', 5, 200);
       expect(result.status).toBe('success');
+    });
+  });
+
+  describe('deletePlaylist', () => {
+    it('should throw NotFoundException if playlist does not exist', async () => {
+      playlistRepo.findPlaylistById.mockResolvedValue(null);
+      await expect(service.deletePlaylist('id', 'user')).rejects.toThrow(NotFoundException);
+    });
+
+    it('should throw ForbiddenException if user is not the owner', async () => {
+      playlistRepo.findPlaylistById.mockResolvedValue({ userId: 'other-user' });
+      await expect(service.deletePlaylist('id', 'my-user')).rejects.toThrow(ForbiddenException);
+    });
+
+    it('should successfully delete if owner matches', async () => {
+      playlistRepo.findPlaylistById.mockResolvedValue({ userId: 'my-user' });
+      playlistRepo.deletePlaylist.mockResolvedValue(undefined);
+
+      const result = await service.deletePlaylist('id', 'my-user');
+      expect(result.status).toBe('success');
+      expect(playlistRepo.deletePlaylist).toHaveBeenCalledWith('id');
     });
   });
 });
