@@ -787,3 +787,28 @@ export function ApiDeletePlaylist() {
     ApiResponse({ status: 404, description: 'Not found' })
   );
 }
+
+export function ApiGetUserCreatedPlaylists() {
+  return applyDecorators(
+    ApiCookieAuth('access_token'),
+    ApiOperation({
+      summary: "Get a user's created playlists",
+      description:
+        'Returns playlists created by the user. Private playlists are only visible to the owner.',
+    }),
+    ApiParam({ name: 'userId', format: 'uuid' }),
+    ApiQuery({ name: 'page', required: false, example: 1 }),
+    ApiQuery({ name: 'limit', required: false, example: 20 }),
+    ApiResponse({
+      status: 200,
+      description: 'Success',
+      schema: {
+        example: {
+          status: 'success',
+          data: [{ playlistId: 'uuid', title: 'My Vibes', isPublic: true }],
+          pagination: { currentPage: 1, totalPages: 1, totalCount: 1, limit: 20 },
+        },
+      },
+    })
+  );
+}
