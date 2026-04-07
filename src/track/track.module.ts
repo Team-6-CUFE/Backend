@@ -19,6 +19,11 @@ import { StorageService } from '../common/storage_service';
 import { TrackPlay } from './entities/track-play.entity';
 import { RecentlyPlayed } from './entities/recently-played.entity';
 import { PlaylistModule } from '../playlist/playlist.module';
+import { TrackFirstFan } from './entities/track-first-fan.entity';
+import { Settings } from '../settings/entities/settings.entity';
+import { FanRepository } from './fan.repository';
+import { FansService } from './services/fans.service';
+import { FansJobProcessor } from './listeners/fans-job.processor';
 
 @Module({
   imports: [
@@ -31,6 +36,8 @@ import { PlaylistModule } from '../playlist/playlist.module';
       Tag,
       TrackPlay,
       RecentlyPlayed,
+      TrackFirstFan,
+      Settings,
     ]),
     PlaylistModule,
     BullModule.forRootAsync({
@@ -50,6 +57,7 @@ import { PlaylistModule } from '../playlist/playlist.module';
       inject: [ConfigService],
     }),
     BullModule.registerQueue({ name: 'audioQueue' }),
+    BullModule.registerQueue({ name: 'fansQueue' }),
     UserModule,
     FollowersModule,
   ],
@@ -60,6 +68,9 @@ import { PlaylistModule } from '../playlist/playlist.module';
     TrackSseService,
     AudioQueueEventsListener,
     StorageService,
+    FanRepository,
+    FansService,
+    FansJobProcessor,
   ],
   exports: [TrackService, TrackRepository],
 })

@@ -38,6 +38,8 @@ import {
   ApiUpdateTrackMetadata,
   ApiReuploadTrackAudio,
   ApiPlayTrack,
+  ApiGetTopFans,
+  ApiGetFirstFans,
 } from './track.swagger';
 import { CurrentUser } from '../authentication/decorators/current-user.decorator';
 import { CheckBlock } from '../followers/decorators/no-block.decorator';
@@ -343,5 +345,17 @@ export class TrackController {
     @Body('playlistId', new ParseUUIDPipe({ optional: true })) playlistId?: string
   ) {
     return this.trackService.playTrack(trackId, userId, playlistId);
+  }
+
+  @ApiGetTopFans()
+  @Get(':trackId/top-fans')
+  getTopFans(@Param('trackId', ParseUUIDPipe) trackId: string) {
+    return this.trackService.getTopFans(trackId);
+  }
+
+  @ApiGetFirstFans()
+  @Get(':trackId/first-fans')
+  getFirstFans(@Param('trackId', ParseUUIDPipe) trackId: string) {
+    return this.trackService.getFirstFans(trackId);
   }
 }

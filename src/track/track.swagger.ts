@@ -1031,6 +1031,80 @@ Returns immediately with \`trackStatus: "processing"\`. Rejected if the track is
   );
 }
 
+// ─── Top Fans ─────────────────────────────────────────────────────────────
+
+export function ApiGetTopFans() {
+  return applyDecorators(
+    ApiCookieAuth('access_token'),
+    ApiOperation({
+      summary: 'Get top fans',
+      description:
+        'Returns the top 5 users who have played this track the most (all time). Users must follow the artist, have liked the track, have a profile image, and have opted in to fan visibility. Results are cached for up to 24 hours. Returns an empty array if the artist has disabled fan display.',
+    }),
+    ApiParam({ name: 'trackId', description: 'UUID of the track', type: 'string' }),
+    ApiResponse({
+      status: 200,
+      description: 'Top fans retrieved successfully',
+      schema: {
+        example: {
+          status: 'success',
+          data: [
+            {
+              rank: 1,
+              playCount: 47,
+              user: {
+                userId: '550e8400-e29b-41d4-a716-446655440001',
+                username: 'superfan_ahmed',
+                displayName: 'Ahmed Khalil',
+                avatarUrl: 'https://s3.amazonaws.com/avatars/ahmed.jpg',
+              },
+            },
+          ],
+        },
+      },
+    }),
+    ApiResponse({ status: 401, description: 'Unauthorized' }),
+    ApiResponse({ status: 404, description: 'Track not found' })
+  );
+}
+
+// ─── First Fans ───────────────────────────────────────────────────────────
+
+export function ApiGetFirstFans() {
+  return applyDecorators(
+    ApiCookieAuth('access_token'),
+    ApiOperation({
+      summary: 'Get first fans',
+      description:
+        'Returns the top 5 users who played this track the most during the first 7 days after release. While the 7-day window is still open, this returns a live snapshot (cached 1 hour) that updates as more plays come in. Once the window closes the list is permanently stored (top 20 kept in DB, top 5 shown) and cached for 24 hours — it never changes after that. Returns an empty array only if the artist has disabled fan display.',
+    }),
+    ApiParam({ name: 'trackId', description: 'UUID of the track', type: 'string' }),
+    ApiResponse({
+      status: 200,
+      description: 'First fans retrieved successfully',
+      schema: {
+        example: {
+          status: 'success',
+          data: [
+            {
+              rank: 1,
+              playCount: 47,
+              user: {
+                userId: '550e8400-e29b-41d4-a716-446655440001',
+                username: 'superfan_ahmed',
+                displayName: 'Ahmed Khalil',
+                avatarUrl: 'https://s3.amazonaws.com/avatars/ahmed.jpg',
+              },
+            },
+          ],
+        },
+      },
+    }),
+    ApiResponse({ status: 401, description: 'Unauthorized' }),
+    ApiResponse({ status: 404, description: 'Track not found' })
+  );
+}
+
 // ─── Play Track ───────────────────────────────────────────────────────────
 
 export function ApiPlayTrack() {

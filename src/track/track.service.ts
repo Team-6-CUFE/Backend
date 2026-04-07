@@ -23,6 +23,7 @@ import { TrackStatus } from './enums/track-status.enum';
 import { Track } from './entities/track.entity';
 import { PlaylistService } from '../playlist/playlist.service';
 import { RecentlyPlayedItemType } from './entities/recently-played.entity';
+import { FansService } from './services/fans.service';
 
 @Injectable()
 export class TrackService {
@@ -31,6 +32,7 @@ export class TrackService {
     private readonly userRepository: UserRepository,
     private readonly storageService: StorageService,
     private readonly playlistService: PlaylistService,
+    private readonly fansService: FansService,
     @InjectQueue('audioQueue')
     private readonly audioQueue: Queue
   ) {}
@@ -553,6 +555,22 @@ export class TrackService {
       status: 'success',
       message: 'Track play recorded',
       data: { trackId, playCount: track.playCount + 1 },
+    };
+  }
+
+  async getTopFans(trackId: string) {
+    const data = await this.fansService.getTopFans(trackId);
+    return {
+      status: 'success',
+      data,
+    };
+  }
+
+  async getFirstFans(trackId: string) {
+    const data = await this.fansService.getFirstFans(trackId);
+    return {
+      status: 'success',
+      data,
     };
   }
 }
