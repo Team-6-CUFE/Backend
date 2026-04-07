@@ -6,6 +6,8 @@ import { PlaylistRepost } from './entities/playlist-reposts.entity';
 import { PlaylistLike } from './entities/playlist-likes.entity';
 import { CreatePlaylistDto } from './dto/create-playlist.dto';
 import { generateVerificationToken } from '../common/utilities/tokens.util';
+import { PlaylistTrack } from './entities/playlist-tracks.entity';
+import { Track } from '../track/entities/track.entity';
 
 @Injectable()
 export class PlaylistRepository {
@@ -15,7 +17,11 @@ export class PlaylistRepository {
     @InjectRepository(PlaylistRepost)
     private readonly playlistRepostRepository: Repository<PlaylistRepost>,
     @InjectRepository(PlaylistLike)
-    private readonly playlistLikesRepository: Repository<PlaylistLike>
+    private readonly playlistLikesRepository: Repository<PlaylistLike>,
+    @InjectRepository(PlaylistTrack)
+    private readonly playlistTrackRepository: Repository<PlaylistTrack>,
+    @InjectRepository(Track)
+    private readonly trackRepository: Repository<Track>
   ) {}
 
   async findPlaylistById(playlistId: string): Promise<Playlist | null> {
@@ -158,5 +164,27 @@ export class PlaylistRepository {
   ): Promise<Playlist | null> {
     await this.playlistRepository.update({ playlistId }, updateData);
     return this.findPlaylistById(playlistId);
+  }
+
+  async findTrackById(trackId: string): Promise<Track | null> {
+    return this.trackRepository.findOne({ where: { trackId } as any });
+  }
+
+  async countTracksInPlaylist(playlistId: string): Promise<number> {
+    return this.playlistTrackRepository.count({ where: { playlistId } });
+  }
+
+  async addTrackToPlaylist(playlistId: string, trackId: string, position: number) {
+    const newEntry = this.playlistTrackRepository.create({
+      playlistId,
+      trackId,
+      position,
+    });
+    return this.playlistTrackRepository.save(newEntry);
+  }
+
+  async updatePlaylistStats(playlistId: string, tracksCount: number, durationDelta: number) {
+    await this.playlistRepository.increment({ playlistId }, 'totalDurationSeconds', durationDelta);
+    await this.playlistRepository.update({ playlistId }, { tracksCount });
   }
 }
