@@ -35,6 +35,15 @@ export class FacebookStrategy extends PassportStrategy(Strategy, 'facebook') {
       );
     }
 
+    if (!name || !name?.givenName) {
+      return done(
+        new BadRequestException(
+          'We could not retrieve your name from Facebook. Please make sure your Facebook account has a name and try again.'
+        ),
+        false
+      );
+    }
+
     const oauthProfile: OAuthProfile = {
       provider: 'facebook',
       providerId: id,

@@ -6,12 +6,15 @@ import {
   PrimaryGeneratedColumn,
   Relation,
   OneToMany,
+  ManyToMany,
+  JoinTable,
 } from 'typeorm';
 import { BaseEntity } from '../../common/entities/base.entity';
 import { User } from '../../user/entities/user.entity';
 import { PlaylistLike } from './playlist-likes.entity';
 import { PlaylistRepost } from './playlist-reposts.entity';
 import { PlaylistTrack } from './playlist-tracks.entity';
+import { Tag } from '../../track/entities/tag.entity';
 
 @Entity('playlists')
 export class Playlist extends BaseEntity {
@@ -45,6 +48,9 @@ export class Playlist extends BaseEntity {
   @Column({ type: 'int', name: 'tracks_count' })
   tracksCount!: number;
 
+  @Column({ type: 'varchar', length: 255, nullable: true, name: 'secret_token' })
+  secretToken?: string | null;
+
   // Relationship
   @ManyToOne(() => User, { onDelete: 'CASCADE' })
   @JoinColumn({ name: 'user_id' })
@@ -58,4 +64,12 @@ export class Playlist extends BaseEntity {
 
   @OneToMany('PlaylistTrack', (playlistTrack: PlaylistTrack) => playlistTrack.playlist)
   playlistTracks!: PlaylistTrack[];
+
+  @ManyToMany(() => Tag, (tag) => tag.playlists)
+  @JoinTable({
+    name: 'playlist_tags',
+    joinColumn: { name: 'playlist_id', referencedColumnName: 'playlistId' },
+    inverseJoinColumn: { name: 'tag_id', referencedColumnName: 'tagId' },
+  })
+  tags!: Tag[];
 }

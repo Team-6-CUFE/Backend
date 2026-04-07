@@ -12,6 +12,7 @@ import { FavoriteGenre } from './entities/favorite-genre.entity';
 import { GenreModule } from '../genre/genre.module';
 import { UsernameAvailabilityService } from './username-availability.service';
 import { ExternalProfileRepository } from './external-profile.repository';
+import { StorageService } from '../common/storage_service';
 import { SettingsService } from '../settings/settings.service';
 import { SettingsModule } from '../settings/settings.module';
 import { RecentlyPlayed } from '../track/entities/recently-played.entity';
@@ -41,6 +42,7 @@ import { TrackPlay } from '../track/entities/track-play.entity';
     ProfileService,
     UsernameAvailabilityService,
     ExternalProfileRepository,
+    StorageService,
     SettingsService,
     TrackRepository,
   ],

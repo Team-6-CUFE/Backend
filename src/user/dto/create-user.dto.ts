@@ -4,13 +4,12 @@ import {
   IsEmail,
   IsEnum,
   IsNotEmpty,
-  IsOptional,
   IsString,
   Matches,
   MaxLength,
   MinLength,
 } from 'class-validator';
-import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { ApiProperty } from '@nestjs/swagger';
 import { IsAdult } from '../decorators/is-adult.decorator';
 
 export enum Gender {
@@ -73,20 +72,4 @@ export class CreateUserDto {
   @IsEnum(Gender, { message: 'Gender must be one of: male, female' })
   @IsNotEmpty({ message: 'Gender is required' })
   gender!: Gender;
-
-  @ApiPropertyOptional({
-    description: 'Country code auto-detected from IP address (e.g. EG)',
-    example: 'EG',
-  })
-  @IsString()
-  @IsOptional()
-  country?: string | null;
-
-  @ApiPropertyOptional({
-    description: 'City auto-detected from IP address (e.g. Cairo)',
-    example: 'Cairo',
-  })
-  @IsString()
-  @IsOptional()
-  city?: string | null;
 }

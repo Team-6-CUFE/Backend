@@ -10,6 +10,7 @@ import {
   Res,
   Req,
   UseGuards,
+  Redirect,
 } from '@nestjs/common';
 import { Response, Request } from 'express';
 import { ApiTags } from '@nestjs/swagger';
@@ -207,6 +208,7 @@ export class AuthenticationController {
   @ApiGoogleCallback()
   @Public()
   @UseGuards(GoogleAuthGuard)
+  @Redirect()
   @Get('google/callback')
   async googleCallback(
     @CurrentUser() googleUser: OAuthProfile,
@@ -226,6 +228,7 @@ export class AuthenticationController {
   @ApiFacebookCallback()
   @Public()
   @UseGuards(FacebookAuthGuard)
+  @Redirect()
   @Get('facebook/callback')
   async facebookCallback(
     @CurrentUser() facebookUser: OAuthProfile,

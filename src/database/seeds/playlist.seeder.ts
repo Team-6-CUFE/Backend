@@ -6,6 +6,8 @@ import { Playlist } from '../../playlist/entities/playlist.entity';
 import { PlaylistLike } from '../../playlist/entities/playlist-likes.entity';
 import { PlaylistRepost } from '../../playlist/entities/playlist-reposts.entity';
 import { PlaylistTrack } from '../../playlist/entities/playlist-tracks.entity';
+import { Tag } from '../../track/entities/tag.entity';
+import { generateVerificationToken } from '../../common/utilities/tokens.util';
 
 export class PlaylistSeeder implements Seeder {
   public async run(dataSource: DataSource, factoryManager: SeederFactoryManager): Promise<void> {
@@ -15,6 +17,7 @@ export class PlaylistSeeder implements Seeder {
     const playlistLikeRepository = dataSource.getRepository(PlaylistLike);
     const playlistRepostRepository = dataSource.getRepository(PlaylistRepost);
     const playlistTrackRepository = dataSource.getRepository(PlaylistTrack);
+    const tagRepository = dataSource.getRepository(Tag);
 
     const existingPlaylists = await playlistRepository.count();
     if (existingPlaylists > 0) {
@@ -30,6 +33,43 @@ export class PlaylistSeeder implements Seeder {
       return;
     }
 
+    // ─── SEED TAGS ────────────────────────────────────────────────
+    console.log('Seeding tags...');
+    const tagNames = [
+      'chill',
+      'lo-fi',
+      'edm',
+      'house',
+      'hip-hop',
+      'jazz',
+      'classical',
+      'ambient',
+      'pop',
+      'rock',
+      'rnb',
+      'electronic',
+      'acoustic',
+      'indie',
+      'workout',
+      'study',
+      'sleep',
+      'party',
+      'summer',
+      'vibes',
+    ];
+
+    const tags: Tag[] = [];
+    for (const name of tagNames) {
+      // upsert — create only if it doesn't already exist
+      let tag = await tagRepository.findOne({ where: { name } });
+      if (!tag) {
+        tag = await tagRepository.save(tagRepository.create({ name }));
+      }
+      tags.push(tag);
+    }
+    console.log(`${tags.length} tags ready.`);
+    // ──────────────────────────────────────────────────────────────
+
     console.log('Seeding playlists and adding tracks...');
 
     const playlistFactory = factoryManager.get(Playlist);
@@ -38,7 +78,6 @@ export class PlaylistSeeder implements Seeder {
     const artist1 = users.find((u) => u.username === 'artist1');
     const artist2 = users.find((u) => u.username === 'artist2');
 
-    // Helper to create base playlist object
     const createPlaylistBase = (overrides: Partial<Playlist>) =>
       playlistRepository.create({
         tracksCount: 0,
@@ -54,7 +93,13 @@ export class PlaylistSeeder implements Seeder {
           title: 'Late Night Lo-Fi Beats',
           description: 'Chill beats to study and relax to.',
           isPublic: true,
+          secretToken: null,
           userId: artist1.userId,
+          tags: [
+            tags.find((t) => t.name === 'lo-fi')!,
+            tags.find((t) => t.name === 'chill')!,
+            tags.find((t) => t.name === 'study')!,
+          ],
         })
       );
       allCreatedPlaylists.push(p1);
@@ -64,7 +109,9 @@ export class PlaylistSeeder implements Seeder {
           title: 'Unreleased Demos (Private)',
           description: 'WIP tracks.',
           isPublic: false,
+          secretToken: generateVerificationToken(),
           userId: artist1.userId,
+          tags: [tags.find((t) => t.name === 'indie')!, tags.find((t) => t.name === 'acoustic')!],
         })
       );
       allCreatedPlaylists.push(p2);
@@ -76,7 +123,14 @@ export class PlaylistSeeder implements Seeder {
           title: 'Summer Festival Mix',
           description: 'High energy EDM and House.',
           isPublic: true,
+          secretToken: null,
           userId: artist2.userId,
+          tags: [
+            tags.find((t) => t.name === 'edm')!,
+            tags.find((t) => t.name === 'house')!,
+            tags.find((t) => t.name === 'party')!,
+            tags.find((t) => t.name === 'summer')!,
+          ],
         })
       );
       allCreatedPlaylists.push(p3);
@@ -85,18 +139,26 @@ export class PlaylistSeeder implements Seeder {
     for (let i = 0; i < 30; i++) {
       const randomPlaylist = await playlistFactory.make();
       const randomOwner = users[Math.floor(Math.random() * users.length)];
+      const generatedToken = !randomPlaylist.isPublic ? generateVerificationToken() : null;
+
+      // assign 1-3 random tags to each random playlist
+      const randomTags = [...tags]
+        .sort(() => 0.5 - Math.random())
+        .slice(0, Math.floor(Math.random() * 3) + 1);
 
       const savedPlaylist = await playlistRepository.save(
         createPlaylistBase({
           ...randomPlaylist,
+          secretToken: generatedToken,
           userId: randomOwner.userId,
           user: randomOwner,
+          tags: randomTags,
         })
       );
       allCreatedPlaylists.push(savedPlaylist);
     }
 
-    console.log('Populating tracks, likes, and reposts (Triggers will handle counters)...');
+    console.log('Populating tracks, likes, and reposts...');
 
     for (const playlist of allCreatedPlaylists) {
       // 1. ADD TRACKS
@@ -104,7 +166,6 @@ export class PlaylistSeeder implements Seeder {
       const selectedTracks = [...tracks].sort(() => 0.5 - Math.random()).slice(0, numTracks);
 
       for (let i = 0; i < selectedTracks.length; i++) {
-        // Trigger 'fn_playlist_track_added' fires here
         await playlistTrackRepository.save({
           playlistId: playlist.playlistId,
           trackId: selectedTracks[i].trackId,
@@ -117,7 +178,6 @@ export class PlaylistSeeder implements Seeder {
       const likers = [...users].sort(() => 0.5 - Math.random()).slice(0, numLikes);
 
       for (const liker of likers) {
-        // Assuming you have a trigger for likes_count as well
         await playlistLikeRepository.save({
           playlistId: playlist.playlistId,
           userId: liker.userId,
@@ -129,7 +189,6 @@ export class PlaylistSeeder implements Seeder {
       const reposters = [...users].sort(() => 0.5 - Math.random()).slice(0, numReposts);
 
       for (const reposter of reposters) {
-        // Assuming you have a trigger for reposts_count as well
         await playlistRepostRepository.save({
           playlistId: playlist.playlistId,
           userId: reposter.userId,
@@ -139,6 +198,8 @@ export class PlaylistSeeder implements Seeder {
 
     console.log('Seeding complete!');
     console.log(` - ${allCreatedPlaylists.length} Playlists created.`);
+    console.log(` - ${tags.length} Tags seeded and assigned.`);
+    console.log(` - Secret tokens generated for private playlists.`);
     console.log(` - Triggers automatically updated totalDurationSeconds and tracks_count.`);
   }
 }

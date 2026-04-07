@@ -5,6 +5,7 @@ import { UserRepository } from './user.repository';
 import { GenreRepository } from '../genre/genre.repository';
 import { UsernameAvailabilityService } from './username-availability.service';
 import { ExternalProfileRepository } from './external-profile.repository';
+import { StorageService } from '../common/storage_service';
 import { TrackRepository } from './user_track.repository';
 import {
   mockUserRepository,
@@ -14,6 +15,8 @@ import {
   mockUserId,
   mockUsername,
   mockExternalProfileRepository,
+  mockFile,
+  mockStorageService,
   mockUserTrackRepository,
 } from './test/user.mock';
 
@@ -22,6 +25,7 @@ describe('ProfileService', () => {
   let userRepo: ReturnType<typeof mockUserRepository>;
   let genreRepo: ReturnType<typeof mockGenreRepository>;
   let usernameAvailability: ReturnType<typeof mockUsernameAvailabilityService>;
+  let storageService: ReturnType<typeof mockStorageService>;
   let trackRepo: ReturnType<typeof mockUserTrackRepository>;
 
   let externalRepo: any;
@@ -35,6 +39,7 @@ describe('ProfileService', () => {
         { provide: GenreRepository, useFactory: mockGenreRepository },
         { provide: UsernameAvailabilityService, useFactory: mockUsernameAvailabilityService },
         { provide: ExternalProfileRepository, useFactory: mockExternalProfileRepository },
+        { provide: StorageService, useFactory: mockStorageService },
         { provide: TrackRepository, useFactory: mockUserTrackRepository },
       ],
     }).compile();
@@ -44,8 +49,8 @@ describe('ProfileService', () => {
     genreRepo = module.get(GenreRepository);
     usernameAvailability = module.get(UsernameAvailabilityService);
     trackRepo = module.get(TrackRepository);
-
     externalRepo = module.get(ExternalProfileRepository);
+    storageService = module.get(StorageService);
 
     externalRepo.findAllByUserId = jest.fn();
     externalRepo.countUserProfiles = jest.fn();
@@ -385,46 +390,48 @@ describe('ProfileService', () => {
   });
 
   describe('updateAvatar', () => {
-    const newAvatar = 'https://s3.aws.com/my-avatar.png';
+    it('should successfully update avatar and return S3 URL', async () => {
+      const file = mockFile();
+      const mockS3Url = 'https://s3.amazonaws.com/bucket/avatar.webp';
 
-    it('should successfully update avatar', async () => {
+      userRepo.findById.mockResolvedValue(mockUser());
+      storageService.uploadFile.mockResolvedValue({ Location: mockS3Url });
       userRepo.update.mockResolvedValue({ updatedAt: new Date() });
 
-      const result = await service.updateAvatar(mockUserId, newAvatar);
+      const result = await service.updateAvatar(mockUserId, file);
+
       expect(result.status).toBe('Success');
-      expect(result.data.avatarUrl).toBe(newAvatar);
+      expect(result.data.avatarUrl).toBe(mockS3Url);
+      expect(storageService.uploadFile).toHaveBeenCalled();
     });
 
     it('should throw 404 if user not found', async () => {
-      userRepo.update.mockResolvedValue(null);
+      userRepo.findById.mockResolvedValue(null);
 
-      try {
-        await service.updateAvatar(mockUserId, newAvatar);
-      } catch (e: any) {
-        expect(e).toBeInstanceOf(NotFoundException);
-      }
+      await expect(service.updateAvatar(mockUserId, mockFile())).rejects.toThrow(NotFoundException);
     });
   });
 
   describe('updateCover', () => {
-    const newCover = 'https://s3.aws.com/my-cover.png';
+    it('should successfully update cover photo and return S3 URL', async () => {
+      const file = mockFile();
+      const mockS3Url = 'https://s3.amazonaws.com/bucket/cover.jpg';
 
-    it('should successfully update cover photo', async () => {
+      userRepo.findById.mockResolvedValue(mockUser());
+      storageService.uploadFile.mockResolvedValue({ Location: mockS3Url });
       userRepo.update.mockResolvedValue({ updatedAt: new Date() });
 
-      const result = await service.updateCover(mockUserId, newCover);
+      const result = await service.updateCover(mockUserId, file);
+
       expect(result.status).toBe('Success');
-      expect(result.data.coverPhoto).toBe(newCover);
+      expect(result.data.coverPhoto).toBe(mockS3Url);
+      expect(storageService.uploadFile).toHaveBeenCalled();
     });
 
     it('should throw 404 if user not found', async () => {
-      userRepo.update.mockResolvedValue(null);
+      userRepo.findById.mockResolvedValue(null);
 
-      try {
-        await service.updateCover(mockUserId, newCover);
-      } catch (e: any) {
-        expect(e).toBeInstanceOf(NotFoundException);
-      }
+      await expect(service.updateCover(mockUserId, mockFile())).rejects.toThrow(NotFoundException);
     });
   });
 

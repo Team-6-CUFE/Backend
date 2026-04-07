@@ -1,7 +1,7 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { ProfileController } from './profile.controller';
 import { ProfileService } from './profile.service';
-import { mockProfileService, mockUserId, mockUsername } from './test/user.mock';
+import { mockProfileService, mockUserId, mockUsername, mockFile } from './test/user.mock';
 
 describe('ProfileController', () => {
   let controller: ProfileController;
@@ -118,22 +118,22 @@ describe('ProfileController', () => {
     expect(service.deleteExternalProfile).toHaveBeenCalledWith(mockUserId, profileId);
   });
 
-  it('updateAvatar → delegates to service with userId and avatarUrl', async () => {
-    const dto = { avatarUrl: 'https://cdn.example.com/avatars/test.jpg' };
+  it('updateAvatar → delegates to service with userId and file', async () => {
+    const file = mockFile();
     service.updateAvatar.mockResolvedValue({ status: 'Success', message: '', data: {} });
 
-    await controller.updateAvatar(mockUserId, dto as any);
+    await controller.updateAvatar(mockUserId, file);
 
-    expect(service.updateAvatar).toHaveBeenCalledWith(mockUserId, dto.avatarUrl);
+    expect(service.updateAvatar).toHaveBeenCalledWith(mockUserId, file);
   });
 
-  it('updateCover → delegates to service with userId and coverPhoto', async () => {
-    const dto = { coverPhoto: 'https://cdn.example.com/covers/test.jpg' };
+  it('updateCover → delegates to service with userId and file', async () => {
+    const file = mockFile();
     service.updateCover.mockResolvedValue({ status: 'Success', message: '', data: {} });
 
-    await controller.updateCover(mockUserId, dto as any);
+    await controller.updateCover(mockUserId, file);
 
-    expect(service.updateCover).toHaveBeenCalledWith(mockUserId, dto.coverPhoto);
+    expect(service.updateCover).toHaveBeenCalledWith(mockUserId, file);
   });
 
   // ─── getRecentlyPlayed ────────────────────────────────────────────────────────
