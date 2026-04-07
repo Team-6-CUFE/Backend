@@ -625,7 +625,8 @@ export class TrackService {
 
     const usedSeconds = await this.trackRepository.getUserUploadedSeconds(userId);
     const plan = user.plan ?? 'free';
-    const limitSeconds = UPLOAD_LIMIT_SECONDS[plan] ?? UPLOAD_LIMIT_SECONDS.free;
+    const limitSeconds =
+      plan in UPLOAD_LIMIT_SECONDS ? UPLOAD_LIMIT_SECONDS[plan] : UPLOAD_LIMIT_SECONDS.free;
 
     const usedMinutes = Math.floor(usedSeconds / 60);
     const limitMinutes = limitSeconds !== null ? Math.floor(limitSeconds / 60) : null;
@@ -648,10 +649,8 @@ export class TrackService {
     if (track.visibility === TrackVisibility.PRIVATE && track.userId !== user?.sub) {
       throw new ForbiddenException('This track is private');
     }
-    console.log('testing ip now');
     if (track.userId !== user?.sub && track.blockedRegions?.length > 0 && ip) {
       const { country } = getLocationFromIp(ip);
-      console.log(country);
       if (country && track.blockedRegions.includes(country)) {
         throw new ForbiddenException('This track is not available in your region');
       }
