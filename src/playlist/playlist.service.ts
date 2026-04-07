@@ -5,16 +5,23 @@ import {
   ConflictException,
   NotFoundException,
 } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
+import sharp from 'sharp';
 import { PlaylistRepository } from './playlist.repository';
 import { buildPaginationResponse } from '../common/utilities/pagination.util';
 import { UserRepository } from '../user/user.repository';
 import { CreatePlaylistDto } from './dto/create-playlist.dto';
+import { Playlist } from './entities/playlist.entity';
+import { UpdatePlaylistDto } from './dto/update-playlist.dto';
+import { StorageService } from '../common/storage_service';
 
 @Injectable()
 export class PlaylistService {
   constructor(
     private readonly playlistRepository: PlaylistRepository,
-    private readonly userRepository: UserRepository
+    private readonly userRepository: UserRepository,
+    private configService: ConfigService,
+    private readonly storageService: StorageService
   ) {}
 
   async repostPlaylist(playlistId: string, userId: string) {
@@ -286,23 +293,98 @@ export class PlaylistService {
     return { status: 'success', ...buildPaginationResponse(mappedLikes, total, page, limit) };
   }
 
-  async deletePlaylist(playlistId: string, userId: string) {
-    const playlist = await this.playlistRepository.findPlaylistById(playlistId);
-    if (!playlist) {
-      throw new NotFoundException('Playlist Not found');
+  async createPlaylist(createPlaylistDto: CreatePlaylistDto, userId: string) {
+    const playlistCreated = await this.playlistRepository.createPlaylist(createPlaylistDto, userId);
+    let shareUrl = '';
+    if (createPlaylistDto.isPublic) {
+      shareUrl = `${this.configService.get('HARMONICA_BASE_URL')}/playlist/${playlistCreated.playlistId}`;
+    } else {
+      shareUrl = `${this.configService.get('HARMONICA_BASE_URL')}/playlist/secret/${playlistCreated.secretToken}`;
     }
-    if (playlist.userId !== userId) {
-      throw new ForbiddenException('Cannot delete playlist. You are not the owner');
-    }
-    await this.playlistRepository.deletePlaylist(playlistId);
+    console.log('created playlist: ', playlistCreated);
     return {
-      status: 'success',
-      message: 'Playlist deleted successfully ',
+      status: 'sucesss',
+      data: {
+        playlistId: playlistCreated.playlistId,
+        title: playlistCreated.title,
+        isPublic: playlistCreated.isPublic,
+        trackCount: playlistCreated.tracksCount,
+        durationSeconds: playlistCreated.totalDurationSeconds,
+        likesCount: playlistCreated.likesCount,
+        repostsCount: playlistCreated.repostsCount,
+        secretToken: playlistCreated.secretToken,
+        shareUrl,
+        createdAt: playlistCreated.createdAt,
+      },
     };
   }
 
-  async createPlaylist(createPlaylistDto: CreatePlaylistDto) {
-    // await this.playlistRepository.createPlaylist(createPlaylistDto);
-    console.log(createPlaylistDto);
+  async updatePlaylist(
+    userId: string,
+    playlistId: string,
+    updateDto: UpdatePlaylistDto,
+    file?: Express.Multer.File
+  ) {
+    // 1. Find the playlist and check ownership
+    const playlist = await this.playlistRepository.findPlaylistById(playlistId);
+    if (!playlist) {
+      throw new NotFoundException('Playlist not found');
+    }
+    if (playlist.userId !== userId) {
+      throw new ForbiddenException('You can only edit your own playlists');
+    }
+
+    const updateData: Partial<Playlist> = {};
+
+    // 2. Handle text fields
+    if (updateDto.title !== undefined) {
+      updateData.title = updateDto.title;
+    }
+    if (updateDto.description !== undefined) {
+      updateData.description = updateDto.description;
+    }
+
+    // 3. Handle cover image if a new file is provided
+    if (file) {
+      const oldCoverUrl = playlist.coverImage;
+
+      const processedBuffer = await sharp(file.buffer)
+        .resize(500, 500, { fit: 'cover' })
+        .webp({ quality: 80 })
+        .toBuffer();
+
+      const processedFile: Express.Multer.File = {
+        ...file,
+        buffer: processedBuffer,
+        originalname: `playlists/${playlistId}/cover_${Date.now()}.webp`,
+        mimetype: 'image/webp',
+        size: processedBuffer.length,
+      };
+
+      const uploaded = await this.storageService.uploadFile(processedFile);
+      updateData.coverImage = uploaded.Location;
+
+      // Delete the old cover image asynchronously
+      if (oldCoverUrl) {
+        this.storageService
+          .deleteFile(oldCoverUrl)
+          .catch((err) => console.warn(`Failed to delete old cover ${oldCoverUrl}`, err));
+      }
+    }
+
+    // 4. Save to database using the repo method we just made
+    const updated = await this.playlistRepository.updatePlaylist(playlistId, updateData);
+
+    return {
+      status: 'Success',
+      message: 'Playlist updated successfully',
+      data: {
+        playlistId: updated!.playlistId,
+        title: updated!.title,
+        description: updated!.description,
+        coverImage: updated!.coverImage,
+        updatedAt: updated!.updatedAt,
+      },
+    };
   }
 }

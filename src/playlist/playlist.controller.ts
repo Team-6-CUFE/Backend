@@ -12,7 +12,6 @@ import {
   ApiGetUserPlaylistLikes,
   ApiLikePlaylist,
   ApiUnlikePlaylist,
-  ApiDeletePlaylist,
   ApiCreatePlaylist,
 } from './playlist.swagger';
 import { CurrentUser } from '../authentication/decorators/current-user.decorator';
@@ -122,16 +121,9 @@ export class PlaylistController {
     return this.playlistService.getUserPlaylistLikes(userId, myUserId, page, limit);
   }
 
-  @ApiDeletePlaylist()
-  @CheckBlock()
-  @Delete('/:playlistId')
-  deletePlaylist(@Param('playlistId') playlistId: string, @CurrentUser('sub') userId: string) {
-    return this.playlistService.deletePlaylist(playlistId, userId);
-  }
-
   @ApiCreatePlaylist()
   @Post('create-playlist')
-  createPlaylist(@Body() createPlaylistDto: CreatePlaylistDto) {
-    return this.playlistService.createPlaylist(createPlaylistDto);
+  createPlaylist(@Body() createPlaylistDto: CreatePlaylistDto, @CurrentUser('sub') userId: string) {
+    return this.playlistService.createPlaylist(createPlaylistDto, userId);
   }
 }

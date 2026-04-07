@@ -8,6 +8,7 @@ import { PlaylistLike } from './entities/playlist-likes.entity';
 import { PlaylistRepository } from './playlist.repository';
 import { UserModule } from '../user/user.module';
 import { FollowersModule } from '../followers/followers.module';
+import { StorageService } from '../common/storage_service';
 
 @Module({
   imports: [
@@ -16,6 +17,6 @@ import { FollowersModule } from '../followers/followers.module';
     FollowersModule,
   ],
   controllers: [PlaylistController],
-  providers: [PlaylistService, PlaylistRepository],
+  providers: [PlaylistService, PlaylistRepository, StorageService],
 })
 export class PlaylistModule {}

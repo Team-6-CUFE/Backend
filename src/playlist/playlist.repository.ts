@@ -4,6 +4,8 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Playlist } from './entities/playlist.entity';
 import { PlaylistRepost } from './entities/playlist-reposts.entity';
 import { PlaylistLike } from './entities/playlist-likes.entity';
+import { CreatePlaylistDto } from './dto/create-playlist.dto';
+import { generateVerificationToken } from '../common/utilities/tokens.util';
 
 @Injectable()
 export class PlaylistRepository {
@@ -128,7 +130,33 @@ export class PlaylistRepository {
       .getManyAndCount();
   }
 
-  async deletePlaylist(playlistId: string) {
-    await this.playlistRepository.delete(playlistId);
+  async createPlaylist(createPlaylistDto: CreatePlaylistDto, userId: string) {
+    let secretToken = null;
+    if (createPlaylistDto.isPublic === false) {
+      secretToken = generateVerificationToken();
+    }
+
+    const playlist = this.playlistRepository.create({
+      title: createPlaylistDto.title,
+      description: createPlaylistDto.description,
+      coverImage: createPlaylistDto.coverimage,
+      isPublic: createPlaylistDto.isPublic,
+      likesCount: 0,
+      repostsCount: 0,
+      totalDurationSeconds: 0,
+      userId,
+      tracksCount: 0,
+      secretToken,
+    });
+
+    return this.playlistRepository.save(playlist);
+  }
+
+  async updatePlaylist(
+    playlistId: string,
+    updateData: Partial<Playlist>
+  ): Promise<Playlist | null> {
+    await this.playlistRepository.update({ playlistId }, updateData);
+    return this.findPlaylistById(playlistId);
   }
 }
