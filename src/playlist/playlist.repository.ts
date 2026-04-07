@@ -240,4 +240,16 @@ export class PlaylistRepository {
   async deletePlaylist(playlistId: string): Promise<void> {
     await this.playlistRepository.delete({ playlistId });
   }
+
+  async getPlaylistDetails(playlistId: string): Promise<Playlist | null> {
+    return this.playlistRepository.findOne({
+      where: { playlistId },
+      relations: ['user', 'playlistTracks', 'playlistTracks.track'],
+      order: {
+        playlistTracks: {
+          position: 'ASC',
+        },
+      },
+    });
+  }
 }
