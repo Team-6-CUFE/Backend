@@ -20,5 +20,6 @@ import { Track } from '../track/entities/track.entity';
   ],
   controllers: [PlaylistController],
   providers: [PlaylistService, PlaylistRepository, StorageService],
+  exports: [PlaylistService, PlaylistRepository],
 })
 export class PlaylistModule {}

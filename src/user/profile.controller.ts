@@ -41,6 +41,9 @@ import {
   ApiUpdateExternalProfile,
   ApiDeleteExternalProfile,
   ApiUpdateAvatar,
+  ApiGetRecentlyPlayed,
+  ApiGetListeningHistory,
+  ApiDeleteListeningHistory,
 } from './profile.swagger';
 
 @ApiTags('Profile')
@@ -168,5 +171,27 @@ export class ProfileController {
     file: Express.Multer.File
   ) {
     return this.profileService.updateCover(userId, file);
+  }
+
+  @ApiGetRecentlyPlayed()
+  @Get('/me/recently-played')
+  getRecentlyPlayed(@CurrentUser('sub') userId: string) {
+    return this.profileService.getRecentlyPlayed(userId);
+  }
+
+  @ApiGetListeningHistory()
+  @Get('/me/listening-history')
+  getListeningHistory(
+    @CurrentUser('sub') userId: string,
+    @Query('page') page: number,
+    @Query('limit') limit: number
+  ) {
+    return this.profileService.getListeningHistory(userId, page, limit);
+  }
+
+  @ApiDeleteListeningHistory()
+  @Delete('/me/listening-history')
+  deleteUserHistory(@CurrentUser('sub') userId: string) {
+    return this.profileService.deleteUserHistory(userId);
   }
 }

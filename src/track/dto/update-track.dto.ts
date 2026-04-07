@@ -147,17 +147,12 @@ export class UpdateTrackDto {
   shareAlike?: boolean;
 
   @ApiPropertyOptional({
-    description: 'Genre UUIDs — replaces the full genre list',
-    type: [String],
-    example: ['uuid-1', 'uuid-2'],
+    description: 'Genre name (auto-created if it does not exist)',
+    example: 'Lo-Fi',
   })
   @IsOptional()
-  @IsArray()
-  @IsString({ each: true })
-  @Transform(({ value }) =>
-    typeof value === 'string' ? value.split(',').map((s: string) => s.trim()) : value
-  )
-  genreIds?: string[];
+  @IsString()
+  genreName?: string;
 
   @ApiPropertyOptional({
     description: 'Tag names — replaces the full tag list (auto-created if new)',

@@ -1,4 +1,4 @@
-import { Entity, Column, OneToMany, PrimaryGeneratedColumn } from 'typeorm';
+import { Entity, Column, OneToMany, PrimaryGeneratedColumn, OneToOne } from 'typeorm';
 import { BaseEntity } from '../../common/entities/base.entity';
 import { UserEmail } from './user-email.entity';
 import { ExternalProfile } from './external-profile.entity';
@@ -11,6 +11,7 @@ import { TrackLikes } from '../../track/entities/track-likes.entity';
 import { Track } from '../../track/entities/track.entity';
 import { TrackComment } from '../../track/entities/track-comments.entity';
 import { TrackRepost } from '../../track/entities/track-reposts.entity';
+import { Settings } from '../../settings/entities/settings.entity';
 
 @Entity('users')
 export class User extends BaseEntity {
@@ -57,7 +58,7 @@ export class User extends BaseEntity {
   role!: string; // 'listener' | 'artist' | 'admin'
 
   @Column({ type: 'varchar', length: 20, default: 'free' })
-  plan!: string; // 'free' | 'pro' | 'premium'
+  plan!: string; // 'free' | 'go+' | 'pro'
 
   @Column({ type: 'boolean', default: true, name: 'is_public' })
   isPublic!: boolean;
@@ -122,4 +123,7 @@ export class User extends BaseEntity {
 
   @OneToMany(() => TrackRepost, (repost) => repost.user)
   trackReposts!: TrackRepost[];
+
+  @OneToOne(() => Settings, (settings) => settings.user)
+  settings!: Settings;
 }

@@ -24,6 +24,11 @@ export class PlaylistService {
     private readonly storageService: StorageService
   ) {}
 
+  async getPlaylistById(playlistId: string): Promise<Playlist | null> {
+    const playlist = await this.playlistRepository.findPlaylistById(playlistId);
+    return playlist;
+  }
+
   async repostPlaylist(playlistId: string, userId: string) {
     const playlist = await this.playlistRepository.findPlaylistById(playlistId);
     if (!playlist) {
