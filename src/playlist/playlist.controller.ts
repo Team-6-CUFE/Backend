@@ -36,6 +36,7 @@ import {
   ApiRemoveTrackFromPlaylist,
   ApiDeletePlaylist,
   ApiGetUserCreatedPlaylists,
+  ApiReorderTracks,
 } from './playlist.swagger';
 import { CurrentUser } from '../authentication/decorators/current-user.decorator';
 import { CheckBlock } from '../followers/decorators/no-block.decorator';
