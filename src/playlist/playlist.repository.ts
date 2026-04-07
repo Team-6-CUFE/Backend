@@ -151,4 +151,14 @@ export class PlaylistRepository {
 
     return this.playlistRepository.save(playlist);
   }
+
+  async updatePlaylist(playlistId: string, updateData: Partial<Playlist>): Promise<Playlist> {
+    await this.playlistRepository.update(playlistId, updateData);
+
+    const updatedPlaylist = await this.findPlaylistById(playlistId);
+    if (!updatedPlaylist) {
+      throw new Error('Playlist not found after update');
+    }
+    return updatedPlaylist;
+  }
 }
