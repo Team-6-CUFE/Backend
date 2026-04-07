@@ -190,4 +190,17 @@ export class PlaylistRepository {
     );
     return newToken;
   }
+
+  async changePlaylistPrivacy(playlistId: string, isPublic: boolean): Promise<string | null> {
+    if (!isPublic) {
+      const newToken = generateVerificationToken();
+      await this.playlistRepository.update(
+        { playlistId },
+        { secretToken: newToken, isPublic: false }
+      );
+      return newToken;
+    }
+    await this.playlistRepository.update({ playlistId }, { secretToken: null, isPublic: true });
+    return playlistId;
+  }
 }

@@ -421,4 +421,41 @@ export class PlaylistService {
       },
     };
   }
+
+  async changePlaylistPrivacy(playlisId: string, isPublic: boolean, userId: string) {
+    const playlist = await this.playlistRepository.findPlaylistById(playlisId);
+    if (!playlist) {
+      throw new NotFoundException('playlist not found');
+    }
+    if (userId !== playlist?.userId) {
+      throw new ForbiddenException('you are not the playlist owner');
+    }
+    if (isPublic && playlist.isPublic === true) {
+      throw new BadRequestException('playlist already public');
+    }
+    if (!isPublic && playlist.isPublic === false) {
+      throw new BadRequestException('playlist already private');
+    }
+    if (!isPublic) {
+      const newToken = await this.playlistRepository.changePlaylistPrivacy(playlisId, isPublic);
+      return {
+        status: 'success',
+        data: {
+          playlisId,
+          isPublic: false,
+          secretToken: newToken,
+          shareUrl: `${this.configService.get('HARMONICA_BASE_URL')}/playlist/secret/${newToken}`,
+        },
+      };
+    }
+    await this.playlistRepository.changePlaylistPrivacy(playlisId, isPublic);
+    return {
+      status: 'sucess',
+      data: {
+        playlisId,
+        isPublic: true,
+        shareUrl: `${this.configService.get('HARMONICA_BASE_URL')}/playlist/${playlisId}`,
+      },
+    };
+  }
 }

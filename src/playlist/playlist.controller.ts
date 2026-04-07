@@ -1,4 +1,14 @@
-import { Controller, Delete, Get, Param, Post, ParseUUIDPipe, Query, Body } from '@nestjs/common';
+import {
+  Controller,
+  Delete,
+  Get,
+  Param,
+  Post,
+  ParseUUIDPipe,
+  Query,
+  Body,
+  Patch,
+} from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
 import { PlaylistService } from './playlist.service';
 import {
@@ -16,6 +26,7 @@ import {
   ApiGetPublicPlaylist,
   ApiGetSecretPlaylist,
   ApiResetPlaylistSecretToken,
+  ApiChangePlaylistPrivacy,
 } from './playlist.swagger';
 import { CurrentUser } from '../authentication/decorators/current-user.decorator';
 import { CheckBlock } from '../followers/decorators/no-block.decorator';
@@ -146,5 +157,15 @@ export class PlaylistController {
   @Post('/:playlistId/reset-token')
   resetSecretToken(@Param('playlistId') playlistId: string, @CurrentUser('sub') userId: string) {
     return this.playlistService.resetSecretToken(playlistId, userId);
+  }
+
+  @ApiChangePlaylistPrivacy()
+  @Patch('/:playlistId/privacy')
+  changePlaylistPrivacy(
+    @Param('playlistId') playlistId: string,
+    @Body('isPublic') isPublic: boolean,
+    @CurrentUser('sub') userId: string
+  ) {
+    return this.playlistService.changePlaylistPrivacy(playlistId, isPublic, userId);
   }
 }

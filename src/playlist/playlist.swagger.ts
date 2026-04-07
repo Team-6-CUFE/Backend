@@ -775,3 +775,38 @@ export function ApiResetPlaylistSecretToken() {
     })
   );
 }
+
+export function ApiChangePlaylistPrivacy() {
+  return applyDecorators(
+    ApiCookieAuth('access_token'),
+    ApiOperation({
+      summary: 'Get playlist repost count',
+      description: 'Returns the total number of times a public playlist has been reposted.',
+    }),
+    ApiParam({ name: 'playlistId', type: 'string', format: 'uuid' }),
+    ApiResponse({
+      status: 200,
+      description: 'Count retrieved successfully',
+      schema: {
+        example: {
+          status: 'success',
+          data: {
+            playlistId: '550e8400-e29b-41d4-a716-446655440000',
+            repostCount: 42,
+          },
+        },
+      },
+    }),
+    ApiResponse({ status: 401, description: 'Unauthorized' }),
+    ApiResponse({
+      status: 403,
+      description: 'Playlist is private',
+      schema: { example: { statusCode: 403, message: 'This playlist is private' } },
+    }),
+    ApiResponse({
+      status: 404,
+      description: 'Playlist not found',
+      schema: { example: { statusCode: 404, message: 'Playlist not found' } },
+    })
+  );
+}
