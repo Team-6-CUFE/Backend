@@ -236,4 +236,8 @@ export class PlaylistRepository {
       );
     });
   }
+
+  async deletePlaylist(playlistId: string): Promise<void> {
+    await this.playlistRepository.delete({ playlistId });
+  }
 }
