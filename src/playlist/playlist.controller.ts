@@ -1,5 +1,21 @@
-import { Controller, Delete, Get, Param, Post, ParseUUIDPipe, Query, Body } from '@nestjs/common';
+import {
+  Controller,
+  Delete,
+  Get,
+  Param,
+  Post,
+  ParseUUIDPipe,
+  Query,
+  Body,
+  MaxFileSizeValidator,
+  FileTypeValidator,
+  ParseFilePipe,
+  UploadedFile,
+  UseInterceptors,
+  Patch,
+} from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
+import { FileInterceptor } from '@nestjs/platform-express';
 import { PlaylistService } from './playlist.service';
 import {
   ApiRepostPlaylist,
@@ -17,6 +33,7 @@ import {
 import { CurrentUser } from '../authentication/decorators/current-user.decorator';
 import { CheckBlock } from '../followers/decorators/no-block.decorator';
 import { CreatePlaylistDto } from './dto/create-playlist.dto';
+import { UpdatePlaylistDto } from './dto/update-playlist.dto';
 
 @ApiTags('Playlist')
 @Controller('playlist')
@@ -125,5 +142,25 @@ export class PlaylistController {
   @Post('create-playlist')
   createPlaylist(@Body() createPlaylistDto: CreatePlaylistDto, @CurrentUser('sub') userId: string) {
     return this.playlistService.createPlaylist(createPlaylistDto, userId);
+  }
+
+  @UseInterceptors(FileInterceptor('coverImage'))
+  @Patch(':playlistId')
+  async updatePlaylist(
+    @CurrentUser('sub') userId: string,
+    @Param('playlistId') playlistId: string,
+    @Body() updatePlaylistDto: UpdatePlaylistDto,
+    @UploadedFile(
+      new ParseFilePipe({
+        fileIsRequired: false,
+        validators: [
+          new MaxFileSizeValidator({ maxSize: 5 * 1024 * 1024 }), // 5MB limit
+          new FileTypeValidator({ fileType: '.(png|jpeg|jpg|webp)' }),
+        ],
+      })
+    )
+    file?: Express.Multer.File
+  ) {
+    return this.playlistService.updatePlaylist(userId, playlistId, updatePlaylistDto, file);
   }
 }

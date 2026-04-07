@@ -325,7 +325,6 @@ export class PlaylistService {
     updateDto: UpdatePlaylistDto,
     file?: Express.Multer.File
   ) {
-    // 1. Find the playlist and check ownership
     const playlist = await this.playlistRepository.findPlaylistById(playlistId);
     if (!playlist) {
       throw new NotFoundException('Playlist not found');
@@ -336,7 +335,6 @@ export class PlaylistService {
 
     const updateData: Partial<Playlist> = {};
 
-    // 2. Handle text fields
     if (updateDto.title !== undefined) {
       updateData.title = updateDto.title;
     }
@@ -344,7 +342,6 @@ export class PlaylistService {
       updateData.description = updateDto.description;
     }
 
-    // 3. Handle cover image if a new file is provided
     if (file) {
       const oldCoverUrl = playlist.coverImage;
 
@@ -364,7 +361,6 @@ export class PlaylistService {
       const uploaded = await this.storageService.uploadFile(processedFile);
       updateData.coverImage = uploaded.Location;
 
-      // Delete the old cover image asynchronously
       if (oldCoverUrl) {
         this.storageService
           .deleteFile(oldCoverUrl)
@@ -372,7 +368,6 @@ export class PlaylistService {
       }
     }
 
-    // 4. Save to database using the repo method we just made
     const updated = await this.playlistRepository.updatePlaylist(playlistId, updateData);
 
     return {
