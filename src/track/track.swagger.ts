@@ -1103,7 +1103,7 @@ export function ApiGetUploadQuota() {
       description:
         'Returns how many minutes of audio the current user has uploaded versus their plan limit. ' +
         'Quota is calculated from total duration of all finished tracks. ' +
-        'Limits: free = 120 min, pro = 180 min, premium = unlimited.',
+        'Limits: free = 120 min, go+ = 180 min, pro = unlimited.',
     }),
     ApiResponse({
       status: 200,
@@ -1127,7 +1127,7 @@ export function ApiGetUploadQuota() {
         example: {
           status: 'success',
           data: {
-            plan: 'premium',
+            plan: 'pro',
             usedMinutes: 312,
             limitMinutes: null,
             remainingMinutes: null,

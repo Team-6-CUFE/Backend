@@ -57,7 +57,7 @@ export class User extends BaseEntity {
   role!: string; // 'listener' | 'artist' | 'admin'
 
   @Column({ type: 'varchar', length: 20, default: 'free' })
-  plan!: string; // 'free' | 'pro' | 'premium'
+  plan!: string; // 'free' | 'go+' | 'pro'
 
   @Column({ type: 'boolean', default: true, name: 'is_public' })
   isPublic!: boolean;
