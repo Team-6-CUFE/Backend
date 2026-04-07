@@ -9,6 +9,7 @@ import { getQueueToken } from '@nestjs/bullmq';
 import { TrackService } from './track.service';
 import { TrackRepository } from './track.repository';
 import { UserRepository } from '../user/user.repository';
+import { GenreRepository } from '../genre/genre.repository';
 import { TrackSseService } from './services/track-sse.service';
 import { StorageService } from '../common/storage_service';
 import { TrackVisibility } from './enums/track-visibility.enum';
@@ -48,6 +49,8 @@ const mockTrackRepository = () => ({
 const mockUserRepository = () => ({
   findById: jest.fn(),
 });
+
+const mockGenreRepository = () => ({});
 
 const mockPublicTrack = () => ({
   trackId: mockTrackId,
@@ -163,6 +166,7 @@ describe('TrackService', () => {
         TrackService,
         { provide: TrackRepository, useFactory: mockTrackRepository },
         { provide: UserRepository, useFactory: mockUserRepository },
+        { provide: GenreRepository, useFactory: mockGenreRepository },
         { provide: TrackSseService, useValue: {} },
         {
           provide: StorageService,
