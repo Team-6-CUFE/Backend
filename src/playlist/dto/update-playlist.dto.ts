@@ -1,23 +1,23 @@
-import { IsString, IsOptional, MaxLength } from 'class-validator';
+import { IsString, IsNotEmpty, MaxLength, IsOptional } from 'class-validator';
 import { ApiPropertyOptional } from '@nestjs/swagger';
 
 export class UpdatePlaylistDto {
-  @ApiPropertyOptional({ example: 'Updated Playlist Title' })
-  @IsString()
+  @ApiPropertyOptional({
+    description: 'New playlist title (cannot be empty if provided)',
+    example: 'Updated Playlist Title',
+    maxLength: 255,
+  })
   @IsOptional()
+  @IsString()
+  @IsNotEmpty({ message: 'Title should not be empty' })
   @MaxLength(255)
   title?: string;
 
-  @ApiPropertyOptional({ example: 'A new description.' })
-  @IsString()
-  @IsOptional()
-  description?: string;
-
   @ApiPropertyOptional({
-    example: 'https://s3.amazonaws.com/covers/pl_abc123_new.jpg',
-    name: 'cover_image',
+    description: 'New description of the playlist',
+    example: 'A new description.',
   })
-  @IsString()
   @IsOptional()
-  cover_image?: string;
+  @IsString()
+  description?: string;
 }

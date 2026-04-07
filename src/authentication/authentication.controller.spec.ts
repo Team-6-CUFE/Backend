@@ -633,11 +633,11 @@ describe('AuthenticationController', () => {
     it('should delegate to handleOAuthCallback with profile and response', async () => {
       const profile = mockOAuthProfile();
       const res = mockResponseWithCookie();
-      service.handleOAuthCallback.mockResolvedValue({
-        status: 'success',
-        type: 'login',
-        data: {},
-      });
+      const mockRedirectResponse = {
+        url: 'http://localhost:3000/home',
+        statusCode: 302,
+      };
+      service.handleOAuthCallback.mockResolvedValue(mockRedirectResponse);
 
       await controller.googleCallback(profile as any, res as any);
 
@@ -646,19 +646,18 @@ describe('AuthenticationController', () => {
     });
 
     it('should return the service response as is', async () => {
-      const mockServiceResponse = {
-        status: 'success',
-        type: 'registrationIncomplete',
-        data: { pendingToken: mockPendingToken, prefill: {} },
+      const profile = mockOAuthProfile();
+      const res = mockResponseWithCookie();
+      const mockRedirectResponse = {
+        url: 'http://localhost:3000/home',
+        statusCode: 302,
       };
-      service.handleOAuthCallback.mockResolvedValue(mockServiceResponse);
+      service.handleOAuthCallback.mockResolvedValue(mockRedirectResponse);
 
-      const result = await controller.googleCallback(
-        mockOAuthProfile() as any,
-        mockResponseWithCookie() as any
-      );
+      const result = await controller.googleCallback(profile as any, res as any);
 
-      expect(result).toEqual(mockServiceResponse);
+      expect(service.handleOAuthCallback).toHaveBeenCalledWith(profile, res);
+      expect(result).toEqual(mockRedirectResponse);
     });
 
     it('should propagate exception thrown by service', async () => {
@@ -794,42 +793,6 @@ describe('AuthenticationController', () => {
       );
 
       expect(result).toEqual(mockServiceResponse);
-    });
-
-    it('should return login type when user already exists', async () => {
-      service.handleOAuthCallback.mockResolvedValue({
-        status: 'success',
-        type: 'login',
-        data: { userId: mockUserId, email: mockEmail },
-      });
-
-      const result = await controller.facebookCallback(
-        mockOAuthProfile() as any,
-        mockResponseWithCookie() as any
-      );
-
-      expect(result.type).toBe('login');
-    });
-
-    it('should return registrationIncomplete type for new user', async () => {
-      service.handleOAuthCallback.mockResolvedValue({
-        status: 'success',
-        type: 'registrationIncomplete',
-        data: {
-          pendingToken: mockPendingToken,
-          prefill: { displayName: 'John Doe', email: mockEmail },
-        },
-      });
-
-      const result = await controller.facebookCallback(
-        mockOAuthProfile() as any,
-        mockResponseWithCookie() as any
-      );
-
-      expect(result.type).toBe('registrationIncomplete');
-      // ← use type assertion to tell TypeScript which type it is
-      const data = result.data as { pendingToken: string; prefill: object };
-      expect(data.pendingToken).toBe(mockPendingToken);
     });
 
     it('should propagate exception thrown by service', async () => {

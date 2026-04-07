@@ -813,47 +813,7 @@ export function ApiGoogleCallback() {
     ApiOperation({
       summary: 'Google OAuth callback',
       description:
-        'Handles the OAuth callback from Google. Returns `type: login` for existing users or `type: registrationIncomplete` for new users who need to complete their profile.',
-    }),
-    ApiResponse({
-      status: 200,
-      description: 'OAuth handled successfully',
-      content: {
-        'application/json': {
-          examples: {
-            login: {
-              summary: 'Returning or linked user — sets cookies and returns user data',
-              value: {
-                status: 'success',
-                type: 'login',
-                data: {
-                  userId: '550e8400-e29b-41d4-a716-446655440001',
-                  email: 'yara@gmail.com',
-                  username: 'yara_senousy',
-                  displayName: 'Yara Senousy',
-                  avatarUrl: 'https://lh3.googleusercontent.com/photo.jpg',
-                  role: 'listener',
-                  plan: 'free',
-                },
-              },
-            },
-            registrationIncomplete: {
-              summary: 'New user — redirect to complete profile screen',
-              value: {
-                status: 'success',
-                type: 'registrationIncomplete',
-                data: {
-                  pendingToken: 'a1e4ae8b90f6cd13291249...',
-                  prefill: {
-                    displayName: 'Yara Senousy',
-                    email: 'yara@gmail.com',
-                  },
-                },
-              },
-            },
-          },
-        },
-      },
+        'Handles the OAuth callback from Google. Redirect to the homepage for existing users or redirect to the profile completion page for new users who need to complete their profile with query parameters pendingToken and displayName.',
     }),
     ApiResponse({
       status: 404,
@@ -888,47 +848,7 @@ export function ApiFacebookCallback() {
     ApiOperation({
       summary: 'Facebook OAuth callback',
       description:
-        'Handles the OAuth callback from Facebook. Returns the same response shape as the Google callback.',
-    }),
-    ApiResponse({
-      status: 200,
-      description: 'OAuth handled successfully',
-      content: {
-        'application/json': {
-          examples: {
-            login: {
-              summary: 'Returning or linked user',
-              value: {
-                status: 'success',
-                type: 'login',
-                data: {
-                  userId: '550e8400-e29b-41d4-a716-446655440001',
-                  email: 'yara@example.com',
-                  username: 'yara_senousy',
-                  displayName: 'Yara Senousy',
-                  avatarUrl: 'https://graph.facebook.com/photo.jpg',
-                  role: 'listener',
-                  plan: 'free',
-                },
-              },
-            },
-            registrationIncomplete: {
-              summary: 'New user — redirect to complete profile screen',
-              value: {
-                status: 'success',
-                type: 'registrationIncomplete',
-                data: {
-                  pendingToken: 'a1e4ae8b90f6cd13291249...',
-                  prefill: {
-                    displayName: 'Yara Senousy',
-                    email: 'yara@facebook.com',
-                  },
-                },
-              },
-            },
-          },
-        },
-      },
+        'Handles the OAuth callback from Facebook. Redirect to the homepage for existing users or redirect to the profile completion page for new users who need to complete their profile with query parameters pendingToken and displayName.',
     }),
     ApiResponse({
       status: 404,

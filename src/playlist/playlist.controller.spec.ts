@@ -30,6 +30,18 @@ const mockPlaylistService = () => ({
   getLikesCount: jest.fn(),
   getPlaylistLikes: jest.fn(),
   getUserPlaylistLikes: jest.fn(),
+  createPlaylist: jest.fn(),
+  updatePlaylist: jest.fn(),
+  indTrackById: jest.fn(),
+  updatePlaylistStats: jest.fn(),
+  addTrackToPlaylist: jest.fn(),
+  findMaxPosition: jest.fn(),
+  findTrackInPlaylist: jest.fn(),
+  removeTrackAndReorder: jest.fn(),
+  removeTrackFromPlaylist: jest.fn(),
+  deletePlaylist: jest.fn(),
+  getPlaylist: jest.fn(),
+  reorder: jest.fn(),
 });
 
 // ─── Suite ────────────────────────────────────────────────────────────────────
@@ -572,6 +584,186 @@ describe('PlaylistController', () => {
       await expect(
         controller.getUserTrackLikes(mockUserId, mockMyUserId, mockPage, mockLimit)
       ).rejects.toThrow(ForbiddenException);
+    });
+  });
+
+  // ─── updatePlaylist ───────────────────────────────────────────────────────
+
+  describe('updatePlaylist', () => {
+    const updateDto = { title: 'Updated Title' };
+    const mockFile = { buffer: Buffer.from('test') } as Express.Multer.File;
+
+    it('should delegate to service with userId, playlistId, dto and file', async () => {
+      const mockResponse = { status: 'Success', message: 'Playlist updated successfully' };
+      service.updatePlaylist.mockResolvedValue(mockResponse);
+
+      const result = await controller.updatePlaylist(
+        mockUserId,
+        mockPlaylistId,
+        updateDto,
+        mockFile
+      );
+
+      expect(service.updatePlaylist).toHaveBeenCalledWith(
+        mockUserId,
+        mockPlaylistId,
+        updateDto,
+        mockFile
+      );
+      expect(result).toBe(mockResponse);
+    });
+
+    it('should work even if file is not provided', async () => {
+      const mockResponse = { status: 'Success' };
+      service.updatePlaylist.mockResolvedValue(mockResponse);
+
+      const result = await controller.updatePlaylist(
+        mockUserId,
+        mockPlaylistId,
+        updateDto,
+        undefined // No file
+      );
+
+      expect(service.updatePlaylist).toHaveBeenCalledWith(
+        mockUserId,
+        mockPlaylistId,
+        updateDto,
+        undefined
+      );
+      expect(result.status).toBe('Success');
+    });
+
+    it('should propagate NotFoundException from service', async () => {
+      service.updatePlaylist.mockRejectedValue(new NotFoundException());
+
+      await expect(
+        controller.updatePlaylist(mockUserId, mockPlaylistId, updateDto)
+      ).rejects.toThrow(NotFoundException);
+    });
+
+    it('should propagate ForbiddenException from service', async () => {
+      service.updatePlaylist.mockRejectedValue(new ForbiddenException());
+
+      await expect(
+        controller.updatePlaylist(mockUserId, mockPlaylistId, updateDto)
+      ).rejects.toThrow(ForbiddenException);
+    });
+  });
+
+  // ─── addTrackToPlaylist ───────────────────────────────────────────────────
+
+  describe('addTrackToPlaylist', () => {
+    const addTrackDto = { trackId: '550e8400-e29b-41d4-a716-446655440005' };
+
+    it('should delegate to service with playlistId, trackId from body, and userId', async () => {
+      const mockResponse = {
+        status: 'success',
+        data: { playlistId: mockPlaylistId, trackId: addTrackDto.trackId, position: 1 },
+      };
+      service.addTrackToPlaylist.mockResolvedValue(mockResponse);
+
+      const result = await controller.addTrackToPlaylist(mockPlaylistId, addTrackDto, mockUserId);
+
+      expect(service.addTrackToPlaylist).toHaveBeenCalledWith(
+        mockPlaylistId,
+        addTrackDto.trackId,
+        mockUserId
+      );
+      expect(result).toBe(mockResponse);
+    });
+
+    it('should propagate NotFoundException when playlist or track not found', async () => {
+      service.addTrackToPlaylist.mockRejectedValue(new NotFoundException('Track not found'));
+
+      await expect(
+        controller.addTrackToPlaylist(mockPlaylistId, addTrackDto, mockUserId)
+      ).rejects.toThrow(NotFoundException);
+    });
+
+    it('should propagate ForbiddenException when user is not owner', async () => {
+      service.addTrackToPlaylist.mockRejectedValue(new ForbiddenException());
+
+      await expect(
+        controller.addTrackToPlaylist(mockPlaylistId, addTrackDto, mockUserId)
+      ).rejects.toThrow(ForbiddenException);
+    });
+
+    it('should propagate ConflictException when track already exists in playlist', async () => {
+      service.addTrackToPlaylist.mockRejectedValue(new ConflictException());
+
+      await expect(
+        controller.addTrackToPlaylist(mockPlaylistId, addTrackDto, mockUserId)
+      ).rejects.toThrow(ConflictException);
+    });
+  });
+
+  describe('removeTrack', () => {
+    it('should delegate to service', async () => {
+      const mockResponse = {
+        status: 'success',
+        message: 'Track removed from playlist successfully',
+      };
+
+      service.removeTrackFromPlaylist.mockResolvedValue(mockResponse);
+
+      const result = await controller.removeTrack(mockPlaylistId, 'track-id', mockUserId);
+
+      expect(service.removeTrackFromPlaylist).toHaveBeenCalledWith(
+        mockPlaylistId,
+        'track-id',
+        mockUserId
+      );
+      expect(result).toBe(mockResponse);
+    });
+  });
+
+  describe('deletePlaylist', () => {
+    it('should delegate to service', async () => {
+      const mockResponse = { status: 'success', message: 'deleted' };
+      service.deletePlaylist.mockResolvedValue(mockResponse);
+
+      const result = await controller.deletePlaylist(mockPlaylistId, mockUserId);
+
+      expect(service.deletePlaylist).toHaveBeenCalledWith(mockPlaylistId, mockUserId);
+      expect(result).toBe(mockResponse);
+    });
+  });
+
+  describe('getPlaylist', () => {
+    it('should delegate to service', async () => {
+      const mockRes = { status: 'success', data: {} };
+      service.getPlaylist.mockResolvedValue(mockRes);
+
+      const result = await controller.getPlaylist(mockPlaylistId, 'secret-123', mockUserId);
+
+      expect(service.getPlaylist).toHaveBeenCalledWith(mockPlaylistId, mockUserId, 'secret-123');
+      expect(result).toBe(mockRes);
+    });
+  });
+
+  describe('bulkReorder', () => {
+    it('should delegate to playlistService.bulkReorder', async () => {
+      const trackIds = [
+        '550e8400-e29b-41d4-a716-446655440001',
+        '550e8400-e29b-41d4-a716-446655440002',
+      ];
+      const mockResponse = {
+        status: 'success',
+        data: { playlist_id: mockPlaylistId, track_count: 2 },
+      };
+
+      service.reorder.mockResolvedValue(mockResponse);
+
+      const result = await controller.bulkReorder(mockPlaylistId, trackIds, mockUserId);
+
+      expect(service.reorder).toHaveBeenCalledWith(mockPlaylistId, trackIds, mockUserId);
+      expect(result).toBe(mockResponse);
+    });
+
+    it('should throw BadRequestException if track_ids is not an array', async () => {
+      await expect(
+        controller.bulkReorder(mockPlaylistId, 'not-an-array' as any, mockUserId)
+      ).rejects.toThrow(BadRequestException);
     });
   });
 });

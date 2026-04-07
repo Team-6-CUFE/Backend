@@ -78,3 +78,28 @@ export const mockProfileService = () => ({
   updateAvatar: jest.fn(),
   updateCover: jest.fn(),
 });
+
+export const mockStorageService = () => ({
+  uploadFile: jest.fn(),
+  deleteFile: jest.fn(),
+});
+
+export const mockFile = (): Express.Multer.File => {
+  const validImageBuffer = Buffer.from(
+    'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAACklEQVR4nGMAAQAABQABDQottAAAAABJRU5ErkJggg==',
+    'base64'
+  );
+
+  return {
+    fieldname: 'file',
+    originalname: 'test-image.png',
+    encoding: '7bit',
+    mimetype: 'image/png',
+    buffer: validImageBuffer,
+    size: validImageBuffer.length,
+    destination: '',
+    filename: '',
+    path: '',
+    stream: null as any,
+  } as Express.Multer.File;
+};

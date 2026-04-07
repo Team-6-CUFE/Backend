@@ -1,5 +1,7 @@
 import { Injectable, NotFoundException, HttpException, HttpStatus } from '@nestjs/common';
 import { plainToInstance } from 'class-transformer';
+import * as path from 'node:path';
+import sharp from 'sharp';
 import { UserRepository } from './user.repository';
 import { MyProfileDataDto } from './dto/my-profile-data.dto.ts';
 import { PublicProfileDataDto } from './dto/public-profile.dto';
@@ -14,6 +16,7 @@ import { UsernameAvailabilityService } from './username-availability.service';
 import { CreateExternalProfileDto } from './dto/create-external-profile.dto';
 import { UpdateExternalProfileDto } from './dto/update-external-profile.dto';
 import { ExternalProfileRepository } from './external-profile.repository';
+import { StorageService } from '../common/storage_service';
 
 const MAX_EXTERNAL_PROFILES = 10;
 
@@ -23,7 +26,8 @@ export class ProfileService {
     private readonly userRepository: UserRepository,
     private readonly genreRepository: GenreRepository,
     private readonly usernameAvailabilityService: UsernameAvailabilityService,
-    private readonly externalProfileRepository: ExternalProfileRepository
+    private readonly externalProfileRepository: ExternalProfileRepository,
+    private readonly storageService: StorageService
   ) {}
 
   async updateMyPrivacy(userId: string, updatePrivacyReqDto: UpdatePrivacyReqDto) {
@@ -254,36 +258,69 @@ export class ProfileService {
     return { status: 'Success', message: 'External profile deleted successfully' };
   }
 
-  async updateAvatar(userId: string, avatarUrl: string) {
-    // We match your existing pattern of using Partial<User>
+  async updateAvatar(userId: string, file: Express.Multer.File) {
+    const user = await this.userRepository.findById(userId);
+    if (!user) throw new NotFoundException('User not found');
+    const oldAvatarUrl = (user as any).avatarUrl;
+
+    const processedBuffer = await sharp(file.buffer)
+      .resize(500, 500, { fit: 'cover' })
+      .webp({ quality: 80 })
+      .toBuffer();
+
+    const processedFile: Express.Multer.File = {
+      ...file,
+      buffer: processedBuffer,
+      originalname: `profiles/${userId}/avatar_${Date.now()}.webp`,
+      mimetype: 'image/webp',
+      size: processedBuffer.length,
+    };
+
+    const uploaded = await this.storageService.uploadFile(processedFile);
+    const avatarUrl = uploaded.Location;
+
     const userData: Partial<User> = { avatarUrl } as any;
     const updated = await this.userRepository.update(userId, userData);
 
-    if (!updated) throw new NotFoundException('User not found');
+    if (oldAvatarUrl) {
+      this.storageService.deleteFile(oldAvatarUrl).catch(() => null);
+    }
 
     return {
       status: 'Success',
       message: 'Profile picture updated successfully',
-      data: {
-        avatarUrl,
-        updatedAt: updated.updatedAt,
-      },
+      data: { avatarUrl, updatedAt: updated!.updatedAt },
     };
   }
 
-  async updateCover(userId: string, coverPhotoUrl: string) {
+  async updateCover(userId: string, file: Express.Multer.File) {
+    const user = await this.userRepository.findById(userId);
+    if (!user) throw new NotFoundException('User not found');
+    const oldCoverUrl = (user as any).coverPhoto;
+
+    const extension = path.extname(file.originalname);
+
+    const fileToUpload: Express.Multer.File = {
+      ...file,
+      originalname: `profiles/${userId}/cover_${Date.now()}${extension}`,
+    };
+
+    const uploaded = await this.storageService.uploadFile(fileToUpload);
+    const coverPhotoUrl = uploaded.Location;
+
     const userData: Partial<User> = { coverPhoto: coverPhotoUrl } as any;
     const updated = await this.userRepository.update(userId, userData);
 
-    if (!updated) throw new NotFoundException('User not found');
+    if (oldCoverUrl) {
+      this.storageService
+        .deleteFile(oldCoverUrl)
+        .catch((err) => console.warn(`Failed to delete old cover ${oldCoverUrl}`, err));
+    }
 
     return {
       status: 'Success',
       message: 'Cover photo updated successfully',
-      data: {
-        coverPhoto: coverPhotoUrl,
-        updatedAt: updated.updatedAt,
-      },
+      data: { coverPhoto: coverPhotoUrl, updatedAt: updated!.updatedAt },
     };
   }
 }
