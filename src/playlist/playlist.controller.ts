@@ -13,6 +13,8 @@ import {
   UploadedFile,
   UseInterceptors,
   Patch,
+  Put,
+  BadRequestException,
 } from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
 import { FileInterceptor } from '@nestjs/platform-express';
@@ -209,5 +211,18 @@ export class PlaylistController {
     @CurrentUser('sub') userId: string | null // Make sure your decorator handles null for guests
   ) {
     return this.playlistService.getPlaylist(playlistId, userId, secretToken);
+  }
+
+  @Put(':playlistId/tracks/reorder')
+  // @ApiBulkReorderTracks()
+  async bulkReorder(
+    @Param('playlistId', ParseUUIDPipe) playlistId: string,
+    @Body('trackIds') trackIds: string[],
+    @CurrentUser('sub') userId: string
+  ) {
+    if (!Array.isArray(trackIds) || trackIds.length === 0) {
+      throw new BadRequestException('trackIds must be a non-empty array of track IDs');
+    }
+    return this.playlistService.bulkReorder(playlistId, trackIds, userId);
   }
 }
