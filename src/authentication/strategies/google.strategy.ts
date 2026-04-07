@@ -1,6 +1,6 @@
 import { PassportStrategy } from '@nestjs/passport';
 import { Strategy, VerifyCallback } from 'passport-google-oauth20';
-import { Injectable } from '@nestjs/common';
+import { BadRequestException, Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { OAuthProfile } from '../types/oauth-profile.type';
 
@@ -22,6 +22,25 @@ export class GoogleStrategy extends PassportStrategy(Strategy, 'google') {
     done: VerifyCallback
   ): Promise<any> {
     const { name, emails, id } = profile;
+
+    if (!emails || !emails[0]?.value) {
+      return done(
+        new BadRequestException(
+          'We could not retrieve your email from Google. Please make sure your Google account has an email address and try again.'
+        ),
+        false
+      );
+    }
+
+    if (!name || !name?.givenName) {
+      return done(
+        new BadRequestException(
+          'We could not retrieve your name from Google. Please make sure your Google account has a name and try again.'
+        ),
+        false
+      );
+    }
+
     const oauthProfile: OAuthProfile = {
       provider: 'google',
       providerId: id,
@@ -29,6 +48,6 @@ export class GoogleStrategy extends PassportStrategy(Strategy, 'google') {
       firstName: name.givenName,
       lastName: name.familyName,
     };
-    done(null, oauthProfile);
+    return done(null, oauthProfile);
   }
 }

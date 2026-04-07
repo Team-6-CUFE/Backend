@@ -8,6 +8,7 @@ import {
 import { TrackController } from './track.controller';
 import { TrackService } from './track.service';
 import { NoBlockGuard } from '../followers/guards/no-block.guard';
+import { TrackSseService } from './services/track-sse.service';
 
 const mockTrackId = '123e4567-e89b-12d3-a456-426614174000';
 const mockUserId = '550e8400-e29b-41d4-a716-446655440001';
@@ -38,7 +39,10 @@ describe('TrackController', () => {
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       controllers: [TrackController],
-      providers: [{ provide: TrackService, useFactory: mockTrackService }],
+      providers: [
+        { provide: TrackService, useFactory: mockTrackService },
+        { provide: TrackSseService, useValue: {} },
+      ],
     })
       .overrideGuard(NoBlockGuard)
       .useValue({ canActivate: () => true })

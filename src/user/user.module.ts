@@ -12,6 +12,7 @@ import { FavoriteGenre } from './entities/favorite-genre.entity';
 import { GenreModule } from '../genre/genre.module';
 import { UsernameAvailabilityService } from './username-availability.service';
 import { ExternalProfileRepository } from './external-profile.repository';
+import { StorageService } from '../common/storage_service';
 
 @Module({
   imports: [
@@ -25,6 +26,7 @@ import { ExternalProfileRepository } from './external-profile.repository';
     ProfileService,
     UsernameAvailabilityService,
     ExternalProfileRepository,
+    StorageService,
   ],
   exports: [UserService, UserRepository, ExternalProfileRepository],
 })

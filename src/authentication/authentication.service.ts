@@ -48,6 +48,8 @@ const VERIFICATION_TOKEN_EXPIRY_MINUTES = 24 * 60;
 const VERIFICATION_CODE_EXPIRY_MINUTES = 5;
 
 const PENDING_OAUTH_TOKEN_EXPIRY_MINUTES = 10;
+
+const FRONTEND_URL = process.env.FRONTEND_URL || 'http://localhost:3000';
 @Injectable()
 export class AuthenticationService {
   constructor(
@@ -665,9 +667,8 @@ export class AuthenticationService {
 
       await this.issueTokens(user, response, profile.email);
       return {
-        status: 'success',
-        type: 'login',
-        data: this.buildUserResponse(user),
+        url: `${FRONTEND_URL}/home`,
+        statusCode: 302,
       };
     }
 
@@ -683,24 +684,19 @@ export class AuthenticationService {
       );
       await this.issueTokens(existingUser, response, profile.email);
       return {
-        status: 'success',
-        type: 'login',
-        data: this.buildUserResponse(existingUser),
+        url: `${FRONTEND_URL}/home`,
+        statusCode: 302,
       };
     }
 
     // Brand new user
     const pendingToken = await this.createPendingOAuthSession(profile);
+    const displayName = `${profile.firstName} ${profile.lastName}`;
     return {
-      status: 'success',
-      type: 'registrationIncomplete',
-      data: {
-        pendingToken,
-        prefill: {
-          displayName: `${profile.firstName} ${profile.lastName}`,
-          email: profile.email,
-        },
-      },
+      url: `${FRONTEND_URL}/auth/callback?pendingToken=${
+        pendingToken
+      }&displayName=${encodeURIComponent(displayName)}`,
+      statusCode: 302,
     };
   }
 

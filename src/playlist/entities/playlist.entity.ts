@@ -36,11 +36,17 @@ export class Playlist extends BaseEntity {
   @Column({ type: 'int', default: 0, name: 'reposts_count' })
   repostsCount!: number;
 
+  @Column({ type: 'int', default: 0, name: 'total_duration_seconds' })
+  totalDurationSeconds!: number;
+
   @Column({ type: 'uuid', name: 'user_id' })
   userId!: string;
 
   @Column({ type: 'int', name: 'tracks_count' })
   tracksCount!: number;
+
+  @Column({ type: 'varchar', length: 255, nullable: true, name: 'secret_token' })
+  secretToken?: string | null;
 
   // Relationship
   @ManyToOne(() => User, { onDelete: 'CASCADE' })

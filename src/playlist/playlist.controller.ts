@@ -1,4 +1,4 @@
-import { Controller, Delete, Get, Param, Post, ParseUUIDPipe, Query } from '@nestjs/common';
+import { Controller, Delete, Get, Param, Post, ParseUUIDPipe, Query, Body } from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
 import { PlaylistService } from './playlist.service';
 import {
@@ -12,9 +12,12 @@ import {
   ApiGetUserPlaylistLikes,
   ApiLikePlaylist,
   ApiUnlikePlaylist,
+  ApiDeletePlaylist,
+  ApiCreatePlaylist,
 } from './playlist.swagger';
 import { CurrentUser } from '../authentication/decorators/current-user.decorator';
 import { CheckBlock } from '../followers/decorators/no-block.decorator';
+import { CreatePlaylistDto } from './dto/create-playlist.dto';
 
 @ApiTags('Playlist')
 @Controller('playlist')
@@ -117,5 +120,18 @@ export class PlaylistController {
     @Query('limit') limit: number
   ) {
     return this.playlistService.getUserPlaylistLikes(userId, myUserId, page, limit);
+  }
+
+  @ApiDeletePlaylist()
+  @CheckBlock()
+  @Delete('/:playlistId')
+  deletePlaylist(@Param('playlistId') playlistId: string, @CurrentUser('sub') userId: string) {
+    return this.playlistService.deletePlaylist(playlistId, userId);
+  }
+
+  @ApiCreatePlaylist()
+  @Post('create-playlist')
+  createPlaylist(@Body() createPlaylistDto: CreatePlaylistDto) {
+    return this.playlistService.createPlaylist(createPlaylistDto);
   }
 }
