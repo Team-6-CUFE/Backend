@@ -2239,10 +2239,12 @@ describe('AuthenticationService', () => {
     it('should return login response for returning user (social account found)', async () => {
       userService.findSocialAccount.mockResolvedValue(mockSocialAccount());
 
-      const result = await service.handleOAuthCallback(mockOAuthProfile(), res as any);
+      const result = (await service.handleOAuthCallback(mockOAuthProfile(), res as any)) as {
+        url: string;
+        statusCode: number;
+      };
 
-      expect(result.status).toBe('success');
-      expect(result.type).toBe('login');
+      expect(result.url).toContain('/home');
     });
 
     it('should call findById with userId from social account', async () => {
@@ -2287,8 +2289,7 @@ describe('AuthenticationService', () => {
 
       const result = await service.handleOAuthCallback(mockOAuthProfile(), res as any);
 
-      expect(result.status).toBe('success');
-      expect(result.type).toBe('login');
+      expect(result.url).toContain('/home');
       expect(userService.createSocialAccount).toHaveBeenCalledWith(
         mockUserId,
         'google',
@@ -2319,31 +2320,24 @@ describe('AuthenticationService', () => {
     // ── Case 3: Brand new user ─────────────────────────────────────────────────
 
     it('should return registrationIncomplete for brand new user', async () => {
-      const result = await service.handleOAuthCallback(mockOAuthProfile(), res as any);
+      const result = (await service.handleOAuthCallback(mockOAuthProfile(), res as any)) as {
+        url: string;
+        statusCode: number;
+      };
 
-      expect(result.status).toBe('success');
-      expect(result.type).toBe('registrationIncomplete');
+      expect(result.url).toContain('/complete-oauth-profile');
+      expect(result.url).toContain('pendingToken=');
+      expect(result.url).toContain('displayName=');
     });
 
     it('should return pendingToken in response for new user', async () => {
       const result = await service.handleOAuthCallback(mockOAuthProfile(), res as any);
-
-      if ('pendingToken' in result.data) {
-        expect(result.data.pendingToken).toBe(mockPendingToken);
-      } else {
-        fail('pendingToken not found in result.data');
-      }
+      expect(result.url).toContain(`pendingToken=${mockPendingToken}`);
     });
 
     it('should return prefill data for new user', async () => {
       const result = await service.handleOAuthCallback(mockOAuthProfile(), res as any);
-
-      if ('prefill' in result.data) {
-        expect(result.data.prefill.email).toBe(mockEmail);
-        expect(result.data.prefill.displayName).toBe('Yara Senousy');
-      } else {
-        fail('prefill not found in result.data');
-      }
+      expect(result.url).toContain('displayName=Yara%20Senousy');
     });
 
     it('should call createPendingOauthToken with correct args for new user', async () => {
