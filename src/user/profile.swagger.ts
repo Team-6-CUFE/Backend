@@ -901,3 +901,26 @@ Sorted by most recently played first.`,
     ApiResponse({ status: 500, description: 'Unexpected server error' })
   );
 }
+
+export function ApiDeleteListeningHistory() {
+  return applyDecorators(
+    ApiCookieAuth('access_token'),
+    ApiOperation({
+      summary: 'Clear listening history',
+      description: `Permanently deletes all of the authenticated user's track play records and their entire recently played list.
+This action is irreversible — all play events and the 6-slot recently played cache are wiped in one operation.`,
+    }),
+    ApiResponse({
+      status: 200,
+      description: 'History cleared successfully',
+      schema: {
+        example: {
+          status: 'success',
+          message: 'Listening history and Recently Played cleared successfully',
+        },
+      },
+    }),
+    ApiResponse({ status: 401, description: 'Unauthorized' }),
+    ApiResponse({ status: 500, description: 'Unexpected server error' })
+  );
+}

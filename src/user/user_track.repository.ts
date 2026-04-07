@@ -129,4 +129,9 @@ export class TrackRepository {
       .take(limit)
       .getManyAndCount();
   }
+
+  async deleteUserHistory(userId: string): Promise<void> {
+    await this.trackPlayRepository.delete({ userId });
+    await this.recentlyPlayedRepository.delete({ userId });
+  }
 }

@@ -28,6 +28,7 @@ import {
   ApiUpdateAvatar,
   ApiGetRecentlyPlayed,
   ApiGetListeningHistory,
+  ApiDeleteListeningHistory,
 } from './profile.swagger';
 
 @ApiTags('Profile')
@@ -147,5 +148,11 @@ export class ProfileController {
     @Query('limit') limit: number
   ) {
     return this.profileService.getListeningHistory(userId, page, limit);
+  }
+
+  @ApiDeleteListeningHistory()
+  @Delete('/me/listening-history')
+  deleteUserHistory(@CurrentUser('sub') userId: string) {
+    return this.profileService.deleteUserHistory(userId);
   }
 }

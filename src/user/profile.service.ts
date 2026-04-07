@@ -327,4 +327,12 @@ export class ProfileService {
       ...buildPaginationResponse(mappedHistory, total, page, cappedLimit),
     };
   }
+
+  async deleteUserHistory(userId: string) {
+    await this.trackRepository.deleteUserHistory(userId);
+    return {
+      status: 'success',
+      message: 'Listening history and Recently Played cleared successfully',
+    };
+  }
 }
