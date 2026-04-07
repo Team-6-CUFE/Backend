@@ -4,8 +4,6 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Playlist } from './entities/playlist.entity';
 import { PlaylistRepost } from './entities/playlist-reposts.entity';
 import { PlaylistLike } from './entities/playlist-likes.entity';
-import { CreatePlaylistDto } from './dto/create-playlist.dto';
-import { generateVerificationToken } from '../common/utilities/tokens.util';
 
 @Injectable()
 export class PlaylistRepository {
@@ -130,77 +128,7 @@ export class PlaylistRepository {
       .getManyAndCount();
   }
 
-  async createPlaylist(createPlaylistDto: CreatePlaylistDto, userId: string) {
-    let secretToken = null;
-    if (createPlaylistDto.isPublic === false) {
-      secretToken = generateVerificationToken();
-    }
-
-    const playlist = this.playlistRepository.create({
-      title: createPlaylistDto.title,
-      description: createPlaylistDto.description,
-      coverImage: createPlaylistDto.coverimage,
-      isPublic: createPlaylistDto.isPublic,
-      likesCount: 0,
-      repostsCount: 0,
-      totalDurationSeconds: 0,
-      userId,
-      tracksCount: 0,
-      secretToken,
-    });
-
-    return this.playlistRepository.save(playlist);
-  }
-
-  async getPublicPlaylist(playlistId: string): Promise<Playlist | null> {
-    return this.playlistRepository.findOne({
-      where: {
-        playlistId,
-        isPublic: true,
-      },
-      relations: ['user', 'playlistTracks', 'playlistTracks.track'],
-      order: {
-        playlistTracks: {
-          position: 'ASC',
-        },
-      },
-    });
-  }
-
-  async getSecretPlaylist(secretToken: string): Promise<Playlist | null> {
-    return this.playlistRepository.findOne({
-      where: {
-        secretToken,
-        isPublic: false,
-      },
-      relations: ['user', 'playlistTracks', 'playlistTracks.track'],
-      order: {
-        playlistTracks: {
-          position: 'ASC',
-        },
-      },
-    });
-  }
-
-  async resetSecretToken(playlistId: string): Promise<string | null> {
-    const newToken = generateVerificationToken();
-    await this.playlistRepository.update(
-      { playlistId }, // where condition
-      { secretToken: newToken } // what to update
-    );
-    return newToken;
-  }
-
-  async changePlaylistPrivacy(playlistId: string, isPublic: boolean): Promise<string | null> {
-    if (!isPublic) {
-      const newToken = generateVerificationToken();
-      await this.playlistRepository.update(
-        { playlistId },
-        { secretToken: newToken, isPublic: false }
-      );
-      return newToken;
-    }
-    await this.playlistRepository.update({ playlistId }, { secretToken: null, isPublic: true });
-    return playlistId;
+  async deletePlaylist(playlistId: string) {
+    await this.playlistRepository.delete(playlistId);
   }
 }
