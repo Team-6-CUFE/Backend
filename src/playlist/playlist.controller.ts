@@ -32,6 +32,7 @@ import {
   ApiAddTrackToPlaylist,
   ApiUpdatePlaylist,
   ApiRemoveTrackFromPlaylist,
+  ApiDeletePlaylist,
 } from './playlist.swagger';
 import { CurrentUser } from '../authentication/decorators/current-user.decorator';
 import { CheckBlock } from '../followers/decorators/no-block.decorator';
@@ -190,6 +191,7 @@ export class PlaylistController {
     return this.playlistService.removeTrackFromPlaylist(playlistId, trackId, userId);
   }
 
+  @ApiDeletePlaylist()
   @Delete(':playlistId')
   async deletePlaylist(
     @Param('playlistId', ParseUUIDPipe) playlistId: string,
