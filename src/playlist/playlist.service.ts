@@ -485,4 +485,37 @@ export class PlaylistService {
       message: 'Playlist deleted successfully',
     };
   }
+
+  async getPlaylist(playlistId: string, userId: string | null, secretToken?: string) {
+    const playlist = await this.playlistRepository.getPlaylistDetails(playlistId);
+
+    if (!playlist) {
+      throw new NotFoundException('Playlist not found');
+    }
+
+    // Security Check
+    if (!playlist.isPublic) {
+      const isOwner = userId === playlist.userId;
+      const hasValidSecretToken = secretToken && playlist.secretToken === secretToken;
+
+      if (!isOwner && !hasValidSecretToken) {
+        throw new ForbiddenException('This playlist is private');
+      }
+    }
+
+    // Map the TypeORM entity to the response format
+    return {
+      status: 'success',
+      data: {
+        ...playlist,
+        tracks: playlist.playlistTracks.map((pt) => ({
+          position: pt.position,
+          trackId: pt.trackId,
+          title: pt.track.title,
+          durationSeconds: pt.track.durationSeconds,
+          coverImage: pt.track.coverImage,
+        })),
+      },
+    };
+  }
 }
