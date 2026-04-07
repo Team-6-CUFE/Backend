@@ -1,5 +1,22 @@
-import { Controller, Get, Put, Post, Patch, Delete, Body, Param, Query } from '@nestjs/common';
-import { ApiTags } from '@nestjs/swagger';
+import {
+  Controller,
+  Get,
+  Put,
+  Post,
+  Patch,
+  Delete,
+  Body,
+  Param,
+  Query,
+  ParseFilePipe,
+  MaxFileSizeValidator,
+  FileTypeValidator,
+  UploadedFile,
+  UseInterceptors,
+} from '@nestjs/common';
+import { ApiTags, ApiConsumes, ApiBody } from '@nestjs/swagger';
+
+import { FileInterceptor } from '@nestjs/platform-express';
 import { ProfileService } from './profile.service';
 import { UpdateProfileReqDto } from './dto/update-profile-req.dto';
 import { UpdateBirthdateReqDto } from './dto/update-birthdate.dto';
@@ -10,8 +27,6 @@ import { Public } from '../authentication/decorators/public.decorator';
 import { CurrentUser } from '../authentication/decorators/current-user.decorator';
 import { CreateExternalProfileDto } from './dto/create-external-profile.dto';
 import { UpdateExternalProfileDto } from './dto/update-external-profile.dto';
-import { UpdateAvatarDto } from './dto/update-avatar.dto';
-import { UpdateCoverDto } from './dto/update-cover.dto';
 import {
   ApiGetMyProfile,
   ApiGetProfile,
@@ -120,14 +135,52 @@ export class ProfileController {
   }
 
   @ApiUpdateAvatar()
+  @ApiConsumes('multipart/form-data')
+  @ApiBody({
+    schema: {
+      type: 'object',
+      properties: { file: { type: 'string', format: 'binary' } },
+    },
+  })
+  @UseInterceptors(FileInterceptor('file'))
   @Put('me/avatar')
-  async updateAvatar(@CurrentUser('sub') userId: string, @Body() updateAvatarDto: UpdateAvatarDto) {
-    return this.profileService.updateAvatar(userId, updateAvatarDto.avatarUrl);
+  async updateAvatar(
+    @CurrentUser('sub') userId: string,
+    @UploadedFile(
+      new ParseFilePipe({
+        validators: [
+          new MaxFileSizeValidator({ maxSize: 5 * 1024 * 1024 }), // 5 MB limit
+          new FileTypeValidator({ fileType: '.(png|jpeg|jpg|webp)' }),
+        ],
+      })
+    )
+    file: Express.Multer.File
+  ) {
+    return this.profileService.updateAvatar(userId, file);
   }
 
   @ApiUpdateCover()
+  @ApiConsumes('multipart/form-data')
+  @ApiBody({
+    schema: {
+      type: 'object',
+      properties: { file: { type: 'string', format: 'binary' } },
+    },
+  })
+  @UseInterceptors(FileInterceptor('file'))
   @Put('me/cover')
-  async updateCover(@CurrentUser('sub') userId: string, @Body() updateCoverDto: UpdateCoverDto) {
-    return this.profileService.updateCover(userId, updateCoverDto.coverPhoto);
+  async updateCover(
+    @CurrentUser('sub') userId: string,
+    @UploadedFile(
+      new ParseFilePipe({
+        validators: [
+          new MaxFileSizeValidator({ maxSize: 5 * 1024 * 1024 }), // 5 MB limit
+          new FileTypeValidator({ fileType: '.(png|jpeg|jpg|webp)' }),
+        ],
+      })
+    )
+    file: Express.Multer.File
+  ) {
+    return this.profileService.updateCover(userId, file);
   }
 }
