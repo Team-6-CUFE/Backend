@@ -37,6 +37,7 @@ import {
   ApiStreamTrackStatus,
   ApiUpdateTrackMetadata,
   ApiReuploadTrackAudio,
+  ApiPlayTrack,
 } from './track.swagger';
 import { CurrentUser } from '../authentication/decorators/current-user.decorator';
 import { CheckBlock } from '../followers/decorators/no-block.decorator';
@@ -334,6 +335,7 @@ export class TrackController {
     return this.trackService.reuploadTrackAudio(trackId, userId, audioFile, previewStartTime);
   }
 
+  @ApiPlayTrack()
   @Post(':id/play')
   async playTrack(
     @Param('id', ParseUUIDPipe) trackId: string,

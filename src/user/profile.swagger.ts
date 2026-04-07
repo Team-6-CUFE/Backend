@@ -765,3 +765,139 @@ export function ApiCheckUsername() {
     ApiResponse({ status: 500, description: 'Unexpected server error' })
   );
 }
+
+export function ApiGetRecentlyPlayed() {
+  return applyDecorators(
+    ApiCookieAuth('access_token'),
+    ApiOperation({
+      summary: 'Get recently played',
+      description: `Returns the authenticated user's 6 most recent artists and playlists they have listened to.
+Items are sorted by most recently played first. When a user replays an artist or playlist, it bubbles to the top.
+Each item is typed as either \`"artist"\` or \`"playlist"\` — only the matching detail field is populated, the other is absent.`,
+    }),
+    ApiResponse({
+      status: 200,
+      description: 'Recently played retrieved successfully',
+      schema: {
+        example: {
+          status: 'success',
+          data: [
+            {
+              type: 'artist',
+              playedAt: '2026-04-07T00:30:00.000Z',
+              artist: {
+                userId: '550e8400-e29b-41d4-a716-446655440002',
+                username: 'the_weeknd',
+                displayName: 'The Weeknd',
+                avatarUrl: 'https://cdn.example.com/avatars/the_weeknd.jpg',
+                followersCount: 1500000,
+              },
+            },
+            {
+              type: 'playlist',
+              playedAt: '2026-04-06T22:15:00.000Z',
+              playlist: {
+                playlistId: '550e8400-e29b-41d4-a716-446655440003',
+                title: 'Lo-Fi Study Mix',
+                coverImage: 'https://cdn.example.com/playlists/lofi-study.jpg',
+                tracksCount: 18,
+                owner: {
+                  userId: '550e8400-e29b-41d4-a716-446655440005',
+                  username: 'lo_fi_vibes',
+                  displayName: 'Lo-Fi Vibes',
+                },
+              },
+            },
+          ],
+        },
+      },
+    }),
+    ApiResponse({ status: 401, description: 'Unauthorized' }),
+    ApiResponse({ status: 500, description: 'Unexpected server error' })
+  );
+}
+
+export function ApiGetListeningHistory() {
+  return applyDecorators(
+    ApiCookieAuth('access_token'),
+    ApiOperation({
+      summary: 'Get paginated listening history',
+      description: `Returns the authenticated user's complete track play history with pagination.
+Each entry is a raw play event — the same track can appear multiple times if played more than once.
+Sorted by most recently played first.`,
+    }),
+    ApiQuery({
+      name: 'page',
+      required: false,
+      description: 'Page number (default: 1)',
+      type: 'number',
+      example: 1,
+    }),
+    ApiQuery({
+      name: 'limit',
+      required: false,
+      description: 'Number of results per page (default: 10, max: 50)',
+      type: 'number',
+      example: 10,
+    }),
+    ApiResponse({
+      status: 200,
+      description: 'Listening history retrieved successfully',
+      schema: {
+        example: {
+          status: 'success',
+          data: [
+            {
+              track_play_id: '550e8400-e29b-41d4-a716-446655440001',
+              playedAt: '2026-04-07T00:30:00.000Z',
+              track: {
+                trackId: '550e8400-e29b-41d4-a716-446655440010',
+                title: 'Blinding Lights',
+                coverImage: 'https://cdn.example.com/covers/blinding_lights.jpg',
+                durationSeconds: 200,
+                tags: ['pop', 'synthwave'],
+                likesCount: 9400,
+                repostsCount: 312,
+                playCount: 84000,
+                commentsCount: 57,
+                owner: {
+                  userId: '550e8400-e29b-41d4-a716-446655440002',
+                  username: 'the_weeknd',
+                  displayName: 'The Weeknd',
+                },
+              },
+            },
+            {
+              track_play_id: '052c8363-22a3-46fa-b7de-94a78c9d5880',
+              playedAt: '2026-04-06T23:11:14.957Z',
+              track: {
+                trackId: '1808095e-5e71-4eae-95df-30a7fc16c9d7',
+                title: 'Sweet Georgia Brown',
+                coverImage: 'https://picsum.photos/seed/TisV9QlJ/500/500',
+                durationSeconds: 460,
+                tags: ['meow', 'mahmoud', 'cats'],
+                likesCount: 21,
+                repostsCount: 8,
+                playCount: 70888,
+                commentsCount: 9,
+                owner: {
+                  userId: 'e21ce4d0-600e-4d77-9f1d-bdbcf641b72e',
+                  username: 'artist1',
+                  displayName: 'John Doe',
+                },
+              },
+            },
+          ],
+          pagination: {
+            currentPage: 1,
+            totalPages: 5,
+            totalCount: 47,
+            limit: 10,
+          },
+        },
+      },
+    }),
+    ApiResponse({ status: 401, description: 'Unauthorized' }),
+    ApiResponse({ status: 500, description: 'Unexpected server error' })
+  );
+}

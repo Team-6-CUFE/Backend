@@ -26,6 +26,8 @@ import {
   ApiUpdateExternalProfile,
   ApiDeleteExternalProfile,
   ApiUpdateAvatar,
+  ApiGetRecentlyPlayed,
+  ApiGetListeningHistory,
 } from './profile.swagger';
 
 @ApiTags('Profile')
@@ -131,11 +133,13 @@ export class ProfileController {
     return this.profileService.updateCover(userId, updateCoverDto.coverPhoto);
   }
 
+  @ApiGetRecentlyPlayed()
   @Get('/me/recently-played')
   getRecentlyPlayed(@CurrentUser('sub') userId: string) {
     return this.profileService.getRecentlyPlayed(userId);
   }
 
+  @ApiGetListeningHistory()
   @Get('/me/listening-history')
   getListeningHistory(
     @CurrentUser('sub') userId: string,

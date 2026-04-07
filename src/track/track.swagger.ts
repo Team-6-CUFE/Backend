@@ -1030,3 +1030,49 @@ Returns immediately with \`trackStatus: "processing"\`. Rejected if the track is
     ApiResponse({ status: 409, description: 'Track is currently being processed' })
   );
 }
+
+// ─── Play Track ───────────────────────────────────────────────────────────
+
+export function ApiPlayTrack() {
+  return applyDecorators(
+    ApiCookieAuth('access_token'),
+    ApiOperation({
+      summary: 'Record a track play',
+      description: `Records that the authenticated user has played a track. This is used for listening history, recently played, and analytics.
+If a playlistId is provided, the play is recorded with that playlist. Otherwise, the play is recorded for the artist only.
+Returns the status of the play recording and a play count.`,
+    }),
+    ApiParam({ name: 'id', description: 'UUID of the track to play', type: 'string' }),
+    ApiBody({
+      required: false,
+      schema: {
+        type: 'object',
+        properties: {
+          playlistId: {
+            type: 'string',
+            format: 'uuid',
+            description: 'Optional UUID of the playlist the track is being played from',
+            example: '550e8400-e29b-41d4-a716-446655440001',
+          },
+        },
+      },
+    }),
+    ApiResponse({
+      status: 200,
+      description: 'Track play recorded successfully',
+      schema: {
+        example: {
+          status: 'success',
+          message: 'Track play recorded',
+          data: {
+            trackId: '550e8400-e29b-41d4-a716-446655440001',
+            playCount: 42,
+          },
+        },
+      },
+    }),
+    ApiResponse({ status: 400, description: 'Invalid track ID or playlistId format' }),
+    ApiResponse({ status: 401, description: 'Unauthorized' }),
+    ApiResponse({ status: 404, description: 'Track not found' })
+  );
+}
