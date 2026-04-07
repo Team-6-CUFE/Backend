@@ -13,6 +13,9 @@ import {
   ApiLikePlaylist,
   ApiUnlikePlaylist,
   ApiCreatePlaylist,
+  ApiGetPublicPlaylist,
+  ApiGetSecretPlaylist,
+  ApiResetPlaylistSecretToken,
 } from './playlist.swagger';
 import { CurrentUser } from '../authentication/decorators/current-user.decorator';
 import { CheckBlock } from '../followers/decorators/no-block.decorator';
@@ -125,5 +128,23 @@ export class PlaylistController {
   @Post('create-playlist')
   createPlaylist(@Body() createPlaylistDto: CreatePlaylistDto, @CurrentUser('sub') userId: string) {
     return this.playlistService.createPlaylist(createPlaylistDto, userId);
+  }
+
+  @ApiGetPublicPlaylist()
+  @Get('/:playlistId')
+  getPublicPlaylist(@Param('playlistId') playlistId: string, @CurrentUser('sub') userId: string) {
+    return this.playlistService.getPublicPlaylist(playlistId, userId);
+  }
+
+  @ApiGetSecretPlaylist()
+  @Get('/secret/:playlistId')
+  getSecretPlaylist(@Param('secretToken') secretToken: string) {
+    return this.playlistService.getSecretPlaylist(secretToken);
+  }
+
+  @ApiResetPlaylistSecretToken()
+  @Post('/:playlistId/reset-token')
+  resetSecretToken(@Param('playlistId') playlistId: string, @CurrentUser('sub') userId: string) {
+    return this.playlistService.resetSecretToken(playlistId, userId);
   }
 }

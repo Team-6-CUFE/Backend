@@ -151,4 +151,43 @@ export class PlaylistRepository {
 
     return this.playlistRepository.save(playlist);
   }
+
+  async getPublicPlaylist(playlistId: string): Promise<Playlist | null> {
+    return this.playlistRepository.findOne({
+      where: {
+        playlistId,
+        isPublic: true,
+      },
+      relations: ['user', 'playlistTracks', 'playlistTracks.track'],
+      order: {
+        playlistTracks: {
+          position: 'ASC',
+        },
+      },
+    });
+  }
+
+  async getSecretPlaylist(secretToken: string): Promise<Playlist | null> {
+    return this.playlistRepository.findOne({
+      where: {
+        secretToken,
+        isPublic: false,
+      },
+      relations: ['user', 'playlistTracks', 'playlistTracks.track'],
+      order: {
+        playlistTracks: {
+          position: 'ASC',
+        },
+      },
+    });
+  }
+
+  async resetSecretToken(playlistId: string): Promise<string | null> {
+    const newToken = generateVerificationToken();
+    await this.playlistRepository.update(
+      { playlistId }, // where condition
+      { secretToken: newToken } // what to update
+    );
+    return newToken;
+  }
 }
