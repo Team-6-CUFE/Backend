@@ -466,4 +466,23 @@ export class PlaylistService {
       message: 'Track removed from playlist successfully',
     };
   }
+
+  async deletePlaylist(playlistId: string, userId: string) {
+    const playlist = await this.playlistRepository.findPlaylistById(playlistId);
+
+    if (!playlist) {
+      throw new NotFoundException('Playlist not found');
+    }
+
+    if (playlist.userId !== userId) {
+      throw new ForbiddenException('You are not authorized to delete this playlist');
+    }
+
+    await this.playlistRepository.deletePlaylist(playlistId);
+
+    return {
+      status: 'success',
+      message: 'Playlist deleted successfully',
+    };
+  }
 }
