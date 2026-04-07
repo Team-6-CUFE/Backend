@@ -5,11 +5,20 @@ import {
   ForbiddenException,
   NotFoundException,
 } from '@nestjs/common';
-import { PlaylistService } from './playlist.service';
+
+import { ConfigService } from '@nestjs/config';
 import { PlaylistRepository } from './playlist.repository';
 import { UserRepository } from '../user/user.repository';
+import { StorageService } from '../common/storage_service';
+import { PlaylistService } from './playlist.service';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
+
+jest.mock('sharp', () => () => ({
+  resize: jest.fn().mockReturnThis(),
+  webp: jest.fn().mockReturnThis(),
+  toBuffer: jest.fn().mockResolvedValue(Buffer.from('ok')),
+}));
 
 const mockPlaylistId = '550e8400-e29b-41d4-a716-446655440000';
 const mockUserId = '550e8400-e29b-41d4-a716-446655440001';
@@ -31,6 +40,26 @@ const mockPlaylistRepository = () => ({
   removeLike: jest.fn(),
   getPlaylistLikes: jest.fn(),
   getUserPlaylistLikes: jest.fn(),
+  updatePlaylist: jest.fn(),
+  findTrackById: jest.fn(),
+  updatePlaylistStats: jest.fn(),
+  addTrackToPlaylist: jest.fn(),
+  findMaxPosition: jest.fn(),
+  findTrackInPlaylist: jest.fn(),
+  removeTrackAndReorder: jest.fn(),
+  deletePlaylist: jest.fn(),
+  getPlaylistDetails: jest.fn(),
+  findAllTrackIdsInPlaylist: jest.fn(),
+  reorderTracks: jest.fn(),
+});
+
+const mockStorageService = () => ({
+  uploadFile: jest.fn(),
+  deleteFile: jest.fn(),
+});
+
+const mockConfigService = () => ({
+  get: jest.fn(),
 });
 
 const mockUserRepository = () => ({
@@ -143,6 +172,7 @@ describe('PlaylistService', () => {
   let service: PlaylistService;
   let playlistRepo: ReturnType<typeof mockPlaylistRepository>;
   let userRepo: ReturnType<typeof mockUserRepository>;
+  let storageService: ReturnType<typeof mockStorageService>;
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
@@ -150,12 +180,15 @@ describe('PlaylistService', () => {
         PlaylistService,
         { provide: PlaylistRepository, useFactory: mockPlaylistRepository },
         { provide: UserRepository, useFactory: mockUserRepository },
+        { provide: ConfigService, useFactory: mockConfigService },
+        { provide: StorageService, useFactory: mockStorageService },
       ],
     }).compile();
 
     service = module.get(PlaylistService);
     playlistRepo = module.get(PlaylistRepository);
     userRepo = module.get(UserRepository);
+    storageService = module.get(StorageService);
   });
 
   afterEach(() => jest.clearAllMocks());
@@ -855,6 +888,130 @@ describe('PlaylistService', () => {
         likedAt: like.createdAt,
       });
       expect(result.data[0]).not.toHaveProperty('repostedAt');
+    });
+  });
+
+  // ─── updatePlaylist() ──────────────────────────────────────────────────────
+
+  describe('updatePlaylist', () => {
+    it('should update with an image file and not crash on deleteFile', async () => {
+      const mockPlaylist = {
+        playlistId: mockPlaylistId,
+        userId: mockUserId,
+        coverImage: 'old-image.jpg',
+      };
+      const mockFile = { buffer: Buffer.from('fake-image') } as any;
+      const updatedPlaylist = { ...mockPlaylist, title: 'New', coverImage: 'new.webp' };
+
+      playlistRepo.findPlaylistById.mockResolvedValue(mockPlaylist);
+      playlistRepo.updatePlaylist.mockResolvedValue(updatedPlaylist);
+
+      storageService.uploadFile.mockResolvedValue({ Location: 'https://s3.com/new.webp' });
+      storageService.deleteFile.mockReturnValue(Promise.resolve());
+
+      const result = await service.updatePlaylist(
+        mockUserId,
+        mockPlaylistId,
+        { title: 'New' },
+        mockFile
+      );
+
+      expect(result.status).toBe('Success');
+      expect(storageService.uploadFile).toHaveBeenCalled();
+    });
+  });
+
+  // ─── addTrackToPlaylist() ─────────────────────────────────────────────────
+
+  describe('addTrackToPlaylist', () => {
+    const mockTrackId = '550e8400-e29b-41d4-a716-446655440005';
+
+    it('should successfully add a track and return the documented response', async () => {
+      const initialPlaylist = {
+        ...mockOwnPlaylist(),
+        tracksCount: 2,
+        totalDurationSeconds: 400,
+      };
+
+      const track = { trackId: mockTrackId, durationSeconds: 200 };
+
+      const savedRelation = {
+        playlistId: mockPlaylistId,
+        trackId: mockTrackId,
+        position: 3,
+        addedAt: new Date(),
+      };
+
+      const updatedPlaylist = {
+        ...initialPlaylist,
+        tracksCount: 3,
+        totalDurationSeconds: 600,
+      };
+
+      playlistRepo.findPlaylistById
+        .mockResolvedValueOnce(initialPlaylist)
+        .mockResolvedValue(updatedPlaylist);
+
+      playlistRepo.findTrackById.mockResolvedValue(track);
+      playlistRepo.addTrackToPlaylist.mockResolvedValue(savedRelation);
+
+      const result = await service.addTrackToPlaylist(mockPlaylistId, mockTrackId, mockUserId);
+
+      expect(result.status).toBe('success');
+      expect(result.data.position).toBe(3);
+      expect(result.data.playlist.trackCount).toBe(3);
+      expect(result.data.playlist.durationSeconds).toBe(600);
+
+      expect(playlistRepo.addTrackToPlaylist).toHaveBeenCalledWith(mockPlaylistId, mockTrackId, 3);
+    });
+  });
+
+  describe('getPlaylist', () => {
+    it('should allow access to public playlist for guests', async () => {
+      playlistRepo.getPlaylistDetails.mockResolvedValue({ isPublic: true, playlistTracks: [] });
+      const result = await service.getPlaylist('id', null);
+      expect(result.status).toBe('success');
+    });
+
+    it('should throw Forbidden if private and no token/not owner', async () => {
+      playlistRepo.getPlaylistDetails.mockResolvedValue({
+        isPublic: false,
+        userId: 'owner-id',
+        secretToken: 'shh',
+      });
+      await expect(service.getPlaylist('id', 'stranger-id')).rejects.toThrow(ForbiddenException);
+    });
+
+    it('should allow access to private playlist if valid secret token is provided', async () => {
+      playlistRepo.getPlaylistDetails.mockResolvedValue({
+        isPublic: false,
+        secretToken: 'valid-token',
+        playlistTracks: [],
+      });
+      const result = await service.getPlaylist('id', null, 'valid-token');
+      expect(result.status).toBe('success');
+    });
+  });
+
+  describe('bulkReorder', () => {
+    it('should throw Forbidden if user is not the owner', async () => {
+      playlistRepo.findPlaylistById.mockResolvedValue({ userId: 'other-user' });
+      await expect(service.reorder('p1', ['t1'], 'my-id')).rejects.toThrow(ForbiddenException);
+    });
+
+    it("should throw BadRequest if track count doesn't match array length", async () => {
+      playlistRepo.findPlaylistById.mockResolvedValue({ userId: 'u1', tracksCount: 5 });
+      await expect(service.reorder('p1', ['t1', 't2'], 'u1')).rejects.toThrow(BadRequestException);
+    });
+
+    it('should call repository.reorderTracks on success', async () => {
+      playlistRepo.findPlaylistById.mockResolvedValue({ userId: 'u1', tracksCount: 2 });
+      playlistRepo.findAllTrackIdsInPlaylist.mockResolvedValue(['t1', 't2']);
+
+      const result = await service.reorder('p1', ['t2', 't1'], 'u1');
+
+      expect(playlistRepo.reorderTracks).toHaveBeenCalledWith('p1', ['t2', 't1']);
+      expect(result.status).toBe('success');
     });
   });
 });
