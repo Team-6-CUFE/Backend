@@ -5,11 +5,20 @@ import {
   ForbiddenException,
   NotFoundException,
 } from '@nestjs/common';
-import { PlaylistService } from './playlist.service';
+
+import { ConfigService } from '@nestjs/config';
 import { PlaylistRepository } from './playlist.repository';
 import { UserRepository } from '../user/user.repository';
+import { StorageService } from '../common/storage_service';
+import { PlaylistService } from './playlist.service';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
+
+jest.mock('sharp', () => () => ({
+  resize: jest.fn().mockReturnThis(),
+  webp: jest.fn().mockReturnThis(),
+  toBuffer: jest.fn().mockResolvedValue(Buffer.from('ok')),
+}));
 
 const mockPlaylistId = '550e8400-e29b-41d4-a716-446655440000';
 const mockUserId = '550e8400-e29b-41d4-a716-446655440001';
@@ -31,6 +40,16 @@ const mockPlaylistRepository = () => ({
   removeLike: jest.fn(),
   getPlaylistLikes: jest.fn(),
   getUserPlaylistLikes: jest.fn(),
+  updatePlaylist: jest.fn(),
+});
+
+const mockStorageService = () => ({
+  uploadFile: jest.fn(),
+  deleteFile: jest.fn(),
+});
+
+const mockConfigService = () => ({
+  get: jest.fn(),
 });
 
 const mockUserRepository = () => ({
@@ -143,6 +162,7 @@ describe('PlaylistService', () => {
   let service: PlaylistService;
   let playlistRepo: ReturnType<typeof mockPlaylistRepository>;
   let userRepo: ReturnType<typeof mockUserRepository>;
+  let storageService: ReturnType<typeof mockStorageService>;
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
@@ -150,12 +170,15 @@ describe('PlaylistService', () => {
         PlaylistService,
         { provide: PlaylistRepository, useFactory: mockPlaylistRepository },
         { provide: UserRepository, useFactory: mockUserRepository },
+        { provide: ConfigService, useFactory: mockConfigService },
+        { provide: StorageService, useFactory: mockStorageService },
       ],
     }).compile();
 
     service = module.get(PlaylistService);
     playlistRepo = module.get(PlaylistRepository);
     userRepo = module.get(UserRepository);
+    storageService = module.get(StorageService);
   });
 
   afterEach(() => jest.clearAllMocks());
@@ -855,6 +878,43 @@ describe('PlaylistService', () => {
         likedAt: like.createdAt,
       });
       expect(result.data[0]).not.toHaveProperty('repostedAt');
+    });
+  });
+
+  // ─── updatePlaylist() ─────────────────────────────────────────────────────
+
+  // ─── updatePlaylist() ──────────────────────────────────────────────────────
+
+  // ─── updatePlaylist() ──────────────────────────────────────────────────────
+
+  describe('updatePlaylist', () => {
+    it('should update with an image file and not crash on deleteFile', async () => {
+      const mockPlaylist = {
+        playlistId: mockPlaylistId,
+        userId: mockUserId,
+        coverImage: 'old-image.jpg',
+      };
+      const mockFile = { buffer: Buffer.from('fake-image') } as any;
+      const updatedPlaylist = { ...mockPlaylist, title: 'New', coverImage: 'new.webp' };
+
+      // 1. Repo mocks
+      playlistRepo.findPlaylistById.mockResolvedValue(mockPlaylist);
+      playlistRepo.updatePlaylist.mockResolvedValue(updatedPlaylist);
+
+      // 2. Storage mocks - THIS IS THE CRITICAL FIX
+      // We must return an object that has a .catch method (a Promise)
+      storageService.uploadFile.mockResolvedValue({ Location: 'https://s3.com/new.webp' });
+      storageService.deleteFile.mockReturnValue(Promise.resolve());
+
+      const result = await service.updatePlaylist(
+        mockUserId,
+        mockPlaylistId,
+        { title: 'New' },
+        mockFile
+      );
+
+      expect(result.status).toBe('Success');
+      expect(storageService.uploadFile).toHaveBeenCalled();
     });
   });
 });

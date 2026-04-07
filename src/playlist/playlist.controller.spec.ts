@@ -30,6 +30,8 @@ const mockPlaylistService = () => ({
   getLikesCount: jest.fn(),
   getPlaylistLikes: jest.fn(),
   getUserPlaylistLikes: jest.fn(),
+  createPlaylist: jest.fn(),
+  updatePlaylist: jest.fn(),
 });
 
 // ─── Suite ────────────────────────────────────────────────────────────────────
@@ -571,6 +573,84 @@ describe('PlaylistController', () => {
 
       await expect(
         controller.getUserTrackLikes(mockUserId, mockMyUserId, mockPage, mockLimit)
+      ).rejects.toThrow(ForbiddenException);
+    });
+  });
+
+  // ─── createPlaylist ───────────────────────────────────────────────────────
+
+  describe('createPlaylist', () => {
+    it('should delegate to service with dto and userId', async () => {
+      const dto = { title: 'New Playlist', isPublic: true };
+      const mockResponse = { status: 'sucesss', data: { playlistId: mockPlaylistId } };
+      service.createPlaylist.mockResolvedValue(mockResponse);
+
+      const result = await controller.createPlaylist(dto, mockUserId);
+
+      expect(service.createPlaylist).toHaveBeenCalledWith(dto, mockUserId);
+      expect(result).toBe(mockResponse);
+    });
+  });
+
+  // ─── updatePlaylist ───────────────────────────────────────────────────────
+
+  describe('updatePlaylist', () => {
+    const updateDto = { title: 'Updated Title' };
+    const mockFile = { buffer: Buffer.from('test') } as Express.Multer.File;
+
+    it('should delegate to service with userId, playlistId, dto and file', async () => {
+      const mockResponse = { status: 'Success', message: 'Playlist updated successfully' };
+      service.updatePlaylist.mockResolvedValue(mockResponse);
+
+      const result = await controller.updatePlaylist(
+        mockUserId,
+        mockPlaylistId,
+        updateDto,
+        mockFile
+      );
+
+      expect(service.updatePlaylist).toHaveBeenCalledWith(
+        mockUserId,
+        mockPlaylistId,
+        updateDto,
+        mockFile
+      );
+      expect(result).toBe(mockResponse);
+    });
+
+    it('should work even if file is not provided', async () => {
+      const mockResponse = { status: 'Success' };
+      service.updatePlaylist.mockResolvedValue(mockResponse);
+
+      const result = await controller.updatePlaylist(
+        mockUserId,
+        mockPlaylistId,
+        updateDto,
+        undefined // No file
+      );
+
+      expect(service.updatePlaylist).toHaveBeenCalledWith(
+        mockUserId,
+        mockPlaylistId,
+        updateDto,
+        undefined
+      );
+      expect(result.status).toBe('Success');
+    });
+
+    it('should propagate NotFoundException from service', async () => {
+      service.updatePlaylist.mockRejectedValue(new NotFoundException());
+
+      await expect(
+        controller.updatePlaylist(mockUserId, mockPlaylistId, updateDto)
+      ).rejects.toThrow(NotFoundException);
+    });
+
+    it('should propagate ForbiddenException from service', async () => {
+      service.updatePlaylist.mockRejectedValue(new ForbiddenException());
+
+      await expect(
+        controller.updatePlaylist(mockUserId, mockPlaylistId, updateDto)
       ).rejects.toThrow(ForbiddenException);
     });
   });

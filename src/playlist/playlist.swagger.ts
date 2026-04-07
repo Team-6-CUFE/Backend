@@ -1,5 +1,13 @@
 import { applyDecorators } from '@nestjs/common';
-import { ApiOperation, ApiResponse, ApiParam, ApiCookieAuth, ApiQuery } from '@nestjs/swagger';
+import {
+  ApiOperation,
+  ApiResponse,
+  ApiParam,
+  ApiCookieAuth,
+  ApiQuery,
+  ApiBody,
+  ApiConsumes,
+} from '@nestjs/swagger';
 
 export function ApiRepostPlaylist() {
   return applyDecorators(
@@ -637,5 +645,57 @@ export function ApiCreatePlaylist() {
       description: 'User not found',
       schema: { example: { statusCode: 404, message: 'User not found' } },
     })
+  );
+}
+
+export function ApiUpdatePlaylist() {
+  return applyDecorators(
+    ApiCookieAuth('access_token'),
+    ApiConsumes('multipart/form-data'),
+    ApiOperation({
+      summary: 'Update playlist metadata or cover image',
+      description: 'Allows the owner to update title, description, and the cover image.',
+    }),
+    ApiParam({
+      name: 'playlistId',
+      type: 'string',
+      format: 'uuid',
+      description: 'UUID of the playlist to update',
+    }),
+    ApiBody({
+      schema: {
+        type: 'object',
+        properties: {
+          title: { type: 'string', example: 'My New Title' },
+          description: { type: 'string', example: 'Updated playlist description' },
+          coverImage: {
+            type: 'string',
+            format: 'binary',
+            description: 'Playlist cover image (png, jpeg, webp)',
+          },
+        },
+      },
+    }),
+    ApiResponse({
+      status: 200,
+      description: 'Playlist updated successfully',
+      schema: {
+        example: {
+          status: 'Success',
+          message: 'Playlist updated successfully',
+          data: {
+            playlistId: '550e8400-e29b-41d4-a716-446655440000',
+            title: 'My New Title',
+            description: 'Updated playlist description',
+            coverImage: 'https://s3.amazonaws.com/bucket/playlists/uuid/cover.webp',
+            updatedAt: '2026-04-07T08:00:00.000Z',
+          },
+        },
+      },
+    }),
+    ApiResponse({ status: 400, description: 'Invalid file type or size' }),
+    ApiResponse({ status: 401, description: 'Unauthorized' }),
+    ApiResponse({ status: 403, description: 'Not the owner of the playlist' }),
+    ApiResponse({ status: 404, description: 'Playlist not found' })
   );
 }
