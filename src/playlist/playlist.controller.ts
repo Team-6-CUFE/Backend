@@ -214,7 +214,7 @@ export class PlaylistController {
   }
 
   @Put(':playlistId/tracks/reorder')
-  // @ApiBulkReorderTracks()
+  @ApiReorderTracks()
   async bulkReorder(
     @Param('playlistId', ParseUUIDPipe) playlistId: string,
     @Body('trackIds') trackIds: string[],
@@ -223,6 +223,6 @@ export class PlaylistController {
     if (!Array.isArray(trackIds) || trackIds.length === 0) {
       throw new BadRequestException('trackIds must be a non-empty array of track IDs');
     }
-    return this.playlistService.bulkReorder(playlistId, trackIds, userId);
+    return this.playlistService.reorder(playlistId, trackIds, userId);
   }
 }

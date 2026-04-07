@@ -812,3 +812,41 @@ export function ApiGetUserCreatedPlaylists() {
     })
   );
 }
+
+export function ApiReorderTracks() {
+  return applyDecorators(
+    ApiCookieAuth('access_token'),
+    ApiOperation({
+      summary: 'Bulk update track positions',
+      description:
+        'Accepts an ordered array of track IDs and updates their positions (1-indexed) in a single transaction.',
+    }),
+    ApiParam({ name: 'playlistId', format: 'uuid', example: 'pl-123' }),
+    ApiBody({
+      schema: {
+        type: 'object',
+        required: ['track_ids'],
+        properties: {
+          trackIds: {
+            type: 'array',
+            items: { type: 'string', format: 'uuid' },
+            example: ['track-uuid-1', 'track-uuid-2', 'track-uuid-3'],
+          },
+        },
+      },
+    }),
+    ApiResponse({
+      status: 200,
+      description: 'Reordered successfully',
+      schema: {
+        example: {
+          status: 'success',
+          message: 'Playlist tracks reordered successfully.',
+          data: { playlistId: 'pl-123', trackCount: 3 },
+        },
+      },
+    }),
+    ApiResponse({ status: 400, description: 'Invalid array or length mismatch' }),
+    ApiResponse({ status: 403, description: 'Not the owner' })
+  );
+}

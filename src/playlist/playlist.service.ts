@@ -519,7 +519,7 @@ export class PlaylistService {
     };
   }
 
-  async bulkReorder(playlistId: string, trackIds: string[], userId: string) {
+  async reorder(playlistId: string, trackIds: string[], userId: string) {
     const playlist = await this.playlistRepository.findPlaylistById(playlistId);
     if (!playlist) throw new NotFoundException('Playlist not found');
     if (playlist.userId !== userId) throw new ForbiddenException('Not the owner');

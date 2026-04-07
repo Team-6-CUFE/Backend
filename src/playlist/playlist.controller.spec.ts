@@ -41,6 +41,7 @@ const mockPlaylistService = () => ({
   removeTrackFromPlaylist: jest.fn(),
   deletePlaylist: jest.fn(),
   getPlaylist: jest.fn(),
+  reorder: jest.fn(),
 });
 
 // ─── Suite ────────────────────────────────────────────────────────────────────
@@ -740,6 +741,32 @@ describe('PlaylistController', () => {
 
       expect(service.getPlaylist).toHaveBeenCalledWith(mockPlaylistId, mockUserId, 'secret-123');
       expect(result).toBe(mockRes);
+    });
+  });
+
+  describe('bulkReorder', () => {
+    it('should delegate to playlistService.bulkReorder', async () => {
+      const trackIds = [
+        '550e8400-e29b-41d4-a716-446655440001',
+        '550e8400-e29b-41d4-a716-446655440002',
+      ];
+      const mockResponse = {
+        status: 'success',
+        data: { playlist_id: mockPlaylistId, track_count: 2 },
+      };
+
+      service.reorder.mockResolvedValue(mockResponse);
+
+      const result = await controller.bulkReorder(mockPlaylistId, trackIds, mockUserId);
+
+      expect(service.reorder).toHaveBeenCalledWith(mockPlaylistId, trackIds, mockUserId);
+      expect(result).toBe(mockResponse);
+    });
+
+    it('should throw BadRequestException if track_ids is not an array', async () => {
+      await expect(
+        controller.bulkReorder(mockPlaylistId, 'not-an-array' as any, mockUserId)
+      ).rejects.toThrow(BadRequestException);
     });
   });
 });

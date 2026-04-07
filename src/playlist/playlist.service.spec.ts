@@ -49,6 +49,8 @@ const mockPlaylistRepository = () => ({
   removeTrackAndReorder: jest.fn(),
   deletePlaylist: jest.fn(),
   getPlaylistDetails: jest.fn(),
+  findAllTrackIdsInPlaylist: jest.fn(),
+  reorderTracks: jest.fn(),
 });
 
 const mockStorageService = () => ({
@@ -1137,6 +1139,28 @@ describe('PlaylistService', () => {
         playlistTracks: [],
       });
       const result = await service.getPlaylist('id', null, 'valid-token');
+      expect(result.status).toBe('success');
+    });
+  });
+
+  describe('bulkReorder', () => {
+    it('should throw Forbidden if user is not the owner', async () => {
+      playlistRepo.findPlaylistById.mockResolvedValue({ userId: 'other-user' });
+      await expect(service.reorder('p1', ['t1'], 'my-id')).rejects.toThrow(ForbiddenException);
+    });
+
+    it("should throw BadRequest if track count doesn't match array length", async () => {
+      playlistRepo.findPlaylistById.mockResolvedValue({ userId: 'u1', tracksCount: 5 });
+      await expect(service.reorder('p1', ['t1', 't2'], 'u1')).rejects.toThrow(BadRequestException);
+    });
+
+    it('should call repository.reorderTracks on success', async () => {
+      playlistRepo.findPlaylistById.mockResolvedValue({ userId: 'u1', tracksCount: 2 });
+      playlistRepo.findAllTrackIdsInPlaylist.mockResolvedValue(['t1', 't2']);
+
+      const result = await service.reorder('p1', ['t2', 't1'], 'u1');
+
+      expect(playlistRepo.reorderTracks).toHaveBeenCalledWith('p1', ['t2', 't1']);
       expect(result.status).toBe('success');
     });
   });
