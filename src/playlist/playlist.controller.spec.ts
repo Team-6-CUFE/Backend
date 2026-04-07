@@ -36,6 +36,9 @@ const mockPlaylistService = () => ({
   updatePlaylistStats: jest.fn(),
   addTrackToPlaylist: jest.fn(),
   findMaxPosition: jest.fn(),
+  findTrackInPlaylist: jest.fn(),
+  removeTrackAndReorder: jest.fn(),
+  removeTrackFromPlaylist: jest.fn(),
 });
 
 // ─── Suite ────────────────────────────────────────────────────────────────────
@@ -688,6 +691,29 @@ describe('PlaylistController', () => {
       await expect(
         controller.addTrackToPlaylist(mockPlaylistId, addTrackDto, mockUserId)
       ).rejects.toThrow(ConflictException);
+    });
+  });
+
+  describe('removeTrack', () => {
+    it('should delegate to service', async () => {
+      const mockResponse = {
+        status: 'success',
+        message: 'Track removed from playlist successfully',
+      };
+
+      // 1. Mock the correct service method
+      service.removeTrackFromPlaylist.mockResolvedValue(mockResponse);
+
+      // 2. Call the controller
+      const result = await controller.removeTrack(mockPlaylistId, 'track-id', mockUserId);
+
+      // 3. Assert on the service method, not the repository method
+      expect(service.removeTrackFromPlaylist).toHaveBeenCalledWith(
+        mockPlaylistId,
+        'track-id',
+        mockUserId
+      );
+      expect(result).toBe(mockResponse);
     });
   });
 });
