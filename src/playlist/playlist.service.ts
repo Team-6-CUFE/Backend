@@ -436,4 +436,34 @@ export class PlaylistService {
       },
     };
   }
+
+  async removeTrackFromPlaylist(playlistId: string, trackId: string, userId: string) {
+    const playlist = await this.playlistRepository.findPlaylistById(playlistId);
+    if (!playlist) throw new NotFoundException('Playlist not found');
+
+    // Ownership check
+    if (playlist.userId !== userId) {
+      throw new ForbiddenException('You do not have permission to edit this playlist');
+    }
+
+    // Check if track exists in playlist
+    const trackEntry = await this.playlistRepository.findTrackInPlaylist(playlistId, trackId);
+    if (!trackEntry) throw new NotFoundException('Track not found in this playlist');
+
+    // Get track duration for stats update
+    const track = await this.playlistRepository.findTrackById(trackId);
+    const duration = track?.durationSeconds || 0;
+
+    await this.playlistRepository.removeTrackAndReorder(
+      playlistId,
+      trackId,
+      trackEntry.position,
+      duration
+    );
+
+    return {
+      status: 'success',
+      message: 'Track removed from playlist successfully',
+    };
+  }
 }
