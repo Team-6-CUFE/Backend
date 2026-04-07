@@ -752,3 +752,24 @@ export function ApiAddTrackToPlaylist() {
     })
   );
 }
+
+export function ApiRemoveTrackFromPlaylist() {
+  return applyDecorators(
+    ApiCookieAuth('access_token'),
+    ApiOperation({
+      summary: 'Remove a track from a playlist',
+      description: 'Removes a track and automatically re-indexes the remaining tracks positions.',
+    }),
+    ApiParam({ name: 'playlistId', format: 'uuid', example: 'uuid-1' }),
+    ApiParam({ name: 'trackId', format: 'uuid', example: 'uuid-2' }),
+    ApiResponse({
+      status: 200,
+      description: 'Success',
+      schema: {
+        example: { status: 'success', message: 'Track removed from playlist successfully' },
+      },
+    }),
+    ApiResponse({ status: 403, description: 'Forbidden - Not the owner' }),
+    ApiResponse({ status: 404, description: 'Playlist or track not found' })
+  );
+}

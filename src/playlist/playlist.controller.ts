@@ -31,6 +31,7 @@ import {
   ApiCreatePlaylist,
   ApiAddTrackToPlaylist,
   ApiUpdatePlaylist,
+  ApiRemoveTrackFromPlaylist,
 } from './playlist.swagger';
 import { CurrentUser } from '../authentication/decorators/current-user.decorator';
 import { CheckBlock } from '../followers/decorators/no-block.decorator';
@@ -179,8 +180,8 @@ export class PlaylistController {
     return this.playlistService.addTrackToPlaylist(playlistId, addTrackDto.trackId, userId);
   }
 
+  @ApiRemoveTrackFromPlaylist()
   @Delete(':playlistId/tracks/:trackId')
-  // @ApiRemoveTrackFromPlaylist() // Swagger decorator
   async removeTrack(
     @Param('playlistId', ParseUUIDPipe) playlistId: string,
     @Param('trackId', ParseUUIDPipe) trackId: string,
