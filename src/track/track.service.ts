@@ -571,6 +571,14 @@ export class TrackService {
     if (playlistId) {
       const playlist = await this.playlistService.getPlaylistById(playlistId);
       if (!playlist) throw new NotFoundException('Playlist not found');
+      if (playlist.userId === userId) {
+        // Allow artists to play their own playlists without counting as a play
+        return {
+          status: 'success',
+          message: 'Artist play - not counted',
+          data: { trackId, playCount: track.playCount },
+        };
+      }
     }
     if (track.userId === userId) {
       // Allow artists to play their own tracks without counting as a play
