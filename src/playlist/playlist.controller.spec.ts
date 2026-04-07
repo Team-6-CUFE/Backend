@@ -32,6 +32,10 @@ const mockPlaylistService = () => ({
   getUserPlaylistLikes: jest.fn(),
   createPlaylist: jest.fn(),
   updatePlaylist: jest.fn(),
+  indTrackById: jest.fn(),
+  updatePlaylistStats: jest.fn(),
+  addTrackToPlaylist: jest.fn(),
+  findMaxPosition: jest.fn(),
 });
 
 // ─── Suite ────────────────────────────────────────────────────────────────────
@@ -637,6 +641,53 @@ describe('PlaylistController', () => {
       await expect(
         controller.updatePlaylist(mockUserId, mockPlaylistId, updateDto)
       ).rejects.toThrow(ForbiddenException);
+    });
+  });
+
+  // ─── addTrackToPlaylist ───────────────────────────────────────────────────
+
+  describe('addTrackToPlaylist', () => {
+    const addTrackDto = { trackId: '550e8400-e29b-41d4-a716-446655440005' };
+
+    it('should delegate to service with playlistId, trackId from body, and userId', async () => {
+      const mockResponse = {
+        status: 'success',
+        data: { playlistId: mockPlaylistId, trackId: addTrackDto.trackId, position: 1 },
+      };
+      service.addTrackToPlaylist.mockResolvedValue(mockResponse);
+
+      const result = await controller.addTrackToPlaylist(mockPlaylistId, addTrackDto, mockUserId);
+
+      expect(service.addTrackToPlaylist).toHaveBeenCalledWith(
+        mockPlaylistId,
+        addTrackDto.trackId,
+        mockUserId
+      );
+      expect(result).toBe(mockResponse);
+    });
+
+    it('should propagate NotFoundException when playlist or track not found', async () => {
+      service.addTrackToPlaylist.mockRejectedValue(new NotFoundException('Track not found'));
+
+      await expect(
+        controller.addTrackToPlaylist(mockPlaylistId, addTrackDto, mockUserId)
+      ).rejects.toThrow(NotFoundException);
+    });
+
+    it('should propagate ForbiddenException when user is not owner', async () => {
+      service.addTrackToPlaylist.mockRejectedValue(new ForbiddenException());
+
+      await expect(
+        controller.addTrackToPlaylist(mockPlaylistId, addTrackDto, mockUserId)
+      ).rejects.toThrow(ForbiddenException);
+    });
+
+    it('should propagate ConflictException when track already exists in playlist', async () => {
+      service.addTrackToPlaylist.mockRejectedValue(new ConflictException());
+
+      await expect(
+        controller.addTrackToPlaylist(mockPlaylistId, addTrackDto, mockUserId)
+      ).rejects.toThrow(ConflictException);
     });
   });
 });

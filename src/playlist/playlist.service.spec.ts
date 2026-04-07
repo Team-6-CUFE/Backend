@@ -41,6 +41,10 @@ const mockPlaylistRepository = () => ({
   getPlaylistLikes: jest.fn(),
   getUserPlaylistLikes: jest.fn(),
   updatePlaylist: jest.fn(),
+  findTrackById: jest.fn(),
+  updatePlaylistStats: jest.fn(),
+  addTrackToPlaylist: jest.fn(),
+  findMaxPosition: jest.fn(),
 });
 
 const mockStorageService = () => ({
@@ -915,6 +919,146 @@ describe('PlaylistService', () => {
 
       expect(result.status).toBe('Success');
       expect(storageService.uploadFile).toHaveBeenCalled();
+    });
+  });
+
+  // ─── addTrackToPlaylist() ─────────────────────────────────────────────────
+
+  describe('addTrackToPlaylist', () => {
+    const mockTrackId = '550e8400-e29b-41d4-a716-446655440005';
+
+    it('should successfully add a track and return the documented response', async () => {
+      // Setup: Owner adding to their own playlist
+      const playlist = { ...mockOwnPlaylist(), tracksCount: 2, totalDurationSeconds: 400 };
+      const track = { trackId: mockTrackId, durationSeconds: 200 };
+      const savedRelation = {
+        playlistId: mockPlaylistId,
+        trackId: mockTrackId,
+        position: 3,
+        addedAt: new Date(),
+      };
+      const updatedPlaylist = { ...playlist, tracksCount: 3, totalDurationSeconds: 600 };
+
+      playlistRepo.findPlaylistById.mockResolvedValue(playlist);
+      playlistRepo.findTrackById.mockResolvedValue(track);
+      playlistRepo.addTrackToPlaylist.mockResolvedValue(savedRelation);
+      playlistRepo.updatePlaylistStats.mockResolvedValue(updatedPlaylist);
+
+      const result = await service.addTrackToPlaylist(mockPlaylistId, mockTrackId, mockUserId);
+
+      expect(result.status).toBe('success');
+      expect(result.data.position).toBe(3);
+      expect(result.data.playlist.trackCount).toBe(3);
+      expect(result.data.playlist.durationSeconds).toBe(600);
+      expect(playlistRepo.addTrackToPlaylist).toHaveBeenCalledWith(mockPlaylistId, mockTrackId, 3);
+    });
+
+    it('should throw ForbiddenException if user is not the owner', async () => {
+      // Playlist owned by mockOwnerId, requester is mockUserId
+      playlistRepo.findPlaylistById.mockResolvedValue(mockPublicPlaylist());
+
+      await expect(
+        service.addTrackToPlaylist(mockPlaylistId, mockTrackId, mockUserId)
+      ).rejects.toThrow(ForbiddenException);
+    });
+
+    it('should throw NotFoundException if playlist does not exist', async () => {
+      playlistRepo.findPlaylistById.mockResolvedValue(null);
+
+      await expect(
+        service.addTrackToPlaylist(mockPlaylistId, mockTrackId, mockUserId)
+      ).rejects.toThrow(NotFoundException);
+    });
+
+    it('should throw NotFoundException if track does not exist', async () => {
+      playlistRepo.findPlaylistById.mockResolvedValue(mockOwnPlaylist());
+      playlistRepo.findTrackById.mockResolvedValue(null);
+
+      await expect(
+        service.addTrackToPlaylist(mockPlaylistId, mockTrackId, mockUserId)
+      ).rejects.toThrow(NotFoundException);
+    });
+
+    it('should throw ConflictException if track is already in playlist (DB Error 23505)', async () => {
+      playlistRepo.findPlaylistById.mockResolvedValue(mockOwnPlaylist());
+      playlistRepo.findTrackById.mockResolvedValue({ trackId: mockTrackId });
+
+      // Simulate Postgres unique constraint violation
+      playlistRepo.addTrackToPlaylist.mockRejectedValue({ code: '23505' });
+
+      await expect(
+        service.addTrackToPlaylist(mockPlaylistId, mockTrackId, mockUserId)
+      ).rejects.toThrow(ConflictException);
+    });
+  });
+
+  // ─── addTrackToPlaylist() ─────────────────────────────────────────────────
+
+  describe('addTrackToPlaylist', () => {
+    const mockTrackId = '550e8400-e29b-41d4-a716-446655440005';
+
+    it('should successfully add a track and return the documented response', async () => {
+      // Setup: Owner adding to their own playlist
+      const playlist = { ...mockOwnPlaylist(), tracksCount: 2, totalDurationSeconds: 400 };
+      const track = { trackId: mockTrackId, durationSeconds: 200 };
+      const savedRelation = {
+        playlistId: mockPlaylistId,
+        trackId: mockTrackId,
+        position: 3,
+        addedAt: new Date(),
+      };
+      const updatedPlaylist = { ...playlist, tracksCount: 3, totalDurationSeconds: 600 };
+
+      playlistRepo.findPlaylistById.mockResolvedValue(playlist);
+      playlistRepo.findTrackById.mockResolvedValue(track);
+      playlistRepo.addTrackToPlaylist.mockResolvedValue(savedRelation);
+      playlistRepo.updatePlaylistStats.mockResolvedValue(updatedPlaylist);
+
+      const result = await service.addTrackToPlaylist(mockPlaylistId, mockTrackId, mockUserId);
+
+      expect(result.status).toBe('success');
+      expect(result.data.position).toBe(3);
+      expect(result.data.playlist.trackCount).toBe(3);
+      expect(result.data.playlist.durationSeconds).toBe(600);
+      expect(playlistRepo.addTrackToPlaylist).toHaveBeenCalledWith(mockPlaylistId, mockTrackId, 3);
+    });
+
+    it('should throw ForbiddenException if user is not the owner', async () => {
+      // Playlist owned by mockOwnerId, requester is mockUserId
+      playlistRepo.findPlaylistById.mockResolvedValue(mockPublicPlaylist());
+
+      await expect(
+        service.addTrackToPlaylist(mockPlaylistId, mockTrackId, mockUserId)
+      ).rejects.toThrow(ForbiddenException);
+    });
+
+    it('should throw NotFoundException if playlist does not exist', async () => {
+      playlistRepo.findPlaylistById.mockResolvedValue(null);
+
+      await expect(
+        service.addTrackToPlaylist(mockPlaylistId, mockTrackId, mockUserId)
+      ).rejects.toThrow(NotFoundException);
+    });
+
+    it('should throw NotFoundException if track does not exist', async () => {
+      playlistRepo.findPlaylistById.mockResolvedValue(mockOwnPlaylist());
+      playlistRepo.findTrackById.mockResolvedValue(null);
+
+      await expect(
+        service.addTrackToPlaylist(mockPlaylistId, mockTrackId, mockUserId)
+      ).rejects.toThrow(NotFoundException);
+    });
+
+    it('should throw ConflictException if track is already in playlist (DB Error 23505)', async () => {
+      playlistRepo.findPlaylistById.mockResolvedValue(mockOwnPlaylist());
+      playlistRepo.findTrackById.mockResolvedValue({ trackId: mockTrackId });
+
+      // Simulate Postgres unique constraint violation
+      playlistRepo.addTrackToPlaylist.mockRejectedValue({ code: '23505' });
+
+      await expect(
+        service.addTrackToPlaylist(mockPlaylistId, mockTrackId, mockUserId)
+      ).rejects.toThrow(ConflictException);
     });
   });
 });
