@@ -25,7 +25,7 @@ import { AuthenticationRepository } from './authentication.repositry';
 import { LoginDto } from './dto/login.dto';
 import { JwtPayload, UserPlan } from './strategies/jwt.strategy';
 import { UserRole } from './decorators/roles.decorator';
-import { verifyCaptcha } from '../common/utilities/captcha.util';
+import { verifyAppCheckToken, verifyCaptcha } from '../common/utilities/captcha.util';
 import { TokenType } from './entities/emailverficationtokens.entity';
 import { OAuthProfile } from './types/oauth-profile.type';
 import { User } from '../user/entities/user.entity';
@@ -61,13 +61,22 @@ export class AuthenticationService {
     @Inject(REDIS_CLIENT) private readonly redis: RedisClientType
   ) {}
 
-  async register(registerDto: RegisterDto, ip: string) {
+  async register(registerDto: RegisterDto, ip: string, appCheckToken?: string) {
     const { email } = registerDto;
     const { city, country } = await getLocationFromIp(ip);
 
-    const isValidCaptcha = await verifyCaptcha(registerDto.captchaToken);
-    if (!isValidCaptcha) {
-      throw new BadRequestException('Captcha verification failed. Please try again.');
+    if (appCheckToken) {
+      const isValidAppCheck = await verifyAppCheckToken(appCheckToken);
+      if (!isValidAppCheck) {
+        throw new BadRequestException(
+          'App verification failed. Please update your app and try again'
+        );
+      }
+    } else {
+      const isValidCaptcha = await verifyCaptcha(registerDto.captchaToken);
+      if (!isValidCaptcha) {
+        throw new BadRequestException('Captcha verification failed. Please try again.');
+      }
     }
     if (await this.userService.checkEmailExists(email)) {
       throw new BadRequestException(`Email ${email} is already registered.`);
