@@ -181,7 +181,6 @@ export class PlaylistController {
     @Body() addTrackDto: AddTrackDto, // Now coming from Body
     @CurrentUser('sub') userId: string
   ) {
-    // Service remains the same, we just pass addTrackDto.trackId
     return this.playlistService.addTrackToPlaylist(playlistId, addTrackDto.trackId, userId);
   }
 

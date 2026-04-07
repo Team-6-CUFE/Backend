@@ -704,13 +704,10 @@ describe('PlaylistController', () => {
         message: 'Track removed from playlist successfully',
       };
 
-      // 1. Mock the correct service method
       service.removeTrackFromPlaylist.mockResolvedValue(mockResponse);
 
-      // 2. Call the controller
       const result = await controller.removeTrack(mockPlaylistId, 'track-id', mockUserId);
 
-      // 3. Assert on the service method, not the repository method
       expect(service.removeTrackFromPlaylist).toHaveBeenCalledWith(
         mockPlaylistId,
         'track-id',

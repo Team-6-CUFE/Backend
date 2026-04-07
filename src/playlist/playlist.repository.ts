@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { ConflictException, Injectable } from '@nestjs/common';
 import { Repository } from 'typeorm';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Playlist } from './entities/playlist.entity';
@@ -174,7 +174,6 @@ export class PlaylistRepository {
   }
 
   async updatePlaylistStats(playlistId: string, durationDelta: number): Promise<Playlist | null> {
-    // Atomic updates to avoid race conditions
     await this.playlistRepository.increment({ playlistId }, 'tracksCount', 1);
     await this.playlistRepository.increment({ playlistId }, 'totalDurationSeconds', durationDelta);
 
@@ -182,16 +181,23 @@ export class PlaylistRepository {
   }
 
   async addTrackToPlaylist(playlistId: string, trackId: string, position: number) {
-    // Instead of calling a separate file, we do the logic here:
+    const existing = await this.playlistTrackRepository.findOne({
+      where: { playlistId, trackId },
+    });
+
+    if (existing) {
+      throw new ConflictException('Track is already in the playlist');
+    }
+
     const newEntry = this.playlistTrackRepository.create({
       playlistId,
       trackId,
       position,
     });
+
     return this.playlistTrackRepository.save(newEntry);
   }
 
-  // You'll need this for Task #3 later (removing tracks)
   async findMaxPosition(playlistId: string): Promise<number> {
     const result = await this.playlistTrackRepository
       .createQueryBuilder('pt')
@@ -208,32 +214,16 @@ export class PlaylistRepository {
     });
   }
 
-  async removeTrackAndReorder(
-    playlistId: string,
-    trackId: string,
-    position: number,
-    duration: number
-  ) {
-    return this.playlistTrackRepository.manager.transaction(async (transactionalEntityManager) => {
-      // 1. Remove the track
-      await transactionalEntityManager.delete(PlaylistTrack, { playlistId, trackId });
+  async removeTrackAndReorder(playlistId: string, trackId: string, position: number) {
+    return this.playlistTrackRepository.manager.transaction(async (tm) => {
+      await tm.delete(PlaylistTrack, { playlistId, trackId });
 
-      // 2. Shift positions of subsequent tracks (SET position = position - 1 WHERE position > removed_position)
-      await transactionalEntityManager
+      await tm
         .createQueryBuilder()
         .update(PlaylistTrack)
-        .set({ position: () => 'position - 1' })
+        .set({ position: () => '"position" - 1' })
         .where('playlistId = :playlistId AND position > :position', { playlistId, position })
         .execute();
-
-      // 3. Update Playlist Stats (Atomic decrement)
-      await transactionalEntityManager.decrement(Playlist, { playlistId }, 'tracksCount', 1);
-      await transactionalEntityManager.decrement(
-        Playlist,
-        { playlistId },
-        'totalDurationSeconds',
-        duration
-      );
     });
   }
 
@@ -255,14 +245,8 @@ export class PlaylistRepository {
 
   async reorderTracks(playlistId: string, trackIds: string[]): Promise<void> {
     await this.playlistTrackRepository.manager.transaction(async (tm) => {
-      // 1. We update each track's position based on its index in the array
-      // We use Promise.all to prepare the updates, but they run inside the transaction
       const updatePromises = trackIds.map((trackId, index) =>
-        tm.update(
-          PlaylistTrack,
-          { playlistId, trackId },
-          { position: index + 1 } // Positions are usually 1-based
-        )
+        tm.update(PlaylistTrack, { playlistId, trackId }, { position: index + 1 })
       );
 
       await Promise.all(updatePromises);

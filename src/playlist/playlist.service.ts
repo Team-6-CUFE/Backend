@@ -14,7 +14,6 @@ import { CreatePlaylistDto } from './dto/create-playlist.dto';
 import { Playlist } from './entities/playlist.entity';
 import { UpdatePlaylistDto } from './dto/update-playlist.dto';
 import { StorageService } from '../common/storage_service';
-import { PlaylistTrack } from './entities/playlist-tracks.entity';
 
 @Injectable()
 export class PlaylistService {
@@ -385,53 +384,38 @@ export class PlaylistService {
   }
 
   async addTrackToPlaylist(playlistId: string, trackId: string, userId: string) {
-    // 1. Ownership & Existence Check
     const playlist = await this.playlistRepository.findPlaylistById(playlistId);
-    if (!playlist) throw new NotFoundException('Playlist not found');
+    if (!playlist) {
+      throw new NotFoundException('Playlist not found');
+    }
     if (playlist.userId !== userId) {
       throw new ForbiddenException('You are not the owner of this playlist');
     }
 
-    // 2. Track Existence Check
     const track = await this.playlistRepository.findTrackById(trackId);
-    if (!track) throw new NotFoundException('Track not found');
-
-    // 3. Add relation (Position is current count + 1)
-    const nextPosition = playlist.tracksCount + 1;
-    let savedRelation: PlaylistTrack;
-
-    // src/playlist/playlist.service.ts around line 410
-    try {
-      savedRelation = await this.playlistRepository.addTrackToPlaylist(
-        playlistId,
-        trackId,
-        nextPosition
-      );
-    } catch (error: any) {
-      // Option A: Quick fix using 'any'
-      if (error.code === '23505') {
-        throw new ConflictException('Track already in playlist');
-      }
-      throw error;
+    if (!track) {
+      throw new NotFoundException('Track not found');
     }
 
-    // 4. Update the Playlist table stats
-    const updatedPlaylist = await this.playlistRepository.updatePlaylistStats(
+    const nextPosition = (playlist.tracksCount || 0) + 1;
+
+    const savedRelation = await this.playlistRepository.addTrackToPlaylist(
       playlistId,
-      track.durationSeconds || 0
+      trackId,
+      nextPosition
     );
 
-    // 5. Response matching your docs
+    const updatedPlaylist = await this.playlistRepository.findPlaylistById(playlistId);
+
     return {
       status: 'success',
       data: {
         playlistId: savedRelation.playlistId,
         trackId: savedRelation.trackId,
         position: savedRelation.position,
-        addedAt: savedRelation.addedAt,
         playlist: {
-          trackCount: updatedPlaylist?.tracksCount,
-          durationSeconds: updatedPlaylist?.totalDurationSeconds,
+          trackCount: updatedPlaylist!.tracksCount,
+          durationSeconds: updatedPlaylist!.totalDurationSeconds,
         },
       },
     };
@@ -439,31 +423,33 @@ export class PlaylistService {
 
   async removeTrackFromPlaylist(playlistId: string, trackId: string, userId: string) {
     const playlist = await this.playlistRepository.findPlaylistById(playlistId);
-    if (!playlist) throw new NotFoundException('Playlist not found');
-
-    // Ownership check
+    if (!playlist) {
+      throw new NotFoundException('Playlist not found');
+    }
     if (playlist.userId !== userId) {
-      throw new ForbiddenException('You do not have permission to edit this playlist');
+      throw new ForbiddenException('You are not the owner of this playlist');
     }
 
-    // Check if track exists in playlist
-    const trackEntry = await this.playlistRepository.findTrackInPlaylist(playlistId, trackId);
-    if (!trackEntry) throw new NotFoundException('Track not found in this playlist');
+    const relation = await this.playlistRepository.findTrackInPlaylist(playlistId, trackId);
+    if (!relation) {
+      throw new NotFoundException('Track is not in this playlist');
+    }
 
-    // Get track duration for stats update
-    const track = await this.playlistRepository.findTrackById(trackId);
-    const duration = track?.durationSeconds || 0;
+    await this.playlistRepository.removeTrackAndReorder(playlistId, trackId, relation.position);
 
-    await this.playlistRepository.removeTrackAndReorder(
-      playlistId,
-      trackId,
-      trackEntry.position,
-      duration
-    );
+    const updatedPlaylist = await this.playlistRepository.findPlaylistById(playlistId);
 
     return {
       status: 'success',
-      message: 'Track removed from playlist successfully',
+      data: {
+        playlistId,
+        trackId,
+        action: 'removed',
+        playlist: {
+          trackCount: updatedPlaylist!.tracksCount,
+          durationSeconds: updatedPlaylist!.totalDurationSeconds,
+        },
+      },
     };
   }
 
@@ -493,7 +479,6 @@ export class PlaylistService {
       throw new NotFoundException('Playlist not found');
     }
 
-    // Security Check
     if (!playlist.isPublic) {
       const isOwner = userId === playlist.userId;
       const hasValidSecretToken = secretToken && playlist.secretToken === secretToken;
@@ -503,7 +488,6 @@ export class PlaylistService {
       }
     }
 
-    // Map the TypeORM entity to the response format
     return {
       status: 'success',
       data: {
@@ -524,18 +508,14 @@ export class PlaylistService {
     if (!playlist) throw new NotFoundException('Playlist not found');
     if (playlist.userId !== userId) throw new ForbiddenException('Not the owner');
 
-    // 1. Validate array length matches current track count
     if (trackIds.length !== playlist.tracksCount) {
       throw new BadRequestException(
         'The provided track list length does not match the playlist size'
       );
     }
 
-    // 2. Fetch all tracks currently in the playlist
-    // You might need to add 'findAllTrackIdsInPlaylist' to your repository
     const currentTrackIds = await this.playlistRepository.findAllTrackIdsInPlaylist(playlistId);
 
-    // 3. SECURE CHECK: Ensure every ID in the request exists in the current playlist
     const allTracksMatch = trackIds.every((id) => currentTrackIds.includes(id));
 
     if (!allTracksMatch) {
@@ -544,7 +524,6 @@ export class PlaylistService {
       );
     }
 
-    // 4. Proceed with reorder
     await this.playlistRepository.reorderTracks(playlistId, trackIds);
 
     return {
