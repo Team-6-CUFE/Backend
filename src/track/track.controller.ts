@@ -13,6 +13,7 @@ import {
   UploadedFiles,
   UploadedFile,
   Sse,
+  Ip,
 } from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
 import { FileFieldsInterceptor, FileInterceptor } from '@nestjs/platform-express';
@@ -385,9 +386,10 @@ export class TrackController {
   @Get(':trackId')
   getTrack(
     @Param('trackId', ParseUUIDPipe) trackId: string,
-    @OptionalCurrentUser() user?: JwtPayload
+    @OptionalCurrentUser() user?: JwtPayload,
+    @Ip() ip?: string
   ) {
-    return this.trackService.getTrack(trackId, user);
+    return this.trackService.getTrack(trackId, user, ip);
   }
 
   @ApiGetTrackAudio()

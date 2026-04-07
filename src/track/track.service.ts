@@ -39,6 +39,7 @@ import { TrackAudioResDto } from './dto/get-track-audio-res.dto';
 import { BlockedRegionsDto } from './dto/blocked-regions.dto';
 import { GenresResDto } from './dto/get-genres-res.dto';
 import { TrackTagDto } from './dto/track-tag.dto';
+import { getLocationFromIp } from '../common/utilities/geolocation.util';
 
 @Injectable()
 export class TrackService {
@@ -640,12 +641,20 @@ export class TrackService {
     return { status: 'success', data };
   }
 
-  async getTrack(trackId: string, user?: JwtPayload) {
+  async getTrack(trackId: string, user?: JwtPayload, ip?: string) {
     const track = await this.trackRepository.findByIdWithRelations(trackId);
     if (!track) throw new NotFoundException('Track not found');
 
     if (track.visibility === TrackVisibility.PRIVATE && track.userId !== user?.sub) {
       throw new ForbiddenException('This track is private');
+    }
+    console.log('testing ip now');
+    if (track.userId !== user?.sub && track.blockedRegions?.length > 0 && ip) {
+      const { country } = getLocationFromIp(ip);
+      console.log(country);
+      if (country && track.blockedRegions.includes(country)) {
+        throw new ForbiddenException('This track is not available in your region');
+      }
     }
     const shaped: GetTrackResDto = {
       ...track,
@@ -653,7 +662,7 @@ export class TrackService {
       tags: plainToInstance(TrackTagDto, track.tags, { excludeExtraneousValues: true }),
       owner: plainToInstance(TrackOwnerDto, track.user, { excludeExtraneousValues: true }),
     };
-    const data = plainToInstance(UserTrackResponseDto, shaped, { excludeExtraneousValues: true });
+    const data = plainToInstance(GetTrackResDto, shaped, { excludeExtraneousValues: true });
     return { status: 'success', data };
   }
 

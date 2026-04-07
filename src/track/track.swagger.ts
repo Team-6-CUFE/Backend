@@ -1273,6 +1273,13 @@ export function ApiGetTrack() {
       status: 404,
       description: 'Track not found',
       schema: { example: { statusCode: 404, message: 'Track not found' } },
+    }),
+    ApiResponse({
+      status: 403,
+      description: 'This track is not available in your region',
+      schema: {
+        example: { statusCode: 403, message: 'This track is not available in your region' },
+      },
     })
   );
 }
