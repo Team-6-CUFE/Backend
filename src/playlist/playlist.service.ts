@@ -518,4 +518,42 @@ export class PlaylistService {
       },
     };
   }
+
+  async bulkReorder(playlistId: string, trackIds: string[], userId: string) {
+    const playlist = await this.playlistRepository.findPlaylistById(playlistId);
+    if (!playlist) throw new NotFoundException('Playlist not found');
+    if (playlist.userId !== userId) throw new ForbiddenException('Not the owner');
+
+    // 1. Validate array length matches current track count
+    if (trackIds.length !== playlist.tracksCount) {
+      throw new BadRequestException(
+        'The provided track list length does not match the playlist size'
+      );
+    }
+
+    // 2. Fetch all tracks currently in the playlist
+    // You might need to add 'findAllTrackIdsInPlaylist' to your repository
+    const currentTrackIds = await this.playlistRepository.findAllTrackIdsInPlaylist(playlistId);
+
+    // 3. SECURE CHECK: Ensure every ID in the request exists in the current playlist
+    const allTracksMatch = trackIds.every((id) => currentTrackIds.includes(id));
+
+    if (!allTracksMatch) {
+      throw new BadRequestException(
+        'The provided track IDs do not match the tracks in this playlist'
+      );
+    }
+
+    // 4. Proceed with reorder
+    await this.playlistRepository.reorderTracks(playlistId, trackIds);
+
+    return {
+      status: 'success',
+      message: 'Playlist tracks reordered successfully.',
+      data: {
+        playlistId: playlist.playlistId,
+        trackCount: playlist.tracksCount,
+      },
+    };
+  }
 }
