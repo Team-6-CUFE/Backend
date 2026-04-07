@@ -17,6 +17,8 @@ import { CreateExternalProfileDto } from './dto/create-external-profile.dto';
 import { UpdateExternalProfileDto } from './dto/update-external-profile.dto';
 import { ExternalProfileRepository } from './external-profile.repository';
 import { StorageService } from '../common/storage_service';
+import { TrackRepository } from './user_track.repository';
+import { buildPaginationResponse } from '../common/utilities/pagination.util';
 
 const MAX_EXTERNAL_PROFILES = 10;
 
@@ -27,7 +29,8 @@ export class ProfileService {
     private readonly genreRepository: GenreRepository,
     private readonly usernameAvailabilityService: UsernameAvailabilityService,
     private readonly externalProfileRepository: ExternalProfileRepository,
-    private readonly storageService: StorageService
+    private readonly storageService: StorageService,
+    private readonly trackRepository: TrackRepository
   ) {}
 
   async updateMyPrivacy(userId: string, updatePrivacyReqDto: UpdatePrivacyReqDto) {
@@ -321,6 +324,54 @@ export class ProfileService {
       status: 'Success',
       message: 'Cover photo updated successfully',
       data: { coverPhoto: coverPhotoUrl, updatedAt: updated!.updatedAt },
+    };
+  }
+
+  async getRecentlyPlayed(userId: string) {
+    const data = await this.trackRepository.findByUser(userId);
+    return { status: 'success', data };
+  }
+
+  async getListeningHistory(userId: string, page: number = 1, limit: number = 10) {
+    const cappedLimit = Math.min(limit, 50);
+    const [history, total] = await this.trackRepository.getListeningHistory(
+      userId,
+      page,
+      cappedLimit
+    );
+    const mappedHistory = history.map((play) => ({
+      track_play_id: play.trackPlayId,
+      playedAt: play.playedAt,
+      track: {
+        trackId: play.track.trackId,
+        title: play.track.title,
+        coverImage: play.track.coverImage,
+        durationSeconds: play.track.durationSeconds,
+        genre: play.track.genre
+          ? { id: play.track.genre.genreId, name: play.track.genre.name }
+          : null,
+        likesCount: play.track.likesCount,
+        repostsCount: play.track.repostsCount,
+        playCount: play.track.playCount,
+        commentsCount: play.track.commentsCount,
+        owner: {
+          userId: play.track.user.userId,
+          username: play.track.user.username,
+          displayName: play.track.user.displayName,
+        },
+      },
+    }));
+    return {
+      status: 'success',
+      ...buildPaginationResponse(mappedHistory, total, page, cappedLimit),
+    };
+  }
+
+  async deleteUserHistory(userId: string) {
+    await this.trackRepository.deleteUserHistory(userId);
+    return {
+      status: 'success',
+      message: 'Listening history and Recently Played cleared successfully',
     };
   }
 }

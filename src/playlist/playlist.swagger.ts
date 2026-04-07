@@ -1,5 +1,14 @@
 import { applyDecorators } from '@nestjs/common';
-import { ApiOperation, ApiResponse, ApiParam, ApiCookieAuth, ApiQuery } from '@nestjs/swagger';
+import {
+  ApiOperation,
+  ApiResponse,
+  ApiParam,
+  ApiCookieAuth,
+  ApiQuery,
+  ApiBody,
+  ApiConsumes,
+} from '@nestjs/swagger';
+import { AddTrackDto } from './dto/add-track.dto';
 
 export function ApiRepostPlaylist() {
   return applyDecorators(
@@ -504,7 +513,75 @@ export function ApiGetUserPlaylistLikes() {
   );
 }
 
-export function ApiDeletePlaylist() {
+// export function ApiDeletePlaylist() {
+//   return applyDecorators(
+//     ApiCookieAuth('access_token'),
+//     ApiOperation({
+//       summary: "Get a user's liked playlists",
+//       description: 'Returns a paginated list of playlists that the specified user has liked.',
+//     }),
+//     ApiParam({ name: 'user_id', type: 'string', format: 'uuid', description: 'UUID of the user' }),
+//     ApiQuery({
+//       name: 'page',
+//       required: false,
+//       type: Number,
+//       example: 1,
+//       description: 'Page number (default: 1)',
+//     }),
+//     ApiQuery({
+//       name: 'limit',
+//       required: false,
+//       type: Number,
+//       example: 20,
+//       description: 'Items per page, capped at 100 (default: 20)',
+//     }),
+//     ApiResponse({
+//       status: 200,
+//       description: 'User liked playlists retrieved successfully',
+//       schema: {
+//         example: {
+//           status: 'success',
+//           data: [
+//             {
+//               playlistId: '550e8400-e29b-41d4-a716-446655440000',
+//               title: 'Summer Hits',
+//               coverImage: 'https://example.com/cover.jpg',
+//               isPublic: true,
+//               tracksCount: 5,
+//               likesCount: 150,
+//               repostsCount: 12,
+//               user: {
+//                 userId: '550e8400-e29b-41d4-a716-446655440002',
+//                 username: 'playlist_creator',
+//                 displayName: 'The Creator',
+//               },
+//               likedAt: '2026-03-31T12:00:00Z',
+//             },
+//           ],
+//           pagination: {
+//             currentPage: 1,
+//             totalPages: 2,
+//             totalCount: 25,
+//             limit: 20,
+//           },
+//         },
+//       },
+//     }),
+//     ApiResponse({ status: 401, description: 'Unauthorized' }),
+//     ApiResponse({
+//       status: 403,
+//       description: 'This account is private',
+//       schema: { example: { statusCode: 403, message: 'This account is private' } },
+//     }),
+//     ApiResponse({
+//       status: 404,
+//       description: 'User not found',
+//       schema: { example: { statusCode: 404, message: 'User not found' } },
+//     })
+//   );
+// }
+
+export function ApiCreatePlaylist() {
   return applyDecorators(
     ApiCookieAuth('access_token'),
     ApiOperation({
@@ -572,56 +649,87 @@ export function ApiDeletePlaylist() {
   );
 }
 
-export function ApiCreatePlaylist() {
+export function ApiUpdatePlaylist() {
   return applyDecorators(
     ApiCookieAuth('access_token'),
+    ApiConsumes('multipart/form-data'),
     ApiOperation({
-      summary: "Get a user's liked playlists",
-      description: 'Returns a paginated list of playlists that the specified user has liked.',
+      summary: 'Update playlist metadata or cover image',
+      description: 'Allows the owner to update title, description, and the cover image.',
     }),
-    ApiParam({ name: 'user_id', type: 'string', format: 'uuid', description: 'UUID of the user' }),
-    ApiQuery({
-      name: 'page',
-      required: false,
-      type: Number,
-      example: 1,
-      description: 'Page number (default: 1)',
+    ApiParam({
+      name: 'playlistId',
+      type: 'string',
+      format: 'uuid',
+      description: 'UUID of the playlist to update',
     }),
-    ApiQuery({
-      name: 'limit',
-      required: false,
-      type: Number,
-      example: 20,
-      description: 'Items per page, capped at 100 (default: 20)',
+    ApiBody({
+      schema: {
+        type: 'object',
+        properties: {
+          title: { type: 'string', example: 'My New Title' },
+          description: { type: 'string', example: 'Updated playlist description' },
+          coverImage: {
+            type: 'string',
+            format: 'binary',
+            description: 'Playlist cover image (png, jpeg, webp)',
+          },
+        },
+      },
     }),
     ApiResponse({
       status: 200,
-      description: 'User liked playlists retrieved successfully',
+      description: 'Playlist updated successfully',
+      schema: {
+        example: {
+          status: 'Success',
+          message: 'Playlist updated successfully',
+          data: {
+            playlistId: '550e8400-e29b-41d4-a716-446655440000',
+            title: 'My New Title',
+            description: 'Updated playlist description',
+            coverImage: 'https://s3.amazonaws.com/bucket/playlists/uuid/cover.webp',
+            updatedAt: '2026-04-07T08:00:00.000Z',
+          },
+        },
+      },
+    }),
+    ApiResponse({ status: 400, description: 'Invalid file type or size' }),
+    ApiResponse({ status: 401, description: 'Unauthorized' }),
+    ApiResponse({ status: 403, description: 'Not the owner of the playlist' }),
+    ApiResponse({ status: 404, description: 'Playlist not found' })
+  );
+}
+
+export function ApiAddTrackToPlaylist() {
+  return applyDecorators(
+    ApiCookieAuth('access_token'),
+    ApiOperation({
+      summary: 'Add a track to a playlist',
+      description: 'Adds a track to the end of a playlist. Only the owner can add tracks.',
+    }),
+    ApiParam({
+      name: 'playlistId',
+      description: 'UUID of the playlist',
+      format: 'uuid',
+      example: '550e8400-e29b-41d4-a716-446655440000',
+    }),
+    ApiBody({ type: AddTrackDto }),
+    ApiResponse({
+      status: 201,
+      description: 'Track added successfully',
       schema: {
         example: {
           status: 'success',
-          data: [
-            {
-              playlistId: '550e8400-e29b-41d4-a716-446655440000',
-              title: 'Summer Hits',
-              coverImage: 'https://example.com/cover.jpg',
-              isPublic: true,
-              tracksCount: 5,
-              likesCount: 150,
-              repostsCount: 12,
-              user: {
-                userId: '550e8400-e29b-41d4-a716-446655440002',
-                username: 'playlist_creator',
-                displayName: 'The Creator',
-              },
-              likedAt: '2026-03-31T12:00:00Z',
+          data: {
+            playlistId: '550e8400-e29b-41d4-a716-446655440000',
+            trackId: '550e8400-e29b-41d4-a716-446655440005',
+            position: 13,
+            addedAt: '2026-04-07T10:00:00Z',
+            playlist: {
+              trackCount: 13,
+              durationSeconds: 3061,
             },
-          ],
-          pagination: {
-            currentPage: 1,
-            totalPages: 2,
-            totalCount: 25,
-            limit: 20,
           },
         },
       },
@@ -629,13 +737,116 @@ export function ApiCreatePlaylist() {
     ApiResponse({ status: 401, description: 'Unauthorized' }),
     ApiResponse({
       status: 403,
-      description: 'This account is private',
-      schema: { example: { statusCode: 403, message: 'This account is private' } },
+      description: 'Forbidden - Not the playlist owner',
+      schema: { example: { statusCode: 403, message: 'Forbidden resource' } },
     }),
     ApiResponse({
       status: 404,
-      description: 'User not found',
-      schema: { example: { statusCode: 404, message: 'User not found' } },
+      description: 'Playlist or Track not found',
+      schema: { example: { statusCode: 404, message: 'Track not found' } },
+    }),
+    ApiResponse({
+      status: 409,
+      description: 'Conflict - Track already in playlist',
+      schema: { example: { statusCode: 409, message: 'Track is already in this playlist' } },
     })
+  );
+}
+
+export function ApiRemoveTrackFromPlaylist() {
+  return applyDecorators(
+    ApiCookieAuth('access_token'),
+    ApiOperation({
+      summary: 'Remove a track from a playlist',
+      description: 'Removes a track and automatically re-indexes the remaining tracks positions.',
+    }),
+    ApiParam({ name: 'playlistId', format: 'uuid', example: 'uuid-1' }),
+    ApiParam({ name: 'trackId', format: 'uuid', example: 'uuid-2' }),
+    ApiResponse({
+      status: 200,
+      description: 'Success',
+      schema: {
+        example: { status: 'success', message: 'Track removed from playlist successfully' },
+      },
+    }),
+    ApiResponse({ status: 403, description: 'Forbidden - Not the owner' }),
+    ApiResponse({ status: 404, description: 'Playlist or track not found' })
+  );
+}
+
+export function ApiDeletePlaylist() {
+  return applyDecorators(
+    ApiCookieAuth('access_token'),
+    ApiOperation({
+      summary: 'Delete a playlist',
+      description: 'Permanently deletes a playlist. Only the owner can perform this action.',
+    }),
+    ApiParam({ name: 'playlistId', format: 'uuid' }),
+    ApiResponse({ status: 200, description: 'Playlist deleted' }),
+    ApiResponse({ status: 403, description: 'Not authorized' }),
+    ApiResponse({ status: 404, description: 'Not found' })
+  );
+}
+
+export function ApiGetUserCreatedPlaylists() {
+  return applyDecorators(
+    ApiCookieAuth('access_token'),
+    ApiOperation({
+      summary: "Get a user's created playlists",
+      description:
+        'Returns playlists created by the user. Private playlists are only visible to the owner.',
+    }),
+    ApiParam({ name: 'userId', format: 'uuid' }),
+    ApiQuery({ name: 'page', required: false, example: 1 }),
+    ApiQuery({ name: 'limit', required: false, example: 20 }),
+    ApiResponse({
+      status: 200,
+      description: 'Success',
+      schema: {
+        example: {
+          status: 'success',
+          data: [{ playlistId: 'uuid', title: 'My Vibes', isPublic: true }],
+          pagination: { currentPage: 1, totalPages: 1, totalCount: 1, limit: 20 },
+        },
+      },
+    })
+  );
+}
+
+export function ApiReorderTracks() {
+  return applyDecorators(
+    ApiCookieAuth('access_token'),
+    ApiOperation({
+      summary: 'Bulk update track positions',
+      description:
+        'Accepts an ordered array of track IDs and updates their positions (1-indexed) in a single transaction.',
+    }),
+    ApiParam({ name: 'playlistId', format: 'uuid', example: 'pl-123' }),
+    ApiBody({
+      schema: {
+        type: 'object',
+        required: ['track_ids'],
+        properties: {
+          trackIds: {
+            type: 'array',
+            items: { type: 'string', format: 'uuid' },
+            example: ['track-uuid-1', 'track-uuid-2', 'track-uuid-3'],
+          },
+        },
+      },
+    }),
+    ApiResponse({
+      status: 200,
+      description: 'Reordered successfully',
+      schema: {
+        example: {
+          status: 'success',
+          message: 'Playlist tracks reordered successfully.',
+          data: { playlistId: 'pl-123', trackCount: 3 },
+        },
+      },
+    }),
+    ApiResponse({ status: 400, description: 'Invalid array or length mismatch' }),
+    ApiResponse({ status: 403, description: 'Not the owner' })
   );
 }

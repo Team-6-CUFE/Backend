@@ -1,6 +1,7 @@
 import { Entity, Column, PrimaryGeneratedColumn, ManyToMany } from 'typeorm';
 import { BaseEntity } from '../../common/entities/base.entity';
 import { Track } from './track.entity';
+import { Playlist } from '../../playlist/entities/playlist.entity';
 
 @Entity('tags')
 export class Tag extends BaseEntity {
@@ -12,4 +13,7 @@ export class Tag extends BaseEntity {
 
   @ManyToMany(() => Track, (track) => track.tags)
   tracks!: Track[];
+
+  @ManyToMany(() => Playlist, (playlist) => playlist.tags)
+  playlists!: Playlist[];
 }

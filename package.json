@@ -195,6 +195,9 @@
       }
     },
     "coverageProvider": "v8",
-    "maxWorkers": 2
+    "maxWorkers": 2,
+    "moduleNameMapper": {
+    "@ffprobe-installer/ffprobe": "<rootDir>/src/__mocks__/@ffprobe-installer/ffprobe.js"
+  }
   }
 }

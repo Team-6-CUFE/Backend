@@ -16,10 +16,31 @@ import { TrackComment } from './entities/track-comments.entity';
 import { TrackSseService } from './services/track-sse.service';
 import { AudioQueueEventsListener } from './listeners/audio-queue-events.listener';
 import { StorageService } from '../common/storage_service';
+import { GenreRepository } from '../genre/genre.repository';
+import { TrackPlay } from './entities/track-play.entity';
+import { RecentlyPlayed } from './entities/recently-played.entity';
+import { PlaylistModule } from '../playlist/playlist.module';
+import { TrackFirstFan } from './entities/track-first-fan.entity';
+import { Settings } from '../settings/entities/settings.entity';
+import { FanRepository } from './fan.repository';
+import { FansService } from './services/fans.service';
+import { FansJobProcessor } from './listeners/fans-job.processor';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([Track, TrackRepost, TrackLikes, TrackComment, Genre, Tag]),
+    TypeOrmModule.forFeature([
+      Track,
+      TrackRepost,
+      TrackLikes,
+      TrackComment,
+      Genre,
+      Tag,
+      TrackPlay,
+      RecentlyPlayed,
+      TrackFirstFan,
+      Settings,
+    ]),
+    PlaylistModule,
     BullModule.forRootAsync({
       imports: [ConfigModule],
       useFactory: (configService: ConfigService) => {
@@ -37,6 +58,7 @@ import { StorageService } from '../common/storage_service';
       inject: [ConfigService],
     }),
     BullModule.registerQueue({ name: 'audioQueue' }),
+    BullModule.registerQueue({ name: 'fansQueue' }),
     UserModule,
     FollowersModule,
   ],
@@ -47,6 +69,10 @@ import { StorageService } from '../common/storage_service';
     TrackSseService,
     AudioQueueEventsListener,
     StorageService,
+    GenreRepository,
+    FanRepository,
+    FansService,
+    FansJobProcessor,
   ],
   exports: [TrackService, TrackRepository],
 })

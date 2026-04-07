@@ -12,6 +12,10 @@ import { UploadTrackDto } from './dto/upload-track.dto';
 import { UpdateTrackDto } from './dto/update-track.dto';
 import { TrackStatus } from './enums/track-status.enum';
 import { TrackVisibility } from './enums/track-visibility.enum';
+import { TrackPlay } from './entities/track-play.entity';
+import { RecentlyPlayed, RecentlyPlayedItemType } from './entities/recently-played.entity';
+
+const RECENTLY_PLAYED_LIMIT = 6;
 
 @Injectable()
 export class TrackRepository {
@@ -32,13 +36,29 @@ export class TrackRepository {
     private readonly genreRepository: Repository<Genre>,
 
     @InjectRepository(Tag)
-    private readonly tagRepository: Repository<Tag>
+    private readonly tagRepository: Repository<Tag>,
+
+    @InjectRepository(TrackPlay)
+    private readonly trackPlayRepository: Repository<TrackPlay>,
+
+    @InjectRepository(RecentlyPlayed)
+    private readonly recentlyPlayedRepository: Repository<RecentlyPlayed>
   ) {}
 
   async findById(trackId: string): Promise<Track | null> {
     return this.trackRepository.findOne({
       where: { trackId },
     });
+  }
+
+  async findByIdWithRelations(trackId: string): Promise<Track | null> {
+    return this.trackRepository
+      .createQueryBuilder('track')
+      .leftJoinAndSelect('track.genre', 'genre')
+      .leftJoinAndSelect('track.tags', 'tag')
+      .leftJoinAndSelect('track.user', 'user')
+      .where('track.trackId = :trackId', { trackId })
+      .getOne();
   }
 
   async repostTrack(trackId: string, userId: string, caption?: string): Promise<TrackRepost> {
@@ -261,13 +281,13 @@ export class TrackRepository {
 
     const savedTrack = await this.trackRepository.save(track);
 
-    if (dto.genreIds?.length) {
-      savedTrack.genres = await this.genreRepository.findBy({ genreId: In(dto.genreIds) });
+    if (dto.genreName && dto.genreName !== 'None') {
+      savedTrack.genreId = await this.findOrCreateGenre(dto.genreName).then((g) => g.genreId);
     }
     if (dto.tags?.length) {
       savedTrack.tags = await this.findOrCreateTags(dto.tags);
     }
-    if (dto.genreIds?.length || dto.tags?.length) {
+    if (dto.genreName || dto.tags?.length) {
       await this.trackRepository.save(savedTrack);
     }
 
@@ -275,7 +295,7 @@ export class TrackRepository {
   }
 
   async updateTrack(trackId: string, dto: UpdateTrackDto, coverImageUrl?: string): Promise<Track> {
-    const { genreIds, tags: tagNames, ...scalarDto } = dto;
+    const { genreName, tags: tagNames, ...scalarDto } = dto;
 
     const updates: Partial<Track> = { ...(scalarDto as Partial<Track>) };
     if (coverImageUrl !== undefined) updates.coverImage = coverImageUrl;
@@ -286,18 +306,22 @@ export class TrackRepository {
 
     const track = (await this.trackRepository.findOne({
       where: { trackId },
-      relations: ['genres', 'tags'],
+      relations: ['genre', 'tags'],
     })) as Track;
 
-    if (genreIds !== undefined) {
-      track.genres = genreIds.length
-        ? await this.genreRepository.findBy({ genreId: In(genreIds) })
-        : [];
+    if (genreName !== undefined && genreName !== 'None') {
+      const genre = await this.findOrCreateGenre(genreName);
+      track.genreId = genre.genreId;
+      track.genre = genre as unknown as (typeof track)['genre'];
+    }
+    if (genreName === 'None') {
+      track.genreId = null;
+      track.genre = null as unknown as (typeof track)['genre'];
     }
     if (tagNames !== undefined) {
       track.tags = tagNames.length ? await this.findOrCreateTags(tagNames) : [];
     }
-    if (genreIds !== undefined || tagNames !== undefined) {
+    if (genreName !== undefined || tagNames !== undefined) {
       await this.trackRepository.save(track);
     }
 
@@ -318,5 +342,90 @@ export class TrackRepository {
         .map((name) => this.tagRepository.save(this.tagRepository.create({ name })))
     );
     return [...existing, ...created];
+  }
+
+  private async findOrCreateGenre(names: string): Promise<Genre> {
+    const trimmed = names.trim();
+    const existing = await this.genreRepository.findBy({ name: In([trimmed]) });
+    if (existing.length) {
+      return existing[0];
+    }
+    return this.genreRepository.save(this.genreRepository.create({ name: trimmed }));
+  }
+
+  async createTrackPlay(trackId: string, userId: string, playlistId?: string): Promise<TrackPlay> {
+    const trackPlay = this.trackPlayRepository.create({
+      trackId,
+      userId,
+      playlistId: playlistId ?? null,
+    });
+    await this.trackPlayRepository.save(trackPlay);
+
+    return trackPlay;
+  }
+
+  async addToRecentlyPlayed(
+    userId: string,
+    itemId: string,
+    itemType: RecentlyPlayedItemType
+  ): Promise<void> {
+    await this.recentlyPlayedRepository
+      .createQueryBuilder()
+      .insert()
+      .into(RecentlyPlayed)
+      .values({ userId, itemId, itemType, playedAt: new Date() })
+      .orUpdate(['played_at'], ['user_id', 'item_id', 'item_type'])
+      .execute();
+  }
+
+  async deleteOldRecentlyPlayed(userId: string): Promise<void> {
+    // Keep only the 6 most recent slots per user — delete anything older
+    await this.recentlyPlayedRepository
+      .createQueryBuilder()
+      .delete()
+      .where(
+        `user_id = :userId AND (item_id, item_type::text) NOT IN (
+          SELECT item_id, item_type::text FROM recently_played
+          WHERE user_id = :userId
+          ORDER BY played_at DESC
+          LIMIT :limit
+        )`,
+        { userId, limit: RECENTLY_PLAYED_LIMIT }
+      )
+      .execute();
+  }
+
+  async getUserUploadedSeconds(userId: string): Promise<number> {
+    const sum = await this.trackRepository.sum('durationSeconds', {
+      userId,
+      trackStatus: TrackStatus.FINISHED,
+    });
+    return sum ?? 0;
+  }
+
+  async getUserTracks(
+    userId: string,
+    requesterId: string,
+    page: number,
+    limit: number
+  ): Promise<[Track[], number]> {
+    const skip = (page - 1) * limit;
+    const isOwner = userId === requesterId;
+
+    const query = this.trackRepository
+      .createQueryBuilder('track')
+      .where('track.userId = :userId', { userId })
+      .andWhere('track.trackStatus = :status', { status: TrackStatus.FINISHED });
+
+    if (!isOwner) {
+      query.andWhere('track.visibility = :visibility', { visibility: TrackVisibility.PUBLIC });
+    }
+
+    return query.orderBy('track.createdAt', 'DESC').skip(skip).take(limit).getManyAndCount();
+  }
+
+  async updateBlockedRegions(trackId: string, regions: string[]): Promise<Track> {
+    await this.trackRepository.update(trackId, { blockedRegions: regions });
+    return (await this.trackRepository.findOne({ where: { trackId } })) as Track;
   }
 }
