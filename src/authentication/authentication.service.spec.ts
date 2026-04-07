@@ -2325,7 +2325,7 @@ describe('AuthenticationService', () => {
         statusCode: number;
       };
 
-      expect(result.url).toContain('/complete-oauth-profile');
+      expect(result.url).toContain('/auth/callback');
       expect(result.url).toContain('pendingToken=');
       expect(result.url).toContain('displayName=');
     });

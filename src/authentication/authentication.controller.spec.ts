@@ -16,7 +16,6 @@ import {
   mockSecondaryEmail,
   mockVerificationCode,
   mockOAuthProfile,
-  mockPendingToken,
   mockCompleteOAuthProfileDto,
   mockProviderId,
   mockUsername,
@@ -767,11 +766,11 @@ describe('AuthenticationController', () => {
     it('should delegate to handleOAuthCallback with profile and response', async () => {
       const profile = mockOAuthProfile();
       const res = mockResponseWithCookie();
-      service.handleOAuthCallback.mockResolvedValue({
-        status: 'success',
-        type: 'login',
-        data: {},
-      });
+      const mockRedirectResponse = {
+        url: 'http://localhost:3000/home',
+        statusCode: 302,
+      };
+      service.handleOAuthCallback.mockResolvedValue(mockRedirectResponse);
 
       await controller.facebookCallback(profile as any, res as any);
 
@@ -780,19 +779,18 @@ describe('AuthenticationController', () => {
     });
 
     it('should return the service response as is', async () => {
-      const mockServiceResponse = {
-        status: 'success',
-        type: 'registrationIncomplete',
-        data: { pendingToken: mockPendingToken, prefill: {} },
+      const profile = mockOAuthProfile();
+      const res = mockResponseWithCookie();
+      const mockRedirectResponse = {
+        url: 'http://localhost:3000/home',
+        statusCode: 302,
       };
-      service.handleOAuthCallback.mockResolvedValue(mockServiceResponse);
+      service.handleOAuthCallback.mockResolvedValue(mockRedirectResponse);
 
-      const result = await controller.facebookCallback(
-        mockOAuthProfile() as any,
-        mockResponseWithCookie() as any
-      );
+      const result = await controller.facebookCallback(profile as any, res as any);
 
-      expect(result).toEqual(mockServiceResponse);
+      expect(service.handleOAuthCallback).toHaveBeenCalledWith(profile, res);
+      expect(result).toEqual(mockRedirectResponse);
     });
 
     it('should propagate exception thrown by service', async () => {

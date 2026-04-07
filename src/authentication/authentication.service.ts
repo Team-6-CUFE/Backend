@@ -693,7 +693,7 @@ export class AuthenticationService {
     const pendingToken = await this.createPendingOAuthSession(profile);
     const displayName = `${profile.firstName} ${profile.lastName}`;
     return {
-      url: `${FRONTEND_URL}/complete-oauth-profile?pendingToken=${
+      url: `${FRONTEND_URL}/auth/callback?pendingToken=${
         pendingToken
       }&displayName=${encodeURIComponent(displayName)}`,
       statusCode: 302,
