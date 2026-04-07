@@ -199,4 +199,14 @@ export class PlaylistController {
   ) {
     return this.playlistService.deletePlaylist(playlistId, userId);
   }
+
+  @Get(':playlistId')
+  // @ApiGetPlaylistDetails()
+  async getPlaylist(
+    @Param('playlistId', ParseUUIDPipe) playlistId: string,
+    @Query('s') secretToken: string,
+    @CurrentUser('sub') userId: string | null // Make sure your decorator handles null for guests
+  ) {
+    return this.playlistService.getPlaylist(playlistId, userId, secretToken);
+  }
 }
