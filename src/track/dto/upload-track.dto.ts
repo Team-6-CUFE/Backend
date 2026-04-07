@@ -149,22 +149,12 @@ export class UploadTrackDto {
   shareAlike?: boolean;
 
   @ApiPropertyOptional({
-    description: 'Genre UUIDs to attach to this track',
-    type: [String],
-    example: ['uuid-1', 'uuid-2'],
+    description: 'Genre name (auto-created if it does not exist)',
+    example: 'Lo-Fi',
   })
   @IsOptional()
-  @IsArray()
-  @IsString({ each: true })
-  @Transform(({ value }) =>
-    typeof value === 'string'
-      ? value
-          .split(',')
-          .map((s: string) => s.trim())
-          .filter(Boolean)
-      : value
-  )
-  genreIds?: string[];
+  @IsString()
+  genreName?: string;
 
   @ApiPropertyOptional({
     description: 'Tag names (auto-created if they do not exist)',

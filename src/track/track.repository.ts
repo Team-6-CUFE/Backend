@@ -54,7 +54,7 @@ export class TrackRepository {
   async findByIdWithRelations(trackId: string): Promise<Track | null> {
     return this.trackRepository
       .createQueryBuilder('track')
-      .leftJoinAndSelect('track.genres', 'genre')
+      .leftJoinAndSelect('track.genre', 'genre')
       .leftJoinAndSelect('track.tags', 'tag')
       .leftJoinAndSelect('track.user', 'user')
       .where('track.trackId = :trackId', { trackId })
@@ -281,13 +281,13 @@ export class TrackRepository {
 
     const savedTrack = await this.trackRepository.save(track);
 
-    if (dto.genreIds?.length) {
-      savedTrack.genres = await this.genreRepository.findBy({ genreId: In(dto.genreIds) });
+    if (dto.genreName && dto.genreName !== 'None') {
+      savedTrack.genreId = await this.findOrCreateGenre(dto.genreName).then((g) => g.genreId);
     }
     if (dto.tags?.length) {
       savedTrack.tags = await this.findOrCreateTags(dto.tags);
     }
-    if (dto.genreIds?.length || dto.tags?.length) {
+    if (dto.genreName || dto.tags?.length) {
       await this.trackRepository.save(savedTrack);
     }
 
@@ -295,7 +295,7 @@ export class TrackRepository {
   }
 
   async updateTrack(trackId: string, dto: UpdateTrackDto, coverImageUrl?: string): Promise<Track> {
-    const { genreIds, tags: tagNames, ...scalarDto } = dto;
+    const { genreName, tags: tagNames, ...scalarDto } = dto;
 
     const updates: Partial<Track> = { ...(scalarDto as Partial<Track>) };
     if (coverImageUrl !== undefined) updates.coverImage = coverImageUrl;
@@ -306,18 +306,22 @@ export class TrackRepository {
 
     const track = (await this.trackRepository.findOne({
       where: { trackId },
-      relations: ['genres', 'tags'],
+      relations: ['genre', 'tags'],
     })) as Track;
 
-    if (genreIds !== undefined) {
-      track.genres = genreIds.length
-        ? await this.genreRepository.findBy({ genreId: In(genreIds) })
-        : [];
+    if (genreName !== undefined && genreName !== 'None') {
+      const genre = await this.findOrCreateGenre(genreName);
+      track.genreId = genre.genreId;
+      track.genre = genre as unknown as (typeof track)['genre'];
+    }
+    if (genreName === 'None') {
+      track.genreId = null;
+      track.genre = null as unknown as (typeof track)['genre'];
     }
     if (tagNames !== undefined) {
       track.tags = tagNames.length ? await this.findOrCreateTags(tagNames) : [];
     }
-    if (genreIds !== undefined || tagNames !== undefined) {
+    if (genreName !== undefined || tagNames !== undefined) {
       await this.trackRepository.save(track);
     }
 
@@ -338,6 +342,15 @@ export class TrackRepository {
         .map((name) => this.tagRepository.save(this.tagRepository.create({ name })))
     );
     return [...existing, ...created];
+  }
+
+  private async findOrCreateGenre(names: string): Promise<Genre> {
+    const trimmed = names.trim();
+    const existing = await this.genreRepository.findBy({ name: In([trimmed]) });
+    if (existing.length) {
+      return existing[0];
+    }
+    return this.genreRepository.save(this.genreRepository.create({ name: trimmed }));
   }
 
   async createTrackPlay(trackId: string, userId: string, playlistId?: string): Promise<TrackPlay> {

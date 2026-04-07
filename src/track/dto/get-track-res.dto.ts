@@ -64,10 +64,10 @@ export class GetTrackResDto {
   @Expose()
   releaseDate!: Date | null;
 
-  @ApiProperty({ type: () => [TrackGenreDto] })
+  @ApiProperty({ type: () => TrackGenreDto, nullable: true })
   @Expose()
   @Type(() => TrackGenreDto)
-  genres!: TrackGenreDto[];
+  genre!: TrackGenreDto | null;
 
   @ApiProperty({ example: ['deep house', 'cairo', 'summer', 'live'] })
   @Expose()

@@ -166,8 +166,9 @@ export class TrackService {
         removeOnFail: false,
       });
     }
-
-    return { status: 'success', data: updated };
+    const { genreId, ...updateData } = updated;
+    console.log('Updated genre ID:', genreId);
+    return { status: 'success', data: updateData };
   }
 
   async reuploadTrackAudio(
@@ -571,6 +572,14 @@ export class TrackService {
       const playlist = await this.playlistService.getPlaylistById(playlistId);
       if (!playlist) throw new NotFoundException('Playlist not found');
     }
+    if (track.userId === userId) {
+      // Allow artists to play their own tracks without counting as a play
+      return {
+        status: 'success',
+        message: 'Artist play - not counted',
+        data: { trackId, playCount: track.playCount },
+      };
+    }
     await this.trackRepository.createTrackPlay(trackId, userId, playlistId);
 
     const artistId = track.userId;
@@ -712,7 +721,7 @@ export class TrackService {
     }
     const shaped: GetTrackResDto = {
       ...track,
-      genres: plainToInstance(TrackGenreDto, track.genres, { excludeExtraneousValues: true }),
+      genre: plainToInstance(TrackGenreDto, track.genre, { excludeExtraneousValues: true }),
       tags: plainToInstance(TrackTagDto, track.tags, { excludeExtraneousValues: true }),
       owner: plainToInstance(TrackOwnerDto, track.user, { excludeExtraneousValues: true }),
     };

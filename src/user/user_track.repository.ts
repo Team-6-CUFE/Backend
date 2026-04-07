@@ -122,7 +122,7 @@ export class TrackRepository {
       .createQueryBuilder('play')
       .innerJoinAndSelect('play.track', 'track')
       .leftJoinAndSelect('track.user', 'owner')
-      .leftJoinAndSelect('track.tags', 'tags')
+      .leftJoinAndSelect('track.genre', 'genre')
       .where('play.userId = :userId', { userId })
       .orderBy('play.playedAt', 'DESC')
       .skip(skip)

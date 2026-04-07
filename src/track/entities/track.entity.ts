@@ -142,6 +142,9 @@ export class Track extends BaseEntity {
   @Column({ name: 'share_alike', type: 'boolean', default: false })
   shareAlike!: boolean;
 
+  @Column({ name: 'genre_id', type: 'uuid', nullable: true })
+  genreId!: string | null;
+
   @ManyToOne(() => User, (user) => user.tracks, { onDelete: 'CASCADE' })
   @JoinColumn({ name: 'user_id' })
   user!: Relation<User>;
@@ -155,13 +158,9 @@ export class Track extends BaseEntity {
   @OneToMany(() => TrackRepost, (repost) => repost.track)
   reposts!: TrackRepost[];
 
-  @ManyToMany(() => Genre)
-  @JoinTable({
-    name: 'track_genres',
-    joinColumn: { name: 'track_id', referencedColumnName: 'trackId' },
-    inverseJoinColumn: { name: 'genre_id', referencedColumnName: 'genreId' },
-  })
-  genres!: Genre[];
+  @ManyToOne(() => Genre, (genre) => genre.tracks, { onDelete: 'SET NULL' })
+  @JoinColumn({ name: 'genre_id' })
+  genre!: Relation<Genre>;
 
   @ManyToMany(() => Tag, (tag) => tag.tracks)
   @JoinTable({

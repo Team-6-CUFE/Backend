@@ -811,11 +811,12 @@ Subscribe to \`GET /tracks/:trackId/status/stream\` (SSE) to receive live progre
           noncommercial: { type: 'boolean', default: false },
           noDerivativeWorks: { type: 'boolean', default: false },
           shareAlike: { type: 'boolean', default: false },
-          // ── Genres & Tags ────────────────────────────────────────────────
-          genreIds: {
+          // ── Genre & Tags ─────────────────────────────────────────────────
+          genreName: {
             type: 'string',
-            description: 'Comma-separated genre UUIDs (must exist in the genres table)',
-            example: 'uuid-1,uuid-2',
+            description:
+              'Genre name — auto-created if it does not exist. Use "None" to clear the genre.',
+            example: 'Lo-Fi',
           },
           tags: {
             type: 'string',
@@ -941,10 +942,11 @@ Send as \`multipart/form-data\` so a new cover image can optionally be included.
           noncommercial: { type: 'boolean' },
           noDerivativeWorks: { type: 'boolean' },
           shareAlike: { type: 'boolean' },
-          genreIds: {
+          genreName: {
             type: 'string',
-            description: 'Comma-separated genre UUIDs — replaces the full genre list',
-            example: 'uuid-1,uuid-2',
+            description:
+              'Genre name — auto-created if it does not exist. Use "None" to clear the genre.',
+            example: 'Lo-Fi',
           },
           tags: {
             type: 'string',
@@ -964,8 +966,27 @@ Send as \`multipart/form-data\` so a new cover image can optionally be included.
           data: {
             trackId: '550e8400-e29b-41d4-a716-446655440001',
             title: 'Midnight Drive (Extended Mix)',
-            visibility: 'public',
+            description: 'Lo-fi hip-hop session recorded live.',
             coverImage: 'https://s3.amazonaws.com/covers/new_cover.jpg',
+            durationSeconds: 214,
+            trackStatus: 'finished',
+            waveformUrl: 'https://s3.amazonaws.com/waveforms/track_123.json',
+            playCount: 1042,
+            likesCount: 87,
+            repostsCount: 14,
+            commentsCount: 5,
+            visibility: 'public',
+            explicitContent: false,
+            releaseDate: '2026-06-01',
+            genre: { genreId: 'genre_001', name: 'Lo-Fi' },
+            tags: ['lo-fi', 'chillhop', 'study'],
+            owner: {
+              userId: '550e8400-e29b-41d4-a716-446655440001',
+              username: 'yara_senousy',
+              displayName: 'Yara Senousy',
+              avatarUrl: 'https://s3.amazonaws.com/avatars/user_123.jpg',
+            },
+            createdAt: '2025-06-01T10:00:00Z',
             updatedAt: '2026-04-03T01:00:00Z',
           },
         },
@@ -1335,7 +1356,7 @@ export function ApiGetTrack() {
     ApiOperation({
       summary: 'Get a track',
       description:
-        'Returns the full track object including metadata, genres, tags, waveform URL, and owner. ' +
+        'Returns the full track object including metadata, genre, tags, waveform URL, and owner. ' +
         'Auth is optional — unauthenticated users can access public tracks. ' +
         'Private tracks require the owner to be authenticated. ' +
         'Audio URL is not returned, use GET track audio',
@@ -1362,10 +1383,7 @@ export function ApiGetTrack() {
             visibility: 'public',
             explicitContent: false,
             releaseDate: '2025-06-01',
-            genres: [
-              { genreId: 'genre_001', name: 'Electronic' },
-              { genreId: 'genre_004', name: 'House' },
-            ],
+            genre: { genreId: 'genre_001', name: 'Electronic' },
             tags: ['deep house', 'cairo', 'summer', 'live'],
             owner: {
               userId: '550e8400-e29b-41d4-a716-446655440001',

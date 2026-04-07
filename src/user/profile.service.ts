@@ -310,7 +310,9 @@ export class ProfileService {
         title: play.track.title,
         coverImage: play.track.coverImage,
         durationSeconds: play.track.durationSeconds,
-        tags: play.track.tags?.map((t) => t.name) || [],
+        genre: play.track.genre
+          ? { id: play.track.genre.genreId, name: play.track.genre.name }
+          : null,
         likesCount: play.track.likesCount,
         repostsCount: play.track.repostsCount,
         playCount: play.track.playCount,
