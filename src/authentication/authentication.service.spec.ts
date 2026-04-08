@@ -586,12 +586,12 @@ describe('AuthenticationService', () => {
 
     // ── User not found ─────────────────────────────────────────────────────────
 
-    it('should throw UnauthorizedException if neither email nor username matches', async () => {
+    it('should throw NotFoundException if neither email nor username matches', async () => {
       userService.findByEmail.mockResolvedValue(null);
       userService.findByUsername.mockResolvedValue(null);
 
       await expect(service.login(mockLoginDto() as any, res as any)).rejects.toThrow(
-        UnauthorizedException
+        NotFoundException
       );
     });
 
