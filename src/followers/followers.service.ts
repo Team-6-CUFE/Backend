@@ -246,52 +246,33 @@ export class FollowersService {
     };
   }
 
-  async getCommonFollowers(
+  async getMutualFollowers(
     currentUserId: string,
-    userId: string,
-    otherUserId: string,
+    targetUserId: string,
     page: number,
     limit: number
   ) {
-    if (userId === otherUserId) {
-      throw new BadRequestException('Both user IDs cannot be the same');
+    // Cannot check mutuals against yourself
+    if (currentUserId === targetUserId) {
+      throw new BadRequestException('Cannot view mutual followers with yourself');
     }
 
-    const [userA, userB] = await Promise.all([
-      this.userRepository.findById(userId),
-      this.userRepository.findById(otherUserId),
-    ]);
+    const targetUser = await this.userRepository.findById(targetUserId);
 
-    if (!userA || !userB) {
-      throw new NotFoundException('One or both users not found');
+    if (!targetUser) {
+      throw new NotFoundException('User not found');
     }
 
-    if (currentUserId !== userId) {
-      const blocksA = await this.followersRepository.getBlockRelationship(currentUserId, userId);
-      if (blocksA.length > 0) {
-        throw new ForbiddenException('Action not allowed due to a block relationship');
-      }
-      if (!userA.isPublic) {
-        throw new ForbiddenException('One or both accounts are private');
-      }
+    // Deny access if there is any block relationship
+    const blocks = await this.followersRepository.getBlockRelationship(currentUserId, targetUserId);
+    if (blocks.length > 0) {
+      throw new ForbiddenException('Action not allowed due to a block relationship');
     }
 
-    if (currentUserId !== otherUserId) {
-      const blocksB = await this.followersRepository.getBlockRelationship(
-        currentUserId,
-        otherUserId
-      );
-      if (blocksB.length > 0) {
-        throw new ForbiddenException('Action not allowed due to a block relationship');
-      }
-      if (!userB.isPublic) {
-        throw new ForbiddenException('One or both accounts are private');
-      }
-    }
-
-    const { users, total } = await this.followersRepository.getCommonFollowers(
-      userId,
-      otherUserId,
+    // Fetch the mutuals
+    const { users, total } = await this.followersRepository.getMutualFollowers(
+      currentUserId,
+      targetUserId,
       page,
       limit
     );
@@ -299,9 +280,8 @@ export class FollowersService {
     return {
       status: 'success',
       data: {
-        userId,
-        otherUserId,
-        commonFollowers: users.map((u) => ({
+        targetUserId,
+        mutualFollowers: users.map((u) => ({
           userId: u.userId,
           username: u.username,
           displayName: u.displayName ?? null,

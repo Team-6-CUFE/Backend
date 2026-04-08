@@ -527,36 +527,34 @@ export function ApiGetBlockStatus() {
   );
 }
 
-export function ApiGetCommonFollowers() {
+export function ApiGetMutualFollowers() {
   return applyDecorators(
     ApiCookieAuth('access_token'),
     ApiOperation({
-      summary: 'Get common followers',
+      summary: 'Get mutual followers',
       description:
-        'Returns a paginated list of users that follow both the target user and the other specified user. Enforces privacy and blocking rules.',
+        'Returns a paginated list of users that the authenticated user follows who also follow the target user (like Instagram). Enforces blocking rules.',
     }),
-    ApiParam({ name: 'user_id', description: 'ID of the first user', type: String }),
     ApiParam({
-      name: 'other_user_id',
-      description: 'ID of the second user to compare with',
+      name: 'user_id',
+      description: 'ID of the target profile being viewed',
       type: String,
     }),
     ApiQuery({ name: 'page', required: false, type: Number, example: 1 }),
     ApiQuery({ name: 'limit', required: false, type: Number, example: 20 }),
     ApiResponse({
       status: HttpStatus.OK,
-      description: 'Common followers list successfully returned',
+      description: 'Mutual followers list successfully returned',
       schema: {
         example: {
           status: 'success',
           data: {
-            userId: '550e8400-e29b-41d4-a716-446655440001',
-            otherUserId: '550e8400-e29b-41d4-a716-446655440002',
-            commonFollowers: [
+            targetUserId: '550e8400-e29b-41d4-a716-446655440001',
+            mutualFollowers: [
               {
                 userId: '550e8400-e29b-41d4-a716-446655440003',
-                username: 'mutual_friend',
-                displayName: 'Mutual Friend',
+                username: 'mutual_follower',
+                displayName: 'Mutual follower',
                 avatarUrl: 'https://s3.amazonaws.com/avatars/mutual.jpg',
               },
             ],
@@ -567,7 +565,7 @@ export function ApiGetCommonFollowers() {
     }),
     ApiResponse({
       status: HttpStatus.BAD_REQUEST,
-      description: 'Invalid UUID or comparing identical users',
+      description: 'Invalid UUID or comparing against yourself',
       content: {
         'application/json': {
           examples: {
@@ -576,18 +574,28 @@ export function ApiGetCommonFollowers() {
               value: { statusCode: 400, message: 'user_id must be a valid UUID' },
             },
             identicalUsers: {
-              summary: 'Identical Users',
+              summary: 'Self Comparison',
               value: {
                 statusCode: 400,
-                message: 'Both user IDs cannot be the same',
+                message: 'Cannot view mutual followers with yourself',
               },
             },
           },
         },
       },
     }),
-    ...commonErrorResponses,
-    privatOrBlockedResponse
+    ApiResponse({
+      status: HttpStatus.FORBIDDEN,
+      description: 'Action not allowed due to a block relationship',
+      schema: {
+        example: {
+          statusCode: 403,
+          message: 'Action not allowed due to a block relationship',
+          error: 'Forbidden',
+        },
+      },
+    }),
+    ...commonErrorResponses
   );
 }
 

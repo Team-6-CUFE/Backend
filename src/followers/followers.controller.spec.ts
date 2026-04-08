@@ -221,21 +221,19 @@ describe('FollowersController', () => {
     });
   });
 
-  describe('getCommonFollowers', () => {
+  describe('getMutualFriends', () => {
     const currentUserId = 'usr_current';
-    const userId = 'usr_123';
-    const otherUserId = 'usr_456';
+    const targetUserId = 'usr_target';
 
-    it('should call service.getCommonFollowers with explicit page and limit', async () => {
-      const mockResult = { status: 'success', data: { common_followers: [], pagination: {} } };
-      mockFollowersService.getCommonFollowers.mockResolvedValue(mockResult);
+    it('should call service.getMutualFriends with explicit page and limit', async () => {
+      const mockResult = { status: 'success', data: { mutualFollowers: [], pagination: {} } };
+      mockFollowersService.getMutualFollowers.mockResolvedValue(mockResult);
 
-      const result = await controller.getCommonFollowers(currentUserId, userId, otherUserId, 5, 50);
+      const result = await controller.getMutualFollowers(currentUserId, targetUserId, 5, 50);
 
-      expect(mockFollowersService.getCommonFollowers).toHaveBeenCalledWith(
+      expect(mockFollowersService.getMutualFollowers).toHaveBeenCalledWith(
         currentUserId,
-        userId,
-        otherUserId,
+        targetUserId,
         5,
         50
       );
@@ -243,21 +241,19 @@ describe('FollowersController', () => {
     });
 
     it('should fall back to page=1 and limit=20 when query params are undefined', async () => {
-      const mockResult = { status: 'success', data: { common_followers: [], pagination: {} } };
-      mockFollowersService.getCommonFollowers.mockResolvedValue(mockResult);
+      const mockResult = { status: 'success', data: { mutualFollowers: [], pagination: {} } };
+      mockFollowersService.getMutualFollowers.mockResolvedValue(mockResult);
 
-      await controller.getCommonFollowers(
+      await controller.getMutualFollowers(
         currentUserId,
-        userId,
-        otherUserId,
+        targetUserId,
         undefined as any,
         undefined as any
       );
 
-      expect(mockFollowersService.getCommonFollowers).toHaveBeenCalledWith(
+      expect(mockFollowersService.getMutualFollowers).toHaveBeenCalledWith(
         currentUserId,
-        userId,
-        otherUserId,
+        targetUserId,
         1,
         20
       );

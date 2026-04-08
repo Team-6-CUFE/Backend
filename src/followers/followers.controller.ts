@@ -25,7 +25,7 @@ import {
   ApiUnblockUser,
   ApiGetBlockedUsers,
   ApiGetBlockStatus,
-  ApiGetCommonFollowers,
+  ApiGetMutualFollowers,
   ApiGetSuggestedUsers,
 } from './followers.swagger';
 import { CheckBlock } from './decorators/no-block.decorator';
@@ -149,20 +149,18 @@ export class FollowersController {
     return this.followersService.getBlockStatus(currentUserId, targetUserId);
   }
 
-  @Get(':user_id/common-followers/:other_user_id')
+  @Get(':user_id/mutual-followers')
   @CheckUserExists('user_id')
-  @ApiGetCommonFollowers()
-  async getCommonFollowers(
+  @ApiGetMutualFollowers()
+  async getMutualFollowers(
     @CurrentUser('sub') currentUserId: string,
-    @Param('user_id', ParseUUIDPipe) userId: string,
-    @Param('other_user_id', ParseUUIDPipe) otherUserId: string,
+    @Param('user_id', ParseUUIDPipe) targetUserId: string,
     @Query('page') page: number,
     @Query('limit') limit: number
   ) {
-    return this.followersService.getCommonFollowers(
+    return this.followersService.getMutualFollowers(
       currentUserId,
-      userId,
-      otherUserId,
+      targetUserId,
       page ?? 1,
       limit ?? 20
     );
