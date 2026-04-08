@@ -246,9 +246,9 @@ export class FollowersRepository {
     });
   }
 
-  async getCommonFollowers(
-    userId: string,
-    otherUserId: string,
+  async getMutualFollowers(
+    currentUserId: string,
+    targetUserId: string,
     page: number,
     limit: number
   ): Promise<{ users: Partial<User>[]; total: number }> {
@@ -256,14 +256,19 @@ export class FollowersRepository {
 
     const query = this.userRepository
       .createQueryBuilder('user')
-      .innerJoin('user_follows', 'f1', 'f1.follower = user.user_id AND f1.followed = :userId', {
-        userId,
-      })
+      // 1. Ensure the Viewer (currentUserId) follows this user
       .innerJoin(
         'user_follows',
-        'f2',
-        'f2.follower = user.user_id AND f2.followed = :otherUserId',
-        { otherUserId }
+        'my_following',
+        'my_following.followed = user.user_id AND my_following.follower = :currentUserId',
+        { currentUserId }
+      )
+      // 2. Ensure this user follows the Target (targetUserId)
+      .innerJoin(
+        'user_follows',
+        'target_followers',
+        'target_followers.follower = user.user_id AND target_followers.followed = :targetUserId',
+        { targetUserId }
       )
       .select(['user.userId', 'user.username', 'user.displayName', 'user.avatarUrl']);
 
@@ -328,7 +333,7 @@ export class FollowersRepository {
         return `user.user_id NOT IN ${subQuery}`;
       });
 
-    // APPLY FILTERS
+    // Apply filters
     if (by === 'popular') {
       query.orderBy('user.followersCount', 'DESC');
     } else if (by === 'mutuals') {
@@ -373,6 +378,45 @@ export class FollowersRepository {
     }
 
     // Execute query with pagination
+    const [users, total] = await Promise.all([
+      query.skip(offset).take(limit).getMany(),
+      query.getCount(),
+    ]);
+
+    return { users, total };
+  }
+
+  async getFriends(
+    userId: string,
+    page: number,
+    limit: number
+  ): Promise<{ users: Partial<User>[]; total: number }> {
+    const offset = (page - 1) * limit;
+
+    const query = this.userRepository
+      .createQueryBuilder('user')
+      // 1. Ensure the provided userId follows this user
+      .innerJoin(
+        'user_follows',
+        'following',
+        'following.followed = user.user_id AND following.follower = :userId',
+        { userId }
+      )
+      // 2. Ensure this user follows the provided userId back
+      .innerJoin(
+        'user_follows',
+        'follower',
+        'follower.follower = user.user_id AND follower.followed = :userId',
+        { userId }
+      )
+      .select([
+        'user.userId',
+        'user.username',
+        'user.displayName',
+        'user.avatarUrl',
+        'user.followersCount',
+      ]);
+
     const [users, total] = await Promise.all([
       query.skip(offset).take(limit).getMany(),
       query.getCount(),
