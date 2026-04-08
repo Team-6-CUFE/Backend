@@ -428,4 +428,8 @@ export class TrackRepository {
     await this.trackRepository.update(trackId, { blockedRegions: regions });
     return (await this.trackRepository.findOne({ where: { trackId } })) as Track;
   }
+
+  async deleteTrack(trackId: string): Promise<void> {
+    await this.trackRepository.delete(trackId);
+  }
 }

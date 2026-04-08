@@ -277,6 +277,7 @@ export const mockTrackRepository = () => ({
   addToRecentlyPlayed: jest.fn(),
   deleteOldRecentlyPlayed: jest.fn(),
   getTrackPlaylists: jest.fn(),
+  deleteTrack: jest.fn(),
 });
 
 export const mockUserRepository = () => ({
