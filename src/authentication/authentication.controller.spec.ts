@@ -55,7 +55,7 @@ describe('AuthenticationController', () => {
 
       await controller.register(dto as any, mockReq as any);
 
-      expect(service.register).toHaveBeenCalledWith(dto, mockIp);
+      expect(service.register).toHaveBeenCalledWith(dto, mockIp, undefined);
       expect(service.register).toHaveBeenCalledTimes(1);
     });
 
@@ -78,7 +78,7 @@ describe('AuthenticationController', () => {
 
       await controller.register(mockRegisterDto() as any, reqWithoutIp as any);
 
-      expect(service.register).toHaveBeenCalledWith(expect.anything(), mockIp);
+      expect(service.register).toHaveBeenCalledWith(expect.anything(), mockIp, undefined);
     });
 
     it('should use empty string if both ip and remoteAddress are undefined', async () => {
@@ -87,7 +87,7 @@ describe('AuthenticationController', () => {
 
       await controller.register(mockRegisterDto() as any, reqWithNoIp as any);
 
-      expect(service.register).toHaveBeenCalledWith(expect.anything(), '');
+      expect(service.register).toHaveBeenCalledWith(expect.anything(), '', undefined);
     });
 
     it('should propagate exception thrown by service', async () => {
