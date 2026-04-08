@@ -1562,3 +1562,39 @@ export function ApiGetAllGenres() {
     })
   );
 }
+
+export function ApiDeleteTrack() {
+  return applyDecorators(
+    ApiCookieAuth('access_token'),
+    ApiOperation({
+      summary: 'Delete a track',
+      description: 'Deletes a track by ID. The requester must be the owner of the track.',
+    }),
+    ApiParam({ name: 'trackId', description: 'UUID of the track', type: 'string' }),
+    ApiResponse({
+      status: 200,
+      description: 'Track deleted successfully',
+      schema: {
+        example: {
+          status: 'success',
+          message: 'Track deleted successfully',
+        },
+      },
+    }),
+    ApiResponse({
+      status: 403,
+      description: 'You do not own this track',
+      schema: {
+        example: { statusCode: 403, message: 'You do not own this track' },
+      },
+    }),
+    ApiResponse({
+      status: 404,
+      description: 'Track not found',
+      schema: {
+        example: { statusCode: 404, message: 'Track not found' },
+      },
+    }),
+    ApiResponse({ status: 401, description: 'Unauthorized' })
+  );
+}

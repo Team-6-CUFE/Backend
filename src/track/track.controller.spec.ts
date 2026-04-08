@@ -51,6 +51,7 @@ const mockTrackService = () => ({
   playTrack: jest.fn(),
   getTopFans: jest.fn(),
   getFirstFans: jest.fn(),
+  deleteTrack: jest.fn(),
 });
 
 describe('TrackController', () => {
@@ -864,6 +865,46 @@ describe('TrackController', () => {
 
       expect(service.getUserQuota).toHaveBeenCalledWith(MOCK_USER_ID);
       expect(result).toBe(quota);
+    });
+  });
+
+  // ─── deleteTrack ──────────────────────────────────────────────────────────────
+
+  describe('deleteTrack', () => {
+    it('should delegate to service with trackId and userId', async () => {
+      service.deleteTrack.mockResolvedValue({
+        status: 'success',
+        message: 'Track deleted successfully',
+      });
+
+      await controller.deleteTrack(MOCK_TRACK_ID, MOCK_USER_ID);
+
+      expect(service.deleteTrack).toHaveBeenCalledWith(MOCK_TRACK_ID, MOCK_USER_ID);
+    });
+
+    it('should return service response as-is', async () => {
+      const expected = { status: 'success', message: 'Track deleted successfully' };
+      service.deleteTrack.mockResolvedValue(expected);
+
+      const result = await controller.deleteTrack(MOCK_TRACK_ID, MOCK_USER_ID);
+
+      expect(result).toBe(expected);
+    });
+
+    it('should propagate NotFoundException when track does not exist', async () => {
+      service.deleteTrack.mockRejectedValue(new NotFoundException());
+
+      await expect(controller.deleteTrack(MOCK_TRACK_ID, MOCK_USER_ID)).rejects.toThrow(
+        NotFoundException
+      );
+    });
+
+    it('should propagate ForbiddenException when user does not own the track', async () => {
+      service.deleteTrack.mockRejectedValue(new ForbiddenException());
+
+      await expect(controller.deleteTrack(MOCK_TRACK_ID, MOCK_USER_ID)).rejects.toThrow(
+        ForbiddenException
+      );
     });
   });
 });
