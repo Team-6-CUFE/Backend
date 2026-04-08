@@ -34,7 +34,7 @@ export const mockFollowersList: Partial<User>[] = [
   mockPublicUser({ userId: 'user-3', username: 'user_three', followersCount: 30 }),
 ];
 
-export const mockCommonFollowersData = {
+export const mockMutualFollowersData = {
   users: [
     {
       userId: 'usr_789',
@@ -75,8 +75,9 @@ export const mockFollowersRepository = {
   deleteBlock: jest.fn(),
   getBlockedUsers: jest.fn(),
   getBlockRelationship: jest.fn(),
-  getCommonFollowers: jest.fn(),
+  getMutualFollowers: jest.fn(),
   getSuggestedUsers: jest.fn(),
+  getFriends: jest.fn(),
 };
 
 export const mockUserRepository = {
@@ -95,6 +96,7 @@ export const mockFollowersService = {
   unblockUser: jest.fn(),
   getBlockedUsers: jest.fn(),
   getBlockStatus: jest.fn(),
-  getCommonFollowers: jest.fn(),
+  getMutualFollowers: jest.fn(),
   getSuggestedUsers: jest.fn(),
+  getFriends: jest.fn(),
 };

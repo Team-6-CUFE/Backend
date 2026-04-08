@@ -17,7 +17,6 @@ import {
   mockFollowersRepository,
   mockUserRepository,
   mockUserBlock,
-  mockCommonFollowersData,
   mockSuggestedUsersData,
 } from './test/followers.mock';
 
@@ -533,64 +532,69 @@ describe('FollowersService', () => {
     });
   });
 
-  describe('getCommonFollowers', () => {
+  describe('getMutualFriends', () => {
     const currentUserId = 'usr_current';
-    const userId = 'usr_123';
-    const otherUserId = 'usr_456';
+    const targetUserId = 'usr_target';
 
-    it('should throw BadRequestException if both user IDs are the same', async () => {
-      await expect(
-        service.getCommonFollowers(currentUserId, userId, userId, 1, 20)
-      ).rejects.toThrow(BadRequestException);
+    it('should throw BadRequestException if current user and target user are the same', async () => {
+      await expect(service.getMutualFollowers(currentUserId, currentUserId, 1, 20)).rejects.toThrow(
+        new BadRequestException('Cannot view mutual followers with yourself')
+      );
     });
 
-    it('should throw NotFoundException if one or both users do not exist', async () => {
-      mockUserRepository.findById
-        .mockResolvedValueOnce({ userId } as any)
-        .mockResolvedValueOnce(null);
+    it('should throw NotFoundException if target user does not exist', async () => {
+      mockUserRepository.findById.mockResolvedValueOnce(null);
 
-      await expect(
-        service.getCommonFollowers(currentUserId, userId, otherUserId, 1, 20)
-      ).rejects.toThrow(NotFoundException);
+      await expect(service.getMutualFollowers(currentUserId, targetUserId, 1, 20)).rejects.toThrow(
+        new NotFoundException('User not found')
+      );
     });
 
-    it('should throw ForbiddenException if there is a block relationship with user A', async () => {
-      mockUserRepository.findById.mockResolvedValue({ userId: 'any', isPublic: true } as any);
+    it('should throw ForbiddenException if there is a block relationship', async () => {
+      mockUserRepository.findById.mockResolvedValueOnce({
+        userId: targetUserId,
+        isPublic: true,
+      } as any);
+      mockFollowersRepository.getBlockRelationship.mockResolvedValueOnce([
+        { blocker: currentUserId } as any,
+      ]);
 
-      mockFollowersRepository.getBlockRelationship.mockResolvedValueOnce([{ blocker: 'some_id' }]);
-
-      await expect(
-        service.getCommonFollowers(currentUserId, userId, otherUserId, 1, 20)
-      ).rejects.toThrow(ForbiddenException);
+      await expect(service.getMutualFollowers(currentUserId, targetUserId, 1, 20)).rejects.toThrow(
+        new ForbiddenException('Action not allowed due to a block relationship')
+      );
     });
 
-    it('should throw ForbiddenException if user B account is private', async () => {
-      mockUserRepository.findById
-        .mockResolvedValueOnce({ userId, isPublic: true } as any)
-        .mockResolvedValueOnce({ userId: otherUserId, isPublic: false } as any);
+    it('should return mutual friends successfully if all checks pass', async () => {
+      mockUserRepository.findById.mockResolvedValueOnce({
+        userId: targetUserId,
+        isPublic: true,
+      } as any);
+      mockFollowersRepository.getBlockRelationship.mockResolvedValueOnce([]);
 
-      mockFollowersRepository.getBlockRelationship.mockResolvedValue([]);
+      // Mocking the new repository method response
+      mockFollowersRepository.getMutualFollowers.mockResolvedValueOnce({
+        users: [
+          {
+            userId: 'mutual-1',
+            username: 'mutual_friend',
+            displayName: 'Mutual',
+            avatarUrl: 'url.jpg',
+          },
+        ],
+        total: 1,
+      });
 
-      await expect(
-        service.getCommonFollowers(currentUserId, userId, otherUserId, 1, 20)
-      ).rejects.toThrow(ForbiddenException);
-    });
-
-    it('should return common followers successfully if all checks pass', async () => {
-      mockUserRepository.findById.mockResolvedValue({ userId: 'any', isPublic: true } as any);
-      mockFollowersRepository.getBlockRelationship.mockResolvedValue([]);
-      mockFollowersRepository.getCommonFollowers.mockResolvedValue(mockCommonFollowersData);
-
-      const result = await service.getCommonFollowers(currentUserId, userId, otherUserId, 1, 20);
+      const result = await service.getMutualFollowers(currentUserId, targetUserId, 1, 20);
 
       expect(result.status).toBe('success');
-      expect(result.data.userId).toBe(userId);
-      expect(result.data.otherUserId).toBe(otherUserId);
-      expect(result.data.commonFollowers.length).toBe(1);
+      expect(result.data.targetUserId).toBe(targetUserId);
+      expect(result.data.mutualFollowers).toHaveLength(1);
+      expect(result.data.mutualFollowers[0].username).toBe('mutual_friend');
       expect(result.data.pagination.totalCount).toBe(1);
-      expect(mockFollowersRepository.getCommonFollowers).toHaveBeenCalledWith(
-        userId,
-        otherUserId,
+
+      expect(mockFollowersRepository.getMutualFollowers).toHaveBeenCalledWith(
+        currentUserId,
+        targetUserId,
         1,
         20
       );
@@ -637,6 +641,72 @@ describe('FollowersService', () => {
       const result = await service.getSuggestedUsers(mockFollowerId, 1, 20);
 
       expect(result.data.suggestedUsers).toHaveLength(0);
+      expect(result.data.pagination.totalCount).toBe(0);
+    });
+  });
+
+  describe('getFriends', () => {
+    it('should return a paginated list of friends successfully', async () => {
+      mockFollowersRepository.getFriends.mockResolvedValue({
+        users: mockFollowersList,
+        total: 3,
+      });
+
+      const result = await service.getFriends(mockFollowedId, 1, 20);
+
+      expect(result.status).toBe('success');
+      expect(result.data.friends).toHaveLength(3);
+      result.data.friends.forEach((f) => {
+        expect(f).toHaveProperty('userId');
+        expect(f).toHaveProperty('username');
+        expect(f).toHaveProperty('displayName');
+        expect(f).toHaveProperty('avatarUrl');
+        expect(f).toHaveProperty('followersCount');
+      });
+      expect(mockFollowersRepository.getFriends).toHaveBeenCalledWith(mockFollowedId, 1, 20);
+    });
+
+    it('should default followersCount to 0 and handle null display properties', async () => {
+      const usersWithNulls = [
+        mockPublicUser({
+          userId: 'friend-1',
+          displayName: undefined,
+          avatarUrl: undefined,
+          followersCount: undefined,
+        }),
+      ];
+      mockFollowersRepository.getFriends.mockResolvedValue({ users: usersWithNulls, total: 1 });
+
+      const result = await service.getFriends(mockFollowedId, 1, 20);
+
+      expect(result.data.friends[0].followersCount).toBe(0);
+      expect(result.data.friends[0].displayName).toBeNull();
+      expect(result.data.friends[0].avatarUrl).toBeNull();
+    });
+
+    it('should calculate pagination correctly', async () => {
+      mockFollowersRepository.getFriends.mockResolvedValue({
+        users: mockFollowersList,
+        total: 45,
+      });
+
+      const result = await service.getFriends(mockFollowedId, 2, 20);
+
+      expect(result.data.pagination).toEqual({
+        currentPage: 2,
+        totalPages: 3,
+        totalCount: 45,
+        limit: 20,
+      });
+    });
+
+    it('should return an empty friends list with correct pagination', async () => {
+      mockFollowersRepository.getFriends.mockResolvedValue({ users: [], total: 0 });
+
+      const result = await service.getFriends(mockFollowedId, 1, 20);
+
+      expect(result.data.friends).toHaveLength(0);
+      expect(result.data.pagination.totalPages).toBe(0);
       expect(result.data.pagination.totalCount).toBe(0);
     });
   });
