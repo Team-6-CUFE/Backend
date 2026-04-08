@@ -48,6 +48,7 @@ import {
   ApiGetTrack,
   ApiGetTrackAudio,
   ApiUpdateBlockedRegions,
+  ApiDeleteTrack,
 } from './track.swagger';
 import { CurrentUser } from '../authentication/decorators/current-user.decorator';
 import { CheckBlock } from '../followers/decorators/no-block.decorator';
@@ -435,5 +436,14 @@ export class TrackController {
     @Body() dto: BlockedRegionsDto
   ) {
     return this.trackService.updateBlockedRegions(trackId, userId, dto);
+  }
+
+  @ApiDeleteTrack()
+  @Delete(':trackId')
+  deleteTrack(
+    @Param('trackId', ParseUUIDPipe) trackId: string,
+    @CurrentUser('sub') userId: string
+  ) {
+    return this.trackService.deleteTrack(trackId, userId);
   }
 }

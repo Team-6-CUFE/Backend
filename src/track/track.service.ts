@@ -781,4 +781,20 @@ export class TrackService {
     });
     return { status: 'success', data };
   }
+
+  async deleteTrack(trackId: string, userId: string) {
+    const track = await this.trackRepository.findById(trackId);
+    if (!track) throw new NotFoundException('Track not found');
+    if (track.userId !== userId) throw new ForbiddenException('You do not own this track');
+    const oldUrls = track
+      ? [track.audioUrl, track.audioUrlHq, track.previewAudioUrl, track.waveformUrl].filter(Boolean)
+      : [];
+
+    await Promise.allSettled(oldUrls.map((url) => this.storageService.deleteFile(url)));
+    await this.trackRepository.deleteTrack(trackId);
+    return {
+      status: 'success',
+      message: 'Track deleted successfully',
+    };
+  }
 }
