@@ -294,4 +294,24 @@ describe('FollowersController', () => {
       );
     });
   });
+
+  describe('getFriends', () => {
+    it('should call service.getFriends with explicit page and limit', async () => {
+      const expected = { status: 'success', data: { friends: [], pagination: {} } };
+      mockFollowersService.getFriends.mockResolvedValue(expected);
+
+      const result = await controller.getFriends(mockFollowedId, 3, 15);
+
+      expect(mockFollowersService.getFriends).toHaveBeenCalledWith(mockFollowedId, 3, 15);
+      expect(result).toEqual(expected);
+    });
+
+    it('should fall back to page=1 and limit=20 when query params are undefined', async () => {
+      mockFollowersService.getFriends.mockResolvedValue({ status: 'success' });
+
+      await controller.getFriends(mockFollowedId, undefined as any, undefined as any);
+
+      expect(mockFollowersService.getFriends).toHaveBeenCalledWith(mockFollowedId, 1, 20);
+    });
+  });
 });

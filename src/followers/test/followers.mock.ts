@@ -77,6 +77,7 @@ export const mockFollowersRepository = {
   getBlockRelationship: jest.fn(),
   getMutualFollowers: jest.fn(),
   getSuggestedUsers: jest.fn(),
+  getFriends: jest.fn(),
 };
 
 export const mockUserRepository = {
@@ -97,4 +98,5 @@ export const mockFollowersService = {
   getBlockStatus: jest.fn(),
   getMutualFollowers: jest.fn(),
   getSuggestedUsers: jest.fn(),
+  getFriends: jest.fn(),
 };

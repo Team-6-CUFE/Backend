@@ -27,6 +27,7 @@ import {
   ApiGetBlockStatus,
   ApiGetMutualFollowers,
   ApiGetSuggestedUsers,
+  ApiGetFriends,
 } from './followers.swagger';
 import { CheckBlock } from './decorators/no-block.decorator';
 
@@ -175,5 +176,17 @@ export class FollowersController {
     @Query('by') by?: string
   ) {
     return this.followersService.getSuggestedUsers(currentUserId, page ?? 1, limit ?? 20, by);
+  }
+
+  @Get(':user_id/friends')
+  @CheckBlock()
+  @CheckUserExists()
+  @ApiGetFriends()
+  async getFriends(
+    @Param('user_id', ParseUUIDPipe) userId: string,
+    @Query('page') page: number,
+    @Query('limit') limit: number
+  ) {
+    return this.followersService.getFriends(userId, page ?? 1, limit ?? 20);
   }
 }

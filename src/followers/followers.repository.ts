@@ -385,4 +385,43 @@ export class FollowersRepository {
 
     return { users, total };
   }
+
+  async getFriends(
+    userId: string,
+    page: number,
+    limit: number
+  ): Promise<{ users: Partial<User>[]; total: number }> {
+    const offset = (page - 1) * limit;
+
+    const query = this.userRepository
+      .createQueryBuilder('user')
+      // 1. Ensure the provided userId follows this user
+      .innerJoin(
+        'user_follows',
+        'following',
+        'following.followed = user.user_id AND following.follower = :userId',
+        { userId }
+      )
+      // 2. Ensure this user follows the provided userId back
+      .innerJoin(
+        'user_follows',
+        'follower',
+        'follower.follower = user.user_id AND follower.followed = :userId',
+        { userId }
+      )
+      .select([
+        'user.userId',
+        'user.username',
+        'user.displayName',
+        'user.avatarUrl',
+        'user.followersCount',
+      ]);
+
+    const [users, total] = await Promise.all([
+      query.skip(offset).take(limit).getMany(),
+      query.getCount(),
+    ]);
+
+    return { users, total };
+  }
 }

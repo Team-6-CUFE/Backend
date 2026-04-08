@@ -324,4 +324,27 @@ export class FollowersService {
       },
     };
   }
+
+  async getFriends(userId: string, page: number, limit: number) {
+    const { users, total } = await this.followersRepository.getFriends(userId, page, limit);
+
+    return {
+      status: 'success',
+      data: {
+        friends: users.map((u) => ({
+          userId: u.userId,
+          username: u.username,
+          displayName: u.displayName ?? null,
+          avatarUrl: u.avatarUrl ?? null,
+          followersCount: u.followersCount ?? 0,
+        })),
+        pagination: {
+          currentPage: page,
+          totalPages: Math.ceil(total / limit),
+          totalCount: total,
+          limit,
+        },
+      },
+    };
+  }
 }

@@ -660,3 +660,45 @@ export function ApiGetSuggestedUsers() {
     })
   );
 }
+
+export function ApiGetFriends() {
+  return applyDecorators(
+    ApiCookieAuth('access_token'),
+    ApiOperation({
+      summary: 'Get friends list',
+      description:
+        'Returns a paginated list of friends (both follow each other) for the specified user.',
+    }),
+    ApiParam({ name: 'user_id', description: 'ID of the target user', type: String }),
+    ApiQuery({ name: 'page', required: false, type: Number, example: 1 }),
+    ApiQuery({ name: 'limit', required: false, type: Number, example: 20 }),
+    ApiResponse({
+      status: HttpStatus.OK,
+      description: 'Friends list successfully returned',
+      schema: {
+        example: {
+          status: 'success',
+          data: {
+            friends: [
+              {
+                userId: '550e8400-e29b-41d4-a716-446655440003',
+                username: 'mutual_friend',
+                displayName: 'Mutual Friend',
+                avatarUrl: 'https://s3.amazonaws.com/avatars/friend.jpg',
+                followersCount: 250,
+              },
+            ],
+            pagination: { currentPage: 1, totalPages: 1, totalCount: 1, limit: 20 },
+          },
+        },
+      },
+    }),
+    invalidUuidResponse,
+    ...commonErrorResponses,
+    ApiResponse({
+      status: HttpStatus.FORBIDDEN,
+      description: 'A block relationship exists between the two users',
+      ...errorSchema(403, 'Action not allowed due to a block relationship'),
+    })
+  );
+}

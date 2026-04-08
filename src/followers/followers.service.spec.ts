@@ -644,4 +644,70 @@ describe('FollowersService', () => {
       expect(result.data.pagination.totalCount).toBe(0);
     });
   });
+
+  describe('getFriends', () => {
+    it('should return a paginated list of friends successfully', async () => {
+      mockFollowersRepository.getFriends.mockResolvedValue({
+        users: mockFollowersList,
+        total: 3,
+      });
+
+      const result = await service.getFriends(mockFollowedId, 1, 20);
+
+      expect(result.status).toBe('success');
+      expect(result.data.friends).toHaveLength(3);
+      result.data.friends.forEach((f) => {
+        expect(f).toHaveProperty('userId');
+        expect(f).toHaveProperty('username');
+        expect(f).toHaveProperty('displayName');
+        expect(f).toHaveProperty('avatarUrl');
+        expect(f).toHaveProperty('followersCount');
+      });
+      expect(mockFollowersRepository.getFriends).toHaveBeenCalledWith(mockFollowedId, 1, 20);
+    });
+
+    it('should default followersCount to 0 and handle null display properties', async () => {
+      const usersWithNulls = [
+        mockPublicUser({
+          userId: 'friend-1',
+          displayName: undefined,
+          avatarUrl: undefined,
+          followersCount: undefined,
+        }),
+      ];
+      mockFollowersRepository.getFriends.mockResolvedValue({ users: usersWithNulls, total: 1 });
+
+      const result = await service.getFriends(mockFollowedId, 1, 20);
+
+      expect(result.data.friends[0].followersCount).toBe(0);
+      expect(result.data.friends[0].displayName).toBeNull();
+      expect(result.data.friends[0].avatarUrl).toBeNull();
+    });
+
+    it('should calculate pagination correctly', async () => {
+      mockFollowersRepository.getFriends.mockResolvedValue({
+        users: mockFollowersList,
+        total: 45,
+      });
+
+      const result = await service.getFriends(mockFollowedId, 2, 20);
+
+      expect(result.data.pagination).toEqual({
+        currentPage: 2,
+        totalPages: 3,
+        totalCount: 45,
+        limit: 20,
+      });
+    });
+
+    it('should return an empty friends list with correct pagination', async () => {
+      mockFollowersRepository.getFriends.mockResolvedValue({ users: [], total: 0 });
+
+      const result = await service.getFriends(mockFollowedId, 1, 20);
+
+      expect(result.data.friends).toHaveLength(0);
+      expect(result.data.pagination.totalPages).toBe(0);
+      expect(result.data.pagination.totalCount).toBe(0);
+    });
+  });
 });
