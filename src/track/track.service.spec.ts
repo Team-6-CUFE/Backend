@@ -1594,4 +1594,76 @@ describe('TrackService', () => {
       await expect(service.getFirstFans(MOCK_TRACK_ID)).rejects.toThrow(NotFoundException);
     });
   });
+
+  // ─── deleteTrack ─────────────────────────────────────────────────────────────
+
+  describe('deleteTrack', () => {
+    it('should delete track and all associated files when owner requests deletion', async () => {
+      const track = mockPublicTrack({ userId: MOCK_USER_ID });
+      trackRepo.findById.mockResolvedValue(track);
+      trackRepo.deleteTrack.mockResolvedValue(undefined);
+
+      const { storageService } = service as any;
+      storageService.deleteFile.mockResolvedValue(undefined);
+
+      const result = await service.deleteTrack(MOCK_TRACK_ID, MOCK_USER_ID);
+
+      expect(trackRepo.findById).toHaveBeenCalledWith(MOCK_TRACK_ID);
+      expect(storageService.deleteFile).toHaveBeenCalledTimes(4);
+      expect(trackRepo.deleteTrack).toHaveBeenCalledWith(MOCK_TRACK_ID);
+      expect(result).toEqual({ status: 'success', message: 'Track deleted successfully' });
+    });
+
+    it('should throw NotFoundException when track does not exist', async () => {
+      trackRepo.findById.mockResolvedValue(null);
+
+      await expect(service.deleteTrack(MOCK_TRACK_ID, MOCK_USER_ID)).rejects.toThrow(
+        NotFoundException
+      );
+      expect(trackRepo.deleteTrack).not.toHaveBeenCalled();
+    });
+
+    it('should throw ForbiddenException when user does not own the track', async () => {
+      trackRepo.findById.mockResolvedValue(mockPublicTrack({ userId: MOCK_OTHER_USER_ID }));
+
+      await expect(service.deleteTrack(MOCK_TRACK_ID, MOCK_USER_ID)).rejects.toThrow(
+        ForbiddenException
+      );
+      expect(trackRepo.deleteTrack).not.toHaveBeenCalled();
+    });
+
+    it('should still delete track record even if some file deletions fail', async () => {
+      const track = mockPublicTrack({ userId: MOCK_USER_ID });
+      trackRepo.findById.mockResolvedValue(track);
+      trackRepo.deleteTrack.mockResolvedValue(undefined);
+
+      const { storageService } = service as any;
+      storageService.deleteFile.mockRejectedValue(new Error('S3 error'));
+
+      const result = await service.deleteTrack(MOCK_TRACK_ID, MOCK_USER_ID);
+
+      expect(trackRepo.deleteTrack).toHaveBeenCalledWith(MOCK_TRACK_ID);
+      expect(result).toEqual({ status: 'success', message: 'Track deleted successfully' });
+    });
+
+    it('should skip null/undefined file urls when deleting storage files', async () => {
+      const track = mockPublicTrack({
+        userId: MOCK_USER_ID,
+        audioUrl: 'https://s3.amazonaws.com/audio/track.mp3',
+        audioUrlHq: null,
+        previewAudioUrl: null,
+        waveformUrl: null,
+      });
+      trackRepo.findById.mockResolvedValue(track);
+      trackRepo.deleteTrack.mockResolvedValue(undefined);
+
+      const { storageService } = service as any;
+      storageService.deleteFile.mockResolvedValue(undefined);
+
+      await service.deleteTrack(MOCK_TRACK_ID, MOCK_USER_ID);
+
+      expect(storageService.deleteFile).toHaveBeenCalledTimes(1);
+      expect(storageService.deleteFile).toHaveBeenCalledWith(track.audioUrl);
+    });
+  });
 });
