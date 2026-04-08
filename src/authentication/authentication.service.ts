@@ -237,15 +237,15 @@ export class AuthenticationService {
     // Set httpOnly cookies
     response.cookie('access_token', accessToken, {
       httpOnly: true,
-      secure: process.env.NODE_ENV === 'production', // HTTPS only in prod
-      sameSite: 'strict',
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'none',
       maxAge: COOKIE_MAX_AGE_MS,
     });
 
     response.cookie('refresh_token', refreshToken, {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
-      sameSite: 'strict',
+      sameSite: 'none',
       maxAge: REFRESH_COOKIE_MAX_AGE_MS,
     });
   }
@@ -292,14 +292,14 @@ export class AuthenticationService {
     response.cookie('access_token', newAccessToken, {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
-      sameSite: 'strict',
+      sameSite: 'none',
       maxAge: COOKIE_MAX_AGE_MS,
     });
 
     response.cookie('refresh_token', newRefreshToken, {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
-      sameSite: 'strict',
+      sameSite: 'none',
       maxAge: REFRESH_COOKIE_MAX_AGE_MS,
     });
 
@@ -314,13 +314,13 @@ export class AuthenticationService {
     response.clearCookie('access_token', {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
-      sameSite: 'strict',
+      sameSite: 'none',
     });
 
     response.clearCookie('refresh_token', {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
-      sameSite: 'strict',
+      sameSite: 'none',
     });
 
     return {

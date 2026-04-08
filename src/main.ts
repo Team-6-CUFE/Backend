@@ -25,8 +25,8 @@ async function bootstrap() {
       name: 'sc.sid',
       cookie: {
         httpOnly: true,
-        secure: false, // Set to true in production with HTTPS
-        sameSite: 'strict',
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'none',
         maxAge: 5 * 60 * 1000, // 5 minutes
       },
     })
