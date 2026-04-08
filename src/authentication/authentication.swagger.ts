@@ -86,6 +86,17 @@ export function ApiLogin() {
       },
     }),
     ApiResponse({
+      status: 404,
+      description: 'User not found: need to sign up first',
+      schema: {
+        example: {
+          statusCode: 404,
+          message: 'Signup required',
+          code: 'USER_NOT_REGISTERED',
+        },
+      },
+    }),
+    ApiResponse({
       status: 401,
       description: 'Invalid credentials',
       schema: {

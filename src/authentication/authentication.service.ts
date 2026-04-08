@@ -141,7 +141,7 @@ export class AuthenticationService {
       (await this.userService.findByUsername(identifier));
 
     if (!foundUser) {
-      throw new UnauthorizedException('Invalid identifier or password');
+      throw new NotFoundException({ message: 'Signup required', code: 'USER_NOT_REGISTERED' });
     }
 
     const user = await this.userService.findById(foundUser.userId);
