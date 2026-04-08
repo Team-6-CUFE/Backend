@@ -11,6 +11,7 @@ import {
   Req,
   UseGuards,
   Redirect,
+  Headers,
 } from '@nestjs/common';
 import { Response, Request } from 'express';
 import { ApiTags } from '@nestjs/swagger';
@@ -77,9 +78,13 @@ export class AuthenticationController {
   @ApiRegister()
   @Public()
   @Post('register')
-  register(@Body() registerDto: RegisterDto, @Req() req: Request) {
+  register(
+    @Body() registerDto: RegisterDto,
+    @Req() req: Request,
+    @Headers('x-firebase-appcheck') appCheckToken?: string
+  ) {
     const ip = req.ip ?? req.socket.remoteAddress ?? '';
-    return this.authenticationService.register(registerDto, ip);
+    return this.authenticationService.register(registerDto, ip, appCheckToken);
   }
 
   @ApiLogin()

@@ -1,5 +1,12 @@
 import { applyDecorators } from '@nestjs/common';
-import { ApiOperation, ApiResponse, ApiBody, ApiCookieAuth, ApiParam } from '@nestjs/swagger';
+import {
+  ApiOperation,
+  ApiResponse,
+  ApiBody,
+  ApiCookieAuth,
+  ApiParam,
+  ApiHeader,
+} from '@nestjs/swagger';
 
 // ─── Register ─────────────────────────────────────────────────────────────────
 
@@ -9,6 +16,12 @@ export function ApiRegister() {
       summary: 'Register a new user',
       description:
         'Creates a new user account with email and password. Sends a verification email to the provided address. Username is auto-generated with a suffix if already taken.',
+    }),
+    ApiHeader({
+      name: 'x-firebase-appcheck',
+      description:
+        'Firebase App check token for mobile clients, replaces captcha. Put captcha field as "mobile"',
+      required: false,
     }),
     ApiResponse({
       status: 201,
@@ -30,7 +43,8 @@ export function ApiRegister() {
     }),
     ApiResponse({
       status: 400,
-      description: 'Validation error, invalid captcha, or email already registered',
+      description:
+        'Validation error, invalid captcha, invalid app check token, or email already registered',
       content: {
         'application/json': {
           examples: {
@@ -39,6 +53,13 @@ export function ApiRegister() {
               value: {
                 statusCode: 400,
                 message: 'Captcha verification failed. Please try again.',
+              },
+            },
+            appCheckFailed: {
+              summary: 'Invalid app check token',
+              value: {
+                statusCode: 400,
+                message: 'App verification failed. Please update your app and try again.',
               },
             },
             emailExists: {
