@@ -304,4 +304,12 @@ export class PlaylistRepository {
       },
     });
   }
+
+  async getSecretPlaylist(secretToken: string): Promise<Playlist | null> {
+    return this.playlistRepository.findOne({
+      where: { secretToken, isPublic: false },
+      relations: ['user', 'playlistTracks', 'playlistTracks.track', 'tags'],
+      order: { playlistTracks: { position: 'ASC' } },
+    });
+  }
 }

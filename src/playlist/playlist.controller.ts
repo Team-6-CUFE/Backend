@@ -39,6 +39,7 @@ import {
   ApiReorderTracks,
   ApiChangePlaylistPrivacy,
   ApiGetPublicPlaylist,
+  ApiGetSecretPlaylist,
 } from './playlist.swagger';
 import { CurrentUser } from '../authentication/decorators/current-user.decorator';
 import { CheckBlock } from '../followers/decorators/no-block.decorator';
@@ -245,5 +246,11 @@ export class PlaylistController {
     @CurrentUser('sub') userId: string
   ) {
     return this.playlistService.getPublicPlaylist(playlistId, userId);
+  }
+
+  @ApiGetSecretPlaylist()
+  @Get('/secret/:secretToken')
+  getSecretPlaylist(@Param('secretToken') secretToken: string) {
+    return this.playlistService.getSecretPlaylist(secretToken);
   }
 }

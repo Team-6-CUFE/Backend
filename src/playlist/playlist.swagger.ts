@@ -945,3 +945,41 @@ export function ApiGetPublicPlaylist() {
     })
   );
 }
+
+export function ApiGetSecretPlaylist() {
+  return applyDecorators(
+    ApiOperation({
+      summary: 'Get a private playlist via secret token',
+      description:
+        'Allows anyone with the secret link to view a private playlist. Used for SoundCloud-style sharing.',
+    }),
+    ApiParam({
+      name: 'secretToken',
+      description: 'The unique secret token generated for the private playlist',
+      type: 'string',
+      example: '9a2b4c6d8e',
+    }),
+    ApiResponse({
+      status: 200,
+      description: 'Secret playlist retrieved successfully',
+      schema: {
+        example: {
+          status: 'success',
+          data: {
+            playlistId: 'uuid',
+            title: 'Top Secret Beats',
+            isPublic: false,
+            secretToken: '9a2b4c6d8e',
+            tags: [{ tagId: 'uuid', name: 'Experimental' }],
+            user: { displayName: 'ArtistName' },
+            tracks: [{ title: 'Unreleased Track', position: 1 }],
+          },
+        },
+      },
+    }),
+    ApiResponse({
+      status: 404,
+      description: 'Playlist not found or token is invalid',
+    })
+  );
+}
