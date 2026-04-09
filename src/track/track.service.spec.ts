@@ -1116,7 +1116,7 @@ describe('TrackService', () => {
   describe('getTrackPlaylists', () => {
     it('should return paginated playlists containing the track', async () => {
       trackRepo.findById.mockResolvedValue(mockPublicTrack());
-      playlistRepo.getTrackPlaylists.mockResolvedValue([[mockPlaylistEntry()], 1]);
+      playlistService.getTrackPlaylists.mockResolvedValue([[mockPlaylistEntry()], 1]);
 
       const result = await service.getTrackPlaylists(MOCK_TRACK_ID, MOCK_USER_ID, 1, 20);
 
@@ -1142,18 +1142,18 @@ describe('TrackService', () => {
 
     it('should allow owner to get playlists for private track', async () => {
       trackRepo.findById.mockResolvedValue(mockPrivateTrack({ userId: MOCK_USER_ID }));
-      playlistRepo.getTrackPlaylists.mockResolvedValue([[], 0]);
+      playlistService.getTrackPlaylists.mockResolvedValue([[], 0]);
 
       await expect(service.getTrackPlaylists(MOCK_TRACK_ID, MOCK_USER_ID)).resolves.not.toThrow();
     });
 
     it('should cap limit at 100', async () => {
       trackRepo.findById.mockResolvedValue(mockPublicTrack());
-      playlistRepo.getTrackPlaylists.mockResolvedValue([[], 0]);
+      playlistService.getTrackPlaylists.mockResolvedValue([[], 0]);
 
       await service.getTrackPlaylists(MOCK_TRACK_ID, MOCK_USER_ID, 1, 200);
 
-      expect(playlistRepo.getTrackPlaylists).toHaveBeenCalledWith(
+      expect(playlistService.getTrackPlaylists).toHaveBeenCalledWith(
         MOCK_TRACK_ID,
         MOCK_USER_ID,
         1,

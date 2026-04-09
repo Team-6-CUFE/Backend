@@ -86,4 +86,12 @@ export class GetTrackResDto {
   @ApiProperty({ example: '2025-06-10T09:15:00Z' })
   @Expose()
   updatedAt!: Date;
+
+  @ApiProperty({
+    description: 'Main artist names',
+    type: [String],
+    example: ['Artist A', 'Artist B'],
+  })
+  @Expose()
+  mainArtists?: string[];
 }

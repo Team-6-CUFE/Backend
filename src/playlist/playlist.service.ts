@@ -540,4 +540,19 @@ export class PlaylistService {
       },
     };
   }
+
+  async getTrackPlaylists(
+    trackId: string,
+    currentUserId: string,
+    page: number,
+    cappedLimit: number
+  ): Promise<[any[], number]> {
+    const [playlists, total] = await this.playlistRepository.getTrackPlaylists(
+      trackId,
+      currentUserId,
+      page,
+      cappedLimit
+    );
+    return [playlists, total];
+  }
 }

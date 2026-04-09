@@ -46,8 +46,6 @@ import { FansService } from './services/fans.service';
 
 @Injectable()
 export class TrackService {
-  playlistRepository: any;
-
   constructor(
     private readonly trackRepository: TrackRepository,
     private readonly userRepository: UserRepository,
@@ -631,9 +629,8 @@ export class TrackService {
     if (track.visibility === TrackVisibility.PRIVATE && track.userId !== currentUserId) {
       throw new ForbiddenException('This track is private');
     }
-
     const cappedLimit = Math.min(limit, 100);
-    const [entries, total] = await this.playlistRepository.getTrackPlaylists(
+    const [entries, total] = await this.playlistService.getTrackPlaylists(
       trackId,
       currentUserId,
       page,
