@@ -15,6 +15,15 @@ import { PlaylistLike } from './playlist-likes.entity';
 import { PlaylistRepost } from './playlist-reposts.entity';
 import { PlaylistTrack } from './playlist-tracks.entity';
 import { Tag } from '../../track/entities/tag.entity';
+import { Genre } from '../../genre/entities/genre.entity'; // Import Genre Entity
+
+export enum PlaylistType {
+  PLAYLIST = 'Playlist',
+  ALBUM = 'Album',
+  EP = 'EP',
+  SINGLE = 'Single',
+  COMPILATION = 'Compilation',
+}
 
 @Entity('playlists')
 export class Playlist extends BaseEntity {
@@ -45,13 +54,42 @@ export class Playlist extends BaseEntity {
   @Column({ type: 'uuid', name: 'user_id' })
   userId!: string;
 
-  @Column({ type: 'int', name: 'tracks_count' })
+  @Column({ type: 'int', default: 0, name: 'tracks_count' })
   tracksCount!: number;
 
   @Column({ type: 'varchar', length: 255, nullable: true, name: 'secret_token' })
   secretToken?: string | null;
 
-  // Relationship
+  @Column({ type: 'varchar', length: 255, nullable: true, name: 'buy_link' })
+  buyLink?: string;
+
+  @Column({ type: 'varchar', length: 255, nullable: true, name: 'record_label' })
+  recordLabel?: string;
+
+  @Column({
+    type: 'enum',
+    enum: PlaylistType,
+    default: PlaylistType.PLAYLIST,
+    name: 'type',
+  })
+  type!: PlaylistType;
+
+  @Column({ type: 'date', name: 'release_date', default: () => 'CURRENT_DATE' })
+  releaseDate!: Date;
+
+  @Column({ type: 'varchar', length: 255, unique: true, name: 'permalink', nullable: true })
+  permalink!: string;
+
+  // --- GENRE ADDITION ---
+  @Column({ name: 'genre_id', type: 'uuid', nullable: true })
+  genreId!: string | null;
+
+  @ManyToOne(() => Genre, (genre) => genre.playlists, { onDelete: 'SET NULL' })
+  @JoinColumn({ name: 'genre_id' })
+  genre!: Relation<Genre> | null;
+
+  // --- RELATIONSHIPS ---
+
   @ManyToOne(() => User, { onDelete: 'CASCADE' })
   @JoinColumn({ name: 'user_id' })
   user!: Relation<User>;

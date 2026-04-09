@@ -42,6 +42,10 @@ const mockPlaylistService = () => ({
   deletePlaylist: jest.fn(),
   getPlaylist: jest.fn(),
   reorder: jest.fn(),
+  changePlaylistPrivacy: jest.fn(),
+  getPublicPlaylist: jest.fn(),
+  getSecretPlaylist: jest.fn(),
+  resetSecretToken: jest.fn(),
 });
 
 // ─── Suite ────────────────────────────────────────────────────────────────────
@@ -764,6 +768,150 @@ describe('PlaylistController', () => {
       await expect(
         controller.bulkReorder(mockPlaylistId, 'not-an-array' as any, mockUserId)
       ).rejects.toThrow(BadRequestException);
+    });
+  });
+
+  // ─── createPlaylist ───────────────────────────────────────────────────────
+
+  describe('createPlaylist', () => {
+    const dto = { title: 'New Playlist', isPublic: true, description: '', coverImage: '' };
+
+    it('should delegate to service with dto and userId', async () => {
+      const mockResponse = { status: 'success', data: { playlistId: mockPlaylistId } };
+      service.createPlaylist.mockResolvedValue(mockResponse);
+
+      const result = await controller.createPlaylist(dto as any, mockUserId);
+
+      expect(service.createPlaylist).toHaveBeenCalledWith(dto, mockUserId);
+      expect(result).toBe(mockResponse);
+    });
+
+    it('should propagate errors from service', async () => {
+      service.createPlaylist.mockRejectedValue(new BadRequestException('Validation failed'));
+      await expect(controller.createPlaylist(dto as any, mockUserId)).rejects.toThrow(
+        BadRequestException
+      );
+    });
+  });
+
+  // ─── changePlaylistPrivacy ────────────────────────────────────────────────
+
+  describe('changePlaylistPrivacy', () => {
+    it('should delegate to service with playlistId, isPublic, and userId', async () => {
+      const mockResponse = {
+        status: 'success',
+        data: { playlistId: mockPlaylistId, isPublic: false, secretToken: 'tok', shareUrl: 'url' },
+      };
+      service.changePlaylistPrivacy.mockResolvedValue(mockResponse);
+
+      const result = await controller.changePlaylistPrivacy(mockPlaylistId, false, mockUserId);
+
+      expect(service.changePlaylistPrivacy).toHaveBeenCalledWith(mockPlaylistId, false, mockUserId);
+      expect(result).toBe(mockResponse);
+    });
+
+    it('should propagate NotFoundException from service', async () => {
+      service.changePlaylistPrivacy.mockRejectedValue(new NotFoundException());
+      await expect(
+        controller.changePlaylistPrivacy(mockPlaylistId, true, mockUserId)
+      ).rejects.toThrow(NotFoundException);
+    });
+
+    it('should propagate ForbiddenException from service', async () => {
+      service.changePlaylistPrivacy.mockRejectedValue(new ForbiddenException());
+      await expect(
+        controller.changePlaylistPrivacy(mockPlaylistId, true, mockUserId)
+      ).rejects.toThrow(ForbiddenException);
+    });
+  });
+
+  // ─── getPublicPlaylist ────────────────────────────────────────────────────
+
+  describe('getPublicPlaylist', () => {
+    it('should delegate to service with playlistId and userId', async () => {
+      const mockResponse = {
+        status: 'success',
+        data: { playlistId: mockPlaylistId, title: 'Chill Beats' },
+      };
+      service.getPublicPlaylist.mockResolvedValue(mockResponse);
+
+      const result = await controller.getPublicPlaylist(mockPlaylistId, mockUserId);
+
+      expect(service.getPublicPlaylist).toHaveBeenCalledWith(mockPlaylistId, mockUserId);
+      expect(result).toBe(mockResponse);
+    });
+
+    it('should propagate NotFoundException from service', async () => {
+      service.getPublicPlaylist.mockRejectedValue(new NotFoundException());
+      await expect(controller.getPublicPlaylist(mockPlaylistId, mockUserId)).rejects.toThrow(
+        NotFoundException
+      );
+    });
+
+    it('should propagate ForbiddenException from service', async () => {
+      service.getPublicPlaylist.mockRejectedValue(new ForbiddenException());
+      await expect(controller.getPublicPlaylist(mockPlaylistId, mockUserId)).rejects.toThrow(
+        ForbiddenException
+      );
+    });
+  });
+
+  // ─── getSecretPlaylist ────────────────────────────────────────────────────
+
+  describe('getSecretPlaylist', () => {
+    const secretToken = 'abc123xyz';
+
+    it('should delegate to service with secretToken', async () => {
+      const mockResponse = { status: 'success', data: { playlistId: mockPlaylistId } };
+      service.getSecretPlaylist.mockResolvedValue(mockResponse);
+
+      const result = await controller.getSecretPlaylist(secretToken);
+
+      expect(service.getSecretPlaylist).toHaveBeenCalledWith(secretToken);
+      expect(result).toBe(mockResponse);
+    });
+
+    it('should propagate NotFoundException from service', async () => {
+      service.getSecretPlaylist.mockRejectedValue(new NotFoundException());
+      await expect(controller.getSecretPlaylist(secretToken)).rejects.toThrow(NotFoundException);
+    });
+  });
+
+  // ─── resetSecretToken ─────────────────────────────────────────────────────
+
+  describe('resetSecretToken', () => {
+    it('should delegate to service with playlistId and userId', async () => {
+      const mockResponse = {
+        status: 'success',
+        data: { playlistId: mockPlaylistId, secretToken: 'new-tok', shareUrl: 'url' },
+      };
+      service.resetSecretToken.mockResolvedValue(mockResponse);
+
+      const result = await controller.resetSecretToken(mockPlaylistId, mockUserId);
+
+      expect(service.resetSecretToken).toHaveBeenCalledWith(mockPlaylistId, mockUserId);
+      expect(result).toBe(mockResponse);
+    });
+
+    it('should propagate NotFoundException from service', async () => {
+      service.resetSecretToken.mockRejectedValue(new NotFoundException());
+      await expect(controller.resetSecretToken(mockPlaylistId, mockUserId)).rejects.toThrow(
+        NotFoundException
+      );
+    });
+
+    it('should propagate BadRequestException when playlist is public', async () => {
+      service.resetSecretToken.mockRejectedValue(new BadRequestException());
+      await expect(controller.resetSecretToken(mockPlaylistId, mockUserId)).rejects.toThrow(
+        BadRequestException
+      );
+    });
+
+    it('should propagate ForbiddenException from service', async () => {
+      service.resetSecretToken.mockRejectedValue(new ForbiddenException());
+      await expect(controller.resetSecretToken(mockPlaylistId, mockUserId)).rejects.toThrow(
+        ForbiddenException
+      );
     });
   });
 });

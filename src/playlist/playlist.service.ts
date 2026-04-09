@@ -308,7 +308,7 @@ export class PlaylistService {
     }
     console.log('created playlist: ', playlistCreated);
     return {
-      status: 'sucesss',
+      status: 'success',
       data: {
         playlistId: playlistCreated.playlistId,
         title: playlistCreated.title,
@@ -346,7 +346,12 @@ export class PlaylistService {
     if (updateDto.description !== undefined) {
       updateData.description = updateDto.description;
     }
-
+    if (updateDto.buyLink !== undefined) updateData.buyLink = updateDto.buyLink;
+    if (updateDto.recordLabel !== undefined) updateData.recordLabel = updateDto.recordLabel;
+    if (updateDto.type !== undefined) updateData.type = updateDto.type;
+    if (updateDto.releaseDate !== undefined)
+      updateData.releaseDate = new Date(updateDto.releaseDate);
+    if (updateDto.permalink !== undefined) updateData.permalink = updateDto.permalink;
     if (file) {
       const oldCoverUrl = playlist.coverImage;
 
@@ -372,18 +377,42 @@ export class PlaylistService {
           .catch((err) => console.warn(`Failed to delete old cover ${oldCoverUrl}`, err));
       }
     }
+    if (updateDto.tags !== undefined) {
+      const tags =
+        updateDto.tags.length > 0
+          ? await this.playlistRepository.findOrCreateTags(updateDto.tags)
+          : [];
 
-    const updated = await this.playlistRepository.updatePlaylist(playlistId, updateData);
-
+      await this.playlistRepository.updatePlaylistTags(playlistId, tags);
+    }
+    if (updateDto.genre !== undefined) {
+      if (updateDto.genre.length > 0) {
+        // Find or create a single genre
+        const genre = await this.playlistRepository.findOrCreateGenre(updateDto.genre);
+        await this.playlistRepository.updatePlaylistGenre(playlistId, genre);
+      } else {
+        // If genre is empty string, set to null
+        await this.playlistRepository.updatePlaylistGenre(playlistId, null);
+      }
+    }
+    await this.playlistRepository.updatePlaylist(playlistId, updateData);
+    const updatedWithTags = await this.playlistRepository.getPlaylistWithTagsandGenre(playlistId);
     return {
       status: 'Success',
       message: 'Playlist updated successfully',
       data: {
-        playlistId: updated!.playlistId,
-        title: updated!.title,
-        description: updated!.description,
-        coverImage: updated!.coverImage,
-        updatedAt: updated!.updatedAt,
+        playlistId: updatedWithTags!.playlistId,
+        title: updatedWithTags!.title,
+        description: updatedWithTags!.description,
+        coverImage: updatedWithTags!.coverImage,
+        updatedAt: updatedWithTags!.updatedAt,
+        buyLink: updatedWithTags!.buyLink, // Added
+        recordLabel: updatedWithTags!.recordLabel, // Added
+        type: updatedWithTags!.type, // Added
+        releaseDate: updatedWithTags!.releaseDate, // Added
+        permalink: updatedWithTags!.permalink, // Added
+        tags: updatedWithTags!.tags.map((t) => ({ tagId: t.tagId, name: t.name })),
+        genre: updatedWithTags!.genre?.name,
       },
     };
   }
@@ -554,5 +583,162 @@ export class PlaylistService {
       cappedLimit
     );
     return [playlists, total];
+  }
+
+  async changePlaylistPrivacy(playlisId: string, isPublic: boolean, userId: string) {
+    const playlist = await this.playlistRepository.findPlaylistById(playlisId);
+    if (!playlist) {
+      throw new NotFoundException('playlist not found');
+    }
+    if (userId !== playlist?.userId) {
+      throw new ForbiddenException('you are not the playlist owner');
+    }
+    if (isPublic && playlist.isPublic === true) {
+      throw new BadRequestException('playlist already public');
+    }
+    if (!isPublic && playlist.isPublic === false) {
+      throw new BadRequestException('playlist already private');
+    }
+    if (!isPublic) {
+      const newToken = await this.playlistRepository.changePlaylistPrivacy(playlisId, isPublic);
+      return {
+        status: 'success',
+        data: {
+          playlistId: playlisId,
+          isPublic: false,
+          secretToken: newToken,
+          shareUrl: `${this.configService.get('HARMONICA_BASE_URL')}/playlist/secret/${newToken}`,
+        },
+      };
+    }
+    await this.playlistRepository.changePlaylistPrivacy(playlisId, isPublic);
+    return {
+      status: 'success',
+      data: {
+        playlistId: playlisId,
+        isPublic: true,
+        shareUrl: `${this.configService.get('HARMONICA_BASE_URL')}/playlist/${playlisId}`,
+      },
+    };
+  }
+
+  async getPublicPlaylist(playlistId: string, userId: string) {
+    const playlist = await this.playlistRepository.getPublicPlaylist(playlistId);
+
+    if (!playlist) {
+      throw new NotFoundException('Playlist not found or is private');
+    }
+
+    // Double-check logic: if repository returns it, isPublic was already true.
+    // But keeping your guard clause for safety:
+    if (!playlist.isPublic && userId !== playlist.userId) {
+      throw new ForbiddenException('Secret playlist is requested');
+    }
+    console.log(playlist);
+    return {
+      status: 'success',
+      data: {
+        playlistId: playlist.playlistId,
+        title: playlist.title,
+        description: playlist.description,
+        coverImage: playlist.coverImage,
+        isPublic: playlist.isPublic,
+        tracksCount: playlist.tracksCount,
+        durationSeconds: playlist.totalDurationSeconds,
+        likesCount: playlist.likesCount,
+        repostsCount: playlist.repostsCount,
+        createdAt: playlist.createdAt,
+        updatedAt: playlist.updatedAt,
+        genre: playlist.genre?.name,
+        tags: playlist.tags.map((tag) => ({
+          tagId: tag.tagId,
+          name: tag.name,
+        })),
+        user: {
+          user_id: playlist.user.userId,
+          displayName: playlist.user.displayName,
+          avatarUrl: playlist.user.avatarUrl,
+        },
+        tracks: playlist.playlistTracks.map((pt) => ({
+          position: pt.position,
+          trackId: pt.track.trackId,
+          title: pt.track.title,
+          duration_seconds: pt.track.durationSeconds,
+          coverImage: pt.track.coverImage,
+          playCount: pt.track.playCount,
+          likesCount: pt.track.likesCount,
+          repostsCount: pt.track.repostsCount,
+          commentsCount: pt.track.commentsCount,
+        })),
+      },
+    };
+  }
+
+  async getSecretPlaylist(secretToken: string) {
+    const playlist = await this.playlistRepository.getSecretPlaylist(secretToken);
+
+    if (!playlist) {
+      throw new NotFoundException('Playlist not found');
+    }
+
+    console.log('playlist:', playlist);
+    return {
+      status: 'success',
+      data: {
+        playlistId: playlist.playlistId,
+        title: playlist.title,
+        description: playlist.description,
+        coverImage: playlist.coverImage,
+        isPublic: playlist.isPublic,
+        tracksCount: playlist.tracksCount,
+        durationSeconds: playlist.totalDurationSeconds,
+        likesCount: playlist.likesCount,
+        repostsCount: playlist.repostsCount,
+        createdAt: playlist.createdAt,
+        updatedAt: playlist.updatedAt,
+        tags: playlist.tags.map((tag) => ({
+          tagId: tag.tagId,
+          name: tag.name,
+        })),
+        user: {
+          user_id: playlist.user.userId,
+          displayName: playlist.user.displayName,
+          avatarUrl: playlist.user.avatarUrl,
+        },
+        tracks: playlist.playlistTracks.map((pt) => ({
+          position: pt.position,
+          trackId: pt.track.trackId,
+          title: pt.track.title,
+          duration_seconds: pt.track.durationSeconds,
+          coverImage: pt.track.coverImage,
+          playCount: pt.track.playCount,
+          likesCount: pt.track.likesCount,
+          repostsCount: pt.track.repostsCount,
+          commentsCount: pt.track.commentsCount,
+        })),
+      },
+    };
+  }
+
+  async resetSecretToken(playlistId: string, userId: string) {
+    const playlist = await this.playlistRepository.findPlaylistById(playlistId);
+    if (!playlist) {
+      throw new NotFoundException('playlist not found');
+    }
+    if (playlist.isPublic) {
+      throw new BadRequestException('Playlist is public');
+    }
+    if (!playlist.isPublic && userId !== playlist.userId) {
+      throw new ForbiddenException('You are not the owner of this playlist');
+    }
+    const newSecretToken = await this.playlistRepository.resetSecretToken(playlistId);
+    return {
+      status: 'success',
+      data: {
+        playlistId: playlist.playlistId,
+        secretToken: newSecretToken,
+        shareUrl: `${this.configService.get('HARMONICA_BASE_URL')}/playlist/secret/${newSecretToken}`,
+      },
+    };
   }
 }

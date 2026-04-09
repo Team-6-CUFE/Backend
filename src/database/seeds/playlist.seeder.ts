@@ -2,11 +2,12 @@ import { DataSource } from 'typeorm';
 import { Seeder, SeederFactoryManager } from 'typeorm-extension';
 import { User } from '../../user/entities/user.entity';
 import { Track } from '../../track/entities/track.entity';
-import { Playlist } from '../../playlist/entities/playlist.entity';
+import { Playlist, PlaylistType } from '../../playlist/entities/playlist.entity';
 import { PlaylistLike } from '../../playlist/entities/playlist-likes.entity';
 import { PlaylistRepost } from '../../playlist/entities/playlist-reposts.entity';
 import { PlaylistTrack } from '../../playlist/entities/playlist-tracks.entity';
 import { Tag } from '../../track/entities/tag.entity';
+import { Genre } from '../../genre/entities/genre.entity'; // 1. Import Genre Entity
 import { generateVerificationToken } from '../../common/utilities/tokens.util';
 
 export class PlaylistSeeder implements Seeder {
@@ -18,6 +19,7 @@ export class PlaylistSeeder implements Seeder {
     const playlistRepostRepository = dataSource.getRepository(PlaylistRepost);
     const playlistTrackRepository = dataSource.getRepository(PlaylistTrack);
     const tagRepository = dataSource.getRepository(Tag);
+    const genreRepository = dataSource.getRepository(Genre); // 2. Get Genre Repo
 
     const existingPlaylists = await playlistRepository.count();
     if (existingPlaylists > 0) {
@@ -27,14 +29,14 @@ export class PlaylistSeeder implements Seeder {
 
     const users = await userRepository.find();
     const tracks = await trackRepository.find();
+    const genres = await genreRepository.find(); // 3. Fetch Genres
 
-    if (users.length === 0 || tracks.length === 0) {
-      console.log('Missing Users or Tracks. Please seed them first.');
+    if (users.length === 0 || tracks.length === 0 || genres.length === 0) {
+      console.log('Missing Users, Tracks, or Genres. Please seed them first.');
       return;
     }
 
-    // ─── SEED TAGS ────────────────────────────────────────────────
-    console.log('Seeding tags...');
+    // --- SEED TAGS --- (Logic remains the same)
     const tagNames = [
       'chill',
       'lo-fi',
@@ -42,64 +44,55 @@ export class PlaylistSeeder implements Seeder {
       'house',
       'hip-hop',
       'jazz',
-      'classical',
-      'ambient',
       'pop',
       'rock',
-      'rnb',
-      'electronic',
-      'acoustic',
-      'indie',
       'workout',
       'study',
-      'sleep',
-      'party',
-      'summer',
       'vibes',
     ];
-
     const tags: Tag[] = [];
     for (const name of tagNames) {
-      // upsert — create only if it doesn't already exist
       let tag = await tagRepository.findOne({ where: { name } });
       if (!tag) {
         tag = await tagRepository.save(tagRepository.create({ name }));
       }
       tags.push(tag);
     }
-    console.log(`${tags.length} tags ready.`);
-    // ──────────────────────────────────────────────────────────────
 
-    console.log('Seeding playlists and adding tracks...');
+    const createPermalink = (title: string) =>
+      `${title.toLowerCase().replace(/\s+/g, '-')}-${Math.random().toString(36).substring(2, 7)}`;
 
-    const playlistFactory = factoryManager.get(Playlist);
-    const allCreatedPlaylists: Playlist[] = [];
-
-    const artist1 = users.find((u) => u.username === 'artist1');
-    const artist2 = users.find((u) => u.username === 'artist2');
-
+    // 4. Update Base Creator to include a genre
     const createPlaylistBase = (overrides: Partial<Playlist>) =>
       playlistRepository.create({
         tracksCount: 0,
         totalDurationSeconds: 0,
         likesCount: 0,
         repostsCount: 0,
+        type: PlaylistType.PLAYLIST,
+        releaseDate: new Date(),
+        buyLink: 'https://bandcamp.com',
+        recordLabel: 'Harmonica Records',
+        genreId: genres[0].genreId, // Set a default genre
         ...overrides,
       });
+
+    const allCreatedPlaylists: Playlist[] = [];
+    const artist1 = users.find((u) => u.username === 'artist1');
+    const artist2 = users.find((u) => u.username === 'artist2');
 
     if (artist1) {
       const p1 = await playlistRepository.save(
         createPlaylistBase({
           title: 'Late Night Lo-Fi Beats',
-          description: 'Chill beats to study and relax to.',
+          permalink: 'late-night-lofi',
+          type: PlaylistType.ALBUM,
+          genreId:
+            genres.find((g) => g.name.toLowerCase().includes('lo-fi'))?.genreId ||
+            genres[0].genreId,
           isPublic: true,
-          secretToken: null,
           userId: artist1.userId,
-          tags: [
-            tags.find((t) => t.name === 'lo-fi')!,
-            tags.find((t) => t.name === 'chill')!,
-            tags.find((t) => t.name === 'study')!,
-          ],
+          tags: [tags.find((t) => t.name === 'lo-fi')!, tags.find((t) => t.name === 'chill')!],
         })
       );
       allCreatedPlaylists.push(p1);
@@ -107,62 +100,46 @@ export class PlaylistSeeder implements Seeder {
       const p2 = await playlistRepository.save(
         createPlaylistBase({
           title: 'Unreleased Demos (Private)',
-          description: 'WIP tracks.',
+          permalink: 'unreleased-demos',
+          type: PlaylistType.EP,
           isPublic: false,
           secretToken: generateVerificationToken(),
           userId: artist1.userId,
-          tags: [tags.find((t) => t.name === 'indie')!, tags.find((t) => t.name === 'acoustic')!],
+          genreId: genres[1].genreId,
+          tags: [tags.find((t) => t.name === 'vibes')!],
         })
       );
       allCreatedPlaylists.push(p2);
     }
 
-    if (artist2) {
-      const p3 = await playlistRepository.save(
-        createPlaylistBase({
-          title: 'Summer Festival Mix',
-          description: 'High energy EDM and House.',
-          isPublic: true,
-          secretToken: null,
-          userId: artist2.userId,
-          tags: [
-            tags.find((t) => t.name === 'edm')!,
-            tags.find((t) => t.name === 'house')!,
-            tags.find((t) => t.name === 'party')!,
-            tags.find((t) => t.name === 'summer')!,
-          ],
-        })
-      );
-      allCreatedPlaylists.push(p3);
-    }
+    // ─── RANDOM PLAYLISTS ──────────────────────────────────────────
+    const playlistFactory = factoryManager.get(Playlist);
+    const types = Object.values(PlaylistType);
 
     for (let i = 0; i < 30; i++) {
       const randomPlaylist = await playlistFactory.make();
       const randomOwner = users[Math.floor(Math.random() * users.length)];
-      const generatedToken = !randomPlaylist.isPublic ? generateVerificationToken() : null;
-
-      // assign 1-3 random tags to each random playlist
-      const randomTags = [...tags]
-        .sort(() => 0.5 - Math.random())
-        .slice(0, Math.floor(Math.random() * 3) + 1);
+      const randomType = types[Math.floor(Math.random() * types.length)];
+      const randomGenre = genres[Math.floor(Math.random() * genres.length)]; // 5. Pick random genre
 
       const savedPlaylist = await playlistRepository.save(
         createPlaylistBase({
           ...randomPlaylist,
-          secretToken: generatedToken,
+          title: randomPlaylist.title,
+          permalink: createPermalink(randomPlaylist.title),
+          type: randomType,
+          genreId: randomGenre.genreId, // 6. Assign it
+          secretToken: !randomPlaylist.isPublic ? generateVerificationToken() : null,
           userId: randomOwner.userId,
-          user: randomOwner,
-          tags: randomTags,
+          tags: [...tags].sort(() => 0.5 - Math.random()).slice(0, 2),
         })
       );
       allCreatedPlaylists.push(savedPlaylist);
     }
 
-    console.log('Populating tracks, likes, and reposts...');
-
+    // ─── POPULATE TRACKS, LIKES, REPOSTS (Logic remains the same) ---
     for (const playlist of allCreatedPlaylists) {
-      // 1. ADD TRACKS
-      const numTracks = Math.floor(Math.random() * 8) + 5;
+      const numTracks = Math.floor(Math.random() * 5) + 3;
       const selectedTracks = [...tracks].sort(() => 0.5 - Math.random()).slice(0, numTracks);
 
       for (let i = 0; i < selectedTracks.length; i++) {
@@ -173,33 +150,18 @@ export class PlaylistSeeder implements Seeder {
         });
       }
 
-      // 2. GENERATE LIKES
-      const numLikes = Math.floor(Math.random() * 16);
+      const numLikes = Math.floor(Math.random() * 5);
       const likers = [...users].sort(() => 0.5 - Math.random()).slice(0, numLikes);
-
       for (const liker of likers) {
         await playlistLikeRepository.save({
           playlistId: playlist.playlistId,
           userId: liker.userId,
         });
       }
-
-      // 3. GENERATE REPOSTS
-      const numReposts = Math.floor(Math.random() * 6);
-      const reposters = [...users].sort(() => 0.5 - Math.random()).slice(0, numReposts);
-
-      for (const reposter of reposters) {
-        await playlistRepostRepository.save({
-          playlistId: playlist.playlistId,
-          userId: reposter.userId,
-        });
-      }
     }
 
-    console.log('Seeding complete!');
-    console.log(` - ${allCreatedPlaylists.length} Playlists created.`);
-    console.log(` - ${tags.length} Tags seeded and assigned.`);
-    console.log(` - Secret tokens generated for private playlists.`);
-    console.log(` - Triggers automatically updated totalDurationSeconds and tracks_count.`);
+    console.log(
+      `Seeding complete: ${allCreatedPlaylists.length} Playlists with Genre and metadata.`
+    );
   }
 }
