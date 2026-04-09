@@ -51,6 +51,16 @@ const mockPlaylistRepository = () => ({
   getPlaylistDetails: jest.fn(),
   findAllTrackIdsInPlaylist: jest.fn(),
   reorderTracks: jest.fn(),
+  createPlaylist: jest.fn(),
+  getPublicPlaylist: jest.fn(),
+  getSecretPlaylist: jest.fn(),
+  changePlaylistPrivacy: jest.fn(),
+  resetSecretToken: jest.fn(),
+  findOrCreateTags: jest.fn(),
+  findOrCreateGenre: jest.fn(),
+  updatePlaylistTags: jest.fn(),
+  updatePlaylistGenre: jest.fn(),
+  getPlaylistWithTagsandGenre: jest.fn(),
 });
 
 const mockStorageService = () => ({
@@ -905,6 +915,17 @@ describe('PlaylistService', () => {
 
       playlistRepo.findPlaylistById.mockResolvedValue(mockPlaylist);
       playlistRepo.updatePlaylist.mockResolvedValue(updatedPlaylist);
+      playlistRepo.getPlaylistWithTagsandGenre.mockResolvedValue({
+        ...updatedPlaylist,
+        tags: [],
+        genre: null,
+        updatedAt: new Date(),
+        buyLink: null,
+        recordLabel: null,
+        type: 'playlist',
+        releaseDate: null,
+        permalink: null,
+      });
 
       storageService.uploadFile.mockResolvedValue({ Location: 'https://s3.com/new.webp' });
       storageService.deleteFile.mockReturnValue(Promise.resolve());
@@ -1012,6 +1033,377 @@ describe('PlaylistService', () => {
 
       expect(playlistRepo.reorderTracks).toHaveBeenCalledWith('p1', ['t2', 't1']);
       expect(result.status).toBe('success');
+    });
+  });
+
+  // ─── createPlaylist() ─────────────────────────────────────────────────────
+
+  describe('createPlaylist', () => {
+    const baseDto = { title: 'My Playlist', isPublic: true, description: '', coverImage: '' };
+
+    it('should return status success with public shareUrl when isPublic is true', async () => {
+      playlistRepo.createPlaylist.mockResolvedValue({
+        playlistId: mockPlaylistId,
+        title: 'My Playlist',
+        isPublic: true,
+        tracksCount: 0,
+        totalDurationSeconds: 0,
+        likesCount: 0,
+        repostsCount: 0,
+        secretToken: null,
+        createdAt: new Date('2026-01-01T00:00:00Z'),
+      });
+      (storageService as any).get = jest.fn();
+      const configGet = jest
+        .spyOn((service as any).configService, 'get')
+        .mockReturnValue('https://harmonica.com');
+
+      const result = await service.createPlaylist(baseDto, mockUserId);
+
+      expect(playlistRepo.createPlaylist).toHaveBeenCalledWith(baseDto, mockUserId);
+      expect(result.status).toBe('success');
+      expect(result.data.shareUrl).toBe(`https://harmonica.com/playlist/${mockPlaylistId}`);
+      configGet.mockRestore();
+    });
+
+    it('should return secret shareUrl when isPublic is false', async () => {
+      playlistRepo.createPlaylist.mockResolvedValue({
+        playlistId: mockPlaylistId,
+        title: 'Secret Playlist',
+        isPublic: false,
+        tracksCount: 0,
+        totalDurationSeconds: 0,
+        likesCount: 0,
+        repostsCount: 0,
+        secretToken: 'abc123',
+        createdAt: new Date('2026-01-01T00:00:00Z'),
+      });
+      const configGet = jest
+        .spyOn((service as any).configService, 'get')
+        .mockReturnValue('https://harmonica.com');
+
+      const result = await service.createPlaylist({ ...baseDto, isPublic: false }, mockUserId);
+
+      expect(result.status).toBe('success');
+      expect(result.data.shareUrl).toBe('https://harmonica.com/playlist/secret/abc123');
+      expect(result.data.secretToken).toBe('abc123');
+      configGet.mockRestore();
+    });
+  });
+
+  // ─── updatePlaylist() ─────────────────────────────────────────────────────
+
+  describe('updatePlaylist', () => {
+    it('should throw NotFoundException if playlist does not exist', async () => {
+      playlistRepo.findPlaylistById.mockResolvedValue(null);
+      await expect(
+        service.updatePlaylist(mockUserId, mockPlaylistId, { title: 'New' })
+      ).rejects.toThrow(NotFoundException);
+    });
+
+    it('should throw ForbiddenException if user is not the owner', async () => {
+      playlistRepo.findPlaylistById.mockResolvedValue({ userId: mockOwnerId });
+      await expect(
+        service.updatePlaylist(mockUserId, mockPlaylistId, { title: 'New' })
+      ).rejects.toThrow(ForbiddenException);
+    });
+
+    it('should update metadata and return updated playlist', async () => {
+      playlistRepo.findPlaylistById.mockResolvedValue({
+        playlistId: mockPlaylistId,
+        userId: mockUserId,
+        coverImage: null,
+      });
+      playlistRepo.updatePlaylist.mockResolvedValue(undefined);
+      playlistRepo.getPlaylistWithTagsandGenre.mockResolvedValue({
+        playlistId: mockPlaylistId,
+        title: 'New Title',
+        description: 'New desc',
+        coverImage: null,
+        updatedAt: new Date(),
+        buyLink: null,
+        recordLabel: null,
+        type: 'playlist',
+        releaseDate: null,
+        permalink: null,
+        tags: [],
+        genre: null,
+      });
+
+      const result = await service.updatePlaylist(mockUserId, mockPlaylistId, {
+        title: 'New Title',
+        description: 'New desc',
+      });
+
+      expect(playlistRepo.updatePlaylist).toHaveBeenCalledWith(
+        mockPlaylistId,
+        expect.objectContaining({ title: 'New Title', description: 'New desc' })
+      );
+      expect(result.status).toBe('Success');
+      expect(result.data.title).toBe('New Title');
+    });
+
+    it('should upload new cover image and delete old one when file is provided', async () => {
+      playlistRepo.findPlaylistById.mockResolvedValue({
+        playlistId: mockPlaylistId,
+        userId: mockUserId,
+        coverImage: 'https://old-url.com/cover.jpg',
+      });
+      storageService.uploadFile.mockResolvedValue({
+        Location: 'https://new-url.com/cover.webp',
+      });
+      storageService.deleteFile.mockResolvedValue(undefined);
+      playlistRepo.updatePlaylist.mockResolvedValue(undefined);
+      playlistRepo.getPlaylistWithTagsandGenre.mockResolvedValue({
+        playlistId: mockPlaylistId,
+        title: 'T',
+        description: null,
+        coverImage: 'https://new-url.com/cover.webp',
+        updatedAt: new Date(),
+        buyLink: null,
+        recordLabel: null,
+        type: 'playlist',
+        releaseDate: null,
+        permalink: null,
+        tags: [],
+        genre: null,
+      });
+
+      const fakeFile = {
+        buffer: Buffer.from('img'),
+        originalname: 'cover.jpg',
+        mimetype: 'image/jpeg',
+        size: 3,
+      } as Express.Multer.File;
+
+      await service.updatePlaylist(mockUserId, mockPlaylistId, {}, fakeFile);
+
+      expect(storageService.uploadFile).toHaveBeenCalled();
+    });
+  });
+
+  // ─── changePlaylistPrivacy() ──────────────────────────────────────────────
+
+  describe('changePlaylistPrivacy', () => {
+    it('should throw NotFoundException if playlist does not exist', async () => {
+      playlistRepo.findPlaylistById.mockResolvedValue(null);
+      await expect(service.changePlaylistPrivacy(mockPlaylistId, true, mockUserId)).rejects.toThrow(
+        NotFoundException
+      );
+    });
+
+    it('should throw ForbiddenException if user is not the owner', async () => {
+      playlistRepo.findPlaylistById.mockResolvedValue({ isPublic: false, userId: mockOwnerId });
+      await expect(
+        service.changePlaylistPrivacy(mockPlaylistId, false, mockUserId)
+      ).rejects.toThrow(ForbiddenException);
+    });
+
+    it('should throw BadRequestException if playlist is already public', async () => {
+      playlistRepo.findPlaylistById.mockResolvedValue({ isPublic: true, userId: mockUserId });
+      await expect(service.changePlaylistPrivacy(mockPlaylistId, true, mockUserId)).rejects.toThrow(
+        BadRequestException
+      );
+    });
+
+    it('should throw BadRequestException if playlist is already private', async () => {
+      playlistRepo.findPlaylistById.mockResolvedValue({ isPublic: false, userId: mockUserId });
+      await expect(
+        service.changePlaylistPrivacy(mockPlaylistId, false, mockUserId)
+      ).rejects.toThrow(BadRequestException);
+    });
+
+    it('should return secretToken and shareUrl when making playlist private', async () => {
+      playlistRepo.findPlaylistById.mockResolvedValue({ isPublic: true, userId: mockUserId });
+      playlistRepo.changePlaylistPrivacy.mockResolvedValue('secret-token-xyz');
+      const configGet = jest
+        .spyOn((service as any).configService, 'get')
+        .mockReturnValue('https://harmonica.com');
+
+      const result = await service.changePlaylistPrivacy(mockPlaylistId, false, mockUserId);
+
+      expect(result.status).toBe('success');
+      expect(result.data.isPublic).toBe(false);
+      expect(result.data.secretToken).toBe('secret-token-xyz');
+      expect(result.data.shareUrl).toContain('secret/secret-token-xyz');
+      configGet.mockRestore();
+    });
+
+    it('should return public shareUrl when making playlist public', async () => {
+      playlistRepo.findPlaylistById.mockResolvedValue({ isPublic: false, userId: mockUserId });
+      playlistRepo.changePlaylistPrivacy.mockResolvedValue(undefined);
+      const configGet = jest
+        .spyOn((service as any).configService, 'get')
+        .mockReturnValue('https://harmonica.com');
+
+      const result = await service.changePlaylistPrivacy(mockPlaylistId, true, mockUserId);
+
+      expect(result.status).toBe('success');
+      expect(result.data.isPublic).toBe(true);
+      expect((result.data as any).secretToken).toBeUndefined();
+      configGet.mockRestore();
+    });
+  });
+
+  // ─── getPublicPlaylist() ──────────────────────────────────────────────────
+
+  describe('getPublicPlaylist', () => {
+    const fullPlaylistData = () => ({
+      playlistId: mockPlaylistId,
+      userId: mockOwnerId,
+      title: 'Chill Beats',
+      description: 'Lo-fi',
+      coverImage: null,
+      isPublic: true,
+      tracksCount: 1,
+      totalDurationSeconds: 210,
+      likesCount: 5,
+      repostsCount: 2,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      genre: { name: 'Lo-fi' },
+      tags: [{ tagId: 'tag-1', name: 'Chill' }],
+      user: { userId: mockOwnerId, displayName: 'Owner', avatarUrl: null },
+      playlistTracks: [
+        {
+          position: 1,
+          track: {
+            trackId: 'track-1',
+            title: 'Track A',
+            durationSeconds: 210,
+            coverImage: null,
+            playCount: 100,
+            likesCount: 10,
+            repostsCount: 2,
+            commentsCount: 1,
+          },
+        },
+      ],
+    });
+
+    it('should throw NotFoundException if playlist does not exist', async () => {
+      playlistRepo.getPublicPlaylist.mockResolvedValue(null);
+      await expect(service.getPublicPlaylist(mockPlaylistId, mockUserId)).rejects.toThrow(
+        NotFoundException
+      );
+    });
+
+    it('should throw ForbiddenException if playlist is private and user is not owner', async () => {
+      playlistRepo.getPublicPlaylist.mockResolvedValue({
+        ...fullPlaylistData(),
+        isPublic: false,
+        userId: mockOwnerId,
+      });
+      await expect(service.getPublicPlaylist(mockPlaylistId, mockUserId)).rejects.toThrow(
+        ForbiddenException
+      );
+    });
+
+    it('should return full playlist data on success', async () => {
+      playlistRepo.getPublicPlaylist.mockResolvedValue(fullPlaylistData());
+
+      const result = await service.getPublicPlaylist(mockPlaylistId, mockUserId);
+
+      expect(result.status).toBe('success');
+      expect(result.data.playlistId).toBe(mockPlaylistId);
+      expect(result.data.genre).toBe('Lo-fi');
+      expect(result.data.tracks).toHaveLength(1);
+      expect(result.data.tags).toEqual([{ tagId: 'tag-1', name: 'Chill' }]);
+    });
+  });
+
+  // ─── getSecretPlaylist() ──────────────────────────────────────────────────
+
+  describe('getSecretPlaylist', () => {
+    const secretPlaylistData = () => ({
+      playlistId: mockPlaylistId,
+      title: 'Secret Album',
+      description: 'Private',
+      coverImage: null,
+      isPublic: false,
+      tracksCount: 1,
+      totalDurationSeconds: 180,
+      likesCount: 0,
+      repostsCount: 0,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      tags: [{ tagId: 'tag-1', name: 'Experimental' }],
+      user: { userId: mockOwnerId, displayName: 'Artist', avatarUrl: null },
+      playlistTracks: [
+        {
+          position: 1,
+          track: {
+            trackId: 'track-1',
+            title: 'Unreleased',
+            durationSeconds: 180,
+            coverImage: null,
+            playCount: 0,
+            likesCount: 0,
+            repostsCount: 0,
+            commentsCount: 0,
+          },
+        },
+      ],
+    });
+
+    it('should throw NotFoundException if secret token is invalid', async () => {
+      playlistRepo.getSecretPlaylist.mockResolvedValue(null);
+      await expect(service.getSecretPlaylist('invalid-token')).rejects.toThrow(NotFoundException);
+    });
+
+    it('should return playlist data on success', async () => {
+      playlistRepo.getSecretPlaylist.mockResolvedValue(secretPlaylistData());
+
+      const result = await service.getSecretPlaylist('valid-token');
+
+      expect(result.status).toBe('success');
+      expect(result.data.playlistId).toBe(mockPlaylistId);
+      expect(result.data.tracks).toHaveLength(1);
+      expect((result.data as any).secretToken).toBeUndefined();
+    });
+  });
+
+  // ─── resetSecretToken() ───────────────────────────────────────────────────
+
+  describe('resetSecretToken', () => {
+    it('should throw NotFoundException if playlist does not exist', async () => {
+      playlistRepo.findPlaylistById.mockResolvedValue(null);
+      await expect(service.resetSecretToken(mockPlaylistId, mockUserId)).rejects.toThrow(
+        NotFoundException
+      );
+    });
+
+    it('should throw BadRequestException if playlist is public', async () => {
+      playlistRepo.findPlaylistById.mockResolvedValue({ isPublic: true, userId: mockUserId });
+      await expect(service.resetSecretToken(mockPlaylistId, mockUserId)).rejects.toThrow(
+        BadRequestException
+      );
+    });
+
+    it('should throw ForbiddenException if user is not the owner', async () => {
+      playlistRepo.findPlaylistById.mockResolvedValue({ isPublic: false, userId: mockOwnerId });
+      await expect(service.resetSecretToken(mockPlaylistId, mockUserId)).rejects.toThrow(
+        ForbiddenException
+      );
+    });
+
+    it('should return new secretToken and shareUrl on success', async () => {
+      playlistRepo.findPlaylistById.mockResolvedValue({
+        playlistId: mockPlaylistId,
+        isPublic: false,
+        userId: mockUserId,
+      });
+      playlistRepo.resetSecretToken.mockResolvedValue('new-secret-token');
+      const configGet = jest
+        .spyOn((service as any).configService, 'get')
+        .mockReturnValue('https://harmonica.com');
+
+      const result = await service.resetSecretToken(mockPlaylistId, mockUserId);
+
+      expect(result.status).toBe('success');
+      expect(result.data.secretToken).toBe('new-secret-token');
+      expect(result.data.shareUrl).toContain('secret/new-secret-token');
+      configGet.mockRestore();
     });
   });
 });

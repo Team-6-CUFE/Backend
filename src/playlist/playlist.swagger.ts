@@ -642,6 +642,26 @@ export function ApiUpdatePlaylist() {
             format: 'binary',
             description: 'Playlist cover image (png, jpeg, webp)',
           },
+          buyLink: { type: 'string', example: 'https://bandcamp.com/my-link' },
+          recordLabel: { type: 'string', example: 'Harmonica Records' },
+          genre: { type: 'string', example: 'Rock & Roll' },
+          type: {
+            type: 'string',
+            enum: ['playlist', 'album', 'ep'],
+            example: 'album',
+            description: 'Playlist type (playlist, album, ep)',
+          },
+          releaseDate: {
+            type: 'string',
+            example: '2026-04-07',
+            description: 'Release date in YYYY-MM-DD format',
+          },
+          permalink: { type: 'string', example: 'summer-vibes-2026' },
+          tags: {
+            type: 'array',
+            items: { type: 'string' },
+            example: ['chill', 'lo-fi', 'study'],
+          },
         },
       },
     }),
@@ -657,6 +677,13 @@ export function ApiUpdatePlaylist() {
             title: 'My New Title',
             description: 'Updated playlist description',
             coverImage: 'https://s3.amazonaws.com/bucket/playlists/uuid/cover.webp',
+            buyLink: 'https://bandcamp.com/my-link',
+            recordLabel: 'Harmonica Records',
+            genre: 'Rock & Roll',
+            type: 'album',
+            releaseDate: '2026-04-07',
+            permalink: 'summer-vibes-2026',
+            tags: ['chill', 'lo-fi', 'study'],
             updatedAt: '2026-04-07T08:00:00.000Z',
           },
         },
@@ -837,14 +864,30 @@ export function ApiChangePlaylistPrivacy() {
     }),
     ApiResponse({
       status: 200,
-      description: 'Privacy updated successfully',
+      description:
+        'Privacy updated. When making private, response includes secretToken and shareUrl.',
       schema: {
-        example: {
-          status: 'success',
-          data: {
-            playlistId: 'uuid-123',
-            isPublic: true,
-            shareUrl: 'https://harmonica.com/playlist/uuid-123',
+        examples: {
+          'Made Public': {
+            value: {
+              status: 'success',
+              data: {
+                playlistId: 'uuid-123',
+                isPublic: true,
+                shareUrl: 'https://harmonica.com/playlist/uuid-123',
+              },
+            },
+          },
+          'Made Private': {
+            value: {
+              status: 'success',
+              data: {
+                playlistId: 'uuid-123',
+                isPublic: false,
+                secretToken: 'abc9xyz',
+                shareUrl: 'https://harmonica.com/playlist/secret/abc9xyz',
+              },
+            },
           },
         },
       },
@@ -857,6 +900,7 @@ export function ApiChangePlaylistPrivacy() {
 
 export function ApiGetPublicPlaylist() {
   return applyDecorators(
+    ApiCookieAuth('access_token'),
     ApiOperation({
       summary: 'Get playlist details',
       description:
@@ -885,6 +929,8 @@ export function ApiGetPublicPlaylist() {
             likesCount: 15,
             repostsCount: 3,
             createdAt: '2026-03-31T12:00:00Z',
+            updatedAt: '2026-04-01T08:00:00Z',
+            genre: 'Lo-fi',
             tags: [
               { tagId: 'tag-1', name: 'Lo-fi' },
               { tagId: 'tag-2', name: 'Relax' },
@@ -900,12 +946,21 @@ export function ApiGetPublicPlaylist() {
                 trackId: 'track-uuid',
                 title: 'Midnight Rain',
                 duration_seconds: 210,
+                coverImage: 'https://cdn.harmonica.com/covers/track.jpg',
                 playCount: 1000,
+                likesCount: 50,
+                repostsCount: 10,
+                commentsCount: 5,
               },
             ],
           },
         },
       },
+    }),
+    ApiResponse({ status: 401, description: 'Unauthorized' }),
+    ApiResponse({
+      status: 403,
+      description: 'Playlist is private and caller is not the owner',
     }),
     ApiResponse({
       status: 404,
@@ -916,10 +971,11 @@ export function ApiGetPublicPlaylist() {
 
 export function ApiGetSecretPlaylist() {
   return applyDecorators(
+    ApiCookieAuth('access_token'),
     ApiOperation({
       summary: 'Get a private playlist via secret token',
       description:
-        'Allows anyone with the secret link to view a private playlist. Used for SoundCloud-style sharing.',
+        'Allows authenticated users with the secret link to view a private playlist. Used for SoundCloud-style sharing.',
     }),
     ApiParam({
       name: 'secretToken',
@@ -936,15 +992,39 @@ export function ApiGetSecretPlaylist() {
           data: {
             playlistId: 'uuid',
             title: 'Top Secret Beats',
+            description: 'Private album drop',
+            coverImage: 'https://cdn.harmonica.com/covers/secret.jpg',
             isPublic: false,
-            secretToken: '9a2b4c6d8e',
+            tracksCount: 3,
+            durationSeconds: 630,
+            likesCount: 0,
+            repostsCount: 0,
+            createdAt: '2026-04-01T10:00:00Z',
+            updatedAt: '2026-04-02T08:00:00Z',
             tags: [{ tagId: 'uuid', name: 'Experimental' }],
-            user: { displayName: 'ArtistName' },
-            tracks: [{ title: 'Unreleased Track', position: 1 }],
+            user: {
+              user_id: 'user-uuid',
+              displayName: 'ArtistName',
+              avatarUrl: 'https://cdn.harmonica.com/avatars/artist.jpg',
+            },
+            tracks: [
+              {
+                position: 1,
+                trackId: 'track-uuid',
+                title: 'Unreleased Track',
+                duration_seconds: 210,
+                coverImage: 'https://cdn.harmonica.com/covers/track.jpg',
+                playCount: 0,
+                likesCount: 0,
+                repostsCount: 0,
+                commentsCount: 0,
+              },
+            ],
           },
         },
       },
     }),
+    ApiResponse({ status: 401, description: 'Unauthorized' }),
     ApiResponse({
       status: 404,
       description: 'Playlist not found or token is invalid',

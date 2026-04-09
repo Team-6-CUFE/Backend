@@ -308,7 +308,7 @@ export class PlaylistService {
     }
     console.log('created playlist: ', playlistCreated);
     return {
-      status: 'sucesss',
+      status: 'success',
       data: {
         playlistId: playlistCreated.playlistId,
         title: playlistCreated.title,
@@ -604,7 +604,7 @@ export class PlaylistService {
       return {
         status: 'success',
         data: {
-          playlisId,
+          playlistId: playlisId,
           isPublic: false,
           secretToken: newToken,
           shareUrl: `${this.configService.get('HARMONICA_BASE_URL')}/playlist/secret/${newToken}`,
@@ -613,9 +613,9 @@ export class PlaylistService {
     }
     await this.playlistRepository.changePlaylistPrivacy(playlisId, isPublic);
     return {
-      status: 'sucess',
+      status: 'success',
       data: {
-        playlisId,
+        playlistId: playlisId,
         isPublic: true,
         shareUrl: `${this.configService.get('HARMONICA_BASE_URL')}/playlist/${playlisId}`,
       },
@@ -685,7 +685,7 @@ export class PlaylistService {
     return {
       status: 'success',
       data: {
-        playlisId: playlist.playlistId,
+        playlistId: playlist.playlistId,
         title: playlist.title,
         description: playlist.description,
         coverImage: playlist.coverImage,
