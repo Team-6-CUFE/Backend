@@ -871,32 +871,35 @@ describe('AuthenticationController', () => {
         message: 'google account linked successfully',
         data: { provider: 'google', providerEmail: mockEmail, linkedAt: new Date() },
       });
+      const res = { json: jest.fn(), redirect: jest.fn() };
 
       await controller.googleLinkCallback(
         mockProfileWithUserId as any,
         { session: {} } as any,
-        mockResponseWithCookie() as any
+        res as any
       );
 
       expect(service.linkSocialAccount).toHaveBeenCalledWith(mockUserId, mockProfileWithUserId);
       expect(service.linkSocialAccount).toHaveBeenCalledTimes(1);
     });
 
-    it('should return the service response as is (web flow)', async () => {
+    it('should send service response as JSON (web flow)', async () => {
       const mockServiceResponse = {
         status: 'success',
         message: 'google account linked successfully',
         data: { provider: 'google', providerEmail: mockEmail, linkedAt: new Date() },
       };
       service.linkSocialAccount.mockResolvedValue(mockServiceResponse);
+      const res = { json: jest.fn(), redirect: jest.fn() };
 
-      const result = await controller.googleLinkCallback(
+      await controller.googleLinkCallback(
         mockProfileWithUserId as any,
         { session: {} } as any,
-        mockResponseWithCookie() as any
+        res as any
       );
 
-      expect(result).toEqual(mockServiceResponse);
+      expect(res.json).toHaveBeenCalledWith(mockServiceResponse);
+      expect(res.redirect).not.toHaveBeenCalled();
     });
 
     it('should propagate exception thrown by service', async () => {
@@ -908,7 +911,7 @@ describe('AuthenticationController', () => {
         controller.googleLinkCallback(
           mockProfileWithUserId as any,
           { session: {} } as any,
-          mockResponseWithCookie() as any
+          { json: jest.fn(), redirect: jest.fn() } as any
         )
       ).rejects.toThrow(BadRequestException);
     });
@@ -917,17 +920,13 @@ describe('AuthenticationController', () => {
       service.linkSocialAccount.mockResolvedValue({ status: 'success' });
       const redirectUri = 'harmonica://link/callback';
       const req = { session: { oauthLinkRedirectUri: redirectUri } };
-      const res = { redirect: jest.fn() };
+      const res = { json: jest.fn(), redirect: jest.fn() };
 
-      const result = await controller.googleLinkCallback(
-        mockProfileWithUserId as any,
-        req as any,
-        res as any
-      );
+      await controller.googleLinkCallback(mockProfileWithUserId as any, req as any, res as any);
 
       expect(res.redirect).toHaveBeenCalledWith(`${redirectUri}?status=linked&provider=google`);
       expect(req.session.oauthLinkRedirectUri).toBeUndefined();
-      expect(result).toBeUndefined();
+      expect(res.json).not.toHaveBeenCalled();
     });
   });
 
@@ -959,10 +958,11 @@ describe('AuthenticationController', () => {
         data: { provider: 'facebook', providerEmail: mockEmail, linkedAt: new Date() },
       });
 
+      const res = { json: jest.fn(), redirect: jest.fn() };
       await controller.facebookLinkCallback(
         mockFacebookProfileWithUserId as any,
         { session: {} } as any,
-        mockResponseWithCookie() as any
+        res as any
       );
 
       expect(service.linkSocialAccount).toHaveBeenCalledWith(
@@ -972,7 +972,7 @@ describe('AuthenticationController', () => {
       expect(service.linkSocialAccount).toHaveBeenCalledTimes(1);
     });
 
-    it('should return the service response as is (web flow)', async () => {
+    it('should send service response as JSON (web flow)', async () => {
       const mockServiceResponse = {
         status: 'success',
         message: 'facebook account linked successfully',
@@ -980,13 +980,15 @@ describe('AuthenticationController', () => {
       };
       service.linkSocialAccount.mockResolvedValue(mockServiceResponse);
 
-      const result = await controller.facebookLinkCallback(
+      const res = { json: jest.fn(), redirect: jest.fn() };
+      await controller.facebookLinkCallback(
         mockFacebookProfileWithUserId as any,
         { session: {} } as any,
-        mockResponseWithCookie() as any
+        res as any
       );
 
-      expect(result).toEqual(mockServiceResponse);
+      expect(res.json).toHaveBeenCalledWith(mockServiceResponse);
+      expect(res.redirect).not.toHaveBeenCalled();
     });
 
     it('should propagate exception thrown by service', async () => {
@@ -998,7 +1000,7 @@ describe('AuthenticationController', () => {
         controller.facebookLinkCallback(
           mockFacebookProfileWithUserId as any,
           { session: {} } as any,
-          mockResponseWithCookie() as any
+          { json: jest.fn(), redirect: jest.fn() } as any
         )
       ).rejects.toThrow(BadRequestException);
     });
@@ -1007,9 +1009,9 @@ describe('AuthenticationController', () => {
       service.linkSocialAccount.mockResolvedValue({ status: 'success' });
       const redirectUri = 'harmonica://link/callback';
       const req = { session: { oauthLinkRedirectUri: redirectUri } };
-      const res = { redirect: jest.fn() };
+      const res = { json: jest.fn(), redirect: jest.fn() };
 
-      const result = await controller.facebookLinkCallback(
+      await controller.facebookLinkCallback(
         mockFacebookProfileWithUserId as any,
         req as any,
         res as any
@@ -1017,7 +1019,7 @@ describe('AuthenticationController', () => {
 
       expect(res.redirect).toHaveBeenCalledWith(`${redirectUri}?status=linked&provider=facebook`);
       expect(req.session.oauthLinkRedirectUri).toBeUndefined();
-      expect(result).toBeUndefined();
+      expect(res.json).not.toHaveBeenCalled();
     });
   });
 

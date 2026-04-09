@@ -7,7 +7,7 @@ import {
 import { AuthGuard } from '@nestjs/passport';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
-import { ALLOWED_MOBILE_SCHEMES } from './oauth.constants';
+import { isAllowedRedirectUri } from './oauth.constants';
 
 @Injectable()
 export class FacebookLinkGuard extends AuthGuard('facebook-link') {
@@ -28,7 +28,7 @@ export class FacebookLinkGuard extends AuthGuard('facebook-link') {
 
       const redirectUri = request.query?.redirect_uri as string | undefined;
       if (redirectUri) {
-        if (!ALLOWED_MOBILE_SCHEMES.some((s) => redirectUri.startsWith(s))) {
+        if (!isAllowedRedirectUri(redirectUri)) {
           throw new BadRequestException('Invalid redirect_uri');
         }
         request.session.oauthLinkRedirectUri = redirectUri;
