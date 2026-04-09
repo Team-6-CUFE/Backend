@@ -219,9 +219,12 @@ export class AuthenticationController {
   @Get('google/callback')
   async googleCallback(
     @CurrentUser() googleUser: OAuthProfile,
-    @Res({ passthrough: true }) response: Response
+    @Res({ passthrough: true }) response: Response,
+    @Req() req: Request
   ) {
-    return this.authenticationService.handleOAuthCallback(googleUser, response);
+    const redirectUri = req.session?.oauthRedirectUri as string | undefined;
+    if (redirectUri) delete req.session.oauthRedirectUri;
+    return this.authenticationService.handleOAuthCallback(googleUser, response, redirectUri);
   }
 
   @ApiFacebookLogin()
@@ -239,33 +242,67 @@ export class AuthenticationController {
   @Get('facebook/callback')
   async facebookCallback(
     @CurrentUser() facebookUser: OAuthProfile,
-    @Res({ passthrough: true }) response: Response
+    @Res({ passthrough: true }) response: Response,
+    @Req() req: Request
   ) {
-    return this.authenticationService.handleOAuthCallback(facebookUser, response);
+    const redirectUri = req.session?.oauthRedirectUri as string | undefined;
+    if (redirectUri) delete req.session.oauthRedirectUri;
+    return this.authenticationService.handleOAuthCallback(facebookUser, response, redirectUri);
+  }
+
+  @Get('oauth/link-token')
+  generateLinkToken(@CurrentUser('sub') userId: string) {
+    return this.authenticationService.generateLinkToken(userId);
   }
 
   @ApiGoogleLink()
+  @Public()
   @UseGuards(GoogleLinkGuard)
   @Get('google/link')
   googleLink() {}
 
   @ApiGoogleLinkCallback()
+  @Public()
   @UseGuards(GoogleLinkGuard)
   @Get('google/link/callback')
-  async googleLinkCallback(@CurrentUser() profile: OAuthProfile & { userId: string }) {
-    return this.authenticationService.linkSocialAccount(profile.userId, profile);
+  async googleLinkCallback(
+    @CurrentUser() profile: OAuthProfile & { userId: string },
+    @Req() req: Request,
+    @Res() res: Response
+  ) {
+    const result = await this.authenticationService.linkSocialAccount(profile.userId, profile);
+    const redirectUri = req.session?.oauthLinkRedirectUri as string | undefined;
+    if (redirectUri) {
+      delete req.session.oauthLinkRedirectUri;
+      res.redirect(`${redirectUri}?status=linked&provider=${profile.provider}`);
+    } else {
+      res.json(result);
+    }
   }
 
   @ApiFacebookLink()
+  @Public()
   @UseGuards(FacebookLinkGuard)
   @Get('facebook/link')
   facebookLink() {}
 
   @ApiFacebookLinkCallback()
+  @Public()
   @UseGuards(FacebookLinkGuard)
   @Get('facebook/link/callback')
-  async facebookLinkCallback(@CurrentUser() profile: OAuthProfile & { userId: string }) {
-    return this.authenticationService.linkSocialAccount(profile.userId, profile);
+  async facebookLinkCallback(
+    @CurrentUser() profile: OAuthProfile & { userId: string },
+    @Req() req: Request,
+    @Res() res: Response
+  ) {
+    const result = await this.authenticationService.linkSocialAccount(profile.userId, profile);
+    const redirectUri = req.session?.oauthLinkRedirectUri as string | undefined;
+    if (redirectUri) {
+      delete req.session.oauthLinkRedirectUri;
+      res.redirect(`${redirectUri}?status=linked&provider=${profile.provider}`);
+    } else {
+      res.json(result);
+    }
   }
 
   @ApiUnlinkSocialAccount()
