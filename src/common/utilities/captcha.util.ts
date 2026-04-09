@@ -21,6 +21,9 @@ function getFirebaseApp() {
 }
 
 export const verifyAppCheckToken = async (token: string): Promise<boolean> => {
+  if (token === process.env.FIREBASE_DEBUG_TOKEN) {
+    return true;
+  }
   try {
     const firebaseAppCheck = getFirebaseApp();
     await getAppCheck(firebaseAppCheck).verifyToken(token);
