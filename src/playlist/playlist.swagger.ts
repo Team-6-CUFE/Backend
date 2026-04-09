@@ -585,67 +585,34 @@ export function ApiCreatePlaylist() {
   return applyDecorators(
     ApiCookieAuth('access_token'),
     ApiOperation({
-      summary: "Get a user's liked playlists",
-      description: 'Returns a paginated list of playlists that the specified user has liked.',
+      summary: 'Create a new playlist',
+      description:
+        'Creates a new playlist for the authenticated user. If private, a secret token is generated for sharing.',
     }),
-    ApiParam({ name: 'user_id', type: 'string', format: 'uuid', description: 'UUID of the user' }),
-    ApiQuery({
-      name: 'page',
-      required: false,
-      type: Number,
-      example: 1,
-      description: 'Page number (default: 1)',
-    }),
-    ApiQuery({
-      name: 'limit',
-      required: false,
-      type: Number,
-      example: 20,
-      description: 'Items per page, capped at 100 (default: 20)',
-    }),
+    ApiBody({ type: CreatePlaylistDto }),
     ApiResponse({
-      status: 200,
-      description: 'User liked playlists retrieved successfully',
+      status: 201,
+      description: 'Playlist created successfully',
       schema: {
         example: {
           status: 'success',
-          data: [
-            {
-              playlistId: '550e8400-e29b-41d4-a716-446655440000',
-              title: 'Summer Hits',
-              coverImage: 'https://example.com/cover.jpg',
-              isPublic: true,
-              tracksCount: 5,
-              likesCount: 150,
-              repostsCount: 12,
-              user: {
-                userId: '550e8400-e29b-41d4-a716-446655440002',
-                username: 'playlist_creator',
-                displayName: 'The Creator',
-              },
-              likedAt: '2026-03-31T12:00:00Z',
-            },
-          ],
-          pagination: {
-            currentPage: 1,
-            totalPages: 2,
-            totalCount: 25,
-            limit: 20,
+          data: {
+            playlistId: '550e8400-e29b-41d4-a716-446655440000',
+            title: 'My New Playlist',
+            isPublic: false,
+            trackCount: 0,
+            durationSeconds: 0,
+            likesCount: 0,
+            repostsCount: 0,
+            secretToken: 'abc123xyz',
+            shareUrl: 'https://harmonica.com/playlist/secret/abc123xyz',
+            createdAt: '2026-04-09T10:00:00.000Z',
           },
         },
       },
     }),
-    ApiResponse({ status: 401, description: 'Unauthorized' }),
-    ApiResponse({
-      status: 403,
-      description: 'This account is private',
-      schema: { example: { statusCode: 403, message: 'This account is private' } },
-    }),
-    ApiResponse({
-      status: 404,
-      description: 'User not found',
-      schema: { example: { statusCode: 404, message: 'User not found' } },
-    })
+    ApiResponse({ status: 400, description: 'Validation error in request body' }),
+    ApiResponse({ status: 401, description: 'Unauthorized' })
   );
 }
 
