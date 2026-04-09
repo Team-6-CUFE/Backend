@@ -82,7 +82,7 @@ describe('MailService', () => {
       await service.sendPasswordReset('user@example.com', 'tok123');
 
       const call = mockMailerService.sendMail.mock.calls[0][0];
-      expect(call.context.resetUrl).toBe('https://harmonica.app/reset-password?token=tok123');
+      expect(call.context.resetUrl).toBe('https://harmonica.app/change-password?token=tok123');
     });
   });
 
