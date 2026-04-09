@@ -27,7 +27,7 @@ export class CreatePlaylistDto {
   @IsOptional()
   @IsString()
   @IsUrl({}, { message: 'cover_image must be a valid URL' })
-  coverimage!: string;
+  coverImage!: string;
 
   @ApiProperty({
     description: 'Visibility of the playlist',
