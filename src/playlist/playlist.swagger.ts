@@ -9,6 +9,7 @@ import {
   ApiConsumes,
 } from '@nestjs/swagger';
 import { AddTrackDto } from './dto/add-track.dto';
+import { CreatePlaylistDto } from './dto/create-playlist.dto';
 
 export function ApiRepostPlaylist() {
   return applyDecorators(
