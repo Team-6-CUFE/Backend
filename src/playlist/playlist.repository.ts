@@ -145,7 +145,7 @@ export class PlaylistRepository {
     const playlist = this.playlistRepository.create({
       title: createPlaylistDto.title,
       description: createPlaylistDto.description,
-      coverImage: createPlaylistDto.coverimage,
+      coverImage: createPlaylistDto.coverImage,
       isPublic: createPlaylistDto.isPublic,
       likesCount: 0,
       repostsCount: 0,
