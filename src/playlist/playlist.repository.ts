@@ -364,12 +364,6 @@ export class PlaylistRepository {
   }
 
   async updatePlaylistGenre(playlistId: string, genre: Genre | null): Promise<void> {
-    const playlist = await this.playlistRepository.findOne({
-      where: { playlistId },
-      relations: ['genre'],
-    });
-    if (!playlist) return;
-    playlist.genreId = genre ? genre.genreId : '';
-    await this.playlistRepository.save(playlist);
+    await this.playlistRepository.update({ playlistId }, { genreId: genre ? genre.genreId : null });
   }
 }
