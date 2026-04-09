@@ -30,7 +30,7 @@ export class MailService {
    * Send password reset link
    */
   async sendPasswordReset(email: string, token: string) {
-    const resetUrl = `${this.configService.get('FRONTEND_URL')}/reset-password?token=${token}`;
+    const resetUrl = `${this.configService.get('FRONTEND_URL')}/change-password?token=${token}`;
 
     await this.mailerService.sendMail({
       to: email,
