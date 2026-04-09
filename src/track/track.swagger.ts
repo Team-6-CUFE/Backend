@@ -1393,6 +1393,7 @@ export function ApiGetTrack() {
             },
             createdAt: '2025-06-01T10:00:00Z',
             updatedAt: '2025-06-10T09:15:00Z',
+            mainArtists: ['artist1', 'artist2'],
           },
         },
       },
