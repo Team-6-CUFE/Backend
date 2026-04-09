@@ -320,6 +320,7 @@ export const mockFansService = () => ({
 
 export const mockPlaylistService = () => ({
   getPlaylistById: jest.fn(),
+  getTrackPlaylists: jest.fn(),
 });
 
 export const mockTrackPlay = (overrides?: object) => ({
