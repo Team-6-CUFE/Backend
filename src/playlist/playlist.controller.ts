@@ -38,6 +38,7 @@ import {
   ApiGetUserCreatedPlaylists,
   ApiReorderTracks,
   ApiChangePlaylistPrivacy,
+  ApiGetPublicPlaylist,
 } from './playlist.swagger';
 import { CurrentUser } from '../authentication/decorators/current-user.decorator';
 import { CheckBlock } from '../followers/decorators/no-block.decorator';
@@ -204,15 +205,15 @@ export class PlaylistController {
     return this.playlistService.deletePlaylist(playlistId, userId);
   }
 
-  // @ApiGetUserCreatedPlaylists()
-  // @Get(':playlistId')
-  // async getPlaylist(
-  //   @Param('playlistId', ParseUUIDPipe) playlistId: string,
-  //   @Query('s') secretToken: string,
-  //   @CurrentUser('sub') userId: string | null
-  // ) {
-  //   return this.playlistService.getPlaylist(playlistId, userId, secretToken);
-  // }
+  @ApiGetUserCreatedPlaylists()
+  @Get(':playlistId/create')
+  async getPlaylist(
+    @Param('playlistId', ParseUUIDPipe) playlistId: string,
+    @Query('s') secretToken: string,
+    @CurrentUser('sub') userId: string | null
+  ) {
+    return this.playlistService.getPlaylist(playlistId, userId, secretToken);
+  }
 
   @Put(':playlistId/tracks/reorder')
   @ApiReorderTracks()
@@ -238,7 +239,6 @@ export class PlaylistController {
   }
 
   @ApiGetPublicPlaylist()
-  @ApiGetUserCreatedPlaylists()
   @Get('/:playlistId')
   async getPublicPlaylist(
     @Param('playlistId', ParseUUIDPipe) playlistId: string,

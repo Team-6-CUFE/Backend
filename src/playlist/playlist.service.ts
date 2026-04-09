@@ -592,4 +592,55 @@ export class PlaylistService {
       },
     };
   }
+
+  async getPublicPlaylist(playlistId: string, userId: string) {
+    const playlist = await this.playlistRepository.getPublicPlaylist(playlistId);
+
+    if (!playlist) {
+      throw new NotFoundException('Playlist not found or is private');
+    }
+
+    // Double-check logic: if repository returns it, isPublic was already true.
+    // But keeping your guard clause for safety:
+    if (!playlist.isPublic && userId !== playlist.userId) {
+      throw new ForbiddenException('Secret playlist is requested');
+    }
+
+    return {
+      status: 'success',
+      data: {
+        playlistId: playlist.playlistId,
+        title: playlist.title,
+        description: playlist.description,
+        coverImage: playlist.coverImage,
+        isPublic: playlist.isPublic,
+        tracksCount: playlist.tracksCount,
+        durationSeconds: playlist.totalDurationSeconds,
+        likesCount: playlist.likesCount,
+        repostsCount: playlist.repostsCount,
+        createdAt: playlist.createdAt,
+        updatedAt: playlist.updatedAt,
+        tags: playlist.tags.map((tag) => ({
+          tagId: tag.tagId,
+          name: tag.name,
+        })),
+        user: {
+          user_id: playlist.user.userId,
+          displayName: playlist.user.displayName,
+          avatarUrl: playlist.user.avatarUrl,
+        },
+        tracks: playlist.playlistTracks.map((pt) => ({
+          position: pt.position,
+          trackId: pt.track.trackId,
+          title: pt.track.title,
+          duration_seconds: pt.track.durationSeconds,
+          coverImage: pt.track.coverImage,
+          playCount: pt.track.playCount,
+          likesCount: pt.track.likesCount,
+          repostsCount: pt.track.repostsCount,
+          commentsCount: pt.track.commentsCount,
+        })),
+      },
+    };
+  }
 }
