@@ -225,12 +225,16 @@ export class AuthenticationRepository {
           <h2>${title}</h2>
           
           <p class="message">${message}</p>
-          
-          <div class="button-container">
+
+          ${
+            isSuccess
+              ? `<div class="button-container">
             <a href="${process.env.FRONTEND_URL}" class="button">
-              ${isSuccess ? 'Launch Player' : 'Try Again'}
+              Launch Player
             </a>
-          </div>
+          </div>`
+              : ''
+          }
           
           <div class="footer">
             <p>&copy; 2026 Harmonica &bull; Berlin &bull; Worldwide</p>
