@@ -312,4 +312,10 @@ export class PlaylistRepository {
       order: { playlistTracks: { position: 'ASC' } },
     });
   }
+
+  async resetSecretToken(playlistId: string): Promise<string> {
+    const newToken = generateVerificationToken();
+    await this.playlistRepository.update({ playlistId }, { secretToken: newToken });
+    return newToken;
+  }
 }

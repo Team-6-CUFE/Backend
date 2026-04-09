@@ -983,3 +983,31 @@ export function ApiGetSecretPlaylist() {
     })
   );
 }
+
+export function ApiResetPlaylistSecretToken() {
+  return applyDecorators(
+    ApiCookieAuth('access_token'),
+    ApiOperation({
+      summary: 'Reset secret token for a private playlist',
+      description: 'Generates a new secret token and share URL. Only works for private playlists.',
+    }),
+    ApiParam({ name: 'playlistId', format: 'uuid', example: 'uuid-123' }),
+    ApiResponse({
+      status: 201,
+      description: 'Secret token regenerated successfully',
+      schema: {
+        example: {
+          status: 'success',
+          data: {
+            playlistId: 'uuid-123',
+            secretToken: 'new-random-string-789',
+            shareUrl: 'https://harmonica.com/playlist/secret/new-random-string-789',
+          },
+        },
+      },
+    }),
+    ApiResponse({ status: 400, description: 'Playlist is public (cannot reset token)' }),
+    ApiResponse({ status: 403, description: 'Not the playlist owner' }),
+    ApiResponse({ status: 404, description: 'Playlist not found' })
+  );
+}

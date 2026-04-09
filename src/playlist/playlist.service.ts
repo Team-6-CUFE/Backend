@@ -689,4 +689,26 @@ export class PlaylistService {
       },
     };
   }
+
+  async resetSecretToken(playlistId: string, userId: string) {
+    const playlist = await this.playlistRepository.findPlaylistById(playlistId);
+    if (!playlist) {
+      throw new NotFoundException('playlist not found');
+    }
+    if (playlist.isPublic) {
+      throw new BadRequestException('Playlist is public');
+    }
+    if (!playlist.isPublic && userId !== playlist.userId) {
+      throw new ForbiddenException('You are not the owner of this playlist');
+    }
+    const newSecretToken = await this.playlistRepository.resetSecretToken(playlistId);
+    return {
+      status: 'success',
+      data: {
+        playlistId: playlist.playlistId,
+        secretToken: newSecretToken,
+        shareUrl: `${this.configService.get('HARMONICA_BASE_URL')}/playlist/secret/${newSecretToken}`,
+      },
+    };
+  }
 }
