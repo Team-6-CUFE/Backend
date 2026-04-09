@@ -208,7 +208,7 @@ export class PlaylistController {
   async getPlaylist(
     @Param('playlistId', ParseUUIDPipe) playlistId: string,
     @Query('s') secretToken: string,
-    @CurrentUser('sub') userId: string | null // Make sure your decorator handles null for guests
+    @CurrentUser('sub') userId: string | null
   ) {
     return this.playlistService.getPlaylist(playlistId, userId, secretToken);
   }
