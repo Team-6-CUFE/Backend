@@ -134,15 +134,126 @@ export class AuthenticationRepository {
     await this.refreshTokenRepository.delete({ userId });
   }
 
-  async verifyEmail(token: string): Promise<{ status: boolean; message: string }> {
-    console.log('verifying email with token', token);
+  async verifyEmail(token: string): Promise<string> {
+    const getHtmlTemplate = (title: string, message: string, isSuccess: boolean) => `
+      <!DOCTYPE html>
+      <html lang="en">
+      <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>${title}</title>
+        <style>
+          body {
+            font-family: "Interstate","Lucida Grande","Lucida Sans Unicode","Lucida Sans",Garuda,Verdana,Tahoma,sans-serif;
+            line-height: 1.6;
+            color: #f2f2f2; /* Light text for dark mode */
+            background-color: #111111; /* SoundCloud dark background */
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+          }
+          .container {
+            background-color: #222222; /* Slightly lighter card background */
+            border-radius: 4px;
+            padding: 40px;
+            max-width: 450px;
+            width: 90%;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.5);
+            border-top: 6px solid #FF5500; /* Signature Orange */
+            text-align: center;
+          }
+          .logo {
+            margin-bottom: 25px;
+            font-size: 26px;
+            font-weight: bold;
+            color: #ffffff;
+            letter-spacing: -1px;
+          }
+          .icon {
+            font-size: 40px;
+            margin-bottom: 10px;
+            display: block;
+          }
+          h2 {
+            color: #ffffff;
+            margin-top: 0;
+            font-weight: 300;
+            font-size: 22px;
+          }
+          .message {
+            color: #cccccc;
+            margin: 20px 0;
+            font-size: 15px;
+          }
+          .button-container {
+            margin-top: 35px;
+          }
+          .button {
+            display: inline-block;
+            padding: 12px 28px;
+            background-color: #FF5500;
+            color: #ffffff !important;
+            text-decoration: none;
+            border-radius: 3px;
+            font-size: 14px;
+            font-weight: bold;
+            text-transform: uppercase;
+            transition: background-color 0.2s ease;
+          }
+          .button:hover {
+            background-color: #ff7733;
+          }
+          .footer {
+            margin-top: 40px;
+            padding-top: 20px;
+            border-top: 1px solid #333333;
+            font-size: 11px;
+            color: #666666;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+          }
+        </style>
+      </head>
+      <body>
+        <div class="container">
+          <div class="logo">
+            Harmonica
+          </div>
+          
+          <h2>${title}</h2>
+          
+          <p class="message">${message}</p>
+
+          ${
+            isSuccess
+              ? `<div class="button-container">
+            <a href="${process.env.FRONTEND_URL}" class="button">
+              Launch Player
+            </a>
+          </div>`
+              : ''
+          }
+          
+          <div class="footer">
+            <p>&copy; 2026 Harmonica &bull; Berlin &bull; Worldwide</p>
+          </div>
+        </div>
+      </body>
+      </html>
+    `;
+
     const record = await this.tokenRepository.findOne({ where: { token } });
     if (!record) {
-      return { status: false, message: 'Invalid verification token.' };
+      return getHtmlTemplate(
+        'Invalid Token',
+        'The verification link is invalid or has already been used.',
+        false
+      );
     }
     if (record.expiresAt < new Date()) {
-      console.log('token expired at', record.expiresAt, 'current time', new Date());
-      return { status: false, message: 'Verification token has expired.' };
+      return getHtmlTemplate('Token Expired', 'The verification token has expired.', false);
     }
     // mark verified//
     await this.userEmailRepository.update(
@@ -151,7 +262,11 @@ export class AuthenticationRepository {
     );
     // delete token
     await this.tokenRepository.delete(record.id);
-    return { status: true, message: 'Email verified successfully.' };
+    return getHtmlTemplate(
+      'Success!',
+      'Your email has been verified successfully. You can now log in to your account.',
+      true
+    );
   }
 
   async deleteExistingTokens(email: string): Promise<void> {

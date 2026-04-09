@@ -12,6 +12,7 @@ import {
   UseGuards,
   Redirect,
   Headers,
+  Header,
 } from '@nestjs/common';
 import { Response, Request } from 'express';
 import { ApiTags } from '@nestjs/swagger';
@@ -124,6 +125,7 @@ export class AuthenticationController {
   @ApiVerifyEmail()
   @Public()
   @Get('verify-email/:token')
+  @Header('Content-Type', 'text/html')
   verifyemail(@Param('token') token: string) {
     return this.authenticationService.verifyEmail(token);
   }

@@ -50,7 +50,9 @@ describe('MailService', () => {
       await service.sendEmailVerification('user@example.com', 'mytoken');
 
       const call = mockMailerService.sendMail.mock.calls[0][0];
-      expect(call.context.verificationUrl).toBe('https://harmonica.app/verify-email/mytoken');
+      expect(call.context.verificationUrl).toBe(
+        'https://harmonica.app/api/auth/verify-email/mytoken'
+      );
     });
 
     it('should include the email in context', async () => {
