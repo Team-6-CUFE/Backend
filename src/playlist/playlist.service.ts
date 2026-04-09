@@ -346,7 +346,12 @@ export class PlaylistService {
     if (updateDto.description !== undefined) {
       updateData.description = updateDto.description;
     }
-
+    if (updateDto.buyLink !== undefined) updateData.buyLink = updateDto.buyLink;
+    if (updateDto.recordLabel !== undefined) updateData.recordLabel = updateDto.recordLabel;
+    if (updateDto.type !== undefined) updateData.type = updateDto.type;
+    if (updateDto.releaseDate !== undefined)
+      updateData.releaseDate = new Date(updateDto.releaseDate);
+    if (updateDto.permalink !== undefined) updateData.permalink = updateDto.permalink;
     if (file) {
       const oldCoverUrl = playlist.coverImage;
 
@@ -372,18 +377,42 @@ export class PlaylistService {
           .catch((err) => console.warn(`Failed to delete old cover ${oldCoverUrl}`, err));
       }
     }
+    if (updateDto.tags !== undefined) {
+      const tags =
+        updateDto.tags.length > 0
+          ? await this.playlistRepository.findOrCreateTags(updateDto.tags)
+          : [];
 
-    const updated = await this.playlistRepository.updatePlaylist(playlistId, updateData);
-
+      await this.playlistRepository.updatePlaylistTags(playlistId, tags);
+    }
+    if (updateDto.genre !== undefined) {
+      if (updateDto.genre.length > 0) {
+        // Find or create a single genre
+        const genre = await this.playlistRepository.findOrCreateGenre(updateDto.genre);
+        await this.playlistRepository.updatePlaylistGenre(playlistId, genre);
+      } else {
+        // If genre is empty string, set to null
+        await this.playlistRepository.updatePlaylistGenre(playlistId, null);
+      }
+    }
+    await this.playlistRepository.updatePlaylist(playlistId, updateData);
+    const updatedWithTags = await this.playlistRepository.getPlaylistWithTagsandGenre(playlistId);
     return {
       status: 'Success',
       message: 'Playlist updated successfully',
       data: {
-        playlistId: updated!.playlistId,
-        title: updated!.title,
-        description: updated!.description,
-        coverImage: updated!.coverImage,
-        updatedAt: updated!.updatedAt,
+        playlistId: updatedWithTags!.playlistId,
+        title: updatedWithTags!.title,
+        description: updatedWithTags!.description,
+        coverImage: updatedWithTags!.coverImage,
+        updatedAt: updatedWithTags!.updatedAt,
+        buyLink: updatedWithTags!.buyLink, // Added
+        recordLabel: updatedWithTags!.recordLabel, // Added
+        type: updatedWithTags!.type, // Added
+        releaseDate: updatedWithTags!.releaseDate, // Added
+        permalink: updatedWithTags!.permalink, // Added
+        tags: updatedWithTags!.tags.map((t) => ({ tagId: t.tagId, name: t.name })),
+        genre: updatedWithTags!.genre?.name,
       },
     };
   }
@@ -605,7 +634,7 @@ export class PlaylistService {
     if (!playlist.isPublic && userId !== playlist.userId) {
       throw new ForbiddenException('Secret playlist is requested');
     }
-
+    console.log(playlist);
     return {
       status: 'success',
       data: {
@@ -620,6 +649,7 @@ export class PlaylistService {
         repostsCount: playlist.repostsCount,
         createdAt: playlist.createdAt,
         updatedAt: playlist.updatedAt,
+        genre: playlist.genre?.name,
         tags: playlist.tags.map((tag) => ({
           tagId: tag.tagId,
           name: tag.name,

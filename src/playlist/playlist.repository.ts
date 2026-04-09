@@ -1,5 +1,5 @@
 import { ConflictException, Injectable } from '@nestjs/common';
-import { Repository } from 'typeorm';
+import { In, Repository } from 'typeorm';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Playlist } from './entities/playlist.entity';
 import { PlaylistRepost } from './entities/playlist-reposts.entity';
@@ -8,6 +8,8 @@ import { CreatePlaylistDto } from './dto/create-playlist.dto';
 import { generateVerificationToken } from '../common/utilities/tokens.util';
 import { PlaylistTrack } from './entities/playlist-tracks.entity';
 import { Track } from '../track/entities/track.entity';
+import { Tag } from '../track/entities/tag.entity';
+import { Genre } from '../genre/entities/genre.entity';
 
 @Injectable()
 export class PlaylistRepository {
@@ -21,7 +23,11 @@ export class PlaylistRepository {
     @InjectRepository(PlaylistTrack)
     private readonly playlistTrackRepository: Repository<PlaylistTrack>, // Use Repository here
     @InjectRepository(Track)
-    private readonly trackRepository: Repository<Track>
+    private readonly trackRepository: Repository<Track>,
+    @InjectRepository(Tag)
+    private readonly tagRepository: Repository<Tag>,
+    @InjectRepository(Genre)
+    private readonly genreRepository: Repository<Genre>
   ) {}
 
   async findPlaylistById(playlistId: string): Promise<Playlist | null> {
@@ -298,7 +304,7 @@ export class PlaylistRepository {
       where: {
         playlistId,
       },
-      relations: ['user', 'playlistTracks', 'playlistTracks.track', 'tags'],
+      relations: ['user', 'playlistTracks', 'playlistTracks.track', 'tags', 'genre'],
       order: {
         playlistTracks: { position: 'ASC' },
       },
@@ -317,5 +323,53 @@ export class PlaylistRepository {
     const newToken = generateVerificationToken();
     await this.playlistRepository.update({ playlistId }, { secretToken: newToken });
     return newToken;
+  }
+
+  async getPlaylistWithTagsandGenre(playlistId: string): Promise<Playlist | null> {
+    return this.playlistRepository.findOne({
+      where: { playlistId },
+      relations: ['tags', 'genre'],
+    });
+  }
+
+  async findOrCreateTags(names: string[]): Promise<Tag[]> {
+    const trimmed = names.map((n) => n.trim()).filter(Boolean);
+    const existing = await this.tagRepository.findBy({ name: In(trimmed) });
+    const existingNames = new Set(existing.map((t) => t.name));
+    const created = await Promise.all(
+      trimmed
+        .filter((n) => !existingNames.has(n))
+        .map((name) => this.tagRepository.save(this.tagRepository.create({ name })))
+    );
+    return [...existing, ...created];
+  }
+
+  async updatePlaylistTags(playlistId: string, tags: Tag[]): Promise<void> {
+    const playlist = await this.playlistRepository.findOne({
+      where: { playlistId },
+      relations: ['tags'],
+    });
+    if (!playlist) return;
+    playlist.tags = tags;
+    await this.playlistRepository.save(playlist);
+  }
+
+  async findOrCreateGenre(names: string): Promise<Genre> {
+    const trimmed = names.trim();
+    const existing = await this.genreRepository.findBy({ name: In([trimmed]) });
+    if (existing.length) {
+      return existing[0];
+    }
+    return this.genreRepository.save(this.genreRepository.create({ name: trimmed }));
+  }
+
+  async updatePlaylistGenre(playlistId: string, genre: Genre | null): Promise<void> {
+    const playlist = await this.playlistRepository.findOne({
+      where: { playlistId },
+      relations: ['genre'],
+    });
+    if (!playlist) return;
+    playlist.genreId = genre ? genre.genreId : '';
+    await this.playlistRepository.save(playlist);
   }
 }

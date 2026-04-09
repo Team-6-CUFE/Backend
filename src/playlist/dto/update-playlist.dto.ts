@@ -40,6 +40,11 @@ export class UpdatePlaylistDto {
   @IsOptional()
   recordLabel?: string;
 
+  @ApiPropertyOptional({ example: 'Rock & Roll' })
+  @IsString()
+  @IsOptional()
+  genre?: string;
+
   @ApiPropertyOptional({ enum: PlaylistType, example: PlaylistType.ALBUM })
   @IsEnum(PlaylistType)
   @IsOptional()
