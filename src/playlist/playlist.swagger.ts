@@ -850,3 +850,98 @@ export function ApiReorderTracks() {
     ApiResponse({ status: 403, description: 'Not the owner' })
   );
 }
+
+export function ApiChangePlaylistPrivacy() {
+  return applyDecorators(
+    ApiCookieAuth('access_token'),
+    ApiOperation({
+      summary: 'Update playlist privacy (Public/Private)',
+      description: 'Toggles visibility. Making a playlist private generates a new secret token.',
+    }),
+    ApiParam({ name: 'playlistId', format: 'uuid' }),
+    ApiBody({
+      schema: {
+        type: 'object',
+        properties: {
+          isPublic: { type: 'boolean', example: true, description: 'New privacy state' },
+        },
+      },
+    }),
+    ApiResponse({
+      status: 200,
+      description: 'Privacy updated successfully',
+      schema: {
+        example: {
+          status: 'success',
+          data: {
+            playlistId: 'uuid-123',
+            isPublic: true,
+            shareUrl: 'https://harmonica.com/playlist/uuid-123',
+          },
+        },
+      },
+    }),
+    ApiResponse({ status: 400, description: 'Playlist is already in the requested state' }),
+    ApiResponse({ status: 403, description: 'Not the owner' }),
+    ApiResponse({ status: 404, description: 'Playlist not found' })
+  );
+}
+
+export function ApiGetPublicPlaylist() {
+  return applyDecorators(
+    ApiOperation({
+      summary: 'Get playlist details',
+      description:
+        'Retrieves a public playlist by ID, including its owner, tracks (ordered), and tags.',
+    }),
+    ApiParam({
+      name: 'playlistId',
+      description: 'The UUID of the playlist',
+      format: 'uuid',
+      example: '550e8400-e29b-41d4-a716-446655440000',
+    }),
+    ApiResponse({
+      status: 200,
+      description: 'Playlist retrieved successfully',
+      schema: {
+        example: {
+          status: 'success',
+          data: {
+            playlistId: '550e8400-e29b-41d4-a716-446655440000',
+            title: 'Chill Beats',
+            description: 'A playlist for studying',
+            coverImage: 'https://cdn.harmonica.com/covers/123.jpg',
+            isPublic: true,
+            tracksCount: 2,
+            durationSeconds: 420,
+            likesCount: 15,
+            repostsCount: 3,
+            createdAt: '2026-03-31T12:00:00Z',
+            tags: [
+              { tagId: 'tag-1', name: 'Lo-fi' },
+              { tagId: 'tag-2', name: 'Relax' },
+            ],
+            user: {
+              user_id: 'user-uuid',
+              displayName: 'HarmonicaUser',
+              avatarUrl: 'https://cdn.harmonica.com/avatars/me.jpg',
+            },
+            tracks: [
+              {
+                position: 1,
+                trackId: 'track-uuid',
+                title: 'Midnight Rain',
+                duration_seconds: 210,
+                playCount: 1000,
+              },
+            ],
+          },
+        },
+      },
+    }),
+    ApiResponse({
+      status: 404,
+      description: 'Playlist not found or is private',
+    })
+  );
+}

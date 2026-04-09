@@ -280,4 +280,28 @@ export class PlaylistRepository {
       .take(limit)
       .getManyAndCount();
   }
+
+  async changePlaylistPrivacy(playlistId: string, isPublic: boolean): Promise<string | null> {
+    if (!isPublic) {
+      const token = generateVerificationToken();
+      await this.playlistRepository.update({ playlistId }, { secretToken: token, isPublic: false });
+      return token;
+    }
+
+    await this.playlistRepository.update({ playlistId }, { secretToken: null, isPublic: true });
+
+    return playlistId;
+  }
+
+  async getPublicPlaylist(playlistId: string): Promise<Playlist | null> {
+    return this.playlistRepository.findOne({
+      where: {
+        playlistId,
+      },
+      relations: ['user', 'playlistTracks', 'playlistTracks.track', 'tags'],
+      order: {
+        playlistTracks: { position: 'ASC' },
+      },
+    });
+  }
 }

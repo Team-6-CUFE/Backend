@@ -37,6 +37,7 @@ import {
   ApiDeletePlaylist,
   ApiGetUserCreatedPlaylists,
   ApiReorderTracks,
+  ApiChangePlaylistPrivacy,
 } from './playlist.swagger';
 import { CurrentUser } from '../authentication/decorators/current-user.decorator';
 import { CheckBlock } from '../followers/decorators/no-block.decorator';
@@ -203,15 +204,15 @@ export class PlaylistController {
     return this.playlistService.deletePlaylist(playlistId, userId);
   }
 
-  @ApiGetUserCreatedPlaylists()
-  @Get(':playlistId')
-  async getPlaylist(
-    @Param('playlistId', ParseUUIDPipe) playlistId: string,
-    @Query('s') secretToken: string,
-    @CurrentUser('sub') userId: string | null
-  ) {
-    return this.playlistService.getPlaylist(playlistId, userId, secretToken);
-  }
+  // @ApiGetUserCreatedPlaylists()
+  // @Get(':playlistId')
+  // async getPlaylist(
+  //   @Param('playlistId', ParseUUIDPipe) playlistId: string,
+  //   @Query('s') secretToken: string,
+  //   @CurrentUser('sub') userId: string | null
+  // ) {
+  //   return this.playlistService.getPlaylist(playlistId, userId, secretToken);
+  // }
 
   @Put(':playlistId/tracks/reorder')
   @ApiReorderTracks()
@@ -224,5 +225,25 @@ export class PlaylistController {
       throw new BadRequestException('trackIds must be a non-empty array of track IDs');
     }
     return this.playlistService.reorder(playlistId, trackIds, userId);
+  }
+
+  @ApiChangePlaylistPrivacy()
+  @Patch('/:playlistId/privacy')
+  changePlaylistPrivacy(
+    @Param('playlistId') playlistId: string,
+    @Body('isPublic') isPublic: boolean,
+    @CurrentUser('sub') userId: string
+  ) {
+    return this.playlistService.changePlaylistPrivacy(playlistId, isPublic, userId);
+  }
+
+  @ApiGetPublicPlaylist()
+  @ApiGetUserCreatedPlaylists()
+  @Get('/:playlistId')
+  async getPublicPlaylist(
+    @Param('playlistId', ParseUUIDPipe) playlistId: string,
+    @CurrentUser('sub') userId: string
+  ) {
+    return this.playlistService.getPublicPlaylist(playlistId, userId);
   }
 }
