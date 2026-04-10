@@ -46,6 +46,7 @@ const mockPlaylistService = () => ({
   getPublicPlaylist: jest.fn(),
   getSecretPlaylist: jest.fn(),
   resetSecretToken: jest.fn(),
+  getMyPlaylists: jest.fn(),
 });
 
 // ─── Suite ────────────────────────────────────────────────────────────────────
@@ -912,6 +913,36 @@ describe('PlaylistController', () => {
       await expect(controller.resetSecretToken(mockPlaylistId, mockUserId)).rejects.toThrow(
         ForbiddenException
       );
+    });
+  });
+
+  // ─── getMyPlaylists ───────────────────────────────────────────────────────
+
+  describe('getMyPlaylists', () => {
+    it('should delegate to service with userId, page, and limit', async () => {
+      service.getMyPlaylists.mockResolvedValue({
+        status: 'success',
+        data: [],
+        pagination: { currentPage: 1, totalPages: 0, totalCount: 0, limit: mockLimit },
+      });
+
+      await controller.getMyPlaylists(mockUserId, mockPage, mockLimit);
+
+      expect(service.getMyPlaylists).toHaveBeenCalledWith(mockUserId, mockPage, mockLimit);
+      expect(service.getMyPlaylists).toHaveBeenCalledTimes(1);
+    });
+
+    it('should return the service response as-is', async () => {
+      const mockResponse = {
+        status: 'success',
+        data: [{ playlistId: mockPlaylistId, title: 'My Vibe', isOwner: true }],
+        pagination: { currentPage: 1, totalPages: 1, totalCount: 1, limit: mockLimit },
+      };
+      service.getMyPlaylists.mockResolvedValue(mockResponse);
+
+      const result = await controller.getMyPlaylists(mockUserId, mockPage, mockLimit);
+
+      expect(result).toBe(mockResponse);
     });
   });
 });

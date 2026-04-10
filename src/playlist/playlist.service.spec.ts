@@ -61,6 +61,7 @@ const mockPlaylistRepository = () => ({
   updatePlaylistTags: jest.fn(),
   updatePlaylistGenre: jest.fn(),
   getPlaylistWithTagsandGenre: jest.fn(),
+  getMyPlaylists: jest.fn(),
 });
 
 const mockStorageService = () => ({
@@ -1404,6 +1405,68 @@ describe('PlaylistService', () => {
       expect(result.data.secretToken).toBe('new-secret-token');
       expect(result.data.shareUrl).toContain('secret/new-secret-token');
       configGet.mockRestore();
+    });
+  });
+
+  // ─── getMyPlaylists() ─────────────────────────────────────────────────────
+
+  describe('getMyPlaylists', () => {
+    const mockMyPlaylistRecord = () => ({
+      playlistId: mockPlaylistId,
+      title: 'My Awesome Playlist',
+      description: 'A great playlist',
+      coverImage: 'https://example.com/cover.jpg',
+      isPublic: true,
+      tracksCount: 10,
+      likesCount: 5,
+      repostsCount: 2,
+      totalDurationSeconds: 3600,
+      createdAt: new Date('2024-06-01T12:00:00Z'),
+      userId: mockUserId,
+      user: {
+        userId: mockUserId,
+        username: 'test_user',
+        displayName: 'Test User',
+        avatarUrl: 'https://example.com/avatar.jpg',
+      },
+    });
+
+    it('should return paginated user playlists with status: success', async () => {
+      const playlist = mockMyPlaylistRecord();
+      playlistRepo.getMyPlaylists.mockResolvedValue([[playlist], 1]);
+
+      const result = await service.getMyPlaylists(mockUserId, 1, 20);
+
+      expect(result.status).toBe('success');
+      expect(result.data).toHaveLength(1);
+      expect(result.pagination).toMatchObject({ currentPage: 1, totalCount: 1 });
+      expect(result.data[0]).toMatchObject({
+        playlistId: mockPlaylistId,
+        title: 'My Awesome Playlist',
+        isOwner: true,
+        durationSeconds: 3600,
+        user: {
+          userId: mockUserId,
+          username: 'test_user',
+        },
+      });
+    });
+
+    it('should evaluate isOwner to false if the user ids do not match', async () => {
+      const playlist = { ...mockMyPlaylistRecord(), userId: mockOtherUserId };
+      playlistRepo.getMyPlaylists.mockResolvedValue([[playlist], 1]);
+
+      const result = await service.getMyPlaylists(mockUserId, 1, 20);
+
+      expect(result.data[0].isOwner).toBe(false);
+    });
+
+    it('should use default pagination parameters if not provided', async () => {
+      playlistRepo.getMyPlaylists.mockResolvedValue([[], 0]);
+
+      await service.getMyPlaylists(mockUserId);
+
+      expect(playlistRepo.getMyPlaylists).toHaveBeenCalledWith(mockUserId, 1, 20);
     });
   });
 });
