@@ -1059,3 +1059,58 @@ export function ApiResetPlaylistSecretToken() {
     ApiResponse({ status: 404, description: 'Playlist not found' })
   );
 }
+
+export function ApiGetMyPlaylists() {
+  return applyDecorators(
+    ApiCookieAuth('access_token'),
+    ApiOperation({
+      summary: 'Get my playlists',
+      description:
+        'Returns a paginated list of playlists owned by the authenticated user. Includes both public and private playlists.',
+    }),
+    ApiQuery({
+      name: 'page',
+      required: false,
+      type: Number,
+      example: 1,
+      description: 'Page number (default: 1)',
+    }),
+    ApiQuery({
+      name: 'limit',
+      required: false,
+      type: Number,
+      example: 20,
+      description: 'Items per page, capped at 100 (default: 20)',
+    }),
+    ApiResponse({
+      status: 200,
+      description: 'Playlists retrieved successfully',
+      schema: {
+        example: {
+          status: 'success',
+          data: [
+            {
+              playlistId: '550e8400-e29b-41d4-a716-446655440000',
+              title: 'My Vibe',
+              coverImage: 'https://cdn.harmonica.com/covers/my-vibe.jpg',
+              isPublic: false,
+              tracksCount: 15,
+              durationSeconds: 3600,
+              likesCount: 0,
+              repostsCount: 0,
+              isOwner: true,
+              createdAt: '2026-04-09T10:00:00.000Z',
+            },
+          ],
+          pagination: {
+            currentPage: 1,
+            totalPages: 1,
+            totalCount: 1,
+            limit: 20,
+          },
+        },
+      },
+    }),
+    ApiResponse({ status: 401, description: 'Unauthorized' })
+  );
+}

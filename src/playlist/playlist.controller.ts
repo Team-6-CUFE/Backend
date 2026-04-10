@@ -41,6 +41,7 @@ import {
   ApiGetPublicPlaylist,
   ApiGetSecretPlaylist,
   ApiResetPlaylistSecretToken,
+  ApiGetMyPlaylists,
 } from './playlist.swagger';
 import { CurrentUser } from '../authentication/decorators/current-user.decorator';
 import { CheckBlock } from '../followers/decorators/no-block.decorator';
@@ -261,6 +262,7 @@ export class PlaylistController {
     return this.playlistService.resetSecretToken(playlistId, userId);
   }
 
+  @ApiGetMyPlaylists()
   @Get('me')
   async getMyPlaylists(
     @CurrentUser('sub') userId: string,
