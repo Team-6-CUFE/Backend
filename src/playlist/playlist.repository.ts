@@ -388,4 +388,31 @@ export class PlaylistRepository {
       .take(limit)
       .getManyAndCount();
   }
+
+  async getUserPlaylists(
+    userId: string,
+    page: number,
+    limit: number
+  ): Promise<[Playlist[], number]> {
+    const skip = (page - 1) * limit;
+
+    return this.playlistRepository
+      .createQueryBuilder('playlist')
+      .leftJoinAndSelect('playlist.user', 'user')
+      .where('playlist.isPublic = :isPublic', { isPublic: true })
+      .andWhere((qb) => {
+        const subQuery = qb
+          .subQuery()
+          .select('like.playlistId')
+          .from(PlaylistLike, 'like')
+          .where('like.userId = :userId')
+          .getQuery();
+        return `(playlist.userId = :userId OR playlist.playlistId IN ${subQuery})`;
+      })
+      .setParameter('userId', userId)
+      .orderBy('playlist.createdAt', 'DESC')
+      .skip(skip)
+      .take(limit)
+      .getManyAndCount();
+  }
 }

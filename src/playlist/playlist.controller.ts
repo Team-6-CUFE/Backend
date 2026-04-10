@@ -42,6 +42,7 @@ import {
   ApiGetSecretPlaylist,
   ApiResetPlaylistSecretToken,
   ApiGetMyPlaylists,
+  ApiGetUserPlaylists,
 } from './playlist.swagger';
 import { CurrentUser } from '../authentication/decorators/current-user.decorator';
 import { CheckBlock } from '../followers/decorators/no-block.decorator';
@@ -270,5 +271,17 @@ export class PlaylistController {
     @Query('limit') limit: number = 20
   ) {
     return this.playlistService.getMyPlaylists(userId, page, limit);
+  }
+
+  @ApiGetUserPlaylists()
+  @CheckBlock()
+  @Get('users/:user_id/playlists')
+  getUserPlaylists(
+    @Param('user_id', ParseUUIDPipe) userId: string,
+    @CurrentUser('sub') myUserId: string | null,
+    @Query('page') page: number = 1,
+    @Query('limit') limit: number = 20
+  ) {
+    return this.playlistService.getUserPlaylists(userId, myUserId, page, limit);
   }
 }

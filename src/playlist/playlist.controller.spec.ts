@@ -47,6 +47,7 @@ const mockPlaylistService = () => ({
   getSecretPlaylist: jest.fn(),
   resetSecretToken: jest.fn(),
   getMyPlaylists: jest.fn(),
+  getUserPlaylists: jest.fn(),
 });
 
 // ─── Suite ────────────────────────────────────────────────────────────────────
@@ -937,6 +938,107 @@ describe('PlaylistController', () => {
         status: 'success',
         data: [{ playlistId: mockPlaylistId, title: 'My Vibe', isOwner: true }],
         pagination: { currentPage: 1, totalPages: 1, totalCount: 1, limit: mockLimit },
+      };
+      service.getMyPlaylists.mockResolvedValue(mockResponse);
+
+      const result = await controller.getMyPlaylists(mockUserId, mockPage, mockLimit);
+
+      expect(result).toBe(mockResponse);
+    });
+  });
+
+  // ─── getUserPlaylists ───────────────────────────────────────────────────────
+
+  describe('getUserPlaylists', () => {
+    it('should delegate to service with userId, myUserId, page, and limit', async () => {
+      const mockResponse = {
+        status: 'success',
+        data: [],
+        pagination: { currentPage: 1, totalPages: 1, totalCount: 0, limit: 20 },
+      };
+      service.getUserPlaylists.mockResolvedValue(mockResponse);
+
+      await controller.getUserPlaylists(mockUserId, mockMyUserId, mockPage, mockLimit);
+
+      expect(service.getUserPlaylists).toHaveBeenCalledWith(
+        mockUserId,
+        mockMyUserId,
+        mockPage,
+        mockLimit
+      );
+      expect(service.getUserPlaylists).toHaveBeenCalledTimes(1);
+    });
+
+    it('should return the service response as-is', async () => {
+      const mockResponse = {
+        status: 'success',
+        data: [{ playlistId: mockPlaylistId, title: 'Public Jams', isPublic: true }],
+        pagination: { currentPage: 1, totalPages: 1, totalCount: 1, limit: 20 },
+      };
+      service.getUserPlaylists.mockResolvedValue(mockResponse);
+
+      const result = await controller.getUserPlaylists(
+        mockUserId,
+        mockMyUserId,
+        mockPage,
+        mockLimit
+      );
+
+      expect(result).toBe(mockResponse);
+    });
+
+    it('should handle unauthenticated (null) guest users viewing the profile', async () => {
+      const mockResponse = {
+        status: 'success',
+        data: [],
+        pagination: { currentPage: 1, totalPages: 1, totalCount: 0, limit: 20 },
+      };
+      service.getUserPlaylists.mockResolvedValue(mockResponse);
+
+      await controller.getUserPlaylists(mockUserId, null, mockPage, mockLimit);
+
+      expect(service.getUserPlaylists).toHaveBeenCalledWith(mockUserId, null, mockPage, mockLimit);
+    });
+
+    it('should propagate NotFoundException when user profile does not exist', async () => {
+      service.getUserPlaylists.mockRejectedValue(new NotFoundException('User not found'));
+
+      await expect(
+        controller.getUserPlaylists(mockUserId, mockMyUserId, mockPage, mockLimit)
+      ).rejects.toThrow(NotFoundException);
+    });
+
+    it('should propagate ForbiddenException when the account is private and not owned by caller', async () => {
+      service.getUserPlaylists.mockRejectedValue(new ForbiddenException('This account is private'));
+
+      await expect(
+        controller.getUserPlaylists(mockUserId, mockMyUserId, mockPage, mockLimit)
+      ).rejects.toThrow(ForbiddenException);
+    });
+  });
+
+  // ─── getMyPlaylists ─────────────────────────────────────────────────────────
+
+  describe('getMyPlaylists', () => {
+    it('should delegate to service with userId, page, and limit', async () => {
+      const mockResponse = {
+        status: 'success',
+        data: [],
+        pagination: { currentPage: 1, totalPages: 1, totalCount: 0, limit: 20 },
+      };
+      service.getMyPlaylists.mockResolvedValue(mockResponse);
+
+      await controller.getMyPlaylists(mockUserId, mockPage, mockLimit);
+
+      expect(service.getMyPlaylists).toHaveBeenCalledWith(mockUserId, mockPage, mockLimit);
+      expect(service.getMyPlaylists).toHaveBeenCalledTimes(1);
+    });
+
+    it('should return the service response as-is', async () => {
+      const mockResponse = {
+        status: 'success',
+        data: [{ playlistId: mockPlaylistId, title: 'My Secret Stash', isPublic: false }],
+        pagination: { currentPage: 1, totalPages: 1, totalCount: 1, limit: 20 },
       };
       service.getMyPlaylists.mockResolvedValue(mockResponse);
 
