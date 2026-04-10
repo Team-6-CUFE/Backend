@@ -366,4 +366,26 @@ export class PlaylistRepository {
   async updatePlaylistGenre(playlistId: string, genre: Genre | null): Promise<void> {
     await this.playlistRepository.update({ playlistId }, { genreId: genre ? genre.genreId : null });
   }
+
+  async getMyPlaylists(userId: string, page: number, limit: number): Promise<[Playlist[], number]> {
+    const skip = (page - 1) * limit;
+
+    return this.playlistRepository
+      .createQueryBuilder('playlist')
+      .leftJoinAndSelect('playlist.user', 'user')
+      .where('playlist.userId = :userId', { userId })
+      .orWhere((qb) => {
+        const subQuery = qb
+          .subQuery()
+          .select('like.playlistId')
+          .from(PlaylistLike, 'like')
+          .where('like.userId = :userId')
+          .getQuery();
+        return `playlist.playlistId IN ${subQuery}`;
+      })
+      .orderBy('playlist.createdAt', 'DESC')
+      .skip(skip)
+      .take(limit)
+      .getManyAndCount();
+  }
 }

@@ -260,4 +260,13 @@ export class PlaylistController {
   resetSecretToken(@Param('playlistId') playlistId: string, @CurrentUser('sub') userId: string) {
     return this.playlistService.resetSecretToken(playlistId, userId);
   }
+
+  @Get('me')
+  async getMyPlaylists(
+    @CurrentUser('sub') userId: string,
+    @Query('page') page: number = 1,
+    @Query('limit') limit: number = 20
+  ) {
+    return this.playlistService.getMyPlaylists(userId, page, limit);
+  }
 }

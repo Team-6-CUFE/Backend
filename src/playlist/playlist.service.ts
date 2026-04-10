@@ -741,4 +741,33 @@ export class PlaylistService {
       },
     };
   }
+
+  async getMyPlaylists(userId: string, page: number = 1, limit: number = 20) {
+    const [playlists, total] = await this.playlistRepository.getMyPlaylists(userId, page, limit);
+
+    const mappedPlaylists = playlists.map((playlist) => ({
+      playlistId: playlist.playlistId,
+      title: playlist.title,
+      description: playlist.description,
+      coverImage: playlist.coverImage,
+      isPublic: playlist.isPublic,
+      tracksCount: playlist.tracksCount,
+      likesCount: playlist.likesCount,
+      repostsCount: playlist.repostsCount,
+      durationSeconds: playlist.totalDurationSeconds,
+      createdAt: playlist.createdAt,
+      user: {
+        userId: playlist.user?.userId,
+        username: playlist.user?.username,
+        displayName: playlist.user?.displayName,
+        avatarUrl: playlist.user?.avatarUrl,
+      },
+      isOwner: playlist.userId === userId,
+    }));
+
+    return {
+      status: 'success',
+      ...buildPaginationResponse(mappedPlaylists, total, page, limit),
+    };
+  }
 }
