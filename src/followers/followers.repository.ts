@@ -157,18 +157,6 @@ export class FollowersRepository {
       });
       if (followerToBlocked) {
         await transactionalEntityManager.remove(UserFollow, followerToBlocked);
-        await transactionalEntityManager.decrement(
-          User,
-          { userId: blockerId },
-          'followingsCount',
-          1
-        );
-        await transactionalEntityManager.decrement(
-          User,
-          { userId: blockedId },
-          'followersCount',
-          1
-        );
       }
 
       const blockedToFollower = await transactionalEntityManager.findOne(UserFollow, {
@@ -176,18 +164,6 @@ export class FollowersRepository {
       });
       if (blockedToFollower) {
         await transactionalEntityManager.remove(UserFollow, blockedToFollower);
-        await transactionalEntityManager.decrement(
-          User,
-          { userId: blockedId },
-          'followingsCount',
-          1
-        );
-        await transactionalEntityManager.decrement(
-          User,
-          { userId: blockerId },
-          'followersCount',
-          1
-        );
       }
 
       const newBlock = transactionalEntityManager.create(UserBlock, {
