@@ -741,4 +741,76 @@ export class PlaylistService {
       },
     };
   }
+
+  async getMyPlaylists(userId: string, page: number = 1, limit: number = 20) {
+    const [playlists, total] = await this.playlistRepository.getMyPlaylists(userId, page, limit);
+
+    const mappedPlaylists = playlists.map((playlist) => ({
+      playlistId: playlist.playlistId,
+      title: playlist.title,
+      description: playlist.description,
+      coverImage: playlist.coverImage,
+      isPublic: playlist.isPublic,
+      tracksCount: playlist.tracksCount,
+      likesCount: playlist.likesCount,
+      repostsCount: playlist.repostsCount,
+      durationSeconds: playlist.totalDurationSeconds,
+      createdAt: playlist.createdAt,
+      user: {
+        userId: playlist.user?.userId,
+        username: playlist.user?.username,
+        displayName: playlist.user?.displayName,
+        avatarUrl: playlist.user?.avatarUrl,
+      },
+      isOwner: playlist.userId === userId,
+    }));
+
+    return {
+      status: 'success',
+      ...buildPaginationResponse(mappedPlaylists, total, page, limit),
+    };
+  }
+
+  async getUserPlaylists(
+    userId: string,
+    myUserId: string | null,
+    page: number = 1,
+    limit: number = 20
+  ) {
+    const user = await this.userRepository.findById(userId);
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+
+    if (!user.isPublic && user.userId !== myUserId) {
+      throw new ForbiddenException('This account is private');
+    }
+
+    const [playlists, total] = await this.playlistRepository.getUserPlaylists(userId, page, limit);
+
+    const mappedPlaylists = playlists.map((playlist) => ({
+      playlistId: playlist.playlistId,
+      title: playlist.title,
+      description: playlist.description,
+      coverImage: playlist.coverImage,
+      isPublic: playlist.isPublic,
+      tracksCount: playlist.tracksCount,
+      likesCount: playlist.likesCount,
+      repostsCount: playlist.repostsCount,
+      durationSeconds: playlist.totalDurationSeconds,
+      createdAt: playlist.createdAt,
+      user: {
+        userId: playlist.user?.userId,
+        username: playlist.user?.username,
+        displayName: playlist.user?.displayName,
+        avatarUrl: playlist.user?.avatarUrl,
+      },
+      isOwner: playlist.userId === userId,
+    }));
+
+    return {
+      status: 'success',
+      ...buildPaginationResponse(mappedPlaylists, total, page, limit),
+    };
+  }
 }

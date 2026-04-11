@@ -61,6 +61,8 @@ const mockPlaylistRepository = () => ({
   updatePlaylistTags: jest.fn(),
   updatePlaylistGenre: jest.fn(),
   getPlaylistWithTagsandGenre: jest.fn(),
+  getMyPlaylists: jest.fn(),
+  getUserPlaylists: jest.fn(),
 });
 
 const mockStorageService = () => ({
@@ -1404,6 +1406,148 @@ describe('PlaylistService', () => {
       expect(result.data.secretToken).toBe('new-secret-token');
       expect(result.data.shareUrl).toContain('secret/new-secret-token');
       configGet.mockRestore();
+    });
+  });
+
+  // ─── getMyPlaylists() ─────────────────────────────────────────────────────
+
+  describe('getMyPlaylists', () => {
+    const mockMyPlaylistRecord = () => ({
+      playlistId: mockPlaylistId,
+      title: 'My Awesome Playlist',
+      description: 'A great playlist',
+      coverImage: 'https://example.com/cover.jpg',
+      isPublic: true,
+      tracksCount: 10,
+      likesCount: 5,
+      repostsCount: 2,
+      totalDurationSeconds: 3600,
+      createdAt: new Date('2024-06-01T12:00:00Z'),
+      userId: mockUserId,
+      user: {
+        userId: mockUserId,
+        username: 'test_user',
+        displayName: 'Test User',
+        avatarUrl: 'https://example.com/avatar.jpg',
+      },
+    });
+
+    it('should return paginated user playlists with status: success', async () => {
+      const playlist = mockMyPlaylistRecord();
+      playlistRepo.getMyPlaylists.mockResolvedValue([[playlist], 1]);
+
+      const result = await service.getMyPlaylists(mockUserId, 1, 20);
+
+      expect(result.status).toBe('success');
+      expect(result.data).toHaveLength(1);
+      expect(result.pagination).toMatchObject({ currentPage: 1, totalCount: 1 });
+      expect(result.data[0]).toMatchObject({
+        playlistId: mockPlaylistId,
+        title: 'My Awesome Playlist',
+        isOwner: true,
+        durationSeconds: 3600,
+        user: {
+          userId: mockUserId,
+          username: 'test_user',
+        },
+      });
+    });
+
+    it('should evaluate isOwner to false if the user ids do not match', async () => {
+      const playlist = { ...mockMyPlaylistRecord(), userId: mockOtherUserId };
+      playlistRepo.getMyPlaylists.mockResolvedValue([[playlist], 1]);
+
+      const result = await service.getMyPlaylists(mockUserId, 1, 20);
+
+      expect(result.data[0].isOwner).toBe(false);
+    });
+
+    it('should use default pagination parameters if not provided', async () => {
+      playlistRepo.getMyPlaylists.mockResolvedValue([[], 0]);
+
+      await service.getMyPlaylists(mockUserId);
+
+      expect(playlistRepo.getMyPlaylists).toHaveBeenCalledWith(mockUserId, 1, 20);
+    });
+  });
+
+  // ─── getUserPlaylists() ───────────────────────────────────────────────────
+
+  describe('getUserPlaylists', () => {
+    const mockUserPlaylist = {
+      playlistId: mockPlaylistId,
+      title: 'Vibes 2026',
+      coverImage: 'https://example.com/cover.jpg',
+      isPublic: true,
+      tracksCount: 12,
+      likesCount: 45,
+      repostsCount: 3,
+      createdAt: new Date('2024-06-01T12:00:00Z'),
+      user: {
+        userId: mockOtherUserId,
+        username: 'other_user',
+        displayName: 'Other User',
+      },
+    };
+
+    it('should return paginated playlists with status: success', async () => {
+      userRepo.findById.mockResolvedValue(mockPublicUser());
+      playlistRepo.getUserPlaylists.mockResolvedValue([[mockUserPlaylist], 1]);
+
+      const result = await service.getUserPlaylists(mockOtherUserId, mockMyUserId, 1, 20);
+
+      expect(result.status).toBe('success');
+      expect(result.data).toHaveLength(1);
+      expect(result.data[0].playlistId).toBe(mockPlaylistId);
+      expect(result.pagination).toMatchObject({ currentPage: 1, totalCount: 1 });
+    });
+
+    it('should throw NotFoundException when user not found', async () => {
+      userRepo.findById.mockResolvedValue(null);
+
+      await expect(service.getUserPlaylists(mockOtherUserId, mockMyUserId)).rejects.toThrow(
+        NotFoundException
+      );
+    });
+
+    it('should throw ForbiddenException when account is private and requester is not the owner', async () => {
+      userRepo.findById.mockResolvedValue(mockPrivateUser());
+
+      await expect(service.getUserPlaylists(mockOtherUserId, mockMyUserId)).rejects.toThrow(
+        ForbiddenException
+      );
+    });
+
+    it('should allow a private user to view their own playlists', async () => {
+      userRepo.findById.mockResolvedValue(mockPrivateUser());
+      playlistRepo.getUserPlaylists.mockResolvedValue([[], 0]);
+
+      await expect(
+        service.getUserPlaylists(mockOtherUserId, mockOtherUserId)
+      ).resolves.not.toThrow();
+    });
+
+    it('should return correct pagination shape', async () => {
+      userRepo.findById.mockResolvedValue(mockPublicUser());
+      playlistRepo.getUserPlaylists.mockResolvedValue([[], 5]);
+
+      const result = await service.getUserPlaylists(mockOtherUserId, mockMyUserId, 2, 2);
+
+      expect(result.pagination).toMatchObject({
+        currentPage: 2,
+        totalPages: 3, // 5 total items / limit of 2 = 3 pages
+        totalCount: 5,
+        limit: 2,
+      });
+    });
+
+    it('should call userRepository.findById with the correct target userId', async () => {
+      userRepo.findById.mockResolvedValue(mockPublicUser());
+      playlistRepo.getUserPlaylists.mockResolvedValue([[], 0]);
+
+      await service.getUserPlaylists(mockOtherUserId, mockMyUserId);
+
+      expect(userRepo.findById).toHaveBeenCalledWith(mockOtherUserId);
     });
   });
 });

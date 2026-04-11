@@ -1059,3 +1059,129 @@ export function ApiResetPlaylistSecretToken() {
     ApiResponse({ status: 404, description: 'Playlist not found' })
   );
 }
+
+export function ApiGetMyPlaylists() {
+  return applyDecorators(
+    ApiCookieAuth('access_token'),
+    ApiOperation({
+      summary: 'Get my playlists',
+      description:
+        'Returns a paginated list of playlists owned by the authenticated user. Includes both public and private playlists.',
+    }),
+    ApiQuery({
+      name: 'page',
+      required: false,
+      type: Number,
+      example: 1,
+      description: 'Page number (default: 1)',
+    }),
+    ApiQuery({
+      name: 'limit',
+      required: false,
+      type: Number,
+      example: 20,
+      description: 'Items per page, capped at 100 (default: 20)',
+    }),
+    ApiResponse({
+      status: 200,
+      description: 'Playlists retrieved successfully',
+      schema: {
+        example: {
+          status: 'success',
+          data: [
+            {
+              playlistId: '550e8400-e29b-41d4-a716-446655440000',
+              title: 'My Vibe',
+              coverImage: 'https://cdn.harmonica.com/covers/my-vibe.jpg',
+              isPublic: false,
+              tracksCount: 15,
+              durationSeconds: 3600,
+              likesCount: 0,
+              repostsCount: 0,
+              isOwner: true,
+              createdAt: '2026-04-09T10:00:00.000Z',
+            },
+          ],
+          pagination: {
+            currentPage: 1,
+            totalPages: 1,
+            totalCount: 1,
+            limit: 20,
+          },
+        },
+      },
+    }),
+    ApiResponse({ status: 401, description: 'Unauthorized' })
+  );
+}
+
+export function ApiGetUserPlaylists() {
+  return applyDecorators(
+    ApiCookieAuth('access_token'),
+    ApiOperation({
+      summary: "Get a user's playlists",
+      description:
+        "Returns a paginated list of a user's playlists. Shows public playlists for public profiles. If a user is viewing their own profile, it returns both public and private playlists. Returns a 403 if the profile is private and the caller is not the owner.",
+    }),
+    ApiParam({
+      name: 'user_id',
+      description: 'The UUID of the user whose playlists are being requested',
+      format: 'uuid',
+      example: '550e8400-e29b-41d4-a716-446655440001',
+    }),
+    ApiQuery({
+      name: 'page',
+      required: false,
+      type: Number,
+      example: 1,
+      description: 'Page number (default: 1)',
+    }),
+    ApiQuery({
+      name: 'limit',
+      required: false,
+      type: Number,
+      example: 20,
+      description: 'Items per page, capped at 100 (default: 20)',
+    }),
+    ApiResponse({
+      status: 200,
+      description: 'Playlists retrieved successfully',
+      schema: {
+        example: {
+          status: 'success',
+          data: [
+            {
+              playlistId: '550e8400-e29b-41d4-a716-446655440000',
+              title: 'Vibes 2026',
+              coverImage: 'https://cdn.harmonica.com/covers/vibes.jpg',
+              isPublic: true,
+              tracksCount: 12,
+              likesCount: 45,
+              repostsCount: 3,
+              createdAt: '2026-04-01T12:00:00.000Z',
+              user: {
+                userId: '550e8400-e29b-41d4-a716-446655440001',
+                username: 'other_user',
+                displayName: 'Other User',
+              },
+            },
+          ],
+          pagination: {
+            currentPage: 1,
+            totalPages: 1,
+            totalCount: 1,
+            limit: 20,
+          },
+        },
+      },
+    }),
+    ApiResponse({
+      status: 403,
+      description: 'This account is private and the requester is not the owner',
+    }),
+    ApiResponse({
+      status: 404,
+      description: 'User not found',
+    })
+  );
+}
