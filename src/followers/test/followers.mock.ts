@@ -100,3 +100,7 @@ export const mockFollowersService = {
   getSuggestedUsers: jest.fn(),
   getFriends: jest.fn(),
 };
+
+export const mockActivitiesService = {
+  createActivity: jest.fn(),
+};

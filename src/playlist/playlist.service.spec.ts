@@ -11,6 +11,7 @@ import { PlaylistRepository } from './playlist.repository';
 import { UserRepository } from '../user/user.repository';
 import { StorageService } from '../common/storage_service';
 import { PlaylistService } from './playlist.service';
+import { ActivitiesService } from '../discovery/activities.service';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -76,6 +77,10 @@ const mockConfigService = () => ({
 
 const mockUserRepository = () => ({
   findById: jest.fn(),
+});
+
+const mockActivitiesService = () => ({
+  createActivity: jest.fn(),
 });
 
 const mockPublicPlaylist = () => ({
@@ -194,6 +199,7 @@ describe('PlaylistService', () => {
         { provide: UserRepository, useFactory: mockUserRepository },
         { provide: ConfigService, useFactory: mockConfigService },
         { provide: StorageService, useFactory: mockStorageService },
+        { provide: ActivitiesService, useFactory: mockActivitiesService },
       ],
     }).compile();
 
