@@ -979,7 +979,20 @@ Send as \`multipart/form-data\` so a new cover image can optionally be included.
             explicitContent: false,
             releaseDate: '2026-06-01',
             genre: { genreId: 'genre_001', name: 'Lo-Fi' },
-            tags: ['lo-fi', 'chillhop', 'study'],
+            tags: [
+              {
+                createdAt: '2026-04-14T17:58:00.470Z',
+                updatedAt: '2026-04-14T17:58:00.470Z',
+                genreId: '545f092b-a993-4e88-9fbd-bc4397a367d1',
+                name: 'summer',
+              },
+              {
+                createdAt: '2026-04-14T17:58:00.470Z',
+                updatedAt: '2026-04-14T17:58:00.470Z',
+                genreId: '545f092b-a993-4e88-9fbd-bc4397a367d1',
+                name: 'cairo',
+              },
+            ],
             owner: {
               userId: '550e8400-e29b-41d4-a716-446655440001',
               username: 'yara_senousy',
@@ -1384,7 +1397,14 @@ export function ApiGetTrack() {
             explicitContent: false,
             releaseDate: '2025-06-01',
             genre: { genreId: 'genre_001', name: 'Electronic' },
-            tags: ['deep house', 'cairo', 'summer', 'live'],
+            tags: [
+              {
+                name: 'summer',
+              },
+              {
+                name: 'cairo',
+              },
+            ],
             owner: {
               userId: '550e8400-e29b-41d4-a716-446655440001',
               username: 'yara_senousy',
