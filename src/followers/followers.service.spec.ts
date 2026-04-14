@@ -18,7 +18,9 @@ import {
   mockUserRepository,
   mockUserBlock,
   mockSuggestedUsersData,
+  mockActivitiesService,
 } from './test/followers.mock';
+import { ActivitiesService } from '../discovery/activities.service';
 
 describe('FollowersService', () => {
   let service: FollowersService;
@@ -31,6 +33,7 @@ describe('FollowersService', () => {
         FollowersService,
         { provide: FollowersRepository, useValue: mockFollowersRepository },
         { provide: UserRepository, useValue: mockUserRepository },
+        { provide: ActivitiesService, useValue: mockActivitiesService },
       ],
     }).compile();
 

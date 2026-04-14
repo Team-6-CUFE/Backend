@@ -55,8 +55,10 @@ import {
   mockTrackPlay,
   mockFanResult,
   mockRedisClient,
+  mockActivitiesService,
 } from './tests/track.mock';
 import { REDIS_CLIENT } from '../redis/redis.module';
+import { ActivitiesService } from '../discovery/activities.service';
 
 const MOCK_CAPTION = 'Great track!';
 
@@ -82,6 +84,7 @@ describe('TrackService', () => {
         { provide: FansService, useFactory: mockFansService },
         { provide: PlaylistService, useFactory: mockPlaylistService },
         { provide: REDIS_CLIENT, useFactory: mockRedisClient },
+        { provide: ActivitiesService, useFactory: mockActivitiesService },
       ],
     }).compile();
 

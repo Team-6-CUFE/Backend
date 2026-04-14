@@ -14,6 +14,8 @@ import { CreatePlaylistDto } from './dto/create-playlist.dto';
 import { Playlist } from './entities/playlist.entity';
 import { UpdatePlaylistDto } from './dto/update-playlist.dto';
 import { StorageService } from '../common/storage_service';
+import { ActivitiesService } from '../discovery/activities.service';
+import { ActivityType } from '../discovery/entities/activity.entity';
 
 @Injectable()
 export class PlaylistService {
@@ -21,7 +23,8 @@ export class PlaylistService {
     private readonly playlistRepository: PlaylistRepository,
     private readonly userRepository: UserRepository,
     private configService: ConfigService,
-    private readonly storageService: StorageService
+    private readonly storageService: StorageService,
+    private readonly activitiesService: ActivitiesService
   ) {}
 
   async getPlaylistById(playlistId: string): Promise<Playlist | null> {
@@ -52,6 +55,12 @@ export class PlaylistService {
     }
 
     await this.playlistRepository.createRepost(userId, playlistId);
+    await this.activitiesService.createActivity(
+      ActivityType.PLAYLIST_REPOST,
+      playlistId,
+      userId,
+      playlist.userId
+    );
     return {
       status: 'success',
       data: { userId, playlistId, repostedAt: new Date() },
@@ -188,6 +197,12 @@ export class PlaylistService {
     }
 
     await this.playlistRepository.createLike(userId, playlistId);
+    await this.activitiesService.createActivity(
+      ActivityType.PLAYLIST_LIKE,
+      playlistId,
+      userId,
+      playlist.userId
+    );
     return {
       status: 'success',
       data: { userId, playlistId, likedAt: new Date() },
@@ -300,6 +315,12 @@ export class PlaylistService {
 
   async createPlaylist(createPlaylistDto: CreatePlaylistDto, userId: string) {
     const playlistCreated = await this.playlistRepository.createPlaylist(createPlaylistDto, userId);
+    await this.activitiesService.createActivity(
+      ActivityType.PLAYLIST_POSTED,
+      playlistCreated.playlistId,
+      userId,
+      userId
+    );
     let shareUrl = '';
     if (createPlaylistDto.isPublic) {
       shareUrl = `${this.configService.get('HARMONICA_BASE_URL')}/playlist/${playlistCreated.playlistId}`;

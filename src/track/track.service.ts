@@ -45,6 +45,8 @@ import { getLocationFromIp } from '../common/utilities/geolocation.util';
 import { PlaylistService } from '../playlist/playlist.service';
 import { RecentlyPlayedItemType } from './entities/recently-played.entity';
 import { FansService } from './services/fans.service';
+import { ActivitiesService } from '../discovery/activities.service';
+import { ActivityType } from '../discovery/entities/activity.entity';
 import { REDIS_CLIENT } from '../redis/redis.module';
 
 const RELATED_TRACKS_TTL_SECS = 3 * 24 * 60 * 60; // 3 days
@@ -59,6 +61,7 @@ export class TrackService {
     private readonly genreRepository: GenreRepository,
     private readonly playlistService: PlaylistService,
     private readonly fansService: FansService,
+    private readonly activitiesService: ActivitiesService,
     @InjectQueue('audioQueue')
     private readonly audioQueue: Queue,
 
@@ -109,7 +112,12 @@ export class TrackService {
       removeOnComplete: true,
       removeOnFail: false,
     });
-
+    await this.activitiesService.createActivity(
+      ActivityType.TRACK_POSTED,
+      savedTrack.trackId,
+      userId,
+      userId
+    );
     return {
       status: 'success',
       message: 'Track upload started. Processing in background.',
@@ -245,6 +253,12 @@ export class TrackService {
     if (alreadyReposted) {
       throw new ConflictException('You have already reposted this track');
     }
+    await this.activitiesService.createActivity(
+      ActivityType.TRACK_REPOST,
+      trackId,
+      userId,
+      track.userId
+    );
     return {
       status: 'success',
       data: await this.trackRepository.repostTrack(trackId, userId, caption),
@@ -375,6 +389,12 @@ export class TrackService {
     if (alreadyLiked) {
       throw new ConflictException('You have already liked this track');
     }
+    await this.activitiesService.createActivity(
+      ActivityType.TRACK_LIKE,
+      trackId,
+      userId,
+      track.userId
+    );
     return {
       status: 'success',
       data: await this.trackRepository.likeTrack(trackId, userId),
@@ -482,6 +502,12 @@ export class TrackService {
       }
     }
     const comment = await this.trackRepository.addComment(trackId, userId, commentDto);
+    await this.activitiesService.createActivity(
+      ActivityType.TRACK_COMMENT,
+      trackId,
+      userId,
+      track.userId
+    );
     return { status: 'success', data: comment };
   }
 

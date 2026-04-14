@@ -373,3 +373,7 @@ export const mockRedisClient = () => ({
   zIncrBy: jest.fn(),
   zRange: jest.fn(),
 });
+
+export const mockActivitiesService = () => ({
+  createActivity: jest.fn(),
+});

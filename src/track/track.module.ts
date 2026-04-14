@@ -25,6 +25,7 @@ import { Settings } from '../settings/entities/settings.entity';
 import { FanRepository } from './fan.repository';
 import { FansService } from './services/fans.service';
 import { FansJobProcessor } from './listeners/fans-job.processor';
+import { DiscoveryModule } from '../discovery/discovery.module';
 
 @Module({
   imports: [
@@ -61,6 +62,7 @@ import { FansJobProcessor } from './listeners/fans-job.processor';
     BullModule.registerQueue({ name: 'fansQueue' }),
     UserModule,
     FollowersModule,
+    DiscoveryModule,
   ],
   controllers: [TrackController],
   providers: [
