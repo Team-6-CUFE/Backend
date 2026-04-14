@@ -5,7 +5,6 @@ import { Track } from './entities/track.entity';
 import { TrackRepost } from './entities/track-reposts.entity';
 import { TrackLikes } from './entities/track-likes.entity';
 import { TrackComment } from './entities/track-comments.entity';
-import { Tag } from './entities/tag.entity';
 import { Genre } from '../genre/entities/genre.entity';
 import { AddCommentDto } from './dto/add-comment.dto';
 import { UploadTrackDto } from './dto/upload-track.dto';
@@ -34,9 +33,6 @@ export class TrackRepository {
 
     @InjectRepository(Genre)
     private readonly genreRepository: Repository<Genre>,
-
-    @InjectRepository(Tag)
-    private readonly tagRepository: Repository<Tag>,
 
     @InjectRepository(TrackPlay)
     private readonly trackPlayRepository: Repository<TrackPlay>,
@@ -285,7 +281,7 @@ export class TrackRepository {
       savedTrack.genreId = await this.findOrCreateGenre(dto.genreName).then((g) => g.genreId);
     }
     if (dto.tags?.length) {
-      savedTrack.tags = await this.findOrCreateTags(dto.tags);
+      savedTrack.tags = await Promise.all(dto.tags.map(async (t) => this.findOrCreateGenre(t)));
     }
     if (dto.genreName || dto.tags?.length) {
       await this.trackRepository.save(savedTrack);
@@ -319,7 +315,9 @@ export class TrackRepository {
       track.genre = null as unknown as (typeof track)['genre'];
     }
     if (tagNames !== undefined) {
-      track.tags = tagNames.length ? await this.findOrCreateTags(tagNames) : [];
+      track.tags = tagNames.length
+        ? await Promise.all(tagNames.map(async (t) => this.findOrCreateGenre(t)))
+        : [];
     }
     if (genreName !== undefined || tagNames !== undefined) {
       await this.trackRepository.save(track);
@@ -330,18 +328,6 @@ export class TrackRepository {
 
   async setTrackProcessing(trackId: string): Promise<void> {
     await this.trackRepository.update(trackId, { trackStatus: TrackStatus.PROCESSING });
-  }
-
-  private async findOrCreateTags(names: string[]): Promise<Tag[]> {
-    const trimmed = names.map((n) => n.trim()).filter(Boolean);
-    const existing = await this.tagRepository.findBy({ name: In(trimmed) });
-    const existingNames = new Set(existing.map((t) => t.name));
-    const created = await Promise.all(
-      trimmed
-        .filter((n) => !existingNames.has(n))
-        .map((name) => this.tagRepository.save(this.tagRepository.create({ name })))
-    );
-    return [...existing, ...created];
   }
 
   private async findOrCreateGenre(names: string): Promise<Genre> {
