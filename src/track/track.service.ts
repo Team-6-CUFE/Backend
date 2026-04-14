@@ -47,7 +47,7 @@ import { RecentlyPlayedItemType } from './entities/recently-played.entity';
 import { FansService } from './services/fans.service';
 import { REDIS_CLIENT } from '../redis/redis.module';
 
-const RELATED_TRACKS_TTL_SECS = 7 * 24 * 60 * 60; // 1 week
+const RELATED_TRACKS_TTL_SECS = 3 * 24 * 60 * 60; // 3 days
 
 @Injectable()
 export class TrackService {
@@ -832,10 +832,11 @@ export class TrackService {
       excludeExtraneousValues: true,
     });
 
-    await this.redis.set(`related_tracks:${trackId}`, JSON.stringify(data), {
-      EX: RELATED_TRACKS_TTL_SECS,
-    });
-
+    if (data.length > 0) {
+      await this.redis.set(`related_tracks:${trackId}`, JSON.stringify(data), {
+        EX: RELATED_TRACKS_TTL_SECS,
+      });
+    }
     return { status: 'success', data };
   }
 }

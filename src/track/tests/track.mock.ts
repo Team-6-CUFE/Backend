@@ -357,3 +357,15 @@ export const mockFanResult = (overrides?: object) => ({
   },
   ...overrides,
 });
+
+export const mockRedisClient = () => ({
+  get: jest.fn(),
+  set: jest.fn(),
+  del: jest.fn(),
+  incr: jest.fn(),
+  expire: jest.fn(),
+  lPush: jest.fn(),
+  lTrim: jest.fn(),
+  zIncrBy: jest.fn(),
+  zRange: jest.fn(),
+});
