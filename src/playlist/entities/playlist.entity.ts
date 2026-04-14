@@ -8,6 +8,7 @@ import {
   OneToMany,
   ManyToMany,
   JoinTable,
+  OneToOne,
 } from 'typeorm';
 import { BaseEntity } from '../../common/entities/base.entity';
 import { User } from '../../user/entities/user.entity';
@@ -16,6 +17,7 @@ import { PlaylistRepost } from './playlist-reposts.entity';
 import { PlaylistTrack } from './playlist-tracks.entity';
 import { Tag } from '../../track/entities/tag.entity';
 import { Genre } from '../../genre/entities/genre.entity'; // Import Genre Entity
+import { Track } from '../../track/entities/track.entity';
 
 export enum PlaylistType {
   PLAYLIST = 'Playlist',
@@ -23,6 +25,7 @@ export enum PlaylistType {
   EP = 'EP',
   SINGLE = 'Single',
   COMPILATION = 'Compilation',
+  STATION = 'Station',
 }
 
 @Entity('playlists')
@@ -80,15 +83,19 @@ export class Playlist extends BaseEntity {
   @Column({ type: 'varchar', length: 255, unique: true, name: 'permalink', nullable: true })
   permalink!: string;
 
-  // --- GENRE ADDITION ---
   @Column({ name: 'genre_id', type: 'uuid', nullable: true })
   genreId!: string | null;
+
+  @Column({ name: 'track_id', type: 'uuid', nullable: true })
+  trackId!: string | null;
+
+  @OneToOne(() => Track, { onDelete: 'SET NULL' })
+  @JoinColumn({ name: 'track_id' })
+  track!: Relation<Track> | null;
 
   @ManyToOne(() => Genre, (genre) => genre.playlists, { onDelete: 'SET NULL' })
   @JoinColumn({ name: 'genre_id' })
   genre!: Relation<Genre> | null;
-
-  // --- RELATIONSHIPS ---
 
   @ManyToOne(() => User, { onDelete: 'CASCADE' })
   @JoinColumn({ name: 'user_id' })

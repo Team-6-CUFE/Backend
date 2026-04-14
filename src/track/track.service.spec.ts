@@ -12,7 +12,6 @@ import { UserRepository } from '../user/user.repository';
 import { GenreRepository } from '../genre/genre.repository';
 import { TrackSseService } from './services/track-sse.service';
 import { StorageService } from '../common/storage_service';
-import { PlaylistRepository } from '../playlist/playlist.repository';
 import { PlaylistService } from '../playlist/playlist.service';
 import { FansService } from './services/fans.service';
 import { TrackVisibility } from './enums/track-visibility.enum';
@@ -49,14 +48,15 @@ import {
   mockTrackRepository,
   mockUserRepository,
   mockGenreRepository,
-  mockPlaylistRepository,
   mockStorageService,
   mockAudioQueue,
   mockFansService,
   mockPlaylistService,
   mockTrackPlay,
   mockFanResult,
+  mockRedisClient,
 } from './tests/track.mock';
+import { REDIS_CLIENT } from '../redis/redis.module';
 
 const MOCK_CAPTION = 'Great track!';
 
@@ -65,9 +65,9 @@ describe('TrackService', () => {
   let trackRepo: ReturnType<typeof mockTrackRepository>;
   let userRepo: ReturnType<typeof mockUserRepository>;
   let genreRepo: ReturnType<typeof mockGenreRepository>;
-  let playlistRepo: ReturnType<typeof mockPlaylistRepository>;
   let fansService: ReturnType<typeof mockFansService>;
   let playlistService: ReturnType<typeof mockPlaylistService>;
+  // let redisClient: ReturnType<typeof mockRedisClient>;
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
@@ -76,12 +76,12 @@ describe('TrackService', () => {
         { provide: TrackRepository, useFactory: mockTrackRepository },
         { provide: UserRepository, useFactory: mockUserRepository },
         { provide: GenreRepository, useFactory: mockGenreRepository },
-        { provide: PlaylistRepository, useFactory: mockPlaylistRepository },
         { provide: TrackSseService, useValue: {} },
         { provide: StorageService, useFactory: mockStorageService },
         { provide: getQueueToken('audioQueue'), useFactory: mockAudioQueue },
         { provide: FansService, useFactory: mockFansService },
         { provide: PlaylistService, useFactory: mockPlaylistService },
+        { provide: REDIS_CLIENT, useFactory: mockRedisClient },
       ],
     }).compile();
 
@@ -89,11 +89,9 @@ describe('TrackService', () => {
     trackRepo = module.get(TrackRepository);
     userRepo = module.get(UserRepository);
     genreRepo = module.get(GenreRepository);
-    playlistRepo = module.get(PlaylistRepository);
     fansService = module.get(FansService);
     playlistService = module.get(PlaylistService);
-
-    (service as any).playlistRepository = playlistRepo;
+    // redisClient = module.get(REDIS_CLIENT);
   });
 
   afterEach(() => jest.clearAllMocks());
