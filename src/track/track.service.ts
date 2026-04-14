@@ -851,4 +851,12 @@ export class TrackService {
       ...buildPaginationResponse(paginatedData, data.length, page, limit),
     };
   }
+
+  async getAllTimeStats(userId: string) {
+    const data = await this.trackRepository.findAllTimeStats(userId);
+    return {
+      status: 'success',
+      data,
+    };
+  }
 }

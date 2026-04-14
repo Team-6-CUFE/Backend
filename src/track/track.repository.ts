@@ -476,4 +476,26 @@ export class TrackRepository {
       .where('track.trackId IN (:...relatedTrackIds)', { relatedTrackIds })
       .getMany();
   }
+
+  async findAllTimeStats(userId: string): Promise<{
+    totalPlays: number;
+    totalReposts: number;
+    totalDownloads: number;
+    totalLikes: number;
+    totalComments: number;
+  }> {
+    const totalPlays = await this.trackRepository.sum('playCount', { userId });
+    const totalReposts = await this.trackRepository.sum('repostsCount', { userId });
+    const totalDownloads = 0; // TODO: add download count to track entity in module 12
+    const totalLikes = await this.trackRepository.sum('likesCount', { userId });
+    const totalComments = await this.trackRepository.sum('commentsCount', { userId });
+
+    return {
+      totalPlays: totalPlays ?? 0,
+      totalReposts: totalReposts ?? 0,
+      totalDownloads: totalDownloads ?? 0,
+      totalLikes: totalLikes ?? 0,
+      totalComments: totalComments ?? 0,
+    };
+  }
 }

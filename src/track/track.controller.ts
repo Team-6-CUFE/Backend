@@ -409,6 +409,11 @@ export class TrackController {
     return this.trackService.getAllGenres();
   }
 
+  @Get('all-time-stats')
+  getAllTimeStats(@CurrentUser('sub') userId: string) {
+    return this.trackService.getAllTimeStats(userId);
+  }
+
   @ApiGetTrack()
   @Public()
   @Get(':trackId')
