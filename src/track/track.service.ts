@@ -805,7 +805,9 @@ export class TrackService {
 
   async getRelatedTracks(
     title: string,
-    artistUsername: string
+    artistUsername: string,
+    page: number = 1,
+    limit: number = 10
   ): Promise<{ status: string; data: UserTrackResponseDto[] }> {
     const track = await this.trackRepository.findTrackByTitleAndArtist(title, artistUsername);
     if (!track) throw new NotFoundException('Track not found');
@@ -818,7 +820,12 @@ export class TrackService {
     const cached = await this.redis.get(`related_tracks:${trackId}`);
     if (cached) {
       const data = JSON.parse(cached) as UserTrackResponseDto[];
-      return { status: 'success', data };
+      const startIndex = (page - 1) * limit;
+      const paginatedData = data.slice(startIndex, startIndex + limit);
+      return {
+        status: 'success',
+        ...buildPaginationResponse(paginatedData, data.length, page, limit),
+      };
     }
 
     const topFans = await this.trackRepository.getTrackTopFansIds(trackId);
@@ -837,6 +844,11 @@ export class TrackService {
         EX: RELATED_TRACKS_TTL_SECS,
       });
     }
-    return { status: 'success', data };
+    const startIndex = (page - 1) * limit;
+    const paginatedData = data.slice(startIndex, startIndex + limit);
+    return {
+      status: 'success',
+      ...buildPaginationResponse(paginatedData, data.length, page, limit),
+    };
   }
 }

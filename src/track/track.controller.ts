@@ -14,6 +14,8 @@ import {
   UploadedFile,
   Sse,
   Ip,
+  DefaultValuePipe,
+  ParseIntPipe,
 } from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
 import { FileFieldsInterceptor, FileInterceptor } from '@nestjs/platform-express';
@@ -448,7 +450,12 @@ export class TrackController {
   }
 
   @Get(':artistUsername/:title/related-tracks')
-  getRelatedTracks(@Param('artistUsername') artistUsername: string, @Param('title') title: string) {
-    return this.trackService.getRelatedTracks(title, artistUsername);
+  getRelatedTracks(
+    @Param('artistUsername') artistUsername: string,
+    @Param('title') title: string,
+    @Query('page', new DefaultValuePipe(1), ParseIntPipe) page: number,
+    @Query('limit', new DefaultValuePipe(10), ParseIntPipe) limit: number
+  ) {
+    return this.trackService.getRelatedTracks(title, artistUsername, page, limit);
   }
 }
