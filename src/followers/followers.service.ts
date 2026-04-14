@@ -7,12 +7,15 @@ import {
 } from '@nestjs/common';
 import { FollowersRepository } from './followers.repository';
 import { UserRepository } from '../user/user.repository';
+import { ActivitiesService } from '../discovery/activities.service';
+import { ActivityType } from '../discovery/entities/activity.entity';
 
 @Injectable()
 export class FollowersService {
   constructor(
     private readonly followersRepository: FollowersRepository,
-    private readonly userRepository: UserRepository
+    private readonly userRepository: UserRepository,
+    private readonly activityService: ActivitiesService
   ) {}
 
   async getFollowing(userId: string, page: number, limit: number) {
@@ -144,6 +147,12 @@ export class FollowersService {
       throw new ConflictException('You are already following this user');
     }
     const follow = await this.followersRepository.createFollow(followerId, followedId);
+    await this.activityService.createActivity(
+      ActivityType.USER_FOLLOW,
+      followedId,
+      followerId,
+      followedId
+    );
     return {
       status: 'success',
       data: {
