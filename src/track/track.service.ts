@@ -48,6 +48,7 @@ import { FansService } from './services/fans.service';
 import { REDIS_CLIENT } from '../redis/redis.module';
 
 const RELATED_TRACKS_TTL_SECS = 3 * 24 * 60 * 60; // 3 days
+const ALL_TIME_STATS_TTL_SECS = 24 * 60 * 60; // 1 day
 
 @Injectable()
 export class TrackService {
@@ -808,7 +809,11 @@ export class TrackService {
     artistUsername: string,
     page: number = 1,
     limit: number = 10
-  ): Promise<{ status: string; data: UserTrackResponseDto[] }> {
+  ): Promise<{
+    status: string;
+    data: UserTrackResponseDto[];
+    pagination?: { currentPage: number; totalPages: number; totalCount: number; limit: number };
+  }> {
     const track = await this.trackRepository.findTrackByTitleAndArtist(title, artistUsername);
     if (!track) throw new NotFoundException('Track not found');
 
@@ -849,6 +854,25 @@ export class TrackService {
     return {
       status: 'success',
       ...buildPaginationResponse(paginatedData, data.length, page, limit),
+    };
+  }
+
+  async getAllTimeStats(userId: string) {
+    const cached = await this.redis.get(`all_time_stats:${userId}`);
+    if (cached) {
+      return {
+        status: 'success',
+        data: JSON.parse(cached),
+      };
+    }
+
+    const data = await this.trackRepository.findAllTimeStats(userId);
+    await this.redis.set(`all_time_stats:${userId}`, JSON.stringify(data), {
+      EX: ALL_TIME_STATS_TTL_SECS,
+    });
+    return {
+      status: 'success',
+      data,
     };
   }
 }

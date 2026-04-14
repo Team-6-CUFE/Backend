@@ -278,6 +278,10 @@ export const mockTrackRepository = () => ({
   deleteOldRecentlyPlayed: jest.fn(),
   getTrackPlaylists: jest.fn(),
   deleteTrack: jest.fn(),
+  findTrackByTitleAndArtist: jest.fn(),
+  getTrackTopFansIds: jest.fn(),
+  findRelatedTracks: jest.fn(),
+  findAllTimeStats: jest.fn(),
 });
 
 export const mockUserRepository = () => ({
