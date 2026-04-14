@@ -48,6 +48,7 @@ import { FansService } from './services/fans.service';
 import { REDIS_CLIENT } from '../redis/redis.module';
 
 const RELATED_TRACKS_TTL_SECS = 3 * 24 * 60 * 60; // 3 days
+const ALL_TIME_STATS_TTL_SECS = 24 * 60 * 60; // 1 day
 
 @Injectable()
 export class TrackService {
@@ -853,7 +854,18 @@ export class TrackService {
   }
 
   async getAllTimeStats(userId: string) {
+    const cached = await this.redis.get(`all_time_stats:${userId}`);
+    if (cached) {
+      return {
+        status: 'success',
+        data: JSON.parse(cached),
+      };
+    }
+
     const data = await this.trackRepository.findAllTimeStats(userId);
+    await this.redis.set(`all_time_stats:${userId}`, JSON.stringify(data), {
+      EX: ALL_TIME_STATS_TTL_SECS,
+    });
     return {
       status: 'success',
       data,

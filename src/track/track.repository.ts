@@ -484,18 +484,22 @@ export class TrackRepository {
     totalLikes: number;
     totalComments: number;
   }> {
-    const totalPlays = await this.trackRepository.sum('playCount', { userId });
-    const totalReposts = await this.trackRepository.sum('repostsCount', { userId });
     const totalDownloads = 0; // TODO: add download count to track entity in module 12
-    const totalLikes = await this.trackRepository.sum('likesCount', { userId });
-    const totalComments = await this.trackRepository.sum('commentsCount', { userId });
+    const { totalPlays, totalReposts, totalLikes, totalComments } = await this.trackRepository
+      .createQueryBuilder('track')
+      .select('SUM(track.playCount)', 'totalPlays')
+      .addSelect('SUM(track.repostsCount)', 'totalReposts')
+      .addSelect('SUM(track.likesCount)', 'totalLikes')
+      .addSelect('SUM(track.commentsCount)', 'totalComments')
+      .where('track.userId = :userId', { userId })
+      .getRawOne();
 
     return {
-      totalPlays: totalPlays ?? 0,
-      totalReposts: totalReposts ?? 0,
-      totalDownloads: totalDownloads ?? 0,
-      totalLikes: totalLikes ?? 0,
-      totalComments: totalComments ?? 0,
+      totalPlays: Number(totalPlays) ?? 0,
+      totalReposts: Number(totalReposts) ?? 0,
+      totalDownloads: Number(totalDownloads) ?? 0,
+      totalLikes: Number(totalLikes) ?? 0,
+      totalComments: Number(totalComments) ?? 0,
     };
   }
 }
