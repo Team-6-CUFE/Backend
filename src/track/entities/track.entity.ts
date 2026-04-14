@@ -18,6 +18,7 @@ import { TrackStatus } from '../enums/track-status.enum';
 import { TrackVisibility } from '../enums/track-visibility.enum';
 import { Genre } from '../../genre/entities/genre.entity';
 import { Tag } from './tag.entity';
+import { TrackPlay } from './track-play.entity';
 
 @Entity('tracks')
 export class Track extends BaseEntity {
@@ -169,4 +170,7 @@ export class Track extends BaseEntity {
     inverseJoinColumn: { name: 'tag_id', referencedColumnName: 'tagId' },
   })
   tags!: Tag[];
+
+  @OneToMany(() => TrackPlay, (play) => play.track)
+  plays!: TrackPlay[];
 }

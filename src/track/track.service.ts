@@ -2,6 +2,7 @@ import {
   BadRequestException,
   ConflictException,
   ForbiddenException,
+  Inject,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
@@ -11,6 +12,7 @@ import * as fs from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
 import { plainToInstance } from 'class-transformer';
+import { createClient } from 'redis';
 import { AddCommentDto } from './dto/add-comment.dto';
 import { buildPaginationResponse } from '../common/utilities/pagination.util';
 import { UserRepository } from '../user/user.repository';
@@ -45,6 +47,9 @@ import { RecentlyPlayedItemType } from './entities/recently-played.entity';
 import { FansService } from './services/fans.service';
 import { ActivitiesService } from '../discovery/activities.service';
 import { ActivityType } from '../discovery/entities/activity.entity';
+import { REDIS_CLIENT } from '../redis/redis.module';
+
+const RELATED_TRACKS_TTL_SECS = 3 * 24 * 60 * 60; // 3 days
 
 @Injectable()
 export class TrackService {
@@ -57,7 +62,10 @@ export class TrackService {
     private readonly fansService: FansService,
     private readonly activitiesService: ActivitiesService,
     @InjectQueue('audioQueue')
-    private readonly audioQueue: Queue
+    private readonly audioQueue: Queue,
+
+    @Inject(REDIS_CLIENT)
+    private readonly redis: ReturnType<typeof createClient>
   ) {}
 
   private resolveAudioUrl(track: Track, user?: JwtPayload): string | null {
@@ -818,6 +826,55 @@ export class TrackService {
     return {
       status: 'success',
       message: 'Track deleted successfully',
+    };
+  }
+
+  async getRelatedTracks(
+    title: string,
+    artistUsername: string,
+    page: number = 1,
+    limit: number = 10
+  ): Promise<{ status: string; data: UserTrackResponseDto[] }> {
+    const track = await this.trackRepository.findTrackByTitleAndArtist(title, artistUsername);
+    if (!track) throw new NotFoundException('Track not found');
+
+    if (track.visibility === TrackVisibility.PRIVATE) {
+      throw new ForbiddenException('This track is private');
+    }
+
+    const { trackId } = track;
+    const cached = await this.redis.get(`related_tracks:${trackId}`);
+    if (cached) {
+      const data = JSON.parse(cached) as UserTrackResponseDto[];
+      const startIndex = (page - 1) * limit;
+      const paginatedData = data.slice(startIndex, startIndex + limit);
+      return {
+        status: 'success',
+        ...buildPaginationResponse(paginatedData, data.length, page, limit),
+      };
+    }
+
+    const topFans = await this.trackRepository.getTrackTopFansIds(trackId);
+    if (topFans.length === 0) {
+      return { status: 'success', data: [] };
+    }
+
+    const relatedTracks = await this.trackRepository.findRelatedTracks(trackId, topFans);
+
+    const data = plainToInstance(UserTrackResponseDto, relatedTracks, {
+      excludeExtraneousValues: true,
+    });
+
+    if (data.length > 0) {
+      await this.redis.set(`related_tracks:${trackId}`, JSON.stringify(data), {
+        EX: RELATED_TRACKS_TTL_SECS,
+      });
+    }
+    const startIndex = (page - 1) * limit;
+    const paginatedData = data.slice(startIndex, startIndex + limit);
+    return {
+      status: 'success',
+      ...buildPaginationResponse(paginatedData, data.length, page, limit),
     };
   }
 }
