@@ -24,4 +24,7 @@ export class Genre extends BaseEntity {
 
   @ManyToMany(() => Track, (track) => track.tags)
   trackTags!: Track[];
+
+  @ManyToMany(() => Playlist, (playlist) => playlist.tags)
+  playlistTags!: Playlist[];
 }
