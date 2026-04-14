@@ -51,6 +51,8 @@ import {
   ApiGetTrackAudio,
   ApiUpdateBlockedRegions,
   ApiDeleteTrack,
+  ApiGetRelatedTracks,
+  ApiGetAllTimeStats,
 } from './track.swagger';
 import { CurrentUser } from '../authentication/decorators/current-user.decorator';
 import { CheckBlock } from '../followers/decorators/no-block.decorator';
@@ -409,6 +411,7 @@ export class TrackController {
     return this.trackService.getAllGenres();
   }
 
+  @ApiGetAllTimeStats()
   @Get('all-time-stats')
   getAllTimeStats(@CurrentUser('sub') userId: string) {
     return this.trackService.getAllTimeStats(userId);
@@ -454,6 +457,7 @@ export class TrackController {
     return this.trackService.deleteTrack(trackId, userId);
   }
 
+  @ApiGetRelatedTracks()
   @Get(':artistUsername/:title/related-tracks')
   getRelatedTracks(
     @Param('artistUsername') artistUsername: string,
