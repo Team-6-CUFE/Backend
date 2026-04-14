@@ -1599,3 +1599,119 @@ export function ApiDeleteTrack() {
     ApiResponse({ status: 401, description: 'Unauthorized' })
   );
 }
+
+// ─── Get Related Tracks ───────────────────────────────────────────────────────
+
+export function ApiGetRelatedTracks() {
+  return applyDecorators(
+    ApiCookieAuth('access_token'),
+    ApiOperation({
+      summary: 'Get related tracks',
+      description:
+        'Returns a paginated list of tracks that are related to the given track, ' +
+        'based on the listening history of its top fans. ' +
+        'The track must be public. Results are cached for 3 days.',
+    }),
+    ApiParam({
+      name: 'artistUsername',
+      description: 'Username of the artist who owns the track',
+      type: 'string',
+      example: 'dj_nour',
+    }),
+    ApiParam({
+      name: 'title',
+      description: 'Title of the track',
+      type: 'string',
+      example: 'Midnight Drive',
+    }),
+    ApiQuery({
+      name: 'page',
+      required: false,
+      description: 'Page number (default: 1)',
+      type: 'number',
+      example: 1,
+    }),
+    ApiQuery({
+      name: 'limit',
+      required: false,
+      description: 'Items per page (default: 10)',
+      type: 'number',
+      example: 10,
+    }),
+    ApiResponse({
+      status: 200,
+      description: 'Paginated list of related tracks',
+      schema: {
+        example: {
+          status: 'success',
+          data: [
+            {
+              trackId: '550e8400-e29b-41d4-a716-446655440001',
+              title: 'Neon Lights',
+              description: 'Synthwave journey through a neon city.',
+              coverImage: 'https://s3.amazonaws.com/covers/neon.jpg',
+              waveformUrl: 'https://s3.amazonaws.com/waveforms/neon.json',
+              durationSeconds: 198,
+              playCount: 3200,
+              likesCount: 420,
+              repostsCount: 55,
+              commentsCount: 18,
+              visibility: 'public',
+              explicitContent: false,
+              createdAt: '2024-07-15T10:00:00.000Z',
+            },
+          ],
+          pagination: {
+            currentPage: 1,
+            totalPages: 4,
+            totalCount: 40,
+            limit: 10,
+          },
+        },
+      },
+    }),
+    ApiResponse({
+      status: 403,
+      description: 'Track is private',
+      schema: { example: { statusCode: 403, message: 'This track is private' } },
+    }),
+    ApiResponse({
+      status: 404,
+      description: 'Track not found',
+      schema: { example: { statusCode: 404, message: 'Track not found' } },
+    }),
+    ApiResponse({ status: 401, description: 'Unauthorized' })
+  );
+}
+
+// ─── Get All Time Stats ───────────────────────────────────────────────────────
+
+export function ApiGetAllTimeStats() {
+  return applyDecorators(
+    ApiCookieAuth('access_token'),
+    ApiOperation({
+      summary: 'Get all-time stats for the authenticated artist',
+      description:
+        'Returns aggregated lifetime statistics for all tracks owned by the authenticated user: ' +
+        'total plays, likes, reposts, comments, and downloads. ' +
+        'Results are cached for 24 hours.',
+    }),
+    ApiResponse({
+      status: 200,
+      description: 'All-time stats retrieved successfully',
+      schema: {
+        example: {
+          status: 'success',
+          data: {
+            totalPlays: 152300,
+            totalLikes: 8750,
+            totalReposts: 2100,
+            totalComments: 640,
+            totalDownloads: 0,
+          },
+        },
+      },
+    }),
+    ApiResponse({ status: 401, description: 'Unauthorized' })
+  );
+}

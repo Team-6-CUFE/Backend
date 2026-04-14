@@ -67,7 +67,7 @@ describe('TrackService', () => {
   let genreRepo: ReturnType<typeof mockGenreRepository>;
   let fansService: ReturnType<typeof mockFansService>;
   let playlistService: ReturnType<typeof mockPlaylistService>;
-  // let redisClient: ReturnType<typeof mockRedisClient>;
+  let redisClient: ReturnType<typeof mockRedisClient>;
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
@@ -91,7 +91,7 @@ describe('TrackService', () => {
     genreRepo = module.get(GenreRepository);
     fansService = module.get(FansService);
     playlistService = module.get(PlaylistService);
-    // redisClient = module.get(REDIS_CLIENT);
+    redisClient = module.get(REDIS_CLIENT);
   });
 
   afterEach(() => jest.clearAllMocks());
@@ -1662,6 +1662,179 @@ describe('TrackService', () => {
 
       expect(storageService.deleteFile).toHaveBeenCalledTimes(1);
       expect(storageService.deleteFile).toHaveBeenCalledWith(track.audioUrl);
+    });
+  });
+
+  // ─── getRelatedTracks ─────────────────────────────────────────────────────────
+
+  describe('getRelatedTracks', () => {
+    const TITLE = 'Midnight Drive';
+    const ARTIST = 'dj_nour';
+
+    it('should return cached data without hitting the DB when cache is warm', async () => {
+      const track = mockPublicTrack();
+      const cachedTracks = [mockPublicTrack({ trackId: MOCK_OTHER_USER_ID, title: 'Neon Lights' })];
+
+      trackRepo.findTrackByTitleAndArtist.mockResolvedValue(track);
+      redisClient.get.mockResolvedValue(JSON.stringify(cachedTracks));
+
+      const result = await service.getRelatedTracks(TITLE, ARTIST, 1, 10);
+
+      expect(redisClient.get).toHaveBeenCalledWith(`related_tracks:${MOCK_TRACK_ID}`);
+      expect(trackRepo.getTrackTopFansIds).not.toHaveBeenCalled();
+      expect(trackRepo.findRelatedTracks).not.toHaveBeenCalled();
+      expect(result.status).toBe('success');
+      expect(result.data).toHaveLength(1);
+    });
+
+    it('should return paginated related tracks and cache them on cache miss', async () => {
+      const track = mockPublicTrack();
+      const relatedTrackEntities = Array.from({ length: 3 }, (_, i) =>
+        mockPublicTrack({ trackId: `id-${i}`, title: `Track ${i}` })
+      );
+
+      trackRepo.findTrackByTitleAndArtist.mockResolvedValue(track);
+      redisClient.get.mockResolvedValue(null);
+      trackRepo.getTrackTopFansIds.mockResolvedValue([MOCK_USER_ID]);
+      trackRepo.findRelatedTracks.mockResolvedValue(relatedTrackEntities);
+      redisClient.set.mockResolvedValue('OK');
+
+      const result = await service.getRelatedTracks(TITLE, ARTIST, 1, 10);
+
+      expect(trackRepo.getTrackTopFansIds).toHaveBeenCalledWith(MOCK_TRACK_ID);
+      expect(trackRepo.findRelatedTracks).toHaveBeenCalledWith(MOCK_TRACK_ID, [MOCK_USER_ID]);
+      expect(redisClient.set).toHaveBeenCalledWith(
+        `related_tracks:${MOCK_TRACK_ID}`,
+        expect.any(String),
+        expect.objectContaining({ EX: expect.any(Number) })
+      );
+      expect(result.status).toBe('success');
+      expect(result.data).toHaveLength(3);
+      expect(result.pagination).toEqual({
+        currentPage: 1,
+        totalPages: 1,
+        totalCount: 3,
+        limit: 10,
+      });
+    });
+
+    it('should correctly slice results when paginating cached data', async () => {
+      const track = mockPublicTrack();
+      const allTracks = Array.from({ length: 15 }, (_, i) =>
+        mockPublicTrack({ trackId: `id-${i}`, title: `Track ${i}` })
+      );
+
+      trackRepo.findTrackByTitleAndArtist.mockResolvedValue(track);
+      redisClient.get.mockResolvedValue(JSON.stringify(allTracks));
+
+      const result = await service.getRelatedTracks(TITLE, ARTIST, 2, 5);
+
+      expect(result.data).toHaveLength(5);
+      expect(result.pagination).toEqual({
+        currentPage: 2,
+        totalPages: 3,
+        totalCount: 15,
+        limit: 5,
+      });
+    });
+
+    it('should return empty data and skip caching when track has no top fans', async () => {
+      const track = mockPublicTrack();
+
+      trackRepo.findTrackByTitleAndArtist.mockResolvedValue(track);
+      redisClient.get.mockResolvedValue(null);
+      trackRepo.getTrackTopFansIds.mockResolvedValue([]);
+
+      const result = await service.getRelatedTracks(TITLE, ARTIST, 1, 10);
+
+      expect(trackRepo.findRelatedTracks).not.toHaveBeenCalled();
+      expect(redisClient.set).not.toHaveBeenCalled();
+      expect(result).toEqual({ status: 'success', data: [] });
+    });
+
+    it('should not write to cache when no related tracks are found', async () => {
+      const track = mockPublicTrack();
+
+      trackRepo.findTrackByTitleAndArtist.mockResolvedValue(track);
+      redisClient.get.mockResolvedValue(null);
+      trackRepo.getTrackTopFansIds.mockResolvedValue([MOCK_USER_ID]);
+      trackRepo.findRelatedTracks.mockResolvedValue([]);
+
+      await service.getRelatedTracks(TITLE, ARTIST, 1, 10);
+
+      expect(redisClient.set).not.toHaveBeenCalled();
+    });
+
+    it('should throw NotFoundException when track does not exist', async () => {
+      trackRepo.findTrackByTitleAndArtist.mockResolvedValue(null);
+
+      await expect(service.getRelatedTracks(TITLE, ARTIST, 1, 10)).rejects.toThrow(
+        NotFoundException
+      );
+      expect(redisClient.get).not.toHaveBeenCalled();
+    });
+
+    it('should throw ForbiddenException when track is private', async () => {
+      trackRepo.findTrackByTitleAndArtist.mockResolvedValue(mockPrivateTrack());
+
+      await expect(service.getRelatedTracks(TITLE, ARTIST, 1, 10)).rejects.toThrow(
+        ForbiddenException
+      );
+      expect(redisClient.get).not.toHaveBeenCalled();
+    });
+  });
+
+  // ─── getAllTimeStats ──────────────────────────────────────────────────────────
+
+  describe('getAllTimeStats', () => {
+    const mockStats = {
+      totalPlays: 152300,
+      totalLikes: 8750,
+      totalReposts: 2100,
+      totalComments: 640,
+      totalDownloads: 0,
+    };
+
+    it('should return cached stats without hitting the DB when cache is warm', async () => {
+      redisClient.get.mockResolvedValue(JSON.stringify(mockStats));
+
+      const result = await service.getAllTimeStats(MOCK_USER_ID);
+
+      expect(redisClient.get).toHaveBeenCalledWith(`all_time_stats:${MOCK_USER_ID}`);
+      expect(trackRepo.findAllTimeStats).not.toHaveBeenCalled();
+      expect(result).toEqual({ status: 'success', data: mockStats });
+    });
+
+    it('should fetch from DB, cache the result, and return stats on cache miss', async () => {
+      redisClient.get.mockResolvedValue(null);
+      trackRepo.findAllTimeStats.mockResolvedValue(mockStats);
+      redisClient.set.mockResolvedValue('OK');
+
+      const result = await service.getAllTimeStats(MOCK_USER_ID);
+
+      expect(trackRepo.findAllTimeStats).toHaveBeenCalledWith(MOCK_USER_ID);
+      expect(redisClient.set).toHaveBeenCalledWith(
+        `all_time_stats:${MOCK_USER_ID}`,
+        JSON.stringify(mockStats),
+        expect.objectContaining({ EX: expect.any(Number) })
+      );
+      expect(result).toEqual({ status: 'success', data: mockStats });
+    });
+
+    it('should return zeroed stats when the user has no tracks', async () => {
+      const emptyStats = {
+        totalPlays: 0,
+        totalLikes: 0,
+        totalReposts: 0,
+        totalComments: 0,
+        totalDownloads: 0,
+      };
+      redisClient.get.mockResolvedValue(null);
+      trackRepo.findAllTimeStats.mockResolvedValue(emptyStats);
+
+      const result = await service.getAllTimeStats(MOCK_USER_ID);
+
+      expect(result.data).toEqual(emptyStats);
     });
   });
 });
