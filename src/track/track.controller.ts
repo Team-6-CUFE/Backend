@@ -446,4 +446,9 @@ export class TrackController {
   ) {
     return this.trackService.deleteTrack(trackId, userId);
   }
+
+  @Get(':artistUsername/:title/related-tracks')
+  getRelatedTracks(@Param('artistUsername') artistUsername: string, @Param('title') title: string) {
+    return this.trackService.getRelatedTracks(title, artistUsername);
+  }
 }

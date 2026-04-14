@@ -432,4 +432,48 @@ export class TrackRepository {
   async deleteTrack(trackId: string): Promise<void> {
     await this.trackRepository.delete(trackId);
   }
+
+  async findTrackByTitleAndArtist(title: string, artistUsername: string): Promise<Track | null> {
+    return this.trackRepository
+      .createQueryBuilder('track')
+      .innerJoin('track.user', 'user')
+      .where('track.title = :title', { title })
+      .andWhere('user.username = :artistUsername', { artistUsername })
+      .getOne();
+  }
+
+  async getTrackTopFansIds(trackId: string): Promise<string[]> {
+    const rows = await this.trackPlayRepository
+      .createQueryBuilder('play')
+      .select('play.userId', 'userId')
+      .where('play.trackId = :trackId', { trackId })
+      .groupBy('play.userId')
+      .orderBy('COUNT(*)', 'DESC')
+      .limit(80)
+      .getRawMany();
+    return rows.map((row) => row.userId);
+  }
+
+  async findRelatedTracks(trackId: string, topFanIds: string[]): Promise<Track[]> {
+    const result: TrackPlay[] = await this.trackPlayRepository
+      .createQueryBuilder('play')
+      .select('play.trackId', 'trackId')
+      .where('play.trackId != :trackId', { trackId })
+      .andWhere('play.userId IN (:...topFanIds)', { topFanIds })
+      .groupBy('play.trackId')
+      .orderBy('COUNT(*)', 'DESC')
+      .limit(40)
+      .getRawMany();
+
+    const relatedTrackIds = result.map((r) => r.trackId);
+
+    if (relatedTrackIds.length === 0) {
+      return [];
+    }
+
+    return this.trackRepository
+      .createQueryBuilder('track')
+      .where('track.trackId IN (:...relatedTrackIds)', { relatedTrackIds })
+      .getMany();
+  }
 }
