@@ -809,7 +809,11 @@ export class TrackService {
     artistUsername: string,
     page: number = 1,
     limit: number = 10
-  ): Promise<{ status: string; data: UserTrackResponseDto[] }> {
+  ): Promise<{
+    status: string;
+    data: UserTrackResponseDto[];
+    pagination?: { currentPage: number; totalPages: number; totalCount: number; limit: number };
+  }> {
     const track = await this.trackRepository.findTrackByTitleAndArtist(title, artistUsername);
     if (!track) throw new NotFoundException('Track not found');
 

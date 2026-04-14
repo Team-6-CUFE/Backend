@@ -52,6 +52,8 @@ const mockTrackService = () => ({
   getTopFans: jest.fn(),
   getFirstFans: jest.fn(),
   deleteTrack: jest.fn(),
+  getRelatedTracks: jest.fn(),
+  getAllTimeStats: jest.fn(),
 });
 
 describe('TrackController', () => {
@@ -905,6 +907,80 @@ describe('TrackController', () => {
       await expect(controller.deleteTrack(MOCK_TRACK_ID, MOCK_USER_ID)).rejects.toThrow(
         ForbiddenException
       );
+    });
+  });
+
+  // ─── getRelatedTracks ─────────────────────────────────────────────────────────
+
+  describe('getRelatedTracks', () => {
+    const ARTIST = 'dj_nour';
+    const TITLE = 'Midnight Drive';
+
+    it('should delegate to service with correct args', async () => {
+      service.getRelatedTracks.mockResolvedValue({ status: 'success', data: [] });
+
+      await controller.getRelatedTracks(ARTIST, TITLE, 1, 10);
+
+      expect(service.getRelatedTracks).toHaveBeenCalledWith(TITLE, ARTIST, 1, 10);
+    });
+
+    it('should return service response as-is', async () => {
+      const mockResponse = {
+        status: 'success',
+        data: [mockPublicTrack()],
+        pagination: { currentPage: 1, totalPages: 1, totalCount: 1, limit: 10 },
+      };
+      service.getRelatedTracks.mockResolvedValue(mockResponse);
+
+      const result = await controller.getRelatedTracks(ARTIST, TITLE, 1, 10);
+
+      expect(result).toBe(mockResponse);
+    });
+
+    it('should propagate NotFoundException when track does not exist', async () => {
+      service.getRelatedTracks.mockRejectedValue(new NotFoundException());
+
+      await expect(controller.getRelatedTracks(ARTIST, TITLE, 1, 10)).rejects.toThrow(
+        NotFoundException
+      );
+    });
+
+    it('should propagate ForbiddenException when track is private', async () => {
+      service.getRelatedTracks.mockRejectedValue(new ForbiddenException());
+
+      await expect(controller.getRelatedTracks(ARTIST, TITLE, 1, 10)).rejects.toThrow(
+        ForbiddenException
+      );
+    });
+  });
+
+  // ─── getAllTimeStats ──────────────────────────────────────────────────────────
+
+  describe('getAllTimeStats', () => {
+    it('should delegate to service with the current user id', async () => {
+      service.getAllTimeStats.mockResolvedValue({ status: 'success', data: {} });
+
+      await controller.getAllTimeStats(MOCK_USER_ID);
+
+      expect(service.getAllTimeStats).toHaveBeenCalledWith(MOCK_USER_ID);
+    });
+
+    it('should return service response as-is', async () => {
+      const mockResponse = {
+        status: 'success',
+        data: {
+          totalPlays: 152300,
+          totalLikes: 8750,
+          totalReposts: 2100,
+          totalComments: 640,
+          totalDownloads: 0,
+        },
+      };
+      service.getAllTimeStats.mockResolvedValue(mockResponse);
+
+      const result = await controller.getAllTimeStats(MOCK_USER_ID);
+
+      expect(result).toBe(mockResponse);
     });
   });
 });
