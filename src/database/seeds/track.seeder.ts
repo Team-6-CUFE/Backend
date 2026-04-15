@@ -5,6 +5,7 @@ import { Track } from '../../track/entities/track.entity';
 import { TrackLikes } from '../../track/entities/track-likes.entity';
 import { TrackRepost } from '../../track/entities/track-reposts.entity';
 import { TrackComment } from '../../track/entities/track-comments.entity';
+import { Activity, ActivityType } from '../../discovery/entities/activity.entity';
 
 export class TrackSeeder implements Seeder {
   public async run(dataSource: DataSource, factoryManager: SeederFactoryManager): Promise<void> {
@@ -13,6 +14,7 @@ export class TrackSeeder implements Seeder {
     const likesRepository = dataSource.getRepository(TrackLikes);
     const repostRepository = dataSource.getRepository(TrackRepost);
     const commentRepository = dataSource.getRepository(TrackComment);
+    const activityRepository = dataSource.getRepository(Activity);
 
     // 1. Check if tracks already exist
     const existingTracks = await trackRepository.count();
@@ -44,6 +46,7 @@ export class TrackSeeder implements Seeder {
 
     let totalTracksCreated = 0;
     let totalCommentsCreated = 0;
+    let totalActivitiesCreated = 0;
 
     // 5. Generate tracks for each artist
     for (const artist of artists) {
@@ -59,6 +62,19 @@ export class TrackSeeder implements Seeder {
 
       totalTracksCreated += tracks.length;
 
+      // --- Seed track_posted activity for each track ---
+      for (const track of tracks) {
+        await activityRepository.save(
+          activityRepository.create({
+            activityType: ActivityType.TRACK_POSTED,
+            targetId: track.trackId,
+            userId: artist.userId,
+            targetUserId: null,
+          })
+        );
+        totalActivitiesCreated++;
+      }
+
       // 6. Generate Engagement for each track
       for (const track of tracks) {
         // --- A. Seed Likes ---
@@ -73,6 +89,17 @@ export class TrackSeeder implements Seeder {
             trackId: track.trackId,
           });
           await likesRepository.save(like);
+
+          // --- Seed track_like activity ---
+          await activityRepository.save(
+            activityRepository.create({
+              activityType: ActivityType.TRACK_LIKE,
+              targetId: track.trackId,
+              userId: liker.userId,
+              targetUserId: artist.userId,
+            })
+          );
+          totalActivitiesCreated++;
         }
 
         // --- B. Seed Reposts ---
@@ -87,6 +114,17 @@ export class TrackSeeder implements Seeder {
             trackId: track.trackId,
           });
           await repostRepository.save(repost);
+
+          // --- Seed track_repost activity ---
+          await activityRepository.save(
+            activityRepository.create({
+              activityType: ActivityType.TRACK_REPOST,
+              targetId: track.trackId,
+              userId: reposter.userId,
+              targetUserId: artist.userId,
+            })
+          );
+          totalActivitiesCreated++;
         }
 
         // --- C. Seed Comments ---
@@ -103,23 +141,42 @@ export class TrackSeeder implements Seeder {
           const saved = await commentRepository.save(comment);
           topLevelComments.push(saved);
           totalCommentsCreated++;
+
+          // --- Seed track_comment activity for top-level comment ---
+          await activityRepository.save(
+            activityRepository.create({
+              activityType: ActivityType.TRACK_COMMENT,
+              targetId: track.trackId,
+              userId: randomUser.userId,
+              targetUserId: artist.userId,
+            })
+          );
+          totalActivitiesCreated++;
         }
 
-        // Seed replies: 40% chance each top-level comment gets 1–3 replies
+        // Seed replies: 40% chance each top-level comment gets 1 reply
         for (const parent of topLevelComments) {
           if (Math.random() < 0.4) {
-            const replyCount = Math.floor(Math.random() * 3) + 1;
-            for (let r = 0; r < replyCount; r++) {
-              const randomUser = allUsers[Math.floor(Math.random() * allUsers.length)];
-              const reply = await commentFactory.make({
+            const randomUser = allUsers[Math.floor(Math.random() * allUsers.length)];
+            const reply = await commentFactory.make({
+              userId: randomUser.userId,
+              trackId: track.trackId,
+              timestampSeconds: parent.timestampSeconds,
+              parentId: parent.commentId,
+            });
+            await commentRepository.save(reply);
+            totalCommentsCreated++;
+
+            // --- Seed track_comment activity for reply ---
+            await activityRepository.save(
+              activityRepository.create({
+                activityType: ActivityType.TRACK_COMMENT,
+                targetId: track.trackId,
                 userId: randomUser.userId,
-                trackId: track.trackId,
-                timestampSeconds: parent.timestampSeconds,
-                parentId: parent.commentId,
-              });
-              await commentRepository.save(reply);
-              totalCommentsCreated++;
-            }
+                targetUserId: artist.userId,
+              })
+            );
+            totalActivitiesCreated++;
           }
         }
       }
@@ -127,6 +184,7 @@ export class TrackSeeder implements Seeder {
     console.log('Tracks seeded successfully!');
     console.log(`   - Created ${totalTracksCreated} total tracks across ${artists.length} artists`);
     console.log(`   - Created ${totalCommentsCreated} total comments`);
+    console.log(`   - Created ${totalActivitiesCreated} total activities`);
     console.log(
       `   - Random likes and reposts generated (Database triggers should have updated the counts!)`
     );
