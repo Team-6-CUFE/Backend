@@ -9,6 +9,7 @@ import { TrackService } from '../track/track.service';
 import { Track } from '../track/entities/track.entity';
 import { Playlist } from '../playlist/entities/playlist.entity';
 import { TrackVisibility } from '../track/enums/track-visibility.enum';
+import { getLocationFromIp } from '../common/utilities/geolocation.util';
 
 interface TrackCandidate {
   track: Track;
@@ -72,7 +73,7 @@ export class DiscoveryService {
     }));
   }
 
-  private async stationResponse(currentUserId: string, station: Playlist) {
+  private async stationResponse(currentUserId: string, station: Playlist, ip?: string) {
     // get first 3 unique featured artists
     const uniqueArtistTracks = station.playlistTracks
       .map((pt) => pt.track)
@@ -94,6 +95,9 @@ export class DiscoveryService {
             : await this.followersRepository.isFollowing(currentUserId, t.userId),
       }))
     );
+
+    const country = ip ? getLocationFromIp(ip).country : null;
+
     return {
       status: 'success',
       data: {
@@ -106,35 +110,44 @@ export class DiscoveryService {
         likesCount: station.likesCount,
         createdAt: station.createdAt,
         trackArtist: {
-          user_id: station.user.userId,
+          userId: station.user.userId,
+          username: station.user.username,
           displayName: station.user.displayName,
           avatarUrl: station.user.avatarUrl,
         },
-        tracks: station.playlistTracks.map((pt) => ({
-          position: pt.position,
-          trackId: pt.track.trackId,
-          title: pt.track.title,
-          duration_seconds: pt.track.durationSeconds,
-          coverImage: pt.track.coverImage,
-          audioUrl: pt.track.audioUrl,
-          waveformUrl: pt.track.waveformUrl,
-          playCount: pt.track.playCount,
-          likesCount: pt.track.likesCount,
-          repostsCount: pt.track.repostsCount,
-          commentsCount: pt.track.commentsCount,
-          artist: {
-            userId: pt.track.userId,
-            username: pt.track.user?.username || 'unknown',
-            displayName: pt.track.user?.displayName || 'Unknown Artist',
-            avatarUrl: pt.track.user?.avatarUrl || null,
-          },
-        })),
+        tracks: station.playlistTracks.map((pt) => {
+          const isBlocked = !!(country && pt.track.blockedRegions?.includes(country));
+          return {
+            position: pt.position,
+            trackId: pt.track.trackId,
+            title: pt.track.title,
+            durationSeconds: pt.track.durationSeconds,
+            coverImage: pt.track.coverImage,
+            audioUrl: isBlocked ? null : pt.track.audioUrl,
+            waveformUrl: isBlocked ? null : pt.track.waveformUrl,
+            playCount: pt.track.playCount,
+            likesCount: pt.track.likesCount,
+            repostsCount: pt.track.repostsCount,
+            commentsCount: pt.track.commentsCount,
+            artist: {
+              userId: pt.track.userId,
+              username: pt.track.user?.username || 'unknown',
+              displayName: pt.track.user?.displayName || 'Unknown Artist',
+              avatarUrl: pt.track.user?.avatarUrl || null,
+            },
+          };
+        }),
         featuredArtists,
       },
     };
   }
 
-  async getTrackStation(artistUsername: string, trackName: string, currentUserId: string) {
+  async getTrackStation(
+    artistUsername: string,
+    trackName: string,
+    currentUserId: string,
+    ip?: string
+  ) {
     const track = await this.trackRepository.findTrackByTitleAndArtist(trackName, artistUsername);
     if (!track) {
       throw new NotFoundException('Track not found');
@@ -151,7 +164,7 @@ export class DiscoveryService {
     }
 
     if (station) {
-      return this.stationResponse(currentUserId, station);
+      return this.stationResponse(currentUserId, station, ip);
     }
 
     const relatedTracks = await this.trackService.getRelatedTracksByTrackId(track.trackId);
@@ -214,7 +227,7 @@ export class DiscoveryService {
       newStation.playlistId
     );
 
-    return this.stationResponse(currentUserId, stationWithTracks!);
+    return this.stationResponse(currentUserId, stationWithTracks!, ip);
   }
 
   private updateScore(map: Map<string, TrackCandidate>, track: Track, points: number) {

@@ -1,7 +1,7 @@
-import { Body, Controller, Get, Query, Param } from '@nestjs/common';
+import { Body, Controller, Get, Ip, Query, Param } from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
 import { DiscoveryService } from './discovery.service';
-import { ApiGetFeed } from './discovery.swagger';
+import { ApiGetFeed, ApiGetTrackStation } from './discovery.swagger';
 import { CurrentUser } from '../authentication/decorators/current-user.decorator';
 
 @ApiTags('Discovery')
@@ -20,12 +20,14 @@ export class DiscoveryController {
     return this.discoveryService.getFeed(userId, includeReposts, page, limit);
   }
 
+  @ApiGetTrackStation()
   @Get('track-station/:artist_username/:track_name')
   async getTrackStation(
     @CurrentUser('sub') userId: string,
     @Param('artist_username') artistUsername: string,
-    @Param('track_name') trackName: string
+    @Param('track_name') trackName: string,
+    @Ip() ip: string
   ) {
-    return this.discoveryService.getTrackStation(artistUsername, trackName, userId);
+    return this.discoveryService.getTrackStation(artistUsername, trackName, userId, ip);
   }
 }
