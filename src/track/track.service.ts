@@ -759,8 +759,13 @@ export class TrackService {
         throw new ForbiddenException('This track is not available in your region');
       }
     }
+    if (track.trackStatus !== TrackStatus.FINISHED) {
+      throw new ConflictException('Track audio is not available yet');
+    }
     const shaped: GetTrackResDto = {
       ...track,
+      audioUrl: this.resolveAudioUrl(track, user),
+      previewAudioUrl: track.previewAudioUrl ?? null,
       genre: plainToInstance(TrackGenreDto, track.genre, { excludeExtraneousValues: true }),
       tags: plainToInstance(TrackTagDto, track.tags, { excludeExtraneousValues: true }),
       owner: plainToInstance(TrackOwnerDto, track.user, { excludeExtraneousValues: true }),
@@ -769,6 +774,7 @@ export class TrackService {
     return { status: 'success', data };
   }
 
+  // WARNING: will be depracted, replaced in getTrack
   async getTrackAudio(trackId: string, user?: JwtPayload) {
     const track = await this.trackRepository.findById(trackId);
     if (!track) throw new NotFoundException('Track not found');

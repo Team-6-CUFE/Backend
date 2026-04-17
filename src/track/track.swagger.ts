@@ -1376,6 +1376,8 @@ export function ApiGetTrack() {
             durationSeconds: 214,
             trackStatus: 'finished',
             waveformUrl: 'https://s3.amazonaws.com/waveforms/track_123.json',
+            audioUrl: 'https://s3.amazonaws.com/audio/track_123.mp3',
+            previewAudioUrl: 'https://s3.amazonaws.com/preview/track_123.mp3',
             playCount: 1042,
             likesCount: 87,
             repostsCount: 14,
@@ -1419,6 +1421,11 @@ export function ApiGetTrack() {
       schema: {
         example: { statusCode: 403, message: 'This track is not available in your region' },
       },
+    }),
+    ApiResponse({
+      status: 409,
+      description: 'Track is still processing',
+      schema: { example: { statusCode: 409, message: 'Track audio is not available yet' } },
     })
   );
 }
