@@ -406,7 +406,7 @@ export class FollowersRepository {
       .createQueryBuilder('user')
       .innerJoin('user_follows', 'uf', 'uf.followed = user.user_id')
       .where('uf.follower = :userId', { userId })
-      .select('user.user_id')
+      .select('user.userId')
       .getMany();
 
     return ids.map((u) => u.userId);

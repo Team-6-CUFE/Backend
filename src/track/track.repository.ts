@@ -488,4 +488,23 @@ export class TrackRepository {
       totalComments: Number(totalComments) ?? 0,
     };
   }
+
+  async findByIds(ids: string[]): Promise<Track[]> {
+    return this.trackRepository
+      .createQueryBuilder('track')
+      .where('track.trackId IN (:...ids)', { ids })
+      .select([
+        'track.trackId',
+        'track.title',
+        'track.coverImage',
+        'track.audioUrl',
+        'track.durationSeconds',
+        'track.userId',
+        'track.createdAt',
+        'track.likesCount',
+        'track.repostsCount',
+        'track.commentsCount',
+      ])
+      .getMany();
+  }
 }

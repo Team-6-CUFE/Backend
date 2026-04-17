@@ -400,4 +400,37 @@ export class PlaylistRepository {
       .take(limit)
       .getManyAndCount();
   }
+
+  async findByIds(ids: string[]): Promise<Playlist[]> {
+    return this.playlistRepository
+      .createQueryBuilder('playlist')
+      .where('playlist.playlistId IN (:...ids)', { ids })
+      .leftJoinAndSelect('playlist.playlistTracks', 'playlistTrack')
+      .leftJoinAndSelect('playlistTrack.track', 'track')
+      .leftJoin('track.user', 'trackUser')
+      .orderBy('playlistTrack.position', 'ASC')
+      .select([
+        'playlist.playlistId',
+        'playlist.title',
+        'playlist.coverImage',
+        'playlist.totalDurationSeconds',
+        'playlist.tracksCount',
+        'playlist.userId',
+        'playlist.type',
+        'playlistTrack.position',
+        'playlistTrack.trackId',
+        'track.trackId',
+        'track.title',
+        'track.audioUrl',
+        'track.coverImage',
+        'track.durationSeconds',
+        'track.playCount',
+        'track.userId',
+        'trackUser.userId',
+        'trackUser.username',
+        'trackUser.displayName',
+        'trackUser.avatarUrl',
+      ])
+      .getMany();
+  }
 }

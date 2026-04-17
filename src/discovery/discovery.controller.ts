@@ -8,7 +8,7 @@ export class DiscoveryController {
   constructor(private readonly discoveryService: DiscoveryService) {}
 
   @ApiGetFeed()
-  @Get('feed')
+  @Get('feed/following')
   async getFeed(
     @CurrentUser('sub') userId: string,
     @Body('includeReposts') includeReposts: boolean,
