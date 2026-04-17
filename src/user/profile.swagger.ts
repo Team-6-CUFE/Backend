@@ -115,10 +115,49 @@ export function ApiGetProfile() {
 export function ApiUpdateProfile() {
   return applyDecorators(
     ApiCookieAuth('access_token'),
+    ApiConsumes('multipart/form-data'),
     ApiOperation({
       summary: 'Update my profile',
       description:
         'Updates editable profile fields. All fields are optional — only send what you want to change. Favorite genres are replaced entirely when provided.',
+    }),
+    ApiBody({
+      schema: {
+        type: 'object',
+        properties: {
+          firstName: { type: 'string', maxLength: 100, example: 'Moaaz' },
+          lastName: { type: 'string', maxLength: 100, example: 'Dev' },
+          displayName: { type: 'string', maxLength: 150, example: 'Moaaz Dev' },
+          username: { type: 'string', maxLength: 50, example: 'moaaz_dev' },
+          bio: { type: 'string', maxLength: 1000, example: 'Backend dev by day.' },
+          country: { type: 'string', maxLength: 100, example: 'EG' },
+          city: { type: 'string', maxLength: 100, example: 'Alexandria' },
+          gender: { type: 'string', enum: ['male', 'female', 'preferNotToSay'] },
+          favoriteGenres: {
+            type: 'array',
+            items: { type: 'string' },
+            maxItems: 10,
+            example: ['Rock', 'Jazz'],
+          },
+          supportLink: { type: 'string', format: 'uri', example: 'https://ko-fi.com/moaaz' },
+          isPublic: { type: 'boolean', example: true },
+          birthdate: {
+            type: 'string',
+            example: '1999-05-15',
+            description: 'YYYY-MM-DD format. Must not be in the future, user must be at least 13.',
+          },
+          avatarFile: {
+            type: 'string',
+            format: 'binary',
+            description: 'Avatar/profile picture — JPEG, PNG, or WebP, max 5MB',
+          },
+          coverFile: {
+            type: 'string',
+            format: 'binary',
+            description: 'Cover photo — JPEG, PNG, or WebP, max 5MB',
+          },
+        },
+      },
     }),
     ApiResponse({
       status: 200,
@@ -140,6 +179,7 @@ export function ApiUpdateProfile() {
             favoriteGenres: ['Electronic', 'Hip-Hop'],
             supportLink: null,
             isPublic: true,
+            birthdate: '1999-05-15',
             updatedAt: '2025-03-01T12:00:00.000Z',
           },
         },

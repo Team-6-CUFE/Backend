@@ -35,13 +35,59 @@ describe('ProfileController', () => {
     expect(service.findProfile).toHaveBeenCalledWith(mockUsername);
   });
 
-  it('updateMyProfile → delegates to service with userId and dto', async () => {
+  it('updateMyProfile → delegates to service with userId, dto, and extracted files', async () => {
     const dto = { displayName: 'Test' };
     service.updateProfile.mockResolvedValue({ status: 'Success', message: '', data: {} });
 
-    await controller.updateMyProfile(mockUserId, dto as any);
+    await controller.updateMyProfile(mockUserId, dto as any, undefined as any);
 
-    expect(service.updateProfile).toHaveBeenCalledWith(mockUserId, dto);
+    expect(service.updateProfile).toHaveBeenCalledWith(mockUserId, dto, {
+      avatarFile: undefined,
+      coverFile: undefined,
+    });
+  });
+
+  it('updateMyProfile → passes avatarFile to service when provided', async () => {
+    const dto = { displayName: 'Test' };
+    const file = mockFile();
+    service.updateProfile.mockResolvedValue({ status: 'Success', message: '', data: {} });
+
+    await controller.updateMyProfile(mockUserId, dto as any, { avatarFile: [file] });
+
+    expect(service.updateProfile).toHaveBeenCalledWith(mockUserId, dto, {
+      avatarFile: file,
+      coverFile: undefined,
+    });
+  });
+
+  it('updateMyProfile → passes coverFile to service when provided', async () => {
+    const dto = { displayName: 'Test' };
+    const file = mockFile();
+    service.updateProfile.mockResolvedValue({ status: 'Success', message: '', data: {} });
+
+    await controller.updateMyProfile(mockUserId, dto as any, { coverFile: [file] });
+
+    expect(service.updateProfile).toHaveBeenCalledWith(mockUserId, dto, {
+      avatarFile: undefined,
+      coverFile: file,
+    });
+  });
+
+  it('updateMyProfile → passes both files to service when both provided', async () => {
+    const dto = {};
+    const avatarFile = mockFile();
+    const coverFile = { ...mockFile(), fieldname: 'coverFile' };
+    service.updateProfile.mockResolvedValue({ status: 'Success', message: '', data: {} });
+
+    await controller.updateMyProfile(mockUserId, dto as any, {
+      avatarFile: [avatarFile],
+      coverFile: [coverFile],
+    });
+
+    expect(service.updateProfile).toHaveBeenCalledWith(mockUserId, dto, {
+      avatarFile,
+      coverFile,
+    });
   });
 
   it('updateMyBirthdate → delegates correctly', async () => {
