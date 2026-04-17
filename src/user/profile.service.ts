@@ -91,7 +91,8 @@ export class ProfileService {
   ) {
     const exists = await this.userRepository.findById(userId);
     if (!exists) throw new NotFoundException('User not found');
-    const { favoriteGenres, birthdate, isPublic, ...rest } = updateProfileReqDto;
+    const { favoriteGenres, birthdate, isPublic, deleteAvatar, deleteCover, ...rest } =
+      updateProfileReqDto;
     const userData: Partial<User> = { ...rest };
     if (isPublic !== undefined) {
       userData.isPublic = isPublic === true;
@@ -105,9 +106,15 @@ export class ProfileService {
     }
     if (files?.avatarFile) {
       await this.updateAvatar(userId, files.avatarFile);
+    } else if (deleteAvatar && exists.avatarUrl) {
+      await this.storageService.deleteFile(exists.avatarUrl);
+      userData.avatarUrl = undefined;
     }
     if (files?.coverFile) {
       await this.updateCover(userId, files.coverFile);
+    } else if (deleteCover && (exists as any).coverPhoto) {
+      await this.storageService.deleteFile(exists.coverPhoto);
+      userData.coverPhoto = undefined;
     }
     const updated = await this.userRepository.update(userId, userData);
     const raw = {

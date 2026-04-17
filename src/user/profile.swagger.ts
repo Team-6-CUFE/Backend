@@ -119,7 +119,7 @@ export function ApiUpdateProfile() {
     ApiOperation({
       summary: 'Update my profile',
       description:
-        'Updates editable profile fields. All fields are optional — only send what you want to change. Favorite genres are replaced entirely when provided.',
+        'Updates editable profile fields. All fields are optional — only send what you want to change. Favorite genres are replaced entirely when provided. To remove an existing avatar or cover photo without uploading a replacement, set deleteAvatar or deleteCover to true.',
     }),
     ApiBody({
       schema: {
@@ -149,12 +149,26 @@ export function ApiUpdateProfile() {
           avatarFile: {
             type: 'string',
             format: 'binary',
-            description: 'Avatar/profile picture — JPEG, PNG, or WebP, max 5MB',
+            description:
+              'Upload a new avatar — JPEG, PNG, or WebP, max 5MB. Takes priority over deleteAvatar.',
           },
           coverFile: {
             type: 'string',
             format: 'binary',
-            description: 'Cover photo — JPEG, PNG, or WebP, max 5MB',
+            description:
+              'Upload a new cover photo — JPEG, PNG, or WebP, max 5MB. Takes priority over deleteCover.',
+          },
+          deleteAvatar: {
+            type: 'boolean',
+            example: true,
+            description:
+              'Set to true to delete the existing avatar. No-op if none exists. Ignored when avatarFile is provided.',
+          },
+          deleteCover: {
+            type: 'boolean',
+            example: true,
+            description:
+              'Set to true to delete the existing cover photo. No-op if none exists. Ignored when coverFile is provided.',
           },
         },
       },
@@ -164,7 +178,7 @@ export function ApiUpdateProfile() {
       description: 'Profile updated successfully',
       schema: {
         example: {
-          status: 'success',
+          status: 'Success',
           message: 'Profile updated successfully',
           data: {
             userId: '550e8400-e29b-41d4-a716-446655440001',
@@ -180,6 +194,8 @@ export function ApiUpdateProfile() {
             supportLink: null,
             isPublic: true,
             birthdate: '1999-05-15',
+            avatarUrl: 'https://cdn.example.com/profiles/user-id/avatar_1234567890.webp',
+            coverPhoto: null,
             updatedAt: '2025-03-01T12:00:00.000Z',
           },
         },
