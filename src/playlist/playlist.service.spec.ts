@@ -57,7 +57,6 @@ const mockPlaylistRepository = () => ({
   getSecretPlaylist: jest.fn(),
   changePlaylistPrivacy: jest.fn(),
   resetSecretToken: jest.fn(),
-  findOrCreateTags: jest.fn(),
   findOrCreateGenre: jest.fn(),
   updatePlaylistTags: jest.fn(),
   updatePlaylistGenre: jest.fn(),
@@ -1270,7 +1269,7 @@ describe('PlaylistService', () => {
       createdAt: new Date(),
       updatedAt: new Date(),
       genre: { name: 'Lo-fi' },
-      tags: [{ tagId: 'tag-1', name: 'Chill' }],
+      tags: [{ genreId: 'tag-1', name: 'Chill' }],
       user: { userId: mockOwnerId, displayName: 'Owner', avatarUrl: null },
       playlistTracks: [
         {

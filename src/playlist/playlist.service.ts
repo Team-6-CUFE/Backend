@@ -401,7 +401,9 @@ export class PlaylistService {
     if (updateDto.tags !== undefined) {
       const tags =
         updateDto.tags.length > 0
-          ? await this.playlistRepository.findOrCreateTags(updateDto.tags)
+          ? await Promise.all(
+              updateDto.tags.map((tag) => this.playlistRepository.findOrCreateGenre(tag))
+            )
           : [];
 
       await this.playlistRepository.updatePlaylistTags(playlistId, tags);
@@ -427,12 +429,12 @@ export class PlaylistService {
         description: updatedWithTags!.description,
         coverImage: updatedWithTags!.coverImage,
         updatedAt: updatedWithTags!.updatedAt,
-        buyLink: updatedWithTags!.buyLink, // Added
-        recordLabel: updatedWithTags!.recordLabel, // Added
-        type: updatedWithTags!.type, // Added
-        releaseDate: updatedWithTags!.releaseDate, // Added
-        permalink: updatedWithTags!.permalink, // Added
-        tags: updatedWithTags!.tags.map((t) => ({ tagId: t.tagId, name: t.name })),
+        buyLink: updatedWithTags!.buyLink,
+        recordLabel: updatedWithTags!.recordLabel,
+        type: updatedWithTags!.type,
+        releaseDate: updatedWithTags!.releaseDate,
+        permalink: updatedWithTags!.permalink,
+        tags: updatedWithTags!.tags.map((t) => ({ tagId: t.genreId, name: t.name })),
         genre: updatedWithTags!.genre?.name,
       },
     };
@@ -672,7 +674,7 @@ export class PlaylistService {
         updatedAt: playlist.updatedAt,
         genre: playlist.genre?.name,
         tags: playlist.tags.map((tag) => ({
-          tagId: tag.tagId,
+          tagId: tag.genreId,
           name: tag.name,
         })),
         user: {
@@ -718,7 +720,7 @@ export class PlaylistService {
         createdAt: playlist.createdAt,
         updatedAt: playlist.updatedAt,
         tags: playlist.tags.map((tag) => ({
-          tagId: tag.tagId,
+          tagId: tag.genreId,
           name: tag.name,
         })),
         user: {
