@@ -834,6 +834,7 @@ export class TrackService {
     const cached = await this.redis.get(`related_tracks:${trackId}`);
     if (cached) {
       const data = JSON.parse(cached) as Track[];
+      console.log(`Cache hit for related tracks of ${trackId}, returning ${data}`);
       return data;
     }
 
@@ -849,6 +850,9 @@ export class TrackService {
         EX: RELATED_TRACKS_TTL_SECS,
       });
     }
+    console.log(
+      `Cache miss for related tracks of ${trackId}, computed and cached ${relatedTracks}`
+    );
     return relatedTracks;
   }
 
@@ -871,7 +875,7 @@ export class TrackService {
 
     const { trackId } = track;
     const relatedTracks = await this.getRelatedTracksByTrackId(trackId);
-    const data = plainToInstance(Track, relatedTracks, {
+    const data = plainToInstance(UserTrackResponseDto, relatedTracks, {
       excludeExtraneousValues: true,
     });
     const startIndex = (page - 1) * limit;
