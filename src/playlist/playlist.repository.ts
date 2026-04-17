@@ -329,7 +329,13 @@ export class PlaylistRepository {
   async getTrackStation(trackId: string): Promise<Playlist | null> {
     return this.playlistRepository.findOne({
       where: { trackId, type: PlaylistType.STATION },
-      relations: ['user', 'playlistTracks', 'playlistTracks.track', 'tags', 'genre'],
+      relations: [
+        'user',
+        'playlistTracks',
+        'playlistTracks.track',
+        'playlistTracks.track.user',
+        'tags',
+      ],
       order: {
         playlistTracks: { position: 'ASC' },
       },

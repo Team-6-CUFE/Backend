@@ -72,7 +72,28 @@ export class DiscoveryService {
     }));
   }
 
-  private stationResponse(station: Playlist) {
+  private async stationResponse(currentUserId: string, station: Playlist) {
+    // get first 3 unique featured artists
+    const uniqueArtistTracks = station.playlistTracks
+      .map((pt) => pt.track)
+      .filter((track, index, self) => index === self.findIndex((t) => t.userId === track.userId))
+      .slice(0, 3); // Grab the first 3 unique ones
+
+    // 2. Map them to the final format using Promise.all
+    const featuredArtists = await Promise.all(
+      uniqueArtistTracks.map(async (t) => ({
+        userId: t.userId,
+        username: t.user?.username || 'unknown',
+        displayName: t.user?.displayName || 'Unknown Artist',
+        avatarUrl: t.user?.avatarUrl || null,
+        trackCount: t.user?.trackCount || 0,
+        followersCount: t.user?.followersCount || 0,
+        isFollowedByCurrentUser:
+          currentUserId === t.userId
+            ? true
+            : await this.followersRepository.isFollowing(currentUserId, t.userId),
+      }))
+    );
     return {
       status: 'success',
       data: {
@@ -84,7 +105,7 @@ export class DiscoveryService {
         durationSeconds: station.totalDurationSeconds,
         likesCount: station.likesCount,
         createdAt: station.createdAt,
-        user: {
+        trackArtist: {
           user_id: station.user.userId,
           displayName: station.user.displayName,
           avatarUrl: station.user.avatarUrl,
@@ -99,12 +120,19 @@ export class DiscoveryService {
           likesCount: pt.track.likesCount,
           repostsCount: pt.track.repostsCount,
           commentsCount: pt.track.commentsCount,
+          artist: {
+            userId: pt.track.userId,
+            username: pt.track.user?.username || 'unknown',
+            displayName: pt.track.user?.displayName || 'Unknown Artist',
+            avatarUrl: pt.track.user?.avatarUrl || null,
+          },
         })),
+        featuredArtists,
       },
     };
   }
 
-  async getTrackStation(artistUsername: string, trackName: string) {
+  async getTrackStation(artistUsername: string, trackName: string, currentUserId: string) {
     const track = await this.trackRepository.findTrackByTitleAndArtist(trackName, artistUsername);
     if (!track) {
       throw new NotFoundException('Track not found');
@@ -121,7 +149,7 @@ export class DiscoveryService {
     }
 
     if (station) {
-      return this.stationResponse(station);
+      return this.stationResponse(currentUserId, station);
     }
 
     const relatedTracks = await this.trackService.getRelatedTracksByTrackId(track.trackId);
@@ -183,7 +211,8 @@ export class DiscoveryService {
     const stationWithTracks = await this.playlistRepository.getPublicPlaylist(
       newStation.playlistId
     );
-    return this.stationResponse(stationWithTracks!);
+
+    return this.stationResponse(currentUserId, stationWithTracks!);
   }
 
   private updateScore(map: Map<string, TrackCandidate>, track: Track, points: number) {

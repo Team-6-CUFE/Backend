@@ -22,9 +22,10 @@ export class DiscoveryController {
 
   @Get('track-station/:artist_username/:track_name')
   async getTrackStation(
+    @CurrentUser('sub') userId: string,
     @Param('artist_username') artistUsername: string,
     @Param('track_name') trackName: string
   ) {
-    return this.discoveryService.getTrackStation(artistUsername, trackName);
+    return this.discoveryService.getTrackStation(artistUsername, trackName, userId);
   }
 }
