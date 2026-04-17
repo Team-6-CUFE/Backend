@@ -14,8 +14,8 @@ import { CreatePlaylistDto } from './dto/create-playlist.dto';
 import { Playlist } from './entities/playlist.entity';
 import { UpdatePlaylistDto } from './dto/update-playlist.dto';
 import { StorageService } from '../common/storage_service';
-import { ActivitiesService } from '../discovery/activities.service';
-import { ActivityType } from '../discovery/entities/activity.entity';
+import { ActivityService } from '../activity/activity.service';
+import { ActivityType } from '../activity/entities/activity.entity';
 
 @Injectable()
 export class PlaylistService {
@@ -24,7 +24,7 @@ export class PlaylistService {
     private readonly userRepository: UserRepository,
     private configService: ConfigService,
     private readonly storageService: StorageService,
-    private readonly activitiesService: ActivitiesService
+    private readonly activitiesService: ActivityService
   ) {}
 
   async getPlaylistById(playlistId: string): Promise<Playlist | null> {

@@ -400,4 +400,15 @@ export class FollowersRepository {
 
     return { users, total };
   }
+
+  async getFollowingIds(userId: string): Promise<string[]> {
+    const ids = await this.userRepository
+      .createQueryBuilder('user')
+      .innerJoin('user_follows', 'uf', 'uf.followed = user.user_id')
+      .where('uf.follower = :userId', { userId })
+      .select('user.user_id')
+      .getMany();
+
+    return ids.map((u) => u.userId);
+  }
 }

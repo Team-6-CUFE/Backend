@@ -45,8 +45,8 @@ import { getLocationFromIp } from '../common/utilities/geolocation.util';
 import { PlaylistService } from '../playlist/playlist.service';
 import { RecentlyPlayedItemType } from './entities/recently-played.entity';
 import { FansService } from './services/fans.service';
-import { ActivitiesService } from '../discovery/activities.service';
-import { ActivityType } from '../discovery/entities/activity.entity';
+import { ActivityService } from '../activity/activity.service';
+import { ActivityType } from '../activity/entities/activity.entity';
 import { REDIS_CLIENT } from '../redis/redis.module';
 
 const RELATED_TRACKS_TTL_SECS = 3 * 24 * 60 * 60; // 3 days
@@ -61,7 +61,7 @@ export class TrackService {
     private readonly genreRepository: GenreRepository,
     private readonly playlistService: PlaylistService,
     private readonly fansService: FansService,
-    private readonly activitiesService: ActivitiesService,
+    private readonly activitiesService: ActivityService,
     @InjectQueue('audioQueue')
     private readonly audioQueue: Queue,
 

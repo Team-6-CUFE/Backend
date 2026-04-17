@@ -7,15 +7,15 @@ import {
 } from '@nestjs/common';
 import { FollowersRepository } from './followers.repository';
 import { UserRepository } from '../user/user.repository';
-import { ActivitiesService } from '../discovery/activities.service';
-import { ActivityType } from '../discovery/entities/activity.entity';
+import { ActivityService } from '../activity/activity.service';
+import { ActivityType } from '../activity/entities/activity.entity';
 
 @Injectable()
 export class FollowersService {
   constructor(
     private readonly followersRepository: FollowersRepository,
     private readonly userRepository: UserRepository,
-    private readonly activityService: ActivitiesService
+    private readonly activityService: ActivityService
   ) {}
 
   async getFollowing(userId: string, page: number, limit: number) {

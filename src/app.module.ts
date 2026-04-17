@@ -16,6 +16,7 @@ import { TrackModule } from './track/track.module';
 import { LegalModule } from './legal/legal.module';
 import { SettingsModule } from './settings/settings.module';
 import { DiscoveryModule } from './discovery/discovery.module';
+import { ActivityModule } from './activity/activity.module';
 
 @Module({
   imports: [
@@ -49,6 +50,7 @@ import { DiscoveryModule } from './discovery/discovery.module';
     LegalModule,
     SettingsModule,
     DiscoveryModule,
+    ActivityModule,
   ],
 })
 export class AppModule {}
