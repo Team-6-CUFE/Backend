@@ -856,7 +856,8 @@ export class TrackService {
     title: string,
     artistUsername: string,
     page: number = 1,
-    limit: number = 10
+    limit: number = 10,
+    ip?: string
   ): Promise<{
     status: string;
     data: UserTrackResponseDto[];
@@ -871,9 +872,23 @@ export class TrackService {
 
     const { trackId } = track;
     const relatedTracks = await this.getRelatedTracksByTrackId(trackId);
-    const data = plainToInstance(UserTrackResponseDto, relatedTracks, {
-      excludeExtraneousValues: true,
+
+    const country = ip ? getLocationFromIp(ip).country : null;
+
+    const data = relatedTracks.map((t) => {
+      const dto = plainToInstance(UserTrackResponseDto, t, { excludeExtraneousValues: true });
+      console.log(`Track ${t.title} blocked regions:`, t.blockedRegions);
+      if (country && t.blockedRegions?.includes(country)) {
+        dto.audioUrl = null;
+        dto.waveformUrl = null;
+      }
+      dto.genreName = t.genre?.name ?? null;
+      dto.artistId = t.user.userId;
+      dto.artistDisplayName = t.user.displayName;
+      dto.artistUsername = t.user.username;
+      return dto;
     });
+
     const startIndex = (page - 1) * limit;
     const paginatedData = data.slice(startIndex, startIndex + limit);
     return {

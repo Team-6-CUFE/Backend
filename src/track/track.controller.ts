@@ -463,8 +463,9 @@ export class TrackController {
     @Param('artistUsername') artistUsername: string,
     @Param('title') title: string,
     @Query('page', new DefaultValuePipe(1), ParseIntPipe) page: number,
-    @Query('limit', new DefaultValuePipe(10), ParseIntPipe) limit: number
+    @Query('limit', new DefaultValuePipe(10), ParseIntPipe) limit: number,
+    @Ip() ip: string
   ) {
-    return this.trackService.getRelatedTracks(title, artistUsername, page, limit);
+    return this.trackService.getRelatedTracks(title, artistUsername, page, limit, ip);
   }
 }

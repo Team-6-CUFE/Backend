@@ -498,6 +498,8 @@ export class TrackRepository {
 
     return this.trackRepository
       .createQueryBuilder('track')
+      .leftJoinAndSelect('track.user', 'user')
+      .leftJoinAndSelect('track.genre', 'genre')
       .where('track.trackId IN (:...relatedTrackIds)', { relatedTrackIds })
       .getMany();
   }

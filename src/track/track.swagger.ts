@@ -1630,7 +1630,8 @@ export function ApiGetRelatedTracks() {
       description:
         'Returns a paginated list of tracks that are related to the given track, ' +
         'based on the listening history of its top fans. ' +
-        'The track must be public. Results are cached for 3 days.',
+        'The track must be public. Results are cached for 3 days. ' +
+        "For tracks blocked in the requester's region, `audioUrl` and `waveformUrl` are returned as `null`.",
     }),
     ApiParam({
       name: 'artistUsername',
@@ -1660,7 +1661,8 @@ export function ApiGetRelatedTracks() {
     }),
     ApiResponse({
       status: 200,
-      description: 'Paginated list of related tracks',
+      description:
+        "Paginated list of related tracks. `audioUrl` and `waveformUrl` are `null` for tracks blocked in the requester's region.",
       schema: {
         example: {
           status: 'success',
@@ -1670,6 +1672,7 @@ export function ApiGetRelatedTracks() {
               title: 'Neon Lights',
               description: 'Synthwave journey through a neon city.',
               coverImage: 'https://s3.amazonaws.com/covers/neon.jpg',
+              audioUrl: 'https://s3.amazonaws.com/audio/neon.mp3',
               waveformUrl: 'https://s3.amazonaws.com/waveforms/neon.json',
               durationSeconds: 198,
               playCount: 3200,
@@ -1678,7 +1681,33 @@ export function ApiGetRelatedTracks() {
               commentsCount: 18,
               visibility: 'public',
               explicitContent: false,
+              artistId: '550e8400-e29b-41d4-a716-446655440000',
+              artistDisplayName: 'Jane Doe',
+              artistUsername: 'jane_doe',
+              genreId: 'genre_001',
+              genreName: 'Electronic',
               createdAt: '2024-07-15T10:00:00.000Z',
+            },
+            {
+              trackId: '550e8400-e29b-41d4-a716-446655440002',
+              title: 'Region Locked Beat',
+              description: 'Not available in all regions.',
+              coverImage: 'https://s3.amazonaws.com/covers/locked.jpg',
+              audioUrl: null,
+              waveformUrl: null,
+              durationSeconds: 210,
+              playCount: 800,
+              likesCount: 90,
+              repostsCount: 12,
+              commentsCount: 4,
+              visibility: 'public',
+              explicitContent: false,
+              artistId: '550e8400-e29b-41d4-a716-446655440002',
+              artistDisplayName: 'John Smith',
+              artistUsername: 'john_smith',
+              genreId: 'genre_002',
+              genreName: 'Hip-Hop',
+              createdAt: '2024-08-01T08:00:00.000Z',
             },
           ],
           pagination: {
