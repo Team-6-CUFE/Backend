@@ -57,6 +57,21 @@ export class TrackRepository {
       .getOne();
   }
 
+  async findPopularTracksByGenreOrTags(
+    genreId: string | null,
+    tags: Genre[],
+    page: number,
+    limit: number
+  ): Promise<Track[]> {
+    const skip = (page - 1) * limit;
+    return this.trackRepository.find({
+      where: [{ genreId: genreId ?? undefined }, { tags: In(tags) }],
+      order: { playCount: 'DESC' },
+      skip,
+      take: limit,
+    });
+  }
+
   async repostTrack(trackId: string, userId: string, caption?: string): Promise<TrackRepost> {
     const trackRepost = this.trackRepostRepository.create({
       trackId,

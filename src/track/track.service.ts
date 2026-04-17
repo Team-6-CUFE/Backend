@@ -830,6 +830,28 @@ export class TrackService {
     };
   }
 
+  async getRelatedTracksByTrackId(trackId: string): Promise<Track[]> {
+    const cached = await this.redis.get(`related_tracks:${trackId}`);
+    if (cached) {
+      const data = JSON.parse(cached) as Track[];
+      return data;
+    }
+
+    const topFans = await this.trackRepository.getTrackTopFansIds(trackId);
+    if (topFans.length === 0) {
+      return [];
+    }
+
+    const relatedTracks = await this.trackRepository.findRelatedTracks(trackId, topFans);
+
+    if (relatedTracks.length > 0) {
+      await this.redis.set(`related_tracks:${trackId}`, JSON.stringify(relatedTracks), {
+        EX: RELATED_TRACKS_TTL_SECS,
+      });
+    }
+    return relatedTracks;
+  }
+
   async getRelatedTracks(
     title: string,
     artistUsername: string,
@@ -848,33 +870,10 @@ export class TrackService {
     }
 
     const { trackId } = track;
-    const cached = await this.redis.get(`related_tracks:${trackId}`);
-    if (cached) {
-      const data = JSON.parse(cached) as UserTrackResponseDto[];
-      const startIndex = (page - 1) * limit;
-      const paginatedData = data.slice(startIndex, startIndex + limit);
-      return {
-        status: 'success',
-        ...buildPaginationResponse(paginatedData, data.length, page, limit),
-      };
-    }
-
-    const topFans = await this.trackRepository.getTrackTopFansIds(trackId);
-    if (topFans.length === 0) {
-      return { status: 'success', data: [] };
-    }
-
-    const relatedTracks = await this.trackRepository.findRelatedTracks(trackId, topFans);
-
-    const data = plainToInstance(UserTrackResponseDto, relatedTracks, {
+    const relatedTracks = await this.getRelatedTracksByTrackId(trackId);
+    const data = plainToInstance(Track, relatedTracks, {
       excludeExtraneousValues: true,
     });
-
-    if (data.length > 0) {
-      await this.redis.set(`related_tracks:${trackId}`, JSON.stringify(data), {
-        EX: RELATED_TRACKS_TTL_SECS,
-      });
-    }
     const startIndex = (page - 1) * limit;
     const paginatedData = data.slice(startIndex, startIndex + limit);
     return {

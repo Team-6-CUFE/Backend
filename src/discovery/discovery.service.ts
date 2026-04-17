@@ -5,6 +5,13 @@ import { ActivityService } from '../activity/activity.service';
 import { ActivityType } from '../activity/entities/activity.entity';
 import { TrackRepository } from '../track/track.repository';
 import { PlaylistRepository } from '../playlist/playlist.repository';
+import { TrackService } from '../track/track.service';
+import { Track } from '../track/entities/track.entity';
+
+interface TrackCandidate {
+  track: Track;
+  score: number;
+}
 
 @Injectable()
 export class DiscoveryService {
@@ -13,6 +20,7 @@ export class DiscoveryService {
     private readonly followersRepository: FollowersRepository,
     private readonly activityService: ActivityService,
     private readonly trackRepository: TrackRepository,
+    private readonly trackService: TrackService,
     private readonly playlistRepository: PlaylistRepository
   ) {}
 
@@ -60,5 +68,83 @@ export class DiscoveryService {
       ...a,
       target: trackMap.get(a.targetId) ?? playlistMap.get(a.targetId) ?? null,
     }));
+  }
+
+  async getTrackStation(artistUsername: string, trackName: string) {
+    const track = await this.trackRepository.findTrackByTitleAndArtist(trackName, artistUsername);
+    if (!track) {
+      throw new Error('Track not found');
+    }
+    const station = await this.playlistRepository.getTrackStation(track.trackId);
+    if (station) {
+      return { status: 'success', data: station };
+    }
+
+    const relatedTracks = await this.trackService.getRelatedTracksByTrackId(track.trackId);
+    const candidateMap = new Map<string, { track: Track; score: number }>();
+    relatedTracks.forEach((c) => {
+      this.updateScore(candidateMap, c, 8); // Base 8 points for being a shared listener track
+    });
+
+    const metadataCandidates = await this.trackRepository.findPopularTracksByGenreOrTags(
+      track.genreId,
+      track.tags,
+      1,
+      40
+    );
+    metadataCandidates.forEach((c) => {
+      // Add 5 points if genre matches
+      const matchesGenre = c.genreId === track.genreId;
+      let score = matchesGenre ? 5 : 0;
+      // Add 3 points for each matching tag
+      const matches = c.tags.filter((t) => track.tags.includes(t)).length;
+      score += matches * 3;
+
+      this.updateScore(candidateMap, c, score);
+    });
+
+    // if Same Artist add 10 points
+    candidateMap.forEach((val, key) => {
+      if (val.track.userId === track.userId) {
+        candidateMap.get(key)!.score += 10;
+      }
+    });
+
+    const results = Array.from(candidateMap.values())
+      .filter((item) => item.track.trackId !== track.trackId) // Don't recommend itself
+      .sort((a, b) => b.score - a.score)
+      .slice(0, 50)
+      .map((item) => item.track);
+
+    // create station
+    const newStation = await this.playlistRepository.createTrackStation(
+      track.trackId,
+      track.title,
+      track.userId
+    );
+    // add tracks to station
+    const addTrackPromises = results.map((relatedTrack, index) =>
+      this.playlistRepository.addTrackToPlaylist(
+        newStation.playlistId,
+        relatedTrack.trackId,
+        index + 1
+      )
+    );
+
+    await Promise.all(addTrackPromises);
+    const stationWithTracks = await this.playlistRepository.findPlaylistById(newStation.playlistId);
+    return { status: 'success', data: stationWithTracks };
+  }
+
+  private updateScore(map: Map<string, TrackCandidate>, track: Track, points: number) {
+    const existing = map.get(track.trackId);
+    if (existing) {
+      map.set(track.trackId, {
+        ...existing,
+        score: existing.score + points,
+      });
+    } else {
+      map.set(track.trackId, { track, score: points });
+    }
   }
 }
