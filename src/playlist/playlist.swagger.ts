@@ -904,7 +904,8 @@ export function ApiGetPublicPlaylist() {
     ApiOperation({
       summary: 'Get playlist details',
       description:
-        'Retrieves a public playlist by ID, including its owner, tracks (ordered), and tags.',
+        'Retrieves a public playlist by ID, including its owner, tracks (ordered), and tags. ' +
+        "For tracks blocked in the requester's region, `audioUrl` and `waveformUrl` are returned as `null`.",
     }),
     ApiParam({
       name: 'playlistId',
@@ -914,7 +915,8 @@ export function ApiGetPublicPlaylist() {
     }),
     ApiResponse({
       status: 200,
-      description: 'Playlist retrieved successfully',
+      description:
+        "Playlist retrieved successfully. `audioUrl` and `waveformUrl` per track are `null` when blocked in the requester's region.",
       schema: {
         example: {
           status: 'success',
@@ -936,21 +938,49 @@ export function ApiGetPublicPlaylist() {
               { tagId: 'tag-2', name: 'Relax' },
             ],
             user: {
-              user_id: 'user-uuid',
+              userId: 'user-uuid',
+              username: 'harmonica_user',
               displayName: 'HarmonicaUser',
               avatarUrl: 'https://cdn.harmonica.com/avatars/me.jpg',
             },
             tracks: [
               {
                 position: 1,
-                trackId: 'track-uuid',
+                trackId: 'track-uuid-1',
                 title: 'Midnight Rain',
-                duration_seconds: 210,
+                durationSeconds: 210,
                 coverImage: 'https://cdn.harmonica.com/covers/track.jpg',
+                audioUrl: 'https://cdn.harmonica.com/audio/track.mp3',
+                waveformUrl: 'https://cdn.harmonica.com/waveforms/track.json',
                 playCount: 1000,
                 likesCount: 50,
                 repostsCount: 10,
                 commentsCount: 5,
+                artist: {
+                  userId: 'user-uuid',
+                  username: 'dj_nour',
+                  displayName: 'DJ Nour',
+                  avatarUrl: 'https://cdn.harmonica.com/avatars/dj_nour.jpg',
+                },
+              },
+              {
+                position: 2,
+                trackId: 'track-uuid-2',
+                title: 'Region Locked Track',
+                durationSeconds: 195,
+                coverImage: 'https://cdn.harmonica.com/covers/locked.jpg',
+                audioUrl: null,
+                waveformUrl: null,
+                playCount: 500,
+                likesCount: 20,
+                repostsCount: 3,
+                commentsCount: 1,
+                artist: {
+                  userId: 'user-uuid-2',
+                  username: 'artist2',
+                  displayName: 'Artist Two',
+                  avatarUrl: null,
+                },
               },
             ],
           },

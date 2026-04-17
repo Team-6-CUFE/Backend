@@ -319,7 +319,14 @@ export class PlaylistRepository {
       where: {
         playlistId,
       },
-      relations: ['user', 'playlistTracks', 'playlistTracks.track', 'tags', 'genre'],
+      relations: [
+        'user',
+        'playlistTracks',
+        'playlistTracks.track',
+        'playlistTracks.track.user',
+        'tags',
+        'genre',
+      ],
       order: {
         playlistTracks: { position: 'ASC' },
       },
