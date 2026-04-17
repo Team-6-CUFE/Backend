@@ -33,6 +33,7 @@ export class ProfileService {
     private readonly trackRepository: TrackRepository
   ) {}
 
+  // WARNING: will be deprecated, moved to updateprofile
   async updateMyPrivacy(userId: string, updatePrivacyReqDto: UpdatePrivacyReqDto) {
     const userData: Partial<User> = { ...updatePrivacyReqDto };
     const updated = await this.userRepository.update(userId, userData);
@@ -44,6 +45,7 @@ export class ProfileService {
     };
   }
 
+  // WARNING: will be deprecated, moved to updateprofile
   async updateMyGender(userId: string, updateGenderReqDto: UpdateGenderReqDto) {
     const userData: Partial<User> = { ...updateGenderReqDto };
     const updated = await this.userRepository.update(userId, userData);
@@ -55,6 +57,7 @@ export class ProfileService {
     };
   }
 
+  // WARNING: will be deprecated, moved to updateprofile
   async updateMyBirthdate(
     userId: string,
     updateBirthdateReqDto: UpdateBirthdateReqDto
@@ -81,14 +84,30 @@ export class ProfileService {
     };
   }
 
-  async updateProfile(userId: string, updateProfileReqDto: UpdateProfileReqDto) {
+  async updateProfile(
+    userId: string,
+    updateProfileReqDto: UpdateProfileReqDto,
+    files?: { avatarFile?: Express.Multer.File; coverFile?: Express.Multer.File }
+  ) {
     const exists = await this.userRepository.findById(userId);
     if (!exists) throw new NotFoundException('User not found');
-    const { favoriteGenres, ...rest } = updateProfileReqDto;
+    const { favoriteGenres, birthdate, isPublic, ...rest } = updateProfileReqDto;
     const userData: Partial<User> = { ...rest };
+    if (isPublic !== undefined) {
+      userData.isPublic = isPublic === true;
+    }
+    if (birthdate !== undefined) {
+      userData.birthdate = new Date(birthdate);
+    }
     if (favoriteGenres !== undefined) {
       const genres = await this.genreRepository.findByNames(favoriteGenres);
       await this.userRepository.updateFavoriteGenres(userId, genres);
+    }
+    if (files?.avatarFile) {
+      await this.updateAvatar(userId, files.avatarFile);
+    }
+    if (files?.coverFile) {
+      await this.updateCover(userId, files.coverFile);
     }
     const updated = await this.userRepository.update(userId, userData);
     const raw = {
@@ -261,6 +280,7 @@ export class ProfileService {
     return { status: 'Success', message: 'External profile deleted successfully' };
   }
 
+  // reused in updateprofile instead of fully replacing it
   async updateAvatar(userId: string, file: Express.Multer.File) {
     const user = await this.userRepository.findById(userId);
     if (!user) throw new NotFoundException('User not found');
@@ -296,6 +316,7 @@ export class ProfileService {
     };
   }
 
+  // reused in updateprofile instead of fully replacing it
   async updateCover(userId: string, file: Express.Multer.File) {
     const user = await this.userRepository.findById(userId);
     if (!user) throw new NotFoundException('User not found');
