@@ -490,21 +490,29 @@ export class TrackRepository {
   }
 
   async findByIds(ids: string[]): Promise<Track[]> {
-    return this.trackRepository
-      .createQueryBuilder('track')
-      .where('track.trackId IN (:...ids)', { ids })
-      .select([
-        'track.trackId',
-        'track.title',
-        'track.coverImage',
-        'track.audioUrl',
-        'track.durationSeconds',
-        'track.userId',
-        'track.createdAt',
-        'track.likesCount',
-        'track.repostsCount',
-        'track.commentsCount',
-      ])
-      .getMany();
+    return (
+      this.trackRepository
+        .createQueryBuilder('track')
+        .where('track.trackId IN (:...ids)', { ids })
+        // 1. Join the genre relation
+        .leftJoin('track.genre', 'genre')
+        .select([
+          'track.trackId',
+          'track.title',
+          'track.coverImage',
+          'track.audioUrl',
+          'track.durationSeconds',
+          'track.userId',
+          'track.createdAt',
+          'track.likesCount',
+          'track.repostsCount',
+          'track.commentsCount',
+          'track.blockedRegions',
+          // 2. Select the genre name
+          'genre.name',
+          'genre.genreId',
+        ])
+        .getMany()
+    );
   }
 }
