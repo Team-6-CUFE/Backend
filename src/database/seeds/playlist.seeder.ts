@@ -6,7 +6,8 @@ import { Playlist, PlaylistType } from '../../playlist/entities/playlist.entity'
 import { PlaylistLike } from '../../playlist/entities/playlist-likes.entity';
 import { PlaylistRepost } from '../../playlist/entities/playlist-reposts.entity';
 import { PlaylistTrack } from '../../playlist/entities/playlist-tracks.entity';
-import { Genre } from '../../genre/entities/genre.entity'; // 1. Import Genre Entity
+import { Genre } from '../../genre/entities/genre.entity';
+import { Activity, ActivityType } from '../../discovery/entities/activity.entity';
 import { generateVerificationToken } from '../../common/utilities/tokens.util';
 
 export class PlaylistSeeder implements Seeder {
@@ -17,7 +18,8 @@ export class PlaylistSeeder implements Seeder {
     const playlistLikeRepository = dataSource.getRepository(PlaylistLike);
     const playlistRepostRepository = dataSource.getRepository(PlaylistRepost);
     const playlistTrackRepository = dataSource.getRepository(PlaylistTrack);
-    const genreRepository = dataSource.getRepository(Genre); // 2. Get Genre Repo
+    const genreRepository = dataSource.getRepository(Genre);
+    const activityRepository = dataSource.getRepository(Activity);
 
     const existingPlaylists = await playlistRepository.count();
     if (existingPlaylists > 0) {
@@ -27,14 +29,14 @@ export class PlaylistSeeder implements Seeder {
 
     const users = await userRepository.find();
     const tracks = await trackRepository.find();
-    const genres = await genreRepository.find(); // 3. Fetch Genres
+    const genres = await genreRepository.find();
 
     if (users.length === 0 || tracks.length === 0 || genres.length === 0) {
       console.log('Missing Users, Tracks, or Genres. Please seed them first.');
       return;
     }
 
-    // --- SEED TAGS --- (Logic remains the same)
+    // --- SEED TAGS ---
     const tagNames = [
       'chill',
       'lo-fi',
@@ -60,7 +62,6 @@ export class PlaylistSeeder implements Seeder {
     const createPermalink = (title: string) =>
       `${title.toLowerCase().replace(/\s+/g, '-')}-${Math.random().toString(36).substring(2, 7)}`;
 
-    // 4. Update Base Creator to include a genre
     const createPlaylistBase = (overrides: Partial<Playlist>) =>
       playlistRepository.create({
         tracksCount: 0,
@@ -71,11 +72,11 @@ export class PlaylistSeeder implements Seeder {
         releaseDate: new Date(),
         buyLink: 'https://bandcamp.com',
         recordLabel: 'Harmonica Records',
-        genreId: genres[0].genreId, // Set a default genre
+        genreId: genres[0].genreId,
         ...overrides,
       });
 
-    const allCreatedPlaylists: Playlist[] = [];
+    const allCreatedPlaylists: { playlist: Playlist; owner: User }[] = [];
     const artist1 = users.find((u) => u.username === 'artist1');
     const artist2 = users.find((u) => u.username === 'artist2');
 
@@ -93,7 +94,7 @@ export class PlaylistSeeder implements Seeder {
           tags: [tags.find((t) => t.name === 'lo-fi')!, tags.find((t) => t.name === 'chill')!],
         })
       );
-      allCreatedPlaylists.push(p1);
+      allCreatedPlaylists.push({ playlist: p1, owner: artist1 });
 
       const p2 = await playlistRepository.save(
         createPlaylistBase({
@@ -107,7 +108,7 @@ export class PlaylistSeeder implements Seeder {
           tags: [tags.find((t) => t.name === 'vibes')!],
         })
       );
-      allCreatedPlaylists.push(p2);
+      allCreatedPlaylists.push({ playlist: p2, owner: artist1 });
     }
 
     // ─── RANDOM PLAYLISTS ──────────────────────────────────────────
@@ -118,7 +119,7 @@ export class PlaylistSeeder implements Seeder {
       const randomPlaylist = await playlistFactory.make();
       const randomOwner = users[Math.floor(Math.random() * users.length)];
       const randomType = types[Math.floor(Math.random() * types.length)];
-      const randomGenre = genres[Math.floor(Math.random() * genres.length)]; // 5. Pick random genre
+      const randomGenre = genres[Math.floor(Math.random() * genres.length)];
 
       const savedPlaylist = await playlistRepository.save(
         createPlaylistBase({
@@ -126,17 +127,32 @@ export class PlaylistSeeder implements Seeder {
           title: randomPlaylist.title,
           permalink: createPermalink(randomPlaylist.title),
           type: randomType,
-          genreId: randomGenre.genreId, // 6. Assign it
+          genreId: randomGenre.genreId,
           secretToken: !randomPlaylist.isPublic ? generateVerificationToken() : null,
           userId: randomOwner.userId,
           tags: [...tags].sort(() => 0.5 - Math.random()).slice(0, 2),
         })
       );
-      allCreatedPlaylists.push(savedPlaylist);
+      allCreatedPlaylists.push({ playlist: savedPlaylist, owner: randomOwner });
     }
 
-    // ─── POPULATE TRACKS, LIKES, REPOSTS (Logic remains the same) ---
-    for (const playlist of allCreatedPlaylists) {
+    // ─── SEED playlist_posted ACTIVITIES ──────────────────────────
+    let totalActivitiesCreated = 0;
+
+    for (const { playlist, owner } of allCreatedPlaylists) {
+      await activityRepository.save(
+        activityRepository.create({
+          activityType: ActivityType.PLAYLIST_POSTED,
+          targetId: playlist.playlistId,
+          userId: owner.userId,
+          targetUserId: null,
+        })
+      );
+      totalActivitiesCreated++;
+    }
+
+    // ─── POPULATE TRACKS, LIKES, REPOSTS ──────────────────────────
+    for (const { playlist, owner } of allCreatedPlaylists) {
       const numTracks = Math.floor(Math.random() * 5) + 3;
       const selectedTracks = [...tracks].sort(() => 0.5 - Math.random()).slice(0, numTracks);
 
@@ -148,6 +164,7 @@ export class PlaylistSeeder implements Seeder {
         });
       }
 
+      // --- Seed Likes + playlist_like activities ---
       const numLikes = Math.floor(Math.random() * 5);
       const likers = [...users].sort(() => 0.5 - Math.random()).slice(0, numLikes);
       for (const liker of likers) {
@@ -155,11 +172,42 @@ export class PlaylistSeeder implements Seeder {
           playlistId: playlist.playlistId,
           userId: liker.userId,
         });
+
+        await activityRepository.save(
+          activityRepository.create({
+            activityType: ActivityType.PLAYLIST_LIKE,
+            targetId: playlist.playlistId,
+            userId: liker.userId,
+            targetUserId: owner.userId,
+          })
+        );
+        totalActivitiesCreated++;
+      }
+
+      // --- Seed Reposts + playlist_repost activities ---
+      const numReposts = Math.floor(Math.random() * 3);
+      const reposters = [...users].sort(() => 0.5 - Math.random()).slice(0, numReposts);
+      for (const reposter of reposters) {
+        await playlistRepostRepository.save({
+          playlistId: playlist.playlistId,
+          userId: reposter.userId,
+        });
+
+        await activityRepository.save(
+          activityRepository.create({
+            activityType: ActivityType.PLAYLIST_REPOST,
+            targetId: playlist.playlistId,
+            userId: reposter.userId,
+            targetUserId: owner.userId,
+          })
+        );
+        totalActivitiesCreated++;
       }
     }
 
     console.log(
       `Seeding complete: ${allCreatedPlaylists.length} Playlists with Genre and metadata.`
     );
+    console.log(`   - Created ${totalActivitiesCreated} total activities`);
   }
 }
