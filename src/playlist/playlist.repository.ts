@@ -8,7 +8,6 @@ import { CreatePlaylistDto } from './dto/create-playlist.dto';
 import { generateVerificationToken } from '../common/utilities/tokens.util';
 import { PlaylistTrack } from './entities/playlist-tracks.entity';
 import { Track } from '../track/entities/track.entity';
-import { Tag } from '../track/entities/tag.entity';
 import { Genre } from '../genre/entities/genre.entity';
 
 @Injectable()
@@ -24,8 +23,6 @@ export class PlaylistRepository {
     private readonly playlistTrackRepository: Repository<PlaylistTrack>, // Use Repository here
     @InjectRepository(Track)
     private readonly trackRepository: Repository<Track>,
-    @InjectRepository(Tag)
-    private readonly tagRepository: Repository<Tag>,
     @InjectRepository(Genre)
     private readonly genreRepository: Repository<Genre>
   ) {}
@@ -332,19 +329,7 @@ export class PlaylistRepository {
     });
   }
 
-  async findOrCreateTags(names: string[]): Promise<Tag[]> {
-    const trimmed = names.map((n) => n.trim()).filter(Boolean);
-    const existing = await this.tagRepository.findBy({ name: In(trimmed) });
-    const existingNames = new Set(existing.map((t) => t.name));
-    const created = await Promise.all(
-      trimmed
-        .filter((n) => !existingNames.has(n))
-        .map((name) => this.tagRepository.save(this.tagRepository.create({ name })))
-    );
-    return [...existing, ...created];
-  }
-
-  async updatePlaylistTags(playlistId: string, tags: Tag[]): Promise<void> {
+  async updatePlaylistTags(playlistId: string, tags: Genre[]): Promise<void> {
     const playlist = await this.playlistRepository.findOne({
       where: { playlistId },
       relations: ['tags'],

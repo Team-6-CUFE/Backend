@@ -1,6 +1,6 @@
 import { Entity, ManyToOne, JoinColumn, PrimaryColumn } from 'typeorm';
 import { Playlist } from './playlist.entity';
-import { Tag } from '../../track/entities/tag.entity';
+import { Genre } from '../../genre/entities/genre.entity';
 
 @Entity('playlist_tags')
 export class PlaylistTag {
@@ -14,7 +14,7 @@ export class PlaylistTag {
   @JoinColumn({ name: 'playlist_id' })
   playlist!: Playlist;
 
-  @ManyToOne(() => Tag, { onDelete: 'CASCADE' })
+  @ManyToOne(() => Genre, { onDelete: 'CASCADE' })
   @JoinColumn({ name: 'tag_id' })
-  tag!: Tag;
+  tag!: Genre;
 }

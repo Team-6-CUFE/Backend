@@ -7,7 +7,6 @@ import { TrackController } from './track.controller';
 import { TrackRepository } from './track.repository';
 import { TrackRepost } from './entities/track-reposts.entity';
 import { Track } from './entities/track.entity';
-import { Tag } from './entities/tag.entity';
 import { Genre } from '../genre/entities/genre.entity';
 import { UserModule } from '../user/user.module';
 import { FollowersModule } from '../followers/followers.module';
@@ -35,7 +34,6 @@ import { DiscoveryModule } from '../discovery/discovery.module';
       TrackLikes,
       TrackComment,
       Genre,
-      Tag,
       TrackPlay,
       RecentlyPlayed,
       TrackFirstFan,

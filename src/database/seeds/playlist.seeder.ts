@@ -6,7 +6,6 @@ import { Playlist, PlaylistType } from '../../playlist/entities/playlist.entity'
 import { PlaylistLike } from '../../playlist/entities/playlist-likes.entity';
 import { PlaylistRepost } from '../../playlist/entities/playlist-reposts.entity';
 import { PlaylistTrack } from '../../playlist/entities/playlist-tracks.entity';
-import { Tag } from '../../track/entities/tag.entity';
 import { Genre } from '../../genre/entities/genre.entity';
 import { Activity, ActivityType } from '../../discovery/entities/activity.entity';
 import { generateVerificationToken } from '../../common/utilities/tokens.util';
@@ -19,7 +18,6 @@ export class PlaylistSeeder implements Seeder {
     const playlistLikeRepository = dataSource.getRepository(PlaylistLike);
     const playlistRepostRepository = dataSource.getRepository(PlaylistRepost);
     const playlistTrackRepository = dataSource.getRepository(PlaylistTrack);
-    const tagRepository = dataSource.getRepository(Tag);
     const genreRepository = dataSource.getRepository(Genre);
     const activityRepository = dataSource.getRepository(Activity);
 
@@ -52,11 +50,11 @@ export class PlaylistSeeder implements Seeder {
       'study',
       'vibes',
     ];
-    const tags: Tag[] = [];
+    const tags: Genre[] = [];
     for (const name of tagNames) {
-      let tag = await tagRepository.findOne({ where: { name } });
+      let tag = await genreRepository.findOne({ where: { name } });
       if (!tag) {
-        tag = await tagRepository.save(tagRepository.create({ name }));
+        tag = await genreRepository.save(genreRepository.create({ name }));
       }
       tags.push(tag);
     }

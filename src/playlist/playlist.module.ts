@@ -11,22 +11,13 @@ import { FollowersModule } from '../followers/followers.module';
 import { StorageService } from '../common/storage_service';
 import { PlaylistTrack } from './entities/playlist-tracks.entity';
 import { Track } from '../track/entities/track.entity';
-import { Tag } from '../track/entities/tag.entity';
 import { GenreModule } from '../genre/genre.module';
 import { Genre } from '../genre/entities/genre.entity';
 import { DiscoveryModule } from '../discovery/discovery.module';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([
-      Playlist,
-      PlaylistRepost,
-      PlaylistLike,
-      PlaylistTrack,
-      Track,
-      Tag,
-      Genre,
-    ]),
+    TypeOrmModule.forFeature([Playlist, PlaylistRepost, PlaylistLike, PlaylistTrack, Track, Genre]),
     UserModule,
     FollowersModule,
     GenreModule,

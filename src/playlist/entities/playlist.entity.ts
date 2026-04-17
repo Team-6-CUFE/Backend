@@ -15,7 +15,6 @@ import { User } from '../../user/entities/user.entity';
 import { PlaylistLike } from './playlist-likes.entity';
 import { PlaylistRepost } from './playlist-reposts.entity';
 import { PlaylistTrack } from './playlist-tracks.entity';
-import { Tag } from '../../track/entities/tag.entity';
 import { Genre } from '../../genre/entities/genre.entity'; // Import Genre Entity
 import { Track } from '../../track/entities/track.entity';
 
@@ -110,11 +109,11 @@ export class Playlist extends BaseEntity {
   @OneToMany('PlaylistTrack', (playlistTrack: PlaylistTrack) => playlistTrack.playlist)
   playlistTracks!: PlaylistTrack[];
 
-  @ManyToMany(() => Tag, (tag) => tag.playlists)
+  @ManyToMany(() => Genre, (genre) => genre.playlistTags)
   @JoinTable({
     name: 'playlist_tags',
     joinColumn: { name: 'playlist_id', referencedColumnName: 'playlistId' },
-    inverseJoinColumn: { name: 'tag_id', referencedColumnName: 'tagId' },
+    inverseJoinColumn: { name: 'tag_id', referencedColumnName: 'genreId' },
   })
-  tags!: Tag[];
+  tags!: Genre[];
 }
