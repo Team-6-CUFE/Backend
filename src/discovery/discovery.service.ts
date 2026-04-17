@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 // import { DiscoveryRepository } from './discovery.repository';
 import { FollowersRepository } from '../followers/followers.repository';
 import { ActivityService } from '../activity/activity.service';
@@ -8,6 +8,7 @@ import { PlaylistRepository } from '../playlist/playlist.repository';
 import { TrackService } from '../track/track.service';
 import { Track } from '../track/entities/track.entity';
 import { Playlist } from '../playlist/entities/playlist.entity';
+import { TrackVisibility } from '../track/enums/track-visibility.enum';
 
 interface TrackCandidate {
   track: Track;
@@ -106,8 +107,12 @@ export class DiscoveryService {
   async getTrackStation(artistUsername: string, trackName: string) {
     const track = await this.trackRepository.findTrackByTitleAndArtist(trackName, artistUsername);
     if (!track) {
-      throw new Error('Track not found');
+      throw new NotFoundException('Track not found');
     }
+    if (track.visibility !== TrackVisibility.PUBLIC || track.hidden) {
+      throw new ForbiddenException('Track is not accessible');
+    }
+
     let station = await this.playlistRepository.getTrackStation(track.trackId);
     if (station && station?.createdAt.getTime() < new Date().getTime() - 7 * 24 * 60 * 60 * 1000) {
       // If station is older than 7 days, delete and create a new one
