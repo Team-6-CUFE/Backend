@@ -116,6 +116,8 @@ export class DiscoveryService {
           title: pt.track.title,
           duration_seconds: pt.track.durationSeconds,
           coverImage: pt.track.coverImage,
+          audioUrl: pt.track.audioUrl,
+          waveformUrl: pt.track.waveformUrl,
           playCount: pt.track.playCount,
           likesCount: pt.track.likesCount,
           repostsCount: pt.track.repostsCount,
