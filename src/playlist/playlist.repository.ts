@@ -31,10 +31,6 @@ export class PlaylistRepository {
     return this.playlistRepository.findOne({ where: { playlistId } });
   }
 
-  async getTrackStation(trackId: string): Promise<Playlist | null> {
-    return this.playlistRepository.findOne({ where: { trackId, type: PlaylistType.STATION } });
-  }
-
   async findRepostByUserAndPlaylist(
     userId: string,
     playlistId: string
@@ -165,7 +161,12 @@ export class PlaylistRepository {
     return this.playlistRepository.save(playlist);
   }
 
-  async createTrackStation(trackId: string, trackTitle: string, userId: string): Promise<Playlist> {
+  async createTrackStation(
+    trackId: string,
+    trackTitle: string,
+    trackImage: string,
+    userId: string
+  ): Promise<Playlist> {
     const station = this.playlistRepository.create({
       title: trackTitle,
       description: `Based on ${trackTitle}`,
@@ -173,6 +174,7 @@ export class PlaylistRepository {
       isPublic: true,
       type: PlaylistType.STATION,
       trackId,
+      coverImage: trackImage,
     });
     return this.playlistRepository.save(station);
   }
@@ -317,6 +319,16 @@ export class PlaylistRepository {
       where: {
         playlistId,
       },
+      relations: ['user', 'playlistTracks', 'playlistTracks.track', 'tags', 'genre'],
+      order: {
+        playlistTracks: { position: 'ASC' },
+      },
+    });
+  }
+
+  async getTrackStation(trackId: string): Promise<Playlist | null> {
+    return this.playlistRepository.findOne({
+      where: { trackId, type: PlaylistType.STATION },
       relations: ['user', 'playlistTracks', 'playlistTracks.track', 'tags', 'genre'],
       order: {
         playlistTracks: { position: 'ASC' },

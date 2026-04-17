@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { In, Repository } from 'typeorm';
+import { Brackets, In, Repository } from 'typeorm';
 import { Track } from './entities/track.entity';
 import { TrackRepost } from './entities/track-reposts.entity';
 import { TrackLikes } from './entities/track-likes.entity';
@@ -63,13 +63,37 @@ export class TrackRepository {
     page: number,
     limit: number
   ): Promise<Track[]> {
+    if (!genreId && (!tags || tags.length === 0)) {
+      return [];
+    }
+
     const skip = (page - 1) * limit;
-    return this.trackRepository.find({
-      where: [{ genreId: genreId ?? undefined }, { tags: In(tags) }],
-      order: { playCount: 'DESC' },
-      skip,
-      take: limit,
-    });
+    const query = this.trackRepository
+      .createQueryBuilder('track')
+      .leftJoinAndSelect('track.tags', 'tag')
+      .leftJoinAndSelect('track.genre', 'genre');
+
+    query.andWhere(
+      new Brackets((qb) => {
+        let hasCondition = false;
+
+        if (genreId) {
+          qb.where('track.genreId = :genreId', { genreId });
+          hasCondition = true;
+        }
+
+        if (tags && tags.length > 0) {
+          const tagIds = tags.map((t) => t.genreId);
+          if (hasCondition) {
+            qb.orWhere('tag.genreId IN (:...tagIds)', { tagIds });
+          } else {
+            qb.where('tag.genreId IN (:...tagIds)', { tagIds });
+          }
+        }
+      })
+    );
+
+    return query.orderBy('track.playCount', 'DESC').skip(skip).take(limit).getMany();
   }
 
   async repostTrack(trackId: string, userId: string, caption?: string): Promise<TrackRepost> {

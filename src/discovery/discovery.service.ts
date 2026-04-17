@@ -7,6 +7,7 @@ import { TrackRepository } from '../track/track.repository';
 import { PlaylistRepository } from '../playlist/playlist.repository';
 import { TrackService } from '../track/track.service';
 import { Track } from '../track/entities/track.entity';
+import { Playlist } from '../playlist/entities/playlist.entity';
 
 interface TrackCandidate {
   track: Track;
@@ -70,14 +71,52 @@ export class DiscoveryService {
     }));
   }
 
+  private stationResponse(station: Playlist) {
+    return {
+      status: 'success',
+      data: {
+        playlistId: station.playlistId,
+        title: station.title,
+        description: station.description,
+        coverImage: station.coverImage,
+        tracksCount: station.tracksCount,
+        durationSeconds: station.totalDurationSeconds,
+        likesCount: station.likesCount,
+        createdAt: station.createdAt,
+        user: {
+          user_id: station.user.userId,
+          displayName: station.user.displayName,
+          avatarUrl: station.user.avatarUrl,
+        },
+        tracks: station.playlistTracks.map((pt) => ({
+          position: pt.position,
+          trackId: pt.track.trackId,
+          title: pt.track.title,
+          duration_seconds: pt.track.durationSeconds,
+          coverImage: pt.track.coverImage,
+          playCount: pt.track.playCount,
+          likesCount: pt.track.likesCount,
+          repostsCount: pt.track.repostsCount,
+          commentsCount: pt.track.commentsCount,
+        })),
+      },
+    };
+  }
+
   async getTrackStation(artistUsername: string, trackName: string) {
     const track = await this.trackRepository.findTrackByTitleAndArtist(trackName, artistUsername);
     if (!track) {
       throw new Error('Track not found');
     }
-    const station = await this.playlistRepository.getTrackStation(track.trackId);
+    let station = await this.playlistRepository.getTrackStation(track.trackId);
+    if (station && station?.createdAt.getTime() < new Date().getTime() - 7 * 24 * 60 * 60 * 1000) {
+      // If station is older than 7 days, delete and create a new one
+      await this.playlistRepository.deletePlaylist(station.playlistId);
+      station = null;
+    }
+
     if (station) {
-      return { status: 'success', data: station };
+      return this.stationResponse(station);
     }
 
     const relatedTracks = await this.trackService.getRelatedTracksByTrackId(track.trackId);
@@ -97,7 +136,9 @@ export class DiscoveryService {
       const matchesGenre = c.genreId === track.genreId;
       let score = matchesGenre ? 5 : 0;
       // Add 3 points for each matching tag
-      const matches = c.tags.filter((t) => track.tags.includes(t)).length;
+      const matches = c.tags.filter((t) =>
+        track.tags.some((trackTag) => trackTag.genreId === t.genreId)
+      ).length;
       score += matches * 3;
 
       this.updateScore(candidateMap, c, score);
@@ -116,10 +157,12 @@ export class DiscoveryService {
       .slice(0, 50)
       .map((item) => item.track);
 
+    results.unshift(track); // Add the original track at the beginning
     // create station
     const newStation = await this.playlistRepository.createTrackStation(
       track.trackId,
       track.title,
+      track.coverImage,
       track.userId
     );
     // add tracks to station
@@ -132,8 +175,10 @@ export class DiscoveryService {
     );
 
     await Promise.all(addTrackPromises);
-    const stationWithTracks = await this.playlistRepository.findPlaylistById(newStation.playlistId);
-    return { status: 'success', data: stationWithTracks };
+    const stationWithTracks = await this.playlistRepository.getPublicPlaylist(
+      newStation.playlistId
+    );
+    return this.stationResponse(stationWithTracks!);
   }
 
   private updateScore(map: Map<string, TrackCandidate>, track: Track, points: number) {
