@@ -5,13 +5,12 @@ import {
   ConflictException,
   NotFoundException,
 } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
 import sharp from 'sharp';
 import { PlaylistRepository } from './playlist.repository';
 import { buildPaginationResponse } from '../common/utilities/pagination.util';
 import { UserRepository } from '../user/user.repository';
 import { CreatePlaylistDto } from './dto/create-playlist.dto';
-import { Playlist } from './entities/playlist.entity';
+import { Playlist, PlaylistType } from './entities/playlist.entity';
 import { UpdatePlaylistDto } from './dto/update-playlist.dto';
 import { StorageService } from '../common/storage_service';
 import { ActivityService } from '../activity/activity.service';
@@ -23,7 +22,6 @@ export class PlaylistService {
   constructor(
     private readonly playlistRepository: PlaylistRepository,
     private readonly userRepository: UserRepository,
-    private configService: ConfigService,
     private readonly storageService: StorageService,
     private readonly activitiesService: ActivityService
   ) {}
@@ -41,6 +39,10 @@ export class PlaylistService {
 
     if (!playlist.isPublic) {
       throw new ForbiddenException('Cannot repost a private playlist');
+    }
+
+    if (playlist.type === PlaylistType.STATION) {
+      throw new BadRequestException('You cannot repost a station playlist');
     }
 
     if (playlist.userId === userId) {
@@ -99,6 +101,10 @@ export class PlaylistService {
       throw new ForbiddenException('This playlist is private');
     }
 
+    if (playlist.type === PlaylistType.STATION) {
+      throw new BadRequestException("Can't view reposts for station playlists");
+    }
+
     return {
       status: 'success',
       data: { playlistId, repostCount: playlist.repostsCount },
@@ -118,6 +124,10 @@ export class PlaylistService {
 
     if (!playlist.isPublic && playlist.userId !== userId) {
       throw new ForbiddenException('This playlist is private');
+    }
+
+    if (playlist.type === PlaylistType.STATION) {
+      throw new BadRequestException("Can't view reposts for station playlists");
     }
 
     const cappedLimit = Math.min(limit, 100);
@@ -252,6 +262,10 @@ export class PlaylistService {
 
     if (!playlist.isPublic && playlist.userId !== userId) {
       throw new ForbiddenException('This playlist is private');
+    }
+
+    if (playlist.type === PlaylistType.STATION) {
+      throw new BadRequestException("Can't view likes for station playlists");
     }
 
     const cappedLimit = Math.min(limit, 100);

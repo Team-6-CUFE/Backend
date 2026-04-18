@@ -112,6 +112,7 @@ const mockPlaylistRepository = () => ({
   addTrackToPlaylist: jest.fn(),
   getPublicPlaylist: jest.fn(),
   deletePlaylist: jest.fn(),
+  updateStationLikes: jest.fn(),
 });
 
 const mockUserService = () => ({

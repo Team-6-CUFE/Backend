@@ -161,6 +161,10 @@ export class PlaylistRepository {
     return this.playlistRepository.save(playlist);
   }
 
+  async updateStationLikes(playlistId: string, likes: number): Promise<void> {
+    await this.playlistRepository.update({ playlistId }, { likesCount: likes });
+  }
+
   async createTrackStation(
     trackId: string,
     trackTitle: string,
