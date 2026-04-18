@@ -157,18 +157,6 @@ export class FollowersRepository {
       });
       if (followerToBlocked) {
         await transactionalEntityManager.remove(UserFollow, followerToBlocked);
-        await transactionalEntityManager.decrement(
-          User,
-          { userId: blockerId },
-          'followingsCount',
-          1
-        );
-        await transactionalEntityManager.decrement(
-          User,
-          { userId: blockedId },
-          'followersCount',
-          1
-        );
       }
 
       const blockedToFollower = await transactionalEntityManager.findOne(UserFollow, {
@@ -176,18 +164,6 @@ export class FollowersRepository {
       });
       if (blockedToFollower) {
         await transactionalEntityManager.remove(UserFollow, blockedToFollower);
-        await transactionalEntityManager.decrement(
-          User,
-          { userId: blockedId },
-          'followingsCount',
-          1
-        );
-        await transactionalEntityManager.decrement(
-          User,
-          { userId: blockerId },
-          'followersCount',
-          1
-        );
       }
 
       const newBlock = transactionalEntityManager.create(UserBlock, {
@@ -423,5 +399,16 @@ export class FollowersRepository {
     ]);
 
     return { users, total };
+  }
+
+  async getFollowingIds(userId: string): Promise<string[]> {
+    const ids = await this.userRepository
+      .createQueryBuilder('user')
+      .innerJoin('user_follows', 'uf', 'uf.followed = user.user_id')
+      .where('uf.follower = :userId', { userId })
+      .select('user.userId')
+      .getMany();
+
+    return ids.map((u) => u.userId);
   }
 }

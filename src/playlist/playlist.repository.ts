@@ -1,14 +1,13 @@
 import { ConflictException, Injectable } from '@nestjs/common';
 import { In, Repository } from 'typeorm';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Playlist } from './entities/playlist.entity';
+import { Playlist, PlaylistType } from './entities/playlist.entity';
 import { PlaylistRepost } from './entities/playlist-reposts.entity';
 import { PlaylistLike } from './entities/playlist-likes.entity';
 import { CreatePlaylistDto } from './dto/create-playlist.dto';
 import { generateVerificationToken } from '../common/utilities/tokens.util';
 import { PlaylistTrack } from './entities/playlist-tracks.entity';
 import { Track } from '../track/entities/track.entity';
-import { Tag } from '../track/entities/tag.entity';
 import { Genre } from '../genre/entities/genre.entity';
 
 @Injectable()
@@ -24,8 +23,6 @@ export class PlaylistRepository {
     private readonly playlistTrackRepository: Repository<PlaylistTrack>, // Use Repository here
     @InjectRepository(Track)
     private readonly trackRepository: Repository<Track>,
-    @InjectRepository(Tag)
-    private readonly tagRepository: Repository<Tag>,
     @InjectRepository(Genre)
     private readonly genreRepository: Repository<Genre>
   ) {}
@@ -162,6 +159,24 @@ export class PlaylistRepository {
     });
 
     return this.playlistRepository.save(playlist);
+  }
+
+  async createTrackStation(
+    trackId: string,
+    trackTitle: string,
+    trackImage: string,
+    userId: string
+  ): Promise<Playlist> {
+    const station = this.playlistRepository.create({
+      title: trackTitle,
+      description: `Based on ${trackTitle}`,
+      userId,
+      isPublic: true,
+      type: PlaylistType.STATION,
+      trackId,
+      coverImage: trackImage,
+    });
+    return this.playlistRepository.save(station);
   }
 
   async updatePlaylist(
@@ -304,7 +319,30 @@ export class PlaylistRepository {
       where: {
         playlistId,
       },
-      relations: ['user', 'playlistTracks', 'playlistTracks.track', 'tags', 'genre'],
+      relations: [
+        'user',
+        'playlistTracks',
+        'playlistTracks.track',
+        'playlistTracks.track.user',
+        'tags',
+        'genre',
+      ],
+      order: {
+        playlistTracks: { position: 'ASC' },
+      },
+    });
+  }
+
+  async getTrackStation(trackId: string): Promise<Playlist | null> {
+    return this.playlistRepository.findOne({
+      where: { trackId, type: PlaylistType.STATION },
+      relations: [
+        'user',
+        'playlistTracks',
+        'playlistTracks.track',
+        'playlistTracks.track.user',
+        'tags',
+      ],
       order: {
         playlistTracks: { position: 'ASC' },
       },
@@ -314,7 +352,14 @@ export class PlaylistRepository {
   async getSecretPlaylist(secretToken: string): Promise<Playlist | null> {
     return this.playlistRepository.findOne({
       where: { secretToken, isPublic: false },
-      relations: ['user', 'playlistTracks', 'playlistTracks.track', 'tags'],
+      relations: [
+        'user',
+        'playlistTracks',
+        'playlistTracks.track',
+        'playlistTracks.track.user',
+        'tags',
+        'genre',
+      ],
       order: { playlistTracks: { position: 'ASC' } },
     });
   }
@@ -332,19 +377,7 @@ export class PlaylistRepository {
     });
   }
 
-  async findOrCreateTags(names: string[]): Promise<Tag[]> {
-    const trimmed = names.map((n) => n.trim()).filter(Boolean);
-    const existing = await this.tagRepository.findBy({ name: In(trimmed) });
-    const existingNames = new Set(existing.map((t) => t.name));
-    const created = await Promise.all(
-      trimmed
-        .filter((n) => !existingNames.has(n))
-        .map((name) => this.tagRepository.save(this.tagRepository.create({ name })))
-    );
-    return [...existing, ...created];
-  }
-
-  async updatePlaylistTags(playlistId: string, tags: Tag[]): Promise<void> {
+  async updatePlaylistTags(playlistId: string, tags: Genre[]): Promise<void> {
     const playlist = await this.playlistRepository.findOne({
       where: { playlistId },
       relations: ['tags'],
@@ -365,5 +398,93 @@ export class PlaylistRepository {
 
   async updatePlaylistGenre(playlistId: string, genre: Genre | null): Promise<void> {
     await this.playlistRepository.update({ playlistId }, { genreId: genre ? genre.genreId : null });
+  }
+
+  async getMyPlaylists(userId: string, page: number, limit: number): Promise<[Playlist[], number]> {
+    const skip = (page - 1) * limit;
+
+    return this.playlistRepository
+      .createQueryBuilder('playlist')
+      .leftJoinAndSelect('playlist.user', 'user')
+      .where('playlist.userId = :userId', { userId })
+      .orWhere((qb) => {
+        const subQuery = qb
+          .subQuery()
+          .select('like.playlistId')
+          .from(PlaylistLike, 'like')
+          .where('like.userId = :userId')
+          .getQuery();
+        return `playlist.playlistId IN ${subQuery}`;
+      })
+      .orderBy('playlist.createdAt', 'DESC')
+      .skip(skip)
+      .take(limit)
+      .getManyAndCount();
+  }
+
+  async getUserPlaylists(
+    userId: string,
+    page: number,
+    limit: number
+  ): Promise<[Playlist[], number]> {
+    const skip = (page - 1) * limit;
+
+    return this.playlistRepository
+      .createQueryBuilder('playlist')
+      .leftJoinAndSelect('playlist.user', 'user')
+      .where('playlist.isPublic = :isPublic', { isPublic: true })
+      .andWhere((qb) => {
+        const subQuery = qb
+          .subQuery()
+          .select('like.playlistId')
+          .from(PlaylistLike, 'like')
+          .where('like.userId = :userId')
+          .getQuery();
+        return `(playlist.userId = :userId OR playlist.playlistId IN ${subQuery})`;
+      })
+      .setParameter('userId', userId)
+      .orderBy('playlist.createdAt', 'DESC')
+      .skip(skip)
+      .take(limit)
+      .getManyAndCount();
+  }
+
+  async findByIds(ids: string[]): Promise<Playlist[]> {
+    return (
+      this.playlistRepository
+        .createQueryBuilder('playlist')
+        .where('playlist.playlistId IN (:...ids)', { ids })
+        // Join the primary genre
+        .leftJoin('playlist.genre', 'genre')
+        .leftJoinAndSelect('playlist.playlistTracks', 'playlistTrack')
+        .leftJoinAndSelect('playlistTrack.track', 'track')
+        .leftJoin('track.user', 'trackUser')
+        .orderBy('playlistTrack.position', 'ASC')
+        .select([
+          'playlist.playlistId',
+          'playlist.title',
+          'playlist.coverImage',
+          'playlist.totalDurationSeconds',
+          'playlist.tracksCount',
+          'playlist.userId',
+          'playlist.type',
+          'genre.genreId',
+          'genre.name',
+          'playlistTrack.position',
+          'playlistTrack.trackId',
+          'track.trackId',
+          'track.title',
+          'track.audioUrl',
+          'track.coverImage',
+          'track.durationSeconds',
+          'track.playCount',
+          'track.userId',
+          'trackUser.userId',
+          'trackUser.username',
+          'trackUser.displayName',
+          'trackUser.avatarUrl',
+        ])
+        .getMany()
+    );
   }
 }

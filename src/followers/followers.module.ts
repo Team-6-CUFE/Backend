@@ -9,9 +9,10 @@ import { FollowersRepository } from './followers.repository';
 import { NoBlockGuard } from './guards/no-block.guard';
 import { UserExistsGuard } from './guards/user-exists.guard';
 import { User } from '../user/entities/user.entity';
+import { ActivityModule } from '../activity/activity.module';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([UserFollow, UserBlock, User]), UserModule],
+  imports: [TypeOrmModule.forFeature([UserFollow, UserBlock, User]), UserModule, ActivityModule],
   controllers: [FollowersController],
   providers: [FollowersService, FollowersRepository, NoBlockGuard, UserExistsGuard],
   exports: [FollowersRepository, NoBlockGuard],

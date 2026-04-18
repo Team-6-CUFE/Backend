@@ -41,7 +41,12 @@ export const mockPublicTrack = (overrides?: object) => ({
   updatedAt: new Date('2024-06-01T10:00:00Z'),
   genres: [],
   tags: [],
-  user: null,
+  user: {
+    userId: MOCK_OTHER_USER_ID,
+    username: 'dj_nour',
+    displayName: 'Nour',
+    avatarUrl: 'https://s3.amazonaws.com/avatars/nour.jpg',
+  },
   ...overrides,
 });
 
@@ -278,6 +283,10 @@ export const mockTrackRepository = () => ({
   deleteOldRecentlyPlayed: jest.fn(),
   getTrackPlaylists: jest.fn(),
   deleteTrack: jest.fn(),
+  findTrackByTitleAndArtist: jest.fn(),
+  getTrackTopFansIds: jest.fn(),
+  findRelatedTracks: jest.fn(),
+  findAllTimeStats: jest.fn(),
 });
 
 export const mockUserRepository = () => ({
@@ -356,4 +365,20 @@ export const mockFanResult = (overrides?: object) => ({
     avatarUrl: 'https://example.com/avatar.jpg',
   },
   ...overrides,
+});
+
+export const mockRedisClient = () => ({
+  get: jest.fn(),
+  set: jest.fn(),
+  del: jest.fn(),
+  incr: jest.fn(),
+  expire: jest.fn(),
+  lPush: jest.fn(),
+  lTrim: jest.fn(),
+  zIncrBy: jest.fn(),
+  zRange: jest.fn(),
+});
+
+export const mockActivitiesService = () => ({
+  createActivity: jest.fn(),
 });

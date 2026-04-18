@@ -606,7 +606,6 @@ export function ApiCreatePlaylist() {
             likesCount: 0,
             repostsCount: 0,
             secretToken: 'abc123xyz',
-            shareUrl: 'https://harmonica.com/playlist/secret/abc123xyz',
             createdAt: '2026-04-09T10:00:00.000Z',
           },
         },
@@ -864,8 +863,7 @@ export function ApiChangePlaylistPrivacy() {
     }),
     ApiResponse({
       status: 200,
-      description:
-        'Privacy updated. When making private, response includes secretToken and shareUrl.',
+      description: 'Privacy updated. When making private, response includes secretToken.',
       schema: {
         examples: {
           'Made Public': {
@@ -874,7 +872,6 @@ export function ApiChangePlaylistPrivacy() {
               data: {
                 playlistId: 'uuid-123',
                 isPublic: true,
-                shareUrl: 'https://harmonica.com/playlist/uuid-123',
               },
             },
           },
@@ -885,7 +882,6 @@ export function ApiChangePlaylistPrivacy() {
                 playlistId: 'uuid-123',
                 isPublic: false,
                 secretToken: 'abc9xyz',
-                shareUrl: 'https://harmonica.com/playlist/secret/abc9xyz',
               },
             },
           },
@@ -904,7 +900,8 @@ export function ApiGetPublicPlaylist() {
     ApiOperation({
       summary: 'Get playlist details',
       description:
-        'Retrieves a public playlist by ID, including its owner, tracks (ordered), and tags.',
+        'Retrieves a public playlist by ID, including its owner, tracks (ordered), and tags. ' +
+        "For tracks blocked in the requester's region, `audioUrl` and `waveformUrl` are returned as `null`.",
     }),
     ApiParam({
       name: 'playlistId',
@@ -914,7 +911,8 @@ export function ApiGetPublicPlaylist() {
     }),
     ApiResponse({
       status: 200,
-      description: 'Playlist retrieved successfully',
+      description:
+        "Playlist retrieved successfully. `audioUrl` and `waveformUrl` per track are `null` when blocked in the requester's region.",
       schema: {
         example: {
           status: 'success',
@@ -930,27 +928,56 @@ export function ApiGetPublicPlaylist() {
             repostsCount: 3,
             createdAt: '2026-03-31T12:00:00Z',
             updatedAt: '2026-04-01T08:00:00Z',
-            genre: 'Lo-fi',
+            genreName: 'Lo-fi',
+            genreId: 'genre-uuid',
             tags: [
               { tagId: 'tag-1', name: 'Lo-fi' },
               { tagId: 'tag-2', name: 'Relax' },
             ],
             user: {
-              user_id: 'user-uuid',
+              userId: 'user-uuid',
+              username: 'harmonica_user',
               displayName: 'HarmonicaUser',
               avatarUrl: 'https://cdn.harmonica.com/avatars/me.jpg',
             },
             tracks: [
               {
                 position: 1,
-                trackId: 'track-uuid',
+                trackId: 'track-uuid-1',
                 title: 'Midnight Rain',
-                duration_seconds: 210,
+                durationSeconds: 210,
                 coverImage: 'https://cdn.harmonica.com/covers/track.jpg',
+                audioUrl: 'https://cdn.harmonica.com/audio/track.mp3',
+                waveformUrl: 'https://cdn.harmonica.com/waveforms/track.json',
                 playCount: 1000,
                 likesCount: 50,
                 repostsCount: 10,
                 commentsCount: 5,
+                artist: {
+                  userId: 'user-uuid',
+                  username: 'dj_nour',
+                  displayName: 'DJ Nour',
+                  avatarUrl: 'https://cdn.harmonica.com/avatars/dj_nour.jpg',
+                },
+              },
+              {
+                position: 2,
+                trackId: 'track-uuid-2',
+                title: 'Region Locked Track',
+                durationSeconds: 195,
+                coverImage: 'https://cdn.harmonica.com/covers/locked.jpg',
+                audioUrl: null,
+                waveformUrl: null,
+                playCount: 500,
+                likesCount: 20,
+                repostsCount: 3,
+                commentsCount: 1,
+                artist: {
+                  userId: 'user-uuid-2',
+                  username: 'artist2',
+                  displayName: 'Artist Two',
+                  avatarUrl: null,
+                },
               },
             ],
           },
@@ -975,7 +1002,8 @@ export function ApiGetSecretPlaylist() {
     ApiOperation({
       summary: 'Get a private playlist via secret token',
       description:
-        'Allows authenticated users with the secret link to view a private playlist. Used for SoundCloud-style sharing.',
+        'Allows users with the secret link to view a private playlist. Used for SoundCloud-style sharing. ' +
+        "For tracks blocked in the requester's region, `audioUrl` and `waveformUrl` are returned as `null`.",
     }),
     ApiParam({
       name: 'secretToken',
@@ -985,39 +1013,70 @@ export function ApiGetSecretPlaylist() {
     }),
     ApiResponse({
       status: 200,
-      description: 'Secret playlist retrieved successfully',
+      description:
+        "Secret playlist retrieved successfully. `audioUrl` and `waveformUrl` per track are `null` when blocked in the requester's region.",
       schema: {
         example: {
           status: 'success',
           data: {
-            playlistId: 'uuid',
+            playlistId: '550e8400-e29b-41d4-a716-446655440000',
             title: 'Top Secret Beats',
             description: 'Private album drop',
             coverImage: 'https://cdn.harmonica.com/covers/secret.jpg',
             isPublic: false,
-            tracksCount: 3,
-            durationSeconds: 630,
+            tracksCount: 2,
+            durationSeconds: 420,
             likesCount: 0,
             repostsCount: 0,
             createdAt: '2026-04-01T10:00:00Z',
             updatedAt: '2026-04-02T08:00:00Z',
-            tags: [{ tagId: 'uuid', name: 'Experimental' }],
+            genreName: 'Experimental',
+            genreId: 'genre-uuid',
+            tags: [{ tagId: 'tag-uuid', name: 'Experimental' }],
             user: {
-              user_id: 'user-uuid',
+              userId: 'user-uuid',
+              username: 'harmonica_artist',
               displayName: 'ArtistName',
               avatarUrl: 'https://cdn.harmonica.com/avatars/artist.jpg',
             },
             tracks: [
               {
                 position: 1,
-                trackId: 'track-uuid',
+                trackId: 'track-uuid-1',
                 title: 'Unreleased Track',
-                duration_seconds: 210,
+                durationSeconds: 210,
                 coverImage: 'https://cdn.harmonica.com/covers/track.jpg',
+                audioUrl: 'https://cdn.harmonica.com/audio/unreleased.mp3',
+                waveformUrl: 'https://cdn.harmonica.com/waveforms/unreleased.json',
                 playCount: 0,
                 likesCount: 0,
                 repostsCount: 0,
                 commentsCount: 0,
+                artist: {
+                  userId: 'user-uuid',
+                  username: 'harmonica_artist',
+                  displayName: 'ArtistName',
+                  avatarUrl: 'https://cdn.harmonica.com/avatars/artist.jpg',
+                },
+              },
+              {
+                position: 2,
+                trackId: 'track-uuid-2',
+                title: 'Region Locked Track',
+                durationSeconds: 210,
+                coverImage: 'https://cdn.harmonica.com/covers/locked.jpg',
+                audioUrl: null,
+                waveformUrl: null,
+                playCount: 0,
+                likesCount: 0,
+                repostsCount: 0,
+                commentsCount: 0,
+                artist: {
+                  userId: 'user-uuid-2',
+                  username: 'artist2',
+                  displayName: 'Artist Two',
+                  avatarUrl: null,
+                },
               },
             ],
           },
@@ -1049,7 +1108,6 @@ export function ApiResetPlaylistSecretToken() {
           data: {
             playlistId: 'uuid-123',
             secretToken: 'new-random-string-789',
-            shareUrl: 'https://harmonica.com/playlist/secret/new-random-string-789',
           },
         },
       },
@@ -1057,5 +1115,131 @@ export function ApiResetPlaylistSecretToken() {
     ApiResponse({ status: 400, description: 'Playlist is public (cannot reset token)' }),
     ApiResponse({ status: 403, description: 'Not the playlist owner' }),
     ApiResponse({ status: 404, description: 'Playlist not found' })
+  );
+}
+
+export function ApiGetMyPlaylists() {
+  return applyDecorators(
+    ApiCookieAuth('access_token'),
+    ApiOperation({
+      summary: 'Get my playlists',
+      description:
+        'Returns a paginated list of playlists owned by the authenticated user. Includes both public and private playlists.',
+    }),
+    ApiQuery({
+      name: 'page',
+      required: false,
+      type: Number,
+      example: 1,
+      description: 'Page number (default: 1)',
+    }),
+    ApiQuery({
+      name: 'limit',
+      required: false,
+      type: Number,
+      example: 20,
+      description: 'Items per page, capped at 100 (default: 20)',
+    }),
+    ApiResponse({
+      status: 200,
+      description: 'Playlists retrieved successfully',
+      schema: {
+        example: {
+          status: 'success',
+          data: [
+            {
+              playlistId: '550e8400-e29b-41d4-a716-446655440000',
+              title: 'My Vibe',
+              coverImage: 'https://cdn.harmonica.com/covers/my-vibe.jpg',
+              isPublic: false,
+              tracksCount: 15,
+              durationSeconds: 3600,
+              likesCount: 0,
+              repostsCount: 0,
+              isOwner: true,
+              createdAt: '2026-04-09T10:00:00.000Z',
+            },
+          ],
+          pagination: {
+            currentPage: 1,
+            totalPages: 1,
+            totalCount: 1,
+            limit: 20,
+          },
+        },
+      },
+    }),
+    ApiResponse({ status: 401, description: 'Unauthorized' })
+  );
+}
+
+export function ApiGetUserPlaylists() {
+  return applyDecorators(
+    ApiCookieAuth('access_token'),
+    ApiOperation({
+      summary: "Get a user's playlists",
+      description:
+        "Returns a paginated list of a user's playlists. Shows public playlists for public profiles. If a user is viewing their own profile, it returns both public and private playlists. Returns a 403 if the profile is private and the caller is not the owner.",
+    }),
+    ApiParam({
+      name: 'user_id',
+      description: 'The UUID of the user whose playlists are being requested',
+      format: 'uuid',
+      example: '550e8400-e29b-41d4-a716-446655440001',
+    }),
+    ApiQuery({
+      name: 'page',
+      required: false,
+      type: Number,
+      example: 1,
+      description: 'Page number (default: 1)',
+    }),
+    ApiQuery({
+      name: 'limit',
+      required: false,
+      type: Number,
+      example: 20,
+      description: 'Items per page, capped at 100 (default: 20)',
+    }),
+    ApiResponse({
+      status: 200,
+      description: 'Playlists retrieved successfully',
+      schema: {
+        example: {
+          status: 'success',
+          data: [
+            {
+              playlistId: '550e8400-e29b-41d4-a716-446655440000',
+              title: 'Vibes 2026',
+              coverImage: 'https://cdn.harmonica.com/covers/vibes.jpg',
+              isPublic: true,
+              tracksCount: 12,
+              likesCount: 45,
+              repostsCount: 3,
+              createdAt: '2026-04-01T12:00:00.000Z',
+              user: {
+                userId: '550e8400-e29b-41d4-a716-446655440001',
+                username: 'other_user',
+                displayName: 'Other User',
+              },
+            },
+          ],
+          pagination: {
+            currentPage: 1,
+            totalPages: 1,
+            totalCount: 1,
+            limit: 20,
+          },
+        },
+      },
+    }),
+    ApiResponse({
+      status: 403,
+      description: 'This account is private and the requester is not the owner',
+    }),
+    ApiResponse({
+      status: 404,
+      description: 'User not found',
+    })
   );
 }

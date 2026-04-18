@@ -14,6 +14,9 @@ import { CreatePlaylistDto } from './dto/create-playlist.dto';
 import { Playlist } from './entities/playlist.entity';
 import { UpdatePlaylistDto } from './dto/update-playlist.dto';
 import { StorageService } from '../common/storage_service';
+import { ActivityService } from '../activity/activity.service';
+import { ActivityType } from '../activity/entities/activity.entity';
+import { getLocationFromIp } from '../common/utilities/geolocation.util';
 
 @Injectable()
 export class PlaylistService {
@@ -21,7 +24,8 @@ export class PlaylistService {
     private readonly playlistRepository: PlaylistRepository,
     private readonly userRepository: UserRepository,
     private configService: ConfigService,
-    private readonly storageService: StorageService
+    private readonly storageService: StorageService,
+    private readonly activitiesService: ActivityService
   ) {}
 
   async getPlaylistById(playlistId: string): Promise<Playlist | null> {
@@ -52,6 +56,12 @@ export class PlaylistService {
     }
 
     await this.playlistRepository.createRepost(userId, playlistId);
+    await this.activitiesService.createActivity(
+      ActivityType.PLAYLIST_REPOST,
+      playlistId,
+      userId,
+      playlist.userId
+    );
     return {
       status: 'success',
       data: { userId, playlistId, repostedAt: new Date() },
@@ -188,6 +198,12 @@ export class PlaylistService {
     }
 
     await this.playlistRepository.createLike(userId, playlistId);
+    await this.activitiesService.createActivity(
+      ActivityType.PLAYLIST_LIKE,
+      playlistId,
+      userId,
+      playlist.userId
+    );
     return {
       status: 'success',
       data: { userId, playlistId, likedAt: new Date() },
@@ -300,13 +316,13 @@ export class PlaylistService {
 
   async createPlaylist(createPlaylistDto: CreatePlaylistDto, userId: string) {
     const playlistCreated = await this.playlistRepository.createPlaylist(createPlaylistDto, userId);
-    let shareUrl = '';
-    if (createPlaylistDto.isPublic) {
-      shareUrl = `${this.configService.get('HARMONICA_BASE_URL')}/playlist/${playlistCreated.playlistId}`;
-    } else {
-      shareUrl = `${this.configService.get('HARMONICA_BASE_URL')}/playlist/secret/${playlistCreated.secretToken}`;
-    }
-    console.log('created playlist: ', playlistCreated);
+    await this.activitiesService.createActivity(
+      ActivityType.PLAYLIST_POSTED,
+      playlistCreated.playlistId,
+      userId,
+      userId
+    );
+
     return {
       status: 'success',
       data: {
@@ -318,7 +334,6 @@ export class PlaylistService {
         likesCount: playlistCreated.likesCount,
         repostsCount: playlistCreated.repostsCount,
         secretToken: playlistCreated.secretToken,
-        shareUrl,
         createdAt: playlistCreated.createdAt,
       },
     };
@@ -380,7 +395,9 @@ export class PlaylistService {
     if (updateDto.tags !== undefined) {
       const tags =
         updateDto.tags.length > 0
-          ? await this.playlistRepository.findOrCreateTags(updateDto.tags)
+          ? await Promise.all(
+              updateDto.tags.map((tag) => this.playlistRepository.findOrCreateGenre(tag))
+            )
           : [];
 
       await this.playlistRepository.updatePlaylistTags(playlistId, tags);
@@ -406,12 +423,12 @@ export class PlaylistService {
         description: updatedWithTags!.description,
         coverImage: updatedWithTags!.coverImage,
         updatedAt: updatedWithTags!.updatedAt,
-        buyLink: updatedWithTags!.buyLink, // Added
-        recordLabel: updatedWithTags!.recordLabel, // Added
-        type: updatedWithTags!.type, // Added
-        releaseDate: updatedWithTags!.releaseDate, // Added
-        permalink: updatedWithTags!.permalink, // Added
-        tags: updatedWithTags!.tags.map((t) => ({ tagId: t.tagId, name: t.name })),
+        buyLink: updatedWithTags!.buyLink,
+        recordLabel: updatedWithTags!.recordLabel,
+        type: updatedWithTags!.type,
+        releaseDate: updatedWithTags!.releaseDate,
+        permalink: updatedWithTags!.permalink,
+        tags: updatedWithTags!.tags.map((t) => ({ tagId: t.genreId, name: t.name })),
         genre: updatedWithTags!.genre?.name,
       },
     };
@@ -607,7 +624,6 @@ export class PlaylistService {
           playlistId: playlisId,
           isPublic: false,
           secretToken: newToken,
-          shareUrl: `${this.configService.get('HARMONICA_BASE_URL')}/playlist/secret/${newToken}`,
         },
       };
     }
@@ -617,12 +633,11 @@ export class PlaylistService {
       data: {
         playlistId: playlisId,
         isPublic: true,
-        shareUrl: `${this.configService.get('HARMONICA_BASE_URL')}/playlist/${playlisId}`,
       },
     };
   }
 
-  async getPublicPlaylist(playlistId: string, userId: string) {
+  async getPublicPlaylist(playlistId: string, userId: string, ip?: string) {
     const playlist = await this.playlistRepository.getPublicPlaylist(playlistId);
 
     if (!playlist) {
@@ -634,7 +649,9 @@ export class PlaylistService {
     if (!playlist.isPublic && userId !== playlist.userId) {
       throw new ForbiddenException('Secret playlist is requested');
     }
-    console.log(playlist);
+
+    const country = ip ? getLocationFromIp(ip).country : null;
+
     return {
       status: 'success',
       data: {
@@ -649,39 +666,53 @@ export class PlaylistService {
         repostsCount: playlist.repostsCount,
         createdAt: playlist.createdAt,
         updatedAt: playlist.updatedAt,
-        genre: playlist.genre?.name,
+        genreName: playlist.genre?.name,
+        genreId: playlist.genre?.genreId,
         tags: playlist.tags.map((tag) => ({
-          tagId: tag.tagId,
+          tagId: tag.genreId,
           name: tag.name,
         })),
         user: {
-          user_id: playlist.user.userId,
+          userId: playlist.user.userId,
+          username: playlist.user.username,
           displayName: playlist.user.displayName,
           avatarUrl: playlist.user.avatarUrl,
         },
-        tracks: playlist.playlistTracks.map((pt) => ({
-          position: pt.position,
-          trackId: pt.track.trackId,
-          title: pt.track.title,
-          duration_seconds: pt.track.durationSeconds,
-          coverImage: pt.track.coverImage,
-          playCount: pt.track.playCount,
-          likesCount: pt.track.likesCount,
-          repostsCount: pt.track.repostsCount,
-          commentsCount: pt.track.commentsCount,
-        })),
+        tracks: playlist.playlistTracks.map((pt) => {
+          const isBlocked = !!(country && pt.track.blockedRegions?.includes(country));
+          return {
+            position: pt.position,
+            trackId: pt.track.trackId,
+            title: pt.track.title,
+            durationSeconds: pt.track.durationSeconds,
+            coverImage: pt.track.coverImage,
+            audioUrl: isBlocked ? null : (pt.track.audioUrl ?? null),
+            waveformUrl: isBlocked ? null : (pt.track.waveformUrl ?? null),
+            playCount: pt.track.playCount,
+            likesCount: pt.track.likesCount,
+            repostsCount: pt.track.repostsCount,
+            commentsCount: pt.track.commentsCount,
+            artist: {
+              userId: pt.track.userId,
+              username: pt.track.user?.username || 'unknown',
+              displayName: pt.track.user?.displayName || 'Unknown Artist',
+              avatarUrl: pt.track.user?.avatarUrl || null,
+            },
+          };
+        }),
       },
     };
   }
 
-  async getSecretPlaylist(secretToken: string) {
+  async getSecretPlaylist(secretToken: string, ip?: string) {
     const playlist = await this.playlistRepository.getSecretPlaylist(secretToken);
 
     if (!playlist) {
       throw new NotFoundException('Playlist not found');
     }
 
-    console.log('playlist:', playlist);
+    const country = ip ? getLocationFromIp(ip).country : null;
+
     return {
       status: 'success',
       data: {
@@ -696,26 +727,40 @@ export class PlaylistService {
         repostsCount: playlist.repostsCount,
         createdAt: playlist.createdAt,
         updatedAt: playlist.updatedAt,
+        genreName: playlist.genre?.name ?? null,
+        genreId: playlist.genre?.genreId ?? null,
         tags: playlist.tags.map((tag) => ({
-          tagId: tag.tagId,
+          tagId: tag.genreId,
           name: tag.name,
         })),
         user: {
-          user_id: playlist.user.userId,
+          userId: playlist.user.userId,
+          username: playlist.user.username,
           displayName: playlist.user.displayName,
           avatarUrl: playlist.user.avatarUrl,
         },
-        tracks: playlist.playlistTracks.map((pt) => ({
-          position: pt.position,
-          trackId: pt.track.trackId,
-          title: pt.track.title,
-          duration_seconds: pt.track.durationSeconds,
-          coverImage: pt.track.coverImage,
-          playCount: pt.track.playCount,
-          likesCount: pt.track.likesCount,
-          repostsCount: pt.track.repostsCount,
-          commentsCount: pt.track.commentsCount,
-        })),
+        tracks: playlist.playlistTracks.map((pt) => {
+          const isBlocked = !!(country && pt.track.blockedRegions?.includes(country));
+          return {
+            position: pt.position,
+            trackId: pt.track.trackId,
+            title: pt.track.title,
+            durationSeconds: pt.track.durationSeconds,
+            coverImage: pt.track.coverImage,
+            audioUrl: isBlocked ? null : (pt.track.audioUrl ?? null),
+            waveformUrl: isBlocked ? null : (pt.track.waveformUrl ?? null),
+            playCount: pt.track.playCount,
+            likesCount: pt.track.likesCount,
+            repostsCount: pt.track.repostsCount,
+            commentsCount: pt.track.commentsCount,
+            artist: {
+              userId: pt.track.userId,
+              username: pt.track.user?.username || 'unknown',
+              displayName: pt.track.user?.displayName || 'Unknown Artist',
+              avatarUrl: pt.track.user?.avatarUrl || null,
+            },
+          };
+        }),
       },
     };
   }
@@ -737,8 +782,79 @@ export class PlaylistService {
       data: {
         playlistId: playlist.playlistId,
         secretToken: newSecretToken,
-        shareUrl: `${this.configService.get('HARMONICA_BASE_URL')}/playlist/secret/${newSecretToken}`,
       },
+    };
+  }
+
+  async getMyPlaylists(userId: string, page: number = 1, limit: number = 20) {
+    const [playlists, total] = await this.playlistRepository.getMyPlaylists(userId, page, limit);
+
+    const mappedPlaylists = playlists.map((playlist) => ({
+      playlistId: playlist.playlistId,
+      title: playlist.title,
+      description: playlist.description,
+      coverImage: playlist.coverImage,
+      isPublic: playlist.isPublic,
+      tracksCount: playlist.tracksCount,
+      likesCount: playlist.likesCount,
+      repostsCount: playlist.repostsCount,
+      durationSeconds: playlist.totalDurationSeconds,
+      createdAt: playlist.createdAt,
+      user: {
+        userId: playlist.user?.userId,
+        username: playlist.user?.username,
+        displayName: playlist.user?.displayName,
+        avatarUrl: playlist.user?.avatarUrl,
+      },
+      isOwner: playlist.userId === userId,
+    }));
+
+    return {
+      status: 'success',
+      ...buildPaginationResponse(mappedPlaylists, total, page, limit),
+    };
+  }
+
+  async getUserPlaylists(
+    userId: string,
+    myUserId: string | null,
+    page: number = 1,
+    limit: number = 20
+  ) {
+    const user = await this.userRepository.findById(userId);
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+
+    if (!user.isPublic && user.userId !== myUserId) {
+      throw new ForbiddenException('This account is private');
+    }
+
+    const [playlists, total] = await this.playlistRepository.getUserPlaylists(userId, page, limit);
+
+    const mappedPlaylists = playlists.map((playlist) => ({
+      playlistId: playlist.playlistId,
+      title: playlist.title,
+      description: playlist.description,
+      coverImage: playlist.coverImage,
+      isPublic: playlist.isPublic,
+      tracksCount: playlist.tracksCount,
+      likesCount: playlist.likesCount,
+      repostsCount: playlist.repostsCount,
+      durationSeconds: playlist.totalDurationSeconds,
+      createdAt: playlist.createdAt,
+      user: {
+        userId: playlist.user?.userId,
+        username: playlist.user?.username,
+        displayName: playlist.user?.displayName,
+        avatarUrl: playlist.user?.avatarUrl,
+      },
+      isOwner: playlist.userId === userId,
+    }));
+
+    return {
+      status: 'success',
+      ...buildPaginationResponse(mappedPlaylists, total, page, limit),
     };
   }
 }

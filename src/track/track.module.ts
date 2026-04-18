@@ -7,7 +7,6 @@ import { TrackController } from './track.controller';
 import { TrackRepository } from './track.repository';
 import { TrackRepost } from './entities/track-reposts.entity';
 import { Track } from './entities/track.entity';
-import { Tag } from './entities/tag.entity';
 import { Genre } from '../genre/entities/genre.entity';
 import { UserModule } from '../user/user.module';
 import { FollowersModule } from '../followers/followers.module';
@@ -25,6 +24,7 @@ import { Settings } from '../settings/entities/settings.entity';
 import { FanRepository } from './fan.repository';
 import { FansService } from './services/fans.service';
 import { FansJobProcessor } from './listeners/fans-job.processor';
+import { ActivityModule } from '../activity/activity.module';
 
 @Module({
   imports: [
@@ -34,7 +34,6 @@ import { FansJobProcessor } from './listeners/fans-job.processor';
       TrackLikes,
       TrackComment,
       Genre,
-      Tag,
       TrackPlay,
       RecentlyPlayed,
       TrackFirstFan,
@@ -61,6 +60,7 @@ import { FansJobProcessor } from './listeners/fans-job.processor';
     BullModule.registerQueue({ name: 'fansQueue' }),
     UserModule,
     FollowersModule,
+    ActivityModule,
   ],
   controllers: [TrackController],
   providers: [

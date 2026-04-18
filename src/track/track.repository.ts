@@ -1,11 +1,10 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { In, Repository } from 'typeorm';
+import { Brackets, In, Repository } from 'typeorm';
 import { Track } from './entities/track.entity';
 import { TrackRepost } from './entities/track-reposts.entity';
 import { TrackLikes } from './entities/track-likes.entity';
 import { TrackComment } from './entities/track-comments.entity';
-import { Tag } from './entities/tag.entity';
 import { Genre } from '../genre/entities/genre.entity';
 import { AddCommentDto } from './dto/add-comment.dto';
 import { UploadTrackDto } from './dto/upload-track.dto';
@@ -35,9 +34,6 @@ export class TrackRepository {
     @InjectRepository(Genre)
     private readonly genreRepository: Repository<Genre>,
 
-    @InjectRepository(Tag)
-    private readonly tagRepository: Repository<Tag>,
-
     @InjectRepository(TrackPlay)
     private readonly trackPlayRepository: Repository<TrackPlay>,
 
@@ -59,6 +55,45 @@ export class TrackRepository {
       .leftJoinAndSelect('track.user', 'user')
       .where('track.trackId = :trackId', { trackId })
       .getOne();
+  }
+
+  async findPopularTracksByGenreOrTags(
+    genreId: string | null,
+    tags: Genre[],
+    page: number,
+    limit: number
+  ): Promise<Track[]> {
+    if (!genreId && (!tags || tags.length === 0)) {
+      return [];
+    }
+
+    const skip = (page - 1) * limit;
+    const query = this.trackRepository
+      .createQueryBuilder('track')
+      .leftJoinAndSelect('track.tags', 'tag')
+      .leftJoinAndSelect('track.genre', 'genre');
+
+    query.andWhere(
+      new Brackets((qb) => {
+        let hasCondition = false;
+
+        if (genreId) {
+          qb.where('track.genreId = :genreId', { genreId });
+          hasCondition = true;
+        }
+
+        if (tags && tags.length > 0) {
+          const tagIds = tags.map((t) => t.genreId);
+          if (hasCondition) {
+            qb.orWhere('tag.genreId IN (:...tagIds)', { tagIds });
+          } else {
+            qb.where('tag.genreId IN (:...tagIds)', { tagIds });
+          }
+        }
+      })
+    );
+
+    return query.orderBy('track.playCount', 'DESC').skip(skip).take(limit).getMany();
   }
 
   async repostTrack(trackId: string, userId: string, caption?: string): Promise<TrackRepost> {
@@ -285,7 +320,7 @@ export class TrackRepository {
       savedTrack.genreId = await this.findOrCreateGenre(dto.genreName).then((g) => g.genreId);
     }
     if (dto.tags?.length) {
-      savedTrack.tags = await this.findOrCreateTags(dto.tags);
+      savedTrack.tags = await Promise.all(dto.tags.map(async (t) => this.findOrCreateGenre(t)));
     }
     if (dto.genreName || dto.tags?.length) {
       await this.trackRepository.save(savedTrack);
@@ -319,7 +354,9 @@ export class TrackRepository {
       track.genre = null as unknown as (typeof track)['genre'];
     }
     if (tagNames !== undefined) {
-      track.tags = tagNames.length ? await this.findOrCreateTags(tagNames) : [];
+      track.tags = tagNames.length
+        ? await Promise.all(tagNames.map(async (t) => this.findOrCreateGenre(t)))
+        : [];
     }
     if (genreName !== undefined || tagNames !== undefined) {
       await this.trackRepository.save(track);
@@ -330,18 +367,6 @@ export class TrackRepository {
 
   async setTrackProcessing(trackId: string): Promise<void> {
     await this.trackRepository.update(trackId, { trackStatus: TrackStatus.PROCESSING });
-  }
-
-  private async findOrCreateTags(names: string[]): Promise<Tag[]> {
-    const trimmed = names.map((n) => n.trim()).filter(Boolean);
-    const existing = await this.tagRepository.findBy({ name: In(trimmed) });
-    const existingNames = new Set(existing.map((t) => t.name));
-    const created = await Promise.all(
-      trimmed
-        .filter((n) => !existingNames.has(n))
-        .map((name) => this.tagRepository.save(this.tagRepository.create({ name })))
-    );
-    return [...existing, ...created];
   }
 
   private async findOrCreateGenre(names: string): Promise<Genre> {
@@ -431,5 +456,104 @@ export class TrackRepository {
 
   async deleteTrack(trackId: string): Promise<void> {
     await this.trackRepository.delete(trackId);
+  }
+
+  async findTrackByTitleAndArtist(title: string, artistUsername: string): Promise<Track | null> {
+    return this.trackRepository
+      .createQueryBuilder('track')
+      .innerJoin('track.user', 'user')
+      .where('track.title = :title', { title })
+      .andWhere('user.username = :artistUsername', { artistUsername })
+      .getOne();
+  }
+
+  async getTrackTopFansIds(trackId: string): Promise<string[]> {
+    const rows = await this.trackPlayRepository
+      .createQueryBuilder('play')
+      .select('play.userId', 'userId')
+      .where('play.trackId = :trackId', { trackId })
+      .groupBy('play.userId')
+      .orderBy('COUNT(*)', 'DESC')
+      .limit(80)
+      .getRawMany();
+    return rows.map((row) => row.userId);
+  }
+
+  async findRelatedTracks(trackId: string, topFanIds: string[]): Promise<Track[]> {
+    const result: TrackPlay[] = await this.trackPlayRepository
+      .createQueryBuilder('play')
+      .select('play.trackId', 'trackId')
+      .where('play.trackId != :trackId', { trackId })
+      .andWhere('play.userId IN (:...topFanIds)', { topFanIds })
+      .groupBy('play.trackId')
+      .orderBy('COUNT(*)', 'DESC')
+      .limit(40)
+      .getRawMany();
+
+    const relatedTrackIds = result.map((r) => r.trackId);
+
+    if (relatedTrackIds.length === 0) {
+      return [];
+    }
+
+    return this.trackRepository
+      .createQueryBuilder('track')
+      .leftJoinAndSelect('track.user', 'user')
+      .leftJoinAndSelect('track.genre', 'genre')
+      .where('track.trackId IN (:...relatedTrackIds)', { relatedTrackIds })
+      .getMany();
+  }
+
+  async findAllTimeStats(userId: string): Promise<{
+    totalPlays: number;
+    totalReposts: number;
+    totalDownloads: number;
+    totalLikes: number;
+    totalComments: number;
+  }> {
+    const totalDownloads = 0; // TODO: add download count to track entity in module 12
+    const { totalPlays, totalReposts, totalLikes, totalComments } = await this.trackRepository
+      .createQueryBuilder('track')
+      .select('SUM(track.playCount)', 'totalPlays')
+      .addSelect('SUM(track.repostsCount)', 'totalReposts')
+      .addSelect('SUM(track.likesCount)', 'totalLikes')
+      .addSelect('SUM(track.commentsCount)', 'totalComments')
+      .where('track.userId = :userId', { userId })
+      .getRawOne();
+
+    return {
+      totalPlays: Number(totalPlays) ?? 0,
+      totalReposts: Number(totalReposts) ?? 0,
+      totalDownloads: Number(totalDownloads) ?? 0,
+      totalLikes: Number(totalLikes) ?? 0,
+      totalComments: Number(totalComments) ?? 0,
+    };
+  }
+
+  async findByIds(ids: string[]): Promise<Track[]> {
+    return (
+      this.trackRepository
+        .createQueryBuilder('track')
+        .where('track.trackId IN (:...ids)', { ids })
+        // 1. Join the genre relation
+        .leftJoin('track.genre', 'genre')
+        .select([
+          'track.trackId',
+          'track.title',
+          'track.coverImage',
+          'track.audioUrl',
+          'track.durationSeconds',
+          'track.userId',
+          'track.createdAt',
+          'track.likesCount',
+          'track.repostsCount',
+          'track.commentsCount',
+          'track.blockedRegions',
+          // 2. Select the genre name
+          'genre.name',
+          'genre.genreId',
+        ])
+        .getMany()
+    );
   }
 }

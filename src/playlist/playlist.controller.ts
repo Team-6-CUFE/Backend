@@ -2,6 +2,7 @@ import {
   Controller,
   Delete,
   Get,
+  Ip,
   Param,
   Post,
   ParseUUIDPipe,
@@ -41,6 +42,8 @@ import {
   ApiGetPublicPlaylist,
   ApiGetSecretPlaylist,
   ApiResetPlaylistSecretToken,
+  ApiGetMyPlaylists,
+  ApiGetUserPlaylists,
 } from './playlist.swagger';
 import { CurrentUser } from '../authentication/decorators/current-user.decorator';
 import { CheckBlock } from '../followers/decorators/no-block.decorator';
@@ -244,20 +247,43 @@ export class PlaylistController {
   @Get('/:playlistId')
   async getPublicPlaylist(
     @Param('playlistId', ParseUUIDPipe) playlistId: string,
-    @CurrentUser('sub') userId: string
+    @CurrentUser('sub') userId: string,
+    @Ip() ip: string
   ) {
-    return this.playlistService.getPublicPlaylist(playlistId, userId);
+    return this.playlistService.getPublicPlaylist(playlistId, userId, ip);
   }
 
   @ApiGetSecretPlaylist()
   @Get('/secret/:secretToken')
-  getSecretPlaylist(@Param('secretToken') secretToken: string) {
-    return this.playlistService.getSecretPlaylist(secretToken);
+  getSecretPlaylist(@Param('secretToken') secretToken: string, @Ip() ip: string) {
+    return this.playlistService.getSecretPlaylist(secretToken, ip);
   }
 
   @ApiResetPlaylistSecretToken()
   @Post('/:playlistId/reset-token')
   resetSecretToken(@Param('playlistId') playlistId: string, @CurrentUser('sub') userId: string) {
     return this.playlistService.resetSecretToken(playlistId, userId);
+  }
+
+  @ApiGetMyPlaylists()
+  @Get('me')
+  async getMyPlaylists(
+    @CurrentUser('sub') userId: string,
+    @Query('page') page: number = 1,
+    @Query('limit') limit: number = 20
+  ) {
+    return this.playlistService.getMyPlaylists(userId, page, limit);
+  }
+
+  @ApiGetUserPlaylists()
+  @CheckBlock()
+  @Get('users/:user_id/playlists')
+  getUserPlaylists(
+    @Param('user_id', ParseUUIDPipe) userId: string,
+    @CurrentUser('sub') myUserId: string | null,
+    @Query('page') page: number = 1,
+    @Query('limit') limit: number = 20
+  ) {
+    return this.playlistService.getUserPlaylists(userId, myUserId, page, limit);
   }
 }

@@ -14,6 +14,8 @@ import {
   UploadedFile,
   Sse,
   Ip,
+  DefaultValuePipe,
+  ParseIntPipe,
 } from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
 import { FileFieldsInterceptor, FileInterceptor } from '@nestjs/platform-express';
@@ -49,6 +51,8 @@ import {
   ApiGetTrackAudio,
   ApiUpdateBlockedRegions,
   ApiDeleteTrack,
+  ApiGetRelatedTracks,
+  ApiGetAllTimeStats,
 } from './track.swagger';
 import { CurrentUser } from '../authentication/decorators/current-user.decorator';
 import { CheckBlock } from '../followers/decorators/no-block.decorator';
@@ -407,6 +411,12 @@ export class TrackController {
     return this.trackService.getAllGenres();
   }
 
+  @ApiGetAllTimeStats()
+  @Get('all-time-stats')
+  getAllTimeStats(@CurrentUser('sub') userId: string) {
+    return this.trackService.getAllTimeStats(userId);
+  }
+
   @ApiGetTrack()
   @Public()
   @Get(':trackId')
@@ -445,5 +455,17 @@ export class TrackController {
     @CurrentUser('sub') userId: string
   ) {
     return this.trackService.deleteTrack(trackId, userId);
+  }
+
+  @ApiGetRelatedTracks()
+  @Get(':artistUsername/:title/related-tracks')
+  getRelatedTracks(
+    @Param('artistUsername') artistUsername: string,
+    @Param('title') title: string,
+    @Query('page', new DefaultValuePipe(1), ParseIntPipe) page: number,
+    @Query('limit', new DefaultValuePipe(10), ParseIntPipe) limit: number,
+    @Ip() ip: string
+  ) {
+    return this.trackService.getRelatedTracks(title, artistUsername, page, limit, ip);
   }
 }

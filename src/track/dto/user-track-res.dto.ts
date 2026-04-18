@@ -20,7 +20,19 @@ export class UserTrackResponseDto {
   @Expose()
   coverImage!: string | null;
 
-  @ApiProperty({ example: 'https://s3.amazonaws.com/waveforms/midnight.json', nullable: true })
+  @ApiProperty({
+    example: 'https://s3.amazonaws.com/audio/midnight.mp3',
+    nullable: true,
+    description: "null when the track is blocked in the requester's region",
+  })
+  @Expose()
+  audioUrl!: string | null;
+
+  @ApiProperty({
+    example: 'https://s3.amazonaws.com/waveforms/midnight.json',
+    nullable: true,
+    description: "null when the track is blocked in the requester's region",
+  })
   @Expose()
   waveformUrl!: string | null;
 
@@ -51,6 +63,26 @@ export class UserTrackResponseDto {
   @ApiProperty({ example: false })
   @Expose()
   explicitContent!: boolean;
+
+  @ApiProperty({ example: '550e8400-e29b-41d4-a716-446655440000' })
+  @Expose()
+  artistId!: string;
+
+  @ApiProperty({ example: 'Jane Doe' })
+  @Expose()
+  artistDisplayName!: string;
+
+  @ApiProperty({ example: 'jane_doe' })
+  @Expose()
+  artistUsername!: string;
+
+  @ApiProperty({ example: '550e8400-e29b-41d4-a716-446655440002' })
+  @Expose()
+  genreId!: string;
+
+  @ApiProperty({ example: 'Lo-fi' })
+  @Expose()
+  genreName!: string;
 
   @ApiProperty({ example: '2024-06-01T12:00:00Z' })
   @Expose()

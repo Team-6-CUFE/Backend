@@ -2,6 +2,7 @@ import {
   BadRequestException,
   ConflictException,
   ForbiddenException,
+  Inject,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
@@ -11,6 +12,7 @@ import * as fs from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
 import { plainToInstance } from 'class-transformer';
+import { createClient } from 'redis';
 import { AddCommentDto } from './dto/add-comment.dto';
 import { buildPaginationResponse } from '../common/utilities/pagination.util';
 import { UserRepository } from '../user/user.repository';
@@ -43,6 +45,12 @@ import { getLocationFromIp } from '../common/utilities/geolocation.util';
 import { PlaylistService } from '../playlist/playlist.service';
 import { RecentlyPlayedItemType } from './entities/recently-played.entity';
 import { FansService } from './services/fans.service';
+import { ActivityService } from '../activity/activity.service';
+import { ActivityType } from '../activity/entities/activity.entity';
+import { REDIS_CLIENT } from '../redis/redis.module';
+
+const RELATED_TRACKS_TTL_SECS = 3 * 24 * 60 * 60; // 3 days
+const ALL_TIME_STATS_TTL_SECS = 24 * 60 * 60; // 1 day
 
 @Injectable()
 export class TrackService {
@@ -53,8 +61,12 @@ export class TrackService {
     private readonly genreRepository: GenreRepository,
     private readonly playlistService: PlaylistService,
     private readonly fansService: FansService,
+    private readonly activitiesService: ActivityService,
     @InjectQueue('audioQueue')
-    private readonly audioQueue: Queue
+    private readonly audioQueue: Queue,
+
+    @Inject(REDIS_CLIENT)
+    private readonly redis: ReturnType<typeof createClient>
   ) {}
 
   private resolveAudioUrl(track: Track, user?: JwtPayload): string | null {
@@ -100,7 +112,12 @@ export class TrackService {
       removeOnComplete: true,
       removeOnFail: false,
     });
-
+    await this.activitiesService.createActivity(
+      ActivityType.TRACK_POSTED,
+      savedTrack.trackId,
+      userId,
+      userId
+    );
     return {
       status: 'success',
       message: 'Track upload started. Processing in background.',
@@ -236,6 +253,12 @@ export class TrackService {
     if (alreadyReposted) {
       throw new ConflictException('You have already reposted this track');
     }
+    await this.activitiesService.createActivity(
+      ActivityType.TRACK_REPOST,
+      trackId,
+      userId,
+      track.userId
+    );
     return {
       status: 'success',
       data: await this.trackRepository.repostTrack(trackId, userId, caption),
@@ -366,6 +389,12 @@ export class TrackService {
     if (alreadyLiked) {
       throw new ConflictException('You have already liked this track');
     }
+    await this.activitiesService.createActivity(
+      ActivityType.TRACK_LIKE,
+      trackId,
+      userId,
+      track.userId
+    );
     return {
       status: 'success',
       data: await this.trackRepository.likeTrack(trackId, userId),
@@ -473,6 +502,12 @@ export class TrackService {
       }
     }
     const comment = await this.trackRepository.addComment(trackId, userId, commentDto);
+    await this.activitiesService.createActivity(
+      ActivityType.TRACK_COMMENT,
+      trackId,
+      userId,
+      track.userId
+    );
     return { status: 'success', data: comment };
   }
 
@@ -724,8 +759,13 @@ export class TrackService {
         throw new ForbiddenException('This track is not available in your region');
       }
     }
+    if (track.trackStatus !== TrackStatus.FINISHED) {
+      throw new ConflictException('Track audio is not available yet');
+    }
     const shaped: GetTrackResDto = {
       ...track,
+      audioUrl: this.resolveAudioUrl(track, user),
+      previewAudioUrl: track.previewAudioUrl ?? null,
       genre: plainToInstance(TrackGenreDto, track.genre, { excludeExtraneousValues: true }),
       tags: plainToInstance(TrackTagDto, track.tags, { excludeExtraneousValues: true }),
       owner: plainToInstance(TrackOwnerDto, track.user, { excludeExtraneousValues: true }),
@@ -734,6 +774,7 @@ export class TrackService {
     return { status: 'success', data };
   }
 
+  // WARNING: will be depracted, replaced in getTrack
   async getTrackAudio(trackId: string, user?: JwtPayload) {
     const track = await this.trackRepository.findById(trackId);
     if (!track) throw new NotFoundException('Track not found');
@@ -792,6 +833,92 @@ export class TrackService {
     return {
       status: 'success',
       message: 'Track deleted successfully',
+    };
+  }
+
+  async getRelatedTracksByTrackId(trackId: string): Promise<Track[]> {
+    const cached = await this.redis.get(`related_tracks:${trackId}`);
+    if (cached) {
+      const data = JSON.parse(cached) as Track[];
+      return data;
+    }
+
+    const topFans = await this.trackRepository.getTrackTopFansIds(trackId);
+    if (topFans.length === 0) {
+      return [];
+    }
+
+    const relatedTracks = await this.trackRepository.findRelatedTracks(trackId, topFans);
+
+    if (relatedTracks.length > 0) {
+      await this.redis.set(`related_tracks:${trackId}`, JSON.stringify(relatedTracks), {
+        EX: RELATED_TRACKS_TTL_SECS,
+      });
+    }
+    return relatedTracks;
+  }
+
+  async getRelatedTracks(
+    title: string,
+    artistUsername: string,
+    page: number = 1,
+    limit: number = 10,
+    ip?: string
+  ): Promise<{
+    status: string;
+    data: UserTrackResponseDto[];
+    pagination?: { currentPage: number; totalPages: number; totalCount: number; limit: number };
+  }> {
+    const track = await this.trackRepository.findTrackByTitleAndArtist(title, artistUsername);
+    if (!track) throw new NotFoundException('Track not found');
+
+    if (track.visibility === TrackVisibility.PRIVATE) {
+      throw new ForbiddenException('This track is private');
+    }
+
+    const { trackId } = track;
+    const relatedTracks = await this.getRelatedTracksByTrackId(trackId);
+
+    const country = ip ? getLocationFromIp(ip).country : null;
+
+    const data = relatedTracks.map((t) => {
+      const dto = plainToInstance(UserTrackResponseDto, t, { excludeExtraneousValues: true });
+      console.log(`Track ${t.title} blocked regions:`, t.blockedRegions);
+      if (country && t.blockedRegions?.includes(country)) {
+        dto.audioUrl = null;
+        dto.waveformUrl = null;
+      }
+      dto.genreName = t.genre?.name ?? null;
+      dto.artistId = t.user.userId;
+      dto.artistDisplayName = t.user.displayName;
+      dto.artistUsername = t.user.username;
+      return dto;
+    });
+
+    const startIndex = (page - 1) * limit;
+    const paginatedData = data.slice(startIndex, startIndex + limit);
+    return {
+      status: 'success',
+      ...buildPaginationResponse(paginatedData, data.length, page, limit),
+    };
+  }
+
+  async getAllTimeStats(userId: string) {
+    const cached = await this.redis.get(`all_time_stats:${userId}`);
+    if (cached) {
+      return {
+        status: 'success',
+        data: JSON.parse(cached),
+      };
+    }
+
+    const data = await this.trackRepository.findAllTimeStats(userId);
+    await this.redis.set(`all_time_stats:${userId}`, JSON.stringify(data), {
+      EX: ALL_TIME_STATS_TTL_SECS,
+    });
+    return {
+      status: 'success',
+      data,
     };
   }
 }

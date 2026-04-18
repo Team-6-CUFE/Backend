@@ -17,7 +17,7 @@ import { TrackRepost } from './track-reposts.entity';
 import { TrackStatus } from '../enums/track-status.enum';
 import { TrackVisibility } from '../enums/track-visibility.enum';
 import { Genre } from '../../genre/entities/genre.entity';
-import { Tag } from './tag.entity';
+import { TrackPlay } from './track-play.entity';
 
 @Entity('tracks')
 export class Track extends BaseEntity {
@@ -162,11 +162,14 @@ export class Track extends BaseEntity {
   @JoinColumn({ name: 'genre_id' })
   genre!: Relation<Genre>;
 
-  @ManyToMany(() => Tag, (tag) => tag.tracks)
+  @ManyToMany(() => Genre, (genre) => genre.trackTags)
   @JoinTable({
     name: 'track_tags',
     joinColumn: { name: 'track_id', referencedColumnName: 'trackId' },
-    inverseJoinColumn: { name: 'tag_id', referencedColumnName: 'tagId' },
+    inverseJoinColumn: { name: 'tag_id', referencedColumnName: 'genreId' },
   })
-  tags!: Tag[];
+  tags!: Genre[];
+
+  @OneToMany(() => TrackPlay, (play) => play.track)
+  plays!: TrackPlay[];
 }

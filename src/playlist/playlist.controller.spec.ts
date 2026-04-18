@@ -16,6 +16,7 @@ const mockUserId = '550e8400-e29b-41d4-a716-446655440001';
 const mockMyUserId = '550e8400-e29b-41d4-a716-446655440002';
 const mockPage = 1;
 const mockLimit = 20;
+const mockIp = '192.168.1.1';
 
 // ─── Mock factory ─────────────────────────────────────────────────────────────
 
@@ -46,6 +47,8 @@ const mockPlaylistService = () => ({
   getPublicPlaylist: jest.fn(),
   getSecretPlaylist: jest.fn(),
   resetSecretToken: jest.fn(),
+  getMyPlaylists: jest.fn(),
+  getUserPlaylists: jest.fn(),
 });
 
 // ─── Suite ────────────────────────────────────────────────────────────────────
@@ -800,7 +803,7 @@ describe('PlaylistController', () => {
     it('should delegate to service with playlistId, isPublic, and userId', async () => {
       const mockResponse = {
         status: 'success',
-        data: { playlistId: mockPlaylistId, isPublic: false, secretToken: 'tok', shareUrl: 'url' },
+        data: { playlistId: mockPlaylistId, isPublic: false, secretToken: 'tok' },
       };
       service.changePlaylistPrivacy.mockResolvedValue(mockResponse);
 
@@ -835,24 +838,24 @@ describe('PlaylistController', () => {
       };
       service.getPublicPlaylist.mockResolvedValue(mockResponse);
 
-      const result = await controller.getPublicPlaylist(mockPlaylistId, mockUserId);
+      const result = await controller.getPublicPlaylist(mockPlaylistId, mockUserId, '1.2.3.4');
 
-      expect(service.getPublicPlaylist).toHaveBeenCalledWith(mockPlaylistId, mockUserId);
+      expect(service.getPublicPlaylist).toHaveBeenCalledWith(mockPlaylistId, mockUserId, '1.2.3.4');
       expect(result).toBe(mockResponse);
     });
 
     it('should propagate NotFoundException from service', async () => {
       service.getPublicPlaylist.mockRejectedValue(new NotFoundException());
-      await expect(controller.getPublicPlaylist(mockPlaylistId, mockUserId)).rejects.toThrow(
-        NotFoundException
-      );
+      await expect(
+        controller.getPublicPlaylist(mockPlaylistId, mockUserId, '1.2.3.4')
+      ).rejects.toThrow(NotFoundException);
     });
 
     it('should propagate ForbiddenException from service', async () => {
       service.getPublicPlaylist.mockRejectedValue(new ForbiddenException());
-      await expect(controller.getPublicPlaylist(mockPlaylistId, mockUserId)).rejects.toThrow(
-        ForbiddenException
-      );
+      await expect(
+        controller.getPublicPlaylist(mockPlaylistId, mockUserId, '1.2.3.4')
+      ).rejects.toThrow(ForbiddenException);
     });
   });
 
@@ -865,15 +868,17 @@ describe('PlaylistController', () => {
       const mockResponse = { status: 'success', data: { playlistId: mockPlaylistId } };
       service.getSecretPlaylist.mockResolvedValue(mockResponse);
 
-      const result = await controller.getSecretPlaylist(secretToken);
+      const result = await controller.getSecretPlaylist(secretToken, mockIp);
 
-      expect(service.getSecretPlaylist).toHaveBeenCalledWith(secretToken);
+      expect(service.getSecretPlaylist).toHaveBeenCalledWith(secretToken, mockIp);
       expect(result).toBe(mockResponse);
     });
 
     it('should propagate NotFoundException from service', async () => {
       service.getSecretPlaylist.mockRejectedValue(new NotFoundException());
-      await expect(controller.getSecretPlaylist(secretToken)).rejects.toThrow(NotFoundException);
+      await expect(controller.getSecretPlaylist(secretToken, mockIp)).rejects.toThrow(
+        NotFoundException
+      );
     });
   });
 
@@ -883,7 +888,7 @@ describe('PlaylistController', () => {
     it('should delegate to service with playlistId and userId', async () => {
       const mockResponse = {
         status: 'success',
-        data: { playlistId: mockPlaylistId, secretToken: 'new-tok', shareUrl: 'url' },
+        data: { playlistId: mockPlaylistId, secretToken: 'new-tok' },
       };
       service.resetSecretToken.mockResolvedValue(mockResponse);
 
@@ -912,6 +917,137 @@ describe('PlaylistController', () => {
       await expect(controller.resetSecretToken(mockPlaylistId, mockUserId)).rejects.toThrow(
         ForbiddenException
       );
+    });
+  });
+
+  // ─── getMyPlaylists ───────────────────────────────────────────────────────
+
+  describe('getMyPlaylists', () => {
+    it('should delegate to service with userId, page, and limit', async () => {
+      service.getMyPlaylists.mockResolvedValue({
+        status: 'success',
+        data: [],
+        pagination: { currentPage: 1, totalPages: 0, totalCount: 0, limit: mockLimit },
+      });
+
+      await controller.getMyPlaylists(mockUserId, mockPage, mockLimit);
+
+      expect(service.getMyPlaylists).toHaveBeenCalledWith(mockUserId, mockPage, mockLimit);
+      expect(service.getMyPlaylists).toHaveBeenCalledTimes(1);
+    });
+
+    it('should return the service response as-is', async () => {
+      const mockResponse = {
+        status: 'success',
+        data: [{ playlistId: mockPlaylistId, title: 'My Vibe', isOwner: true }],
+        pagination: { currentPage: 1, totalPages: 1, totalCount: 1, limit: mockLimit },
+      };
+      service.getMyPlaylists.mockResolvedValue(mockResponse);
+
+      const result = await controller.getMyPlaylists(mockUserId, mockPage, mockLimit);
+
+      expect(result).toBe(mockResponse);
+    });
+  });
+
+  // ─── getUserPlaylists ───────────────────────────────────────────────────────
+
+  describe('getUserPlaylists', () => {
+    it('should delegate to service with userId, myUserId, page, and limit', async () => {
+      const mockResponse = {
+        status: 'success',
+        data: [],
+        pagination: { currentPage: 1, totalPages: 1, totalCount: 0, limit: 20 },
+      };
+      service.getUserPlaylists.mockResolvedValue(mockResponse);
+
+      await controller.getUserPlaylists(mockUserId, mockMyUserId, mockPage, mockLimit);
+
+      expect(service.getUserPlaylists).toHaveBeenCalledWith(
+        mockUserId,
+        mockMyUserId,
+        mockPage,
+        mockLimit
+      );
+      expect(service.getUserPlaylists).toHaveBeenCalledTimes(1);
+    });
+
+    it('should return the service response as-is', async () => {
+      const mockResponse = {
+        status: 'success',
+        data: [{ playlistId: mockPlaylistId, title: 'Public Jams', isPublic: true }],
+        pagination: { currentPage: 1, totalPages: 1, totalCount: 1, limit: 20 },
+      };
+      service.getUserPlaylists.mockResolvedValue(mockResponse);
+
+      const result = await controller.getUserPlaylists(
+        mockUserId,
+        mockMyUserId,
+        mockPage,
+        mockLimit
+      );
+
+      expect(result).toBe(mockResponse);
+    });
+
+    it('should handle unauthenticated (null) guest users viewing the profile', async () => {
+      const mockResponse = {
+        status: 'success',
+        data: [],
+        pagination: { currentPage: 1, totalPages: 1, totalCount: 0, limit: 20 },
+      };
+      service.getUserPlaylists.mockResolvedValue(mockResponse);
+
+      await controller.getUserPlaylists(mockUserId, null, mockPage, mockLimit);
+
+      expect(service.getUserPlaylists).toHaveBeenCalledWith(mockUserId, null, mockPage, mockLimit);
+    });
+
+    it('should propagate NotFoundException when user profile does not exist', async () => {
+      service.getUserPlaylists.mockRejectedValue(new NotFoundException('User not found'));
+
+      await expect(
+        controller.getUserPlaylists(mockUserId, mockMyUserId, mockPage, mockLimit)
+      ).rejects.toThrow(NotFoundException);
+    });
+
+    it('should propagate ForbiddenException when the account is private and not owned by caller', async () => {
+      service.getUserPlaylists.mockRejectedValue(new ForbiddenException('This account is private'));
+
+      await expect(
+        controller.getUserPlaylists(mockUserId, mockMyUserId, mockPage, mockLimit)
+      ).rejects.toThrow(ForbiddenException);
+    });
+  });
+
+  // ─── getMyPlaylists ─────────────────────────────────────────────────────────
+
+  describe('getMyPlaylists', () => {
+    it('should delegate to service with userId, page, and limit', async () => {
+      const mockResponse = {
+        status: 'success',
+        data: [],
+        pagination: { currentPage: 1, totalPages: 1, totalCount: 0, limit: 20 },
+      };
+      service.getMyPlaylists.mockResolvedValue(mockResponse);
+
+      await controller.getMyPlaylists(mockUserId, mockPage, mockLimit);
+
+      expect(service.getMyPlaylists).toHaveBeenCalledWith(mockUserId, mockPage, mockLimit);
+      expect(service.getMyPlaylists).toHaveBeenCalledTimes(1);
+    });
+
+    it('should return the service response as-is', async () => {
+      const mockResponse = {
+        status: 'success',
+        data: [{ playlistId: mockPlaylistId, title: 'My Secret Stash', isPublic: false }],
+        pagination: { currentPage: 1, totalPages: 1, totalCount: 1, limit: 20 },
+      };
+      service.getMyPlaylists.mockResolvedValue(mockResponse);
+
+      const result = await controller.getMyPlaylists(mockUserId, mockPage, mockLimit);
+
+      expect(result).toBe(mockResponse);
     });
   });
 });

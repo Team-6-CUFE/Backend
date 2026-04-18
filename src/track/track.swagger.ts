@@ -979,7 +979,20 @@ Send as \`multipart/form-data\` so a new cover image can optionally be included.
             explicitContent: false,
             releaseDate: '2026-06-01',
             genre: { genreId: 'genre_001', name: 'Lo-Fi' },
-            tags: ['lo-fi', 'chillhop', 'study'],
+            tags: [
+              {
+                createdAt: '2026-04-14T17:58:00.470Z',
+                updatedAt: '2026-04-14T17:58:00.470Z',
+                genreId: '545f092b-a993-4e88-9fbd-bc4397a367d1',
+                name: 'summer',
+              },
+              {
+                createdAt: '2026-04-14T17:58:00.470Z',
+                updatedAt: '2026-04-14T17:58:00.470Z',
+                genreId: '545f092b-a993-4e88-9fbd-bc4397a367d1',
+                name: 'cairo',
+              },
+            ],
             owner: {
               userId: '550e8400-e29b-41d4-a716-446655440001',
               username: 'yara_senousy',
@@ -1376,6 +1389,8 @@ export function ApiGetTrack() {
             durationSeconds: 214,
             trackStatus: 'finished',
             waveformUrl: 'https://s3.amazonaws.com/waveforms/track_123.json',
+            audioUrl: 'https://s3.amazonaws.com/audio/track_123.mp3',
+            previewAudioUrl: 'https://s3.amazonaws.com/preview/track_123.mp3',
             playCount: 1042,
             likesCount: 87,
             repostsCount: 14,
@@ -1384,7 +1399,14 @@ export function ApiGetTrack() {
             explicitContent: false,
             releaseDate: '2025-06-01',
             genre: { genreId: 'genre_001', name: 'Electronic' },
-            tags: ['deep house', 'cairo', 'summer', 'live'],
+            tags: [
+              {
+                name: 'summer',
+              },
+              {
+                name: 'cairo',
+              },
+            ],
             owner: {
               userId: '550e8400-e29b-41d4-a716-446655440001',
               username: 'yara_senousy',
@@ -1419,6 +1441,11 @@ export function ApiGetTrack() {
       schema: {
         example: { statusCode: 403, message: 'This track is not available in your region' },
       },
+    }),
+    ApiResponse({
+      status: 409,
+      description: 'Track is still processing',
+      schema: { example: { statusCode: 409, message: 'Track audio is not available yet' } },
     })
   );
 }
@@ -1594,6 +1621,151 @@ export function ApiDeleteTrack() {
       description: 'Track not found',
       schema: {
         example: { statusCode: 404, message: 'Track not found' },
+      },
+    }),
+    ApiResponse({ status: 401, description: 'Unauthorized' })
+  );
+}
+
+// ─── Get Related Tracks ───────────────────────────────────────────────────────
+
+export function ApiGetRelatedTracks() {
+  return applyDecorators(
+    ApiCookieAuth('access_token'),
+    ApiOperation({
+      summary: 'Get related tracks',
+      description:
+        'Returns a paginated list of tracks that are related to the given track, ' +
+        'based on the listening history of its top fans. ' +
+        'The track must be public. Results are cached for 3 days. ' +
+        "For tracks blocked in the requester's region, `audioUrl` and `waveformUrl` are returned as `null`.",
+    }),
+    ApiParam({
+      name: 'artistUsername',
+      description: 'Username of the artist who owns the track',
+      type: 'string',
+      example: 'dj_nour',
+    }),
+    ApiParam({
+      name: 'title',
+      description: 'Title of the track',
+      type: 'string',
+      example: 'Midnight Drive',
+    }),
+    ApiQuery({
+      name: 'page',
+      required: false,
+      description: 'Page number (default: 1)',
+      type: 'number',
+      example: 1,
+    }),
+    ApiQuery({
+      name: 'limit',
+      required: false,
+      description: 'Items per page (default: 10)',
+      type: 'number',
+      example: 10,
+    }),
+    ApiResponse({
+      status: 200,
+      description:
+        "Paginated list of related tracks. `audioUrl` and `waveformUrl` are `null` for tracks blocked in the requester's region.",
+      schema: {
+        example: {
+          status: 'success',
+          data: [
+            {
+              trackId: '550e8400-e29b-41d4-a716-446655440001',
+              title: 'Neon Lights',
+              description: 'Synthwave journey through a neon city.',
+              coverImage: 'https://s3.amazonaws.com/covers/neon.jpg',
+              audioUrl: 'https://s3.amazonaws.com/audio/neon.mp3',
+              waveformUrl: 'https://s3.amazonaws.com/waveforms/neon.json',
+              durationSeconds: 198,
+              playCount: 3200,
+              likesCount: 420,
+              repostsCount: 55,
+              commentsCount: 18,
+              visibility: 'public',
+              explicitContent: false,
+              artistId: '550e8400-e29b-41d4-a716-446655440000',
+              artistDisplayName: 'Jane Doe',
+              artistUsername: 'jane_doe',
+              genreId: 'genre_001',
+              genreName: 'Electronic',
+              createdAt: '2024-07-15T10:00:00.000Z',
+            },
+            {
+              trackId: '550e8400-e29b-41d4-a716-446655440002',
+              title: 'Region Locked Beat',
+              description: 'Not available in all regions.',
+              coverImage: 'https://s3.amazonaws.com/covers/locked.jpg',
+              audioUrl: null,
+              waveformUrl: null,
+              durationSeconds: 210,
+              playCount: 800,
+              likesCount: 90,
+              repostsCount: 12,
+              commentsCount: 4,
+              visibility: 'public',
+              explicitContent: false,
+              artistId: '550e8400-e29b-41d4-a716-446655440002',
+              artistDisplayName: 'John Smith',
+              artistUsername: 'john_smith',
+              genreId: 'genre_002',
+              genreName: 'Hip-Hop',
+              createdAt: '2024-08-01T08:00:00.000Z',
+            },
+          ],
+          pagination: {
+            currentPage: 1,
+            totalPages: 4,
+            totalCount: 40,
+            limit: 10,
+          },
+        },
+      },
+    }),
+    ApiResponse({
+      status: 403,
+      description: 'Track is private',
+      schema: { example: { statusCode: 403, message: 'This track is private' } },
+    }),
+    ApiResponse({
+      status: 404,
+      description: 'Track not found',
+      schema: { example: { statusCode: 404, message: 'Track not found' } },
+    }),
+    ApiResponse({ status: 401, description: 'Unauthorized' })
+  );
+}
+
+// ─── Get All Time Stats ───────────────────────────────────────────────────────
+
+export function ApiGetAllTimeStats() {
+  return applyDecorators(
+    ApiCookieAuth('access_token'),
+    ApiOperation({
+      summary: 'Get all-time stats for the authenticated artist',
+      description:
+        'Returns aggregated lifetime statistics for all tracks owned by the authenticated user: ' +
+        'total plays, likes, reposts, comments, and downloads. ' +
+        'Results are cached for 24 hours.',
+    }),
+    ApiResponse({
+      status: 200,
+      description: 'All-time stats retrieved successfully',
+      schema: {
+        example: {
+          status: 'success',
+          data: {
+            totalPlays: 152300,
+            totalLikes: 8750,
+            totalReposts: 2100,
+            totalComments: 640,
+            totalDownloads: 0,
+          },
+        },
       },
     }),
     ApiResponse({ status: 401, description: 'Unauthorized' })
