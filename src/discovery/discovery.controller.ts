@@ -21,18 +21,6 @@ export class DiscoveryController {
     return this.discoveryService.getFeed(userId, ip, includeReposts, page, limit);
   }
 
-  @ApiGetFeed()
-  @Get('/profile/:username/recent-activities')
-  getUserRecentActivities(
-    @CurrentUser('sub') userId: string,
-    @Ip() ip: string,
-    @Param('username') username: string,
-    @Query('page') page: number = 1,
-    @Query('limit') limit: number = 20
-  ) {
-    return this.discoveryService.getUserRecentActivities(userId, username, ip, page, limit);
-  }
-
   @ApiGetTrackStation()
   @Get('track-station/:artist_username/:track_name')
   async getTrackStation(
