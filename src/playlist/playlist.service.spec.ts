@@ -1048,7 +1048,7 @@ describe('PlaylistService', () => {
   describe('createPlaylist', () => {
     const baseDto = { title: 'My Playlist', isPublic: true, description: '', coverImage: '' };
 
-    it('should return status success with public shareUrl when isPublic is true', async () => {
+    it('should return status success', async () => {
       playlistRepo.createPlaylist.mockResolvedValue({
         playlistId: mockPlaylistId,
         title: 'My Playlist',
@@ -1069,11 +1069,10 @@ describe('PlaylistService', () => {
 
       expect(playlistRepo.createPlaylist).toHaveBeenCalledWith(baseDto, mockUserId);
       expect(result.status).toBe('success');
-      expect(result.data.shareUrl).toBe(`https://harmonica.com/playlist/${mockPlaylistId}`);
       configGet.mockRestore();
     });
 
-    it('should return secret shareUrl when isPublic is false', async () => {
+    it('should return secret token when isPublic is false', async () => {
       playlistRepo.createPlaylist.mockResolvedValue({
         playlistId: mockPlaylistId,
         title: 'Secret Playlist',
@@ -1092,7 +1091,6 @@ describe('PlaylistService', () => {
       const result = await service.createPlaylist({ ...baseDto, isPublic: false }, mockUserId);
 
       expect(result.status).toBe('success');
-      expect(result.data.shareUrl).toBe('https://harmonica.com/playlist/secret/abc123');
       expect(result.data.secretToken).toBe('abc123');
       configGet.mockRestore();
     });
@@ -1220,7 +1218,7 @@ describe('PlaylistService', () => {
       ).rejects.toThrow(BadRequestException);
     });
 
-    it('should return secretToken and shareUrl when making playlist private', async () => {
+    it('should return secretToken when making playlist private', async () => {
       playlistRepo.findPlaylistById.mockResolvedValue({ isPublic: true, userId: mockUserId });
       playlistRepo.changePlaylistPrivacy.mockResolvedValue('secret-token-xyz');
       const configGet = jest
@@ -1232,11 +1230,10 @@ describe('PlaylistService', () => {
       expect(result.status).toBe('success');
       expect(result.data.isPublic).toBe(false);
       expect(result.data.secretToken).toBe('secret-token-xyz');
-      expect(result.data.shareUrl).toContain('secret/secret-token-xyz');
       configGet.mockRestore();
     });
 
-    it('should return public shareUrl when making playlist public', async () => {
+    it('should return isPublic true when making playlist public', async () => {
       playlistRepo.findPlaylistById.mockResolvedValue({ isPublic: false, userId: mockUserId });
       playlistRepo.changePlaylistPrivacy.mockResolvedValue(undefined);
       const configGet = jest
@@ -1394,7 +1391,7 @@ describe('PlaylistService', () => {
       );
     });
 
-    it('should return new secretToken and shareUrl on success', async () => {
+    it('should return new secretToken on success', async () => {
       playlistRepo.findPlaylistById.mockResolvedValue({
         playlistId: mockPlaylistId,
         isPublic: false,
@@ -1409,7 +1406,6 @@ describe('PlaylistService', () => {
 
       expect(result.status).toBe('success');
       expect(result.data.secretToken).toBe('new-secret-token');
-      expect(result.data.shareUrl).toContain('secret/new-secret-token');
       configGet.mockRestore();
     });
   });

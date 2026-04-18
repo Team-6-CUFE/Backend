@@ -606,7 +606,6 @@ export function ApiCreatePlaylist() {
             likesCount: 0,
             repostsCount: 0,
             secretToken: 'abc123xyz',
-            shareUrl: 'https://harmonica.com/playlist/secret/abc123xyz',
             createdAt: '2026-04-09T10:00:00.000Z',
           },
         },
@@ -864,8 +863,7 @@ export function ApiChangePlaylistPrivacy() {
     }),
     ApiResponse({
       status: 200,
-      description:
-        'Privacy updated. When making private, response includes secretToken and shareUrl.',
+      description: 'Privacy updated. When making private, response includes secretToken.',
       schema: {
         examples: {
           'Made Public': {
@@ -874,7 +872,6 @@ export function ApiChangePlaylistPrivacy() {
               data: {
                 playlistId: 'uuid-123',
                 isPublic: true,
-                shareUrl: 'https://harmonica.com/playlist/uuid-123',
               },
             },
           },
@@ -885,7 +882,6 @@ export function ApiChangePlaylistPrivacy() {
                 playlistId: 'uuid-123',
                 isPublic: false,
                 secretToken: 'abc9xyz',
-                shareUrl: 'https://harmonica.com/playlist/secret/abc9xyz',
               },
             },
           },
@@ -1112,7 +1108,6 @@ export function ApiResetPlaylistSecretToken() {
           data: {
             playlistId: 'uuid-123',
             secretToken: 'new-random-string-789',
-            shareUrl: 'https://harmonica.com/playlist/secret/new-random-string-789',
           },
         },
       },

@@ -803,7 +803,7 @@ describe('PlaylistController', () => {
     it('should delegate to service with playlistId, isPublic, and userId', async () => {
       const mockResponse = {
         status: 'success',
-        data: { playlistId: mockPlaylistId, isPublic: false, secretToken: 'tok', shareUrl: 'url' },
+        data: { playlistId: mockPlaylistId, isPublic: false, secretToken: 'tok' },
       };
       service.changePlaylistPrivacy.mockResolvedValue(mockResponse);
 
@@ -888,7 +888,7 @@ describe('PlaylistController', () => {
     it('should delegate to service with playlistId and userId', async () => {
       const mockResponse = {
         status: 'success',
-        data: { playlistId: mockPlaylistId, secretToken: 'new-tok', shareUrl: 'url' },
+        data: { playlistId: mockPlaylistId, secretToken: 'new-tok' },
       };
       service.resetSecretToken.mockResolvedValue(mockResponse);
 

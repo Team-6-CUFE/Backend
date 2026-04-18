@@ -322,12 +322,7 @@ export class PlaylistService {
       userId,
       userId
     );
-    let shareUrl = '';
-    if (createPlaylistDto.isPublic) {
-      shareUrl = `${this.configService.get('HARMONICA_BASE_URL')}/playlist/${playlistCreated.playlistId}`;
-    } else {
-      shareUrl = `${this.configService.get('HARMONICA_BASE_URL')}/playlist/secret/${playlistCreated.secretToken}`;
-    }
+
     return {
       status: 'success',
       data: {
@@ -339,7 +334,6 @@ export class PlaylistService {
         likesCount: playlistCreated.likesCount,
         repostsCount: playlistCreated.repostsCount,
         secretToken: playlistCreated.secretToken,
-        shareUrl,
         createdAt: playlistCreated.createdAt,
       },
     };
@@ -630,7 +624,6 @@ export class PlaylistService {
           playlistId: playlisId,
           isPublic: false,
           secretToken: newToken,
-          shareUrl: `${this.configService.get('HARMONICA_BASE_URL')}/playlist/secret/${newToken}`,
         },
       };
     }
@@ -640,7 +633,6 @@ export class PlaylistService {
       data: {
         playlistId: playlisId,
         isPublic: true,
-        shareUrl: `${this.configService.get('HARMONICA_BASE_URL')}/playlist/${playlisId}`,
       },
     };
   }
@@ -790,7 +782,6 @@ export class PlaylistService {
       data: {
         playlistId: playlist.playlistId,
         secretToken: newSecretToken,
-        shareUrl: `${this.configService.get('HARMONICA_BASE_URL')}/playlist/secret/${newSecretToken}`,
       },
     };
   }
