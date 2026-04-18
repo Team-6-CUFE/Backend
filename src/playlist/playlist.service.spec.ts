@@ -6,7 +6,6 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 
-import { ConfigService } from '@nestjs/config';
 import { PlaylistRepository } from './playlist.repository';
 import { UserRepository } from '../user/user.repository';
 import { StorageService } from '../common/storage_service';
@@ -68,10 +67,6 @@ const mockPlaylistRepository = () => ({
 const mockStorageService = () => ({
   uploadFile: jest.fn(),
   deleteFile: jest.fn(),
-});
-
-const mockConfigService = () => ({
-  get: jest.fn(),
 });
 
 const mockUserRepository = () => ({
@@ -196,7 +191,6 @@ describe('PlaylistService', () => {
         PlaylistService,
         { provide: PlaylistRepository, useFactory: mockPlaylistRepository },
         { provide: UserRepository, useFactory: mockUserRepository },
-        { provide: ConfigService, useFactory: mockConfigService },
         { provide: StorageService, useFactory: mockStorageService },
         { provide: ActivityService, useFactory: mockActivitiesService },
       ],
@@ -1061,15 +1055,11 @@ describe('PlaylistService', () => {
         createdAt: new Date('2026-01-01T00:00:00Z'),
       });
       (storageService as any).get = jest.fn();
-      const configGet = jest
-        .spyOn((service as any).configService, 'get')
-        .mockReturnValue('https://harmonica.com');
 
       const result = await service.createPlaylist(baseDto, mockUserId);
 
       expect(playlistRepo.createPlaylist).toHaveBeenCalledWith(baseDto, mockUserId);
       expect(result.status).toBe('success');
-      configGet.mockRestore();
     });
 
     it('should return secret token when isPublic is false', async () => {
@@ -1084,15 +1074,11 @@ describe('PlaylistService', () => {
         secretToken: 'abc123',
         createdAt: new Date('2026-01-01T00:00:00Z'),
       });
-      const configGet = jest
-        .spyOn((service as any).configService, 'get')
-        .mockReturnValue('https://harmonica.com');
 
       const result = await service.createPlaylist({ ...baseDto, isPublic: false }, mockUserId);
 
       expect(result.status).toBe('success');
       expect(result.data.secretToken).toBe('abc123');
-      configGet.mockRestore();
     });
   });
 
@@ -1221,31 +1207,23 @@ describe('PlaylistService', () => {
     it('should return secretToken when making playlist private', async () => {
       playlistRepo.findPlaylistById.mockResolvedValue({ isPublic: true, userId: mockUserId });
       playlistRepo.changePlaylistPrivacy.mockResolvedValue('secret-token-xyz');
-      const configGet = jest
-        .spyOn((service as any).configService, 'get')
-        .mockReturnValue('https://harmonica.com');
 
       const result = await service.changePlaylistPrivacy(mockPlaylistId, false, mockUserId);
 
       expect(result.status).toBe('success');
       expect(result.data.isPublic).toBe(false);
       expect(result.data.secretToken).toBe('secret-token-xyz');
-      configGet.mockRestore();
     });
 
     it('should return isPublic true when making playlist public', async () => {
       playlistRepo.findPlaylistById.mockResolvedValue({ isPublic: false, userId: mockUserId });
       playlistRepo.changePlaylistPrivacy.mockResolvedValue(undefined);
-      const configGet = jest
-        .spyOn((service as any).configService, 'get')
-        .mockReturnValue('https://harmonica.com');
 
       const result = await service.changePlaylistPrivacy(mockPlaylistId, true, mockUserId);
 
       expect(result.status).toBe('success');
       expect(result.data.isPublic).toBe(true);
       expect((result.data as any).secretToken).toBeUndefined();
-      configGet.mockRestore();
     });
   });
 
@@ -1398,15 +1376,10 @@ describe('PlaylistService', () => {
         userId: mockUserId,
       });
       playlistRepo.resetSecretToken.mockResolvedValue('new-secret-token');
-      const configGet = jest
-        .spyOn((service as any).configService, 'get')
-        .mockReturnValue('https://harmonica.com');
-
       const result = await service.resetSecretToken(mockPlaylistId, mockUserId);
 
       expect(result.status).toBe('success');
       expect(result.data.secretToken).toBe('new-secret-token');
-      configGet.mockRestore();
     });
   });
 
