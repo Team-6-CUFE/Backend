@@ -225,16 +225,9 @@ export class DiscoveryService {
       throw new ForbiddenException('Track is not accessible');
     }
 
-    let station = await this.playlistRepository.getTrackStation(track.trackId);
-    let likeCount = 0;
-    if (station && station?.createdAt.getTime() < new Date().getTime() - 7 * 24 * 60 * 60 * 1000) {
-      // If station is older than 7 days, delete and create a new one
-      likeCount = station.likesCount;
-      await this.playlistRepository.deletePlaylist(station.playlistId);
-      station = null;
-    }
-
-    if (station) {
+    const station = await this.playlistRepository.getTrackStation(track.trackId);
+    if (station && station?.createdAt.getTime() > new Date().getTime() - 15 * 24 * 60 * 60 * 1000) {
+      // If station exists and is less than 15 days old, return it
       return this.stationResponse(currentUserId, station, ip);
     }
 
@@ -285,8 +278,11 @@ export class DiscoveryService {
       track.userId
     );
 
-    newStation.likesCount = likeCount; // Preserve like count if station was recreated
-    await this.playlistRepository.updateStationLikes(newStation.playlistId, likeCount);
+    if (station) {
+      // If an old station exists, transfer likes and delete it
+      await this.playlistRepository.transferStationLikes(station.playlistId, newStation.playlistId);
+      await this.playlistRepository.deletePlaylist(station.playlistId);
+    }
 
     // add tracks to station
     const addTrackPromises = results.map((relatedTrack, index) =>

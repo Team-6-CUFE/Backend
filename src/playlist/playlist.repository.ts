@@ -161,8 +161,19 @@ export class PlaylistRepository {
     return this.playlistRepository.save(playlist);
   }
 
-  async updateStationLikes(playlistId: string, likes: number): Promise<void> {
-    await this.playlistRepository.update({ playlistId }, { likesCount: likes });
+  async transferStationLikes(oldPlaylistId: string, newPlaylistId: string): Promise<void> {
+    // transfer like relations to new station
+    await this.playlistLikesRepository.manager.transaction(async (tm) => {
+      const existingLikes = await tm.find(PlaylistLike, { where: { playlistId: oldPlaylistId } });
+      const newLikes = existingLikes.map((like) => {
+        const newLike = tm.create(PlaylistLike, {
+          userId: like.userId,
+          playlistId: newPlaylistId,
+        });
+        return newLike;
+      });
+      await tm.save(newLikes);
+    });
   }
 
   async createTrackStation(

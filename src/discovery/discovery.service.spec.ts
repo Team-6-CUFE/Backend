@@ -112,7 +112,7 @@ const mockPlaylistRepository = () => ({
   addTrackToPlaylist: jest.fn(),
   getPublicPlaylist: jest.fn(),
   deletePlaylist: jest.fn(),
-  updateStationLikes: jest.fn(),
+  transferStationLikes: jest.fn(),
 });
 
 const mockUserService = () => ({
@@ -390,11 +390,11 @@ describe('DiscoveryService', () => {
       expect(playlistRepo.createTrackStation).not.toHaveBeenCalled();
     });
 
-    it('should delete and recreate station when it is older than 7 days', async () => {
+    it('should delete and recreate station when it is older than 15 days', async () => {
       jest.spyOn(geolocationUtil, 'getLocationFromIp').mockReturnValue({ country: 'US' } as any);
       const track = mockTrack();
       trackRepo.findTrackByTitleAndArtist.mockResolvedValue(track);
-      const oldDate = new Date(Date.now() - 8 * 24 * 60 * 60 * 1000);
+      const oldDate = new Date(Date.now() - 16 * 24 * 60 * 60 * 1000);
       const staleStation = mockStation({ createdAt: oldDate });
       playlistRepo.getTrackStation.mockResolvedValue(staleStation);
       playlistRepo.deletePlaylist.mockResolvedValue(undefined);
