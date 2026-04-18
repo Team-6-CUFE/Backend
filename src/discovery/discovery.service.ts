@@ -226,8 +226,10 @@ export class DiscoveryService {
     }
 
     let station = await this.playlistRepository.getTrackStation(track.trackId);
+    let likeCount = 0;
     if (station && station?.createdAt.getTime() < new Date().getTime() - 7 * 24 * 60 * 60 * 1000) {
       // If station is older than 7 days, delete and create a new one
+      likeCount = station.likesCount;
       await this.playlistRepository.deletePlaylist(station.playlistId);
       station = null;
     }
@@ -282,6 +284,10 @@ export class DiscoveryService {
       track.coverImage,
       track.userId
     );
+
+    newStation.likesCount = likeCount; // Preserve like count if station was recreated
+    await this.playlistRepository.updateStationLikes(newStation.playlistId, likeCount);
+
     // add tracks to station
     const addTrackPromises = results.map((relatedTrack, index) =>
       this.playlistRepository.addTrackToPlaylist(
