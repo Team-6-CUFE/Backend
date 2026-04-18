@@ -7,8 +7,15 @@ import {
   IsIn,
   MaxLength,
   ArrayMaxSize,
+  Matches,
 } from 'class-validator';
 import { ApiPropertyOptional } from '@nestjs/swagger';
+import { Transform } from 'class-transformer';
+import {
+  IsNotFutureDate,
+  IsRealisticAge,
+  IsOldEnough,
+} from '../decorators/valid-birthdate.decorator';
 
 export class UpdateProfileReqDto {
   @ApiPropertyOptional({ description: 'First name', example: 'Moaaz', maxLength: 100 })
@@ -82,6 +89,10 @@ export class UpdateProfileReqDto {
     maxItems: 10,
   })
   @IsOptional()
+  @Transform(({ value }) => {
+    if (typeof value === 'string') return value.split(',').map((s: string) => s.trim());
+    return value;
+  })
   @IsArray()
   @IsString({ each: true })
   @ArrayMaxSize(10, { message: 'Maximum 10 genres allowed' })
@@ -100,6 +111,52 @@ export class UpdateProfileReqDto {
     example: true,
   })
   @IsOptional()
+  @Transform(({ value }) => {
+    if (value === 'true') return true;
+    if (value === 'false') return false;
+    return value;
+  })
   @IsBoolean()
   isPublic?: boolean;
+
+  @ApiPropertyOptional({
+    description:
+      'Birthdate in YYYY-MM-DD format. Must not be in the future, user must be at least 13 and at most 120 years old.',
+    example: '1999-05-15',
+  })
+  @IsOptional()
+  @IsString()
+  @Matches(/^\d{4}-\d{2}-\d{2}$/, { message: 'Birthdate must be in YYYY-MM-DD format' })
+  @IsNotFutureDate({ message: 'Birthdate cannot be in the future' })
+  @IsOldEnough({ message: 'You must be at least 13 years old' })
+  @IsRealisticAge({ message: 'Please enter a valid birthdate' })
+  birthdate?: string;
+
+  @ApiPropertyOptional({
+    description:
+      'Set to true to remove the existing avatar. Ignored if no avatar exists or when avatarFile is also provided.',
+    example: true,
+  })
+  @IsOptional()
+  @Transform(({ value }) => {
+    if (value === 'true') return true;
+    if (value === 'false') return false;
+    return value;
+  })
+  @IsBoolean()
+  deleteAvatar?: boolean;
+
+  @ApiPropertyOptional({
+    description:
+      'Set to true to remove the existing cover photo. Ignored if no cover exists or when coverFile is also provided.',
+    example: true,
+  })
+  @IsOptional()
+  @Transform(({ value }) => {
+    if (value === 'true') return true;
+    if (value === 'false') return false;
+    return value;
+  })
+  @IsBoolean()
+  deleteCover?: boolean;
 }

@@ -211,6 +211,98 @@ describe('ProfileService', () => {
 
       await expect(service.updateProfile(mockUserId, dto)).rejects.toThrow(NotFoundException);
     });
+
+    it('should convert birthdate string to Date object in userData', async () => {
+      userRepo.findById.mockResolvedValue(mockUser());
+      userRepo.update.mockResolvedValue(mockUser());
+
+      await service.updateProfile(mockUserId, { birthdate: '1999-05-15' });
+
+      expect(userRepo.update).toHaveBeenCalledWith(
+        mockUserId,
+        expect.objectContaining({ birthdate: new Date('1999-05-15') })
+      );
+    });
+
+    it('should NOT set birthdate in userData when birthdate is not in dto', async () => {
+      userRepo.findById.mockResolvedValue(mockUser());
+      userRepo.update.mockResolvedValue(mockUser());
+
+      await service.updateProfile(mockUserId, { displayName: 'No birthdate' });
+
+      const callArg = userRepo.update.mock.calls[0][1] as Record<string, unknown>;
+      expect(callArg).not.toHaveProperty('birthdate');
+    });
+
+    it('should coerce isPublic to boolean when provided', async () => {
+      userRepo.findById.mockResolvedValue(mockUser());
+      userRepo.update.mockResolvedValue(mockUser());
+
+      await service.updateProfile(mockUserId, { isPublic: false });
+
+      expect(userRepo.update).toHaveBeenCalledWith(
+        mockUserId,
+        expect.objectContaining({ isPublic: false })
+      );
+    });
+
+    it('should include gender in userData when provided', async () => {
+      userRepo.findById.mockResolvedValue(mockUser());
+      userRepo.update.mockResolvedValue({ ...mockUser(), gender: 'female' });
+
+      await service.updateProfile(mockUserId, { gender: 'female' });
+
+      expect(userRepo.update).toHaveBeenCalledWith(
+        mockUserId,
+        expect.objectContaining({ gender: 'female' })
+      );
+    });
+
+    it('should call updateAvatar when avatarFile is provided in files', async () => {
+      userRepo.findById.mockResolvedValue(mockUser());
+      userRepo.update.mockResolvedValue(mockUser());
+      const avatarSpy = jest.spyOn(service, 'updateAvatar').mockResolvedValue({
+        status: 'Success',
+        message: '',
+        data: { avatarUrl: 'url', updatedAt: new Date() },
+      });
+
+      await service.updateProfile(mockUserId, {}, { avatarFile: mockFile() });
+
+      expect(avatarSpy).toHaveBeenCalledWith(
+        mockUserId,
+        expect.objectContaining({ fieldname: 'file' })
+      );
+    });
+
+    it('should call updateCover when coverFile is provided in files', async () => {
+      userRepo.findById.mockResolvedValue(mockUser());
+      userRepo.update.mockResolvedValue(mockUser());
+      const coverSpy = jest.spyOn(service, 'updateCover').mockResolvedValue({
+        status: 'Success',
+        message: '',
+        data: { coverPhoto: 'url', updatedAt: new Date() },
+      });
+
+      await service.updateProfile(mockUserId, {}, { coverFile: mockFile() });
+
+      expect(coverSpy).toHaveBeenCalledWith(
+        mockUserId,
+        expect.objectContaining({ fieldname: 'file' })
+      );
+    });
+
+    it('should NOT call updateAvatar or updateCover when no files are provided', async () => {
+      userRepo.findById.mockResolvedValue(mockUser());
+      userRepo.update.mockResolvedValue(mockUser());
+      const avatarSpy = jest.spyOn(service, 'updateAvatar');
+      const coverSpy = jest.spyOn(service, 'updateCover');
+
+      await service.updateProfile(mockUserId, { displayName: 'No files' });
+
+      expect(avatarSpy).not.toHaveBeenCalled();
+      expect(coverSpy).not.toHaveBeenCalled();
+    });
   });
 
   describe('updateMyBirthdate', () => {
