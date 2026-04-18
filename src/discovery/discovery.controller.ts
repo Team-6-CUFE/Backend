@@ -1,7 +1,7 @@
 import { Body, Controller, Get, Ip, Query, Param } from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
 import { DiscoveryService } from './discovery.service';
-import { ApiGetFeed, ApiGetTrackStation } from './discovery.swagger';
+import { ApiGetFeed, ApiGetTrackStation, ApiGetUserRecentActivities } from './discovery.swagger';
 import { CurrentUser } from '../authentication/decorators/current-user.decorator';
 
 @ApiTags('Discovery')
@@ -21,7 +21,7 @@ export class DiscoveryController {
     return this.discoveryService.getFeed(userId, ip, includeReposts, page, limit);
   }
 
-  @ApiGetFeed()
+  @ApiGetUserRecentActivities()
   @Get('/profile/:username/recent-activities')
   getUserRecentActivities(
     @CurrentUser('sub') userId: string,

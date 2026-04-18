@@ -1,45 +1,204 @@
 import { applyDecorators } from '@nestjs/common';
 
-import { ApiOperation, ApiResponse, ApiParam, ApiCookieAuth } from '@nestjs/swagger';
+import {
+  ApiOperation,
+  ApiResponse,
+  ApiParam,
+  ApiCookieAuth,
+  ApiQuery,
+  ApiBody,
+} from '@nestjs/swagger';
 
 export function ApiGetFeed() {
   return applyDecorators(
     ApiCookieAuth('access_token'),
     ApiOperation({
-      summary: 'Remove a playlist repost',
-      description: 'Removes a previous repost of a playlist.',
+      summary: 'Get following feed',
+      description:
+        'Returns a paginated feed of recent track and playlist activities from users the authenticated user follows. ' +
+        'Each item contains an activity record plus the full target (track or playlist). ' +
+        "For tracks blocked in the requester's region, `audioUrl` is returned as `null`.",
     }),
-    ApiParam({
-      name: 'playlistId',
-      description: 'UUID of the playlist to unrepost',
-      type: 'string',
-      format: 'uuid',
-      example: '550e8400-e29b-41d4-a716-446655440000',
+    ApiBody({
+      required: false,
+      schema: {
+        type: 'object',
+        properties: {
+          includeReposts: {
+            type: 'boolean',
+            description: 'Whether to include repost activities (default: true)',
+            example: true,
+          },
+        },
+      },
+    }),
+    ApiQuery({
+      name: 'page',
+      required: false,
+      type: Number,
+      description: 'Page number (default: 1)',
+      example: 1,
+    }),
+    ApiQuery({
+      name: 'limit',
+      required: false,
+      type: Number,
+      description: 'Number of activities per page (default: 20)',
+      example: 20,
     }),
     ApiResponse({
       status: 200,
-      description: 'Playlist repost successfully removed',
+      description:
+        "Feed retrieved successfully. `audioUrl` is `null` for tracks blocked in the requester's region.",
       schema: {
-        example: {
-          status: 'success',
-          message: 'Playlist repost successfully removed',
-        },
+        example: [
+          {
+            activityId: 'act-uuid-1',
+            activityType: 'track_posted',
+            targetId: 'track-uuid-1',
+            userId: 'user-uuid',
+            targetUserId: null,
+            createdAt: '2026-04-17T10:00:00.000Z',
+            user: {
+              userId: 'user-uuid',
+              username: 'dj_nour',
+              displayName: 'DJ Nour',
+              avatarUrl: 'https://cdn.harmonica.com/avatars/dj_nour.jpg',
+            },
+            target: {
+              trackId: 'track-uuid-1',
+              title: 'Midnight Drive',
+              audioUrl: 'https://cdn.harmonica.com/audio/midnight.mp3',
+              coverImage: 'https://cdn.harmonica.com/covers/midnight.jpg',
+              durationSeconds: 213,
+              playCount: 1200,
+              likesCount: 87,
+              repostsCount: 13,
+              commentsCount: 5,
+              user: {
+                userId: 'user-uuid',
+                username: 'dj_nour',
+                displayName: 'DJ Nour',
+                avatarUrl: 'https://cdn.harmonica.com/avatars/dj_nour.jpg',
+              },
+            },
+          },
+          {
+            activityId: 'act-uuid-2',
+            activityType: 'track_repost',
+            targetId: 'track-uuid-2',
+            userId: 'user-uuid-2',
+            targetUserId: null,
+            createdAt: '2026-04-16T08:00:00.000Z',
+            user: {
+              userId: 'user-uuid-2',
+              username: 'listener1',
+              displayName: 'Listener One',
+              avatarUrl: null,
+            },
+            target: {
+              trackId: 'track-uuid-2',
+              title: 'Region Locked Track',
+              audioUrl: null,
+              coverImage: 'https://cdn.harmonica.com/covers/locked.jpg',
+              genre: 'Electronic',
+              isBlocked: true,
+              user: {
+                userId: 'user-uuid-3',
+                username: 'artist3',
+                displayName: 'Artist Three',
+                avatarUrl: null,
+              },
+            },
+          },
+        ],
+      },
+    }),
+    ApiResponse({ status: 401, description: 'Unauthorized' })
+  );
+}
+
+// ─── Get User Recent Activities ───────────────────────────────────────────────
+
+export function ApiGetUserRecentActivities() {
+  return applyDecorators(
+    ApiCookieAuth('access_token'),
+    ApiOperation({
+      summary: "Get a user's recent activities",
+      description:
+        "Returns a paginated list of a public user's recent track and playlist activities (posts and reposts). " +
+        "For tracks blocked in the requester's region, `audioUrl` is returned as `null`.",
+    }),
+    ApiParam({
+      name: 'username',
+      description: 'The username of the target user',
+      type: 'string',
+      example: 'dj_nour',
+    }),
+    ApiQuery({
+      name: 'page',
+      required: false,
+      type: Number,
+      description: 'Page number (default: 1)',
+      example: 1,
+    }),
+    ApiQuery({
+      name: 'limit',
+      required: false,
+      type: Number,
+      description: 'Number of activities per page (default: 20)',
+      example: 20,
+    }),
+    ApiResponse({
+      status: 200,
+      description:
+        "Activities retrieved successfully. `audioUrl` is `null` for tracks blocked in the requester's region.",
+      schema: {
+        example: [
+          {
+            activityId: 'act-uuid-1',
+            activityType: 'track_posted',
+            targetId: 'track-uuid-1',
+            userId: 'user-uuid',
+            targetUserId: null,
+            createdAt: '2026-04-17T10:00:00.000Z',
+            user: {
+              userId: 'user-uuid',
+              username: 'dj_nour',
+              displayName: 'DJ Nour',
+              avatarUrl: 'https://cdn.harmonica.com/avatars/dj_nour.jpg',
+            },
+            target: {
+              trackId: 'track-uuid-1',
+              title: 'Midnight Drive',
+              audioUrl: 'https://cdn.harmonica.com/audio/midnight.mp3',
+              coverImage: 'https://cdn.harmonica.com/covers/midnight.jpg',
+              durationSeconds: 213,
+              playCount: 1200,
+              likesCount: 87,
+              repostsCount: 13,
+              commentsCount: 5,
+              user: {
+                userId: 'user-uuid',
+                username: 'dj_nour',
+                displayName: 'DJ Nour',
+                avatarUrl: 'https://cdn.harmonica.com/avatars/dj_nour.jpg',
+              },
+            },
+          },
+        ],
       },
     }),
     ApiResponse({ status: 401, description: 'Unauthorized' }),
     ApiResponse({
-      status: 403,
-      description: 'User has not reposted this playlist',
-      schema: {
-        example: { statusCode: 403, message: 'You have not reposted this playlist' },
-      },
+      status: 404,
+      description: 'User not found',
+      schema: { example: { statusCode: 404, message: 'User not found' } },
     }),
     ApiResponse({
-      status: 404,
-      description: 'Playlist not found',
-      schema: {
-        example: { statusCode: 404, message: 'Playlist not found' },
-      },
+      status: 403,
+      description: "User's activities are private",
+      schema: { example: { statusCode: 403, message: 'User activities are private' } },
     })
   );
 }
