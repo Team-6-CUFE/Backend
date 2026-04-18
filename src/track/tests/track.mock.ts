@@ -41,7 +41,12 @@ export const mockPublicTrack = (overrides?: object) => ({
   updatedAt: new Date('2024-06-01T10:00:00Z'),
   genres: [],
   tags: [],
-  user: null,
+  user: {
+    userId: MOCK_OTHER_USER_ID,
+    username: 'dj_nour',
+    displayName: 'Nour',
+    avatarUrl: 'https://s3.amazonaws.com/avatars/nour.jpg',
+  },
   ...overrides,
 });
 

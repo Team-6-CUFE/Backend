@@ -45,8 +45,8 @@ import { getLocationFromIp } from '../common/utilities/geolocation.util';
 import { PlaylistService } from '../playlist/playlist.service';
 import { RecentlyPlayedItemType } from './entities/recently-played.entity';
 import { FansService } from './services/fans.service';
-import { ActivitiesService } from '../discovery/activities.service';
-import { ActivityType } from '../discovery/entities/activity.entity';
+import { ActivityService } from '../activity/activity.service';
+import { ActivityType } from '../activity/entities/activity.entity';
 import { REDIS_CLIENT } from '../redis/redis.module';
 
 const RELATED_TRACKS_TTL_SECS = 3 * 24 * 60 * 60; // 3 days
@@ -61,7 +61,7 @@ export class TrackService {
     private readonly genreRepository: GenreRepository,
     private readonly playlistService: PlaylistService,
     private readonly fansService: FansService,
-    private readonly activitiesService: ActivitiesService,
+    private readonly activitiesService: ActivityService,
     @InjectQueue('audioQueue')
     private readonly audioQueue: Queue,
 
@@ -830,11 +830,34 @@ export class TrackService {
     };
   }
 
+  async getRelatedTracksByTrackId(trackId: string): Promise<Track[]> {
+    const cached = await this.redis.get(`related_tracks:${trackId}`);
+    if (cached) {
+      const data = JSON.parse(cached) as Track[];
+      return data;
+    }
+
+    const topFans = await this.trackRepository.getTrackTopFansIds(trackId);
+    if (topFans.length === 0) {
+      return [];
+    }
+
+    const relatedTracks = await this.trackRepository.findRelatedTracks(trackId, topFans);
+
+    if (relatedTracks.length > 0) {
+      await this.redis.set(`related_tracks:${trackId}`, JSON.stringify(relatedTracks), {
+        EX: RELATED_TRACKS_TTL_SECS,
+      });
+    }
+    return relatedTracks;
+  }
+
   async getRelatedTracks(
     title: string,
     artistUsername: string,
     page: number = 1,
-    limit: number = 10
+    limit: number = 10,
+    ip?: string
   ): Promise<{
     status: string;
     data: UserTrackResponseDto[];
@@ -848,33 +871,24 @@ export class TrackService {
     }
 
     const { trackId } = track;
-    const cached = await this.redis.get(`related_tracks:${trackId}`);
-    if (cached) {
-      const data = JSON.parse(cached) as UserTrackResponseDto[];
-      const startIndex = (page - 1) * limit;
-      const paginatedData = data.slice(startIndex, startIndex + limit);
-      return {
-        status: 'success',
-        ...buildPaginationResponse(paginatedData, data.length, page, limit),
-      };
-    }
+    const relatedTracks = await this.getRelatedTracksByTrackId(trackId);
 
-    const topFans = await this.trackRepository.getTrackTopFansIds(trackId);
-    if (topFans.length === 0) {
-      return { status: 'success', data: [] };
-    }
+    const country = ip ? getLocationFromIp(ip).country : null;
 
-    const relatedTracks = await this.trackRepository.findRelatedTracks(trackId, topFans);
-
-    const data = plainToInstance(UserTrackResponseDto, relatedTracks, {
-      excludeExtraneousValues: true,
+    const data = relatedTracks.map((t) => {
+      const dto = plainToInstance(UserTrackResponseDto, t, { excludeExtraneousValues: true });
+      console.log(`Track ${t.title} blocked regions:`, t.blockedRegions);
+      if (country && t.blockedRegions?.includes(country)) {
+        dto.audioUrl = null;
+        dto.waveformUrl = null;
+      }
+      dto.genreName = t.genre?.name ?? null;
+      dto.artistId = t.user.userId;
+      dto.artistDisplayName = t.user.displayName;
+      dto.artistUsername = t.user.username;
+      return dto;
     });
 
-    if (data.length > 0) {
-      await this.redis.set(`related_tracks:${trackId}`, JSON.stringify(data), {
-        EX: RELATED_TRACKS_TTL_SECS,
-      });
-    }
     const startIndex = (page - 1) * limit;
     const paginatedData = data.slice(startIndex, startIndex + limit);
     return {

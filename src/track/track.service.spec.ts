@@ -58,7 +58,7 @@ import {
   mockActivitiesService,
 } from './tests/track.mock';
 import { REDIS_CLIENT } from '../redis/redis.module';
-import { ActivitiesService } from '../discovery/activities.service';
+import { ActivityService } from '../activity/activity.service';
 
 const MOCK_CAPTION = 'Great track!';
 
@@ -84,7 +84,7 @@ describe('TrackService', () => {
         { provide: FansService, useFactory: mockFansService },
         { provide: PlaylistService, useFactory: mockPlaylistService },
         { provide: REDIS_CLIENT, useFactory: mockRedisClient },
-        { provide: ActivitiesService, useFactory: mockActivitiesService },
+        { provide: ActivityService, useFactory: mockActivitiesService },
       ],
     }).compile();
 
@@ -1752,7 +1752,11 @@ describe('TrackService', () => {
 
       expect(trackRepo.findRelatedTracks).not.toHaveBeenCalled();
       expect(redisClient.set).not.toHaveBeenCalled();
-      expect(result).toEqual({ status: 'success', data: [] });
+      expect(result).toEqual({
+        status: 'success',
+        data: [],
+        pagination: { currentPage: 1, totalPages: 0, totalCount: 0, limit: 10 },
+      });
     });
 
     it('should not write to cache when no related tracks are found', async () => {

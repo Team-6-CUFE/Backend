@@ -5,7 +5,7 @@ import { Track } from '../../track/entities/track.entity';
 import { TrackLikes } from '../../track/entities/track-likes.entity';
 import { TrackRepost } from '../../track/entities/track-reposts.entity';
 import { TrackComment } from '../../track/entities/track-comments.entity';
-import { Activity, ActivityType } from '../../discovery/entities/activity.entity';
+import { Activity, ActivityType } from '../../activity/entities/activity.entity';
 
 export class TrackSeeder implements Seeder {
   public async run(dataSource: DataSource, factoryManager: SeederFactoryManager): Promise<void> {

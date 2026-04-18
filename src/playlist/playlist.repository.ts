@@ -1,7 +1,7 @@
 import { ConflictException, Injectable } from '@nestjs/common';
 import { In, Repository } from 'typeorm';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Playlist } from './entities/playlist.entity';
+import { Playlist, PlaylistType } from './entities/playlist.entity';
 import { PlaylistRepost } from './entities/playlist-reposts.entity';
 import { PlaylistLike } from './entities/playlist-likes.entity';
 import { CreatePlaylistDto } from './dto/create-playlist.dto';
@@ -161,6 +161,24 @@ export class PlaylistRepository {
     return this.playlistRepository.save(playlist);
   }
 
+  async createTrackStation(
+    trackId: string,
+    trackTitle: string,
+    trackImage: string,
+    userId: string
+  ): Promise<Playlist> {
+    const station = this.playlistRepository.create({
+      title: trackTitle,
+      description: `Based on ${trackTitle}`,
+      userId,
+      isPublic: true,
+      type: PlaylistType.STATION,
+      trackId,
+      coverImage: trackImage,
+    });
+    return this.playlistRepository.save(station);
+  }
+
   async updatePlaylist(
     playlistId: string,
     updateData: Partial<Playlist>
@@ -301,7 +319,30 @@ export class PlaylistRepository {
       where: {
         playlistId,
       },
-      relations: ['user', 'playlistTracks', 'playlistTracks.track', 'tags', 'genre'],
+      relations: [
+        'user',
+        'playlistTracks',
+        'playlistTracks.track',
+        'playlistTracks.track.user',
+        'tags',
+        'genre',
+      ],
+      order: {
+        playlistTracks: { position: 'ASC' },
+      },
+    });
+  }
+
+  async getTrackStation(trackId: string): Promise<Playlist | null> {
+    return this.playlistRepository.findOne({
+      where: { trackId, type: PlaylistType.STATION },
+      relations: [
+        'user',
+        'playlistTracks',
+        'playlistTracks.track',
+        'playlistTracks.track.user',
+        'tags',
+      ],
       order: {
         playlistTracks: { position: 'ASC' },
       },
@@ -399,5 +440,38 @@ export class PlaylistRepository {
       .skip(skip)
       .take(limit)
       .getManyAndCount();
+  }
+
+  async findByIds(ids: string[]): Promise<Playlist[]> {
+    return this.playlistRepository
+      .createQueryBuilder('playlist')
+      .where('playlist.playlistId IN (:...ids)', { ids })
+      .leftJoinAndSelect('playlist.playlistTracks', 'playlistTrack')
+      .leftJoinAndSelect('playlistTrack.track', 'track')
+      .leftJoin('track.user', 'trackUser')
+      .orderBy('playlistTrack.position', 'ASC')
+      .select([
+        'playlist.playlistId',
+        'playlist.title',
+        'playlist.coverImage',
+        'playlist.totalDurationSeconds',
+        'playlist.tracksCount',
+        'playlist.userId',
+        'playlist.type',
+        'playlistTrack.position',
+        'playlistTrack.trackId',
+        'track.trackId',
+        'track.title',
+        'track.audioUrl',
+        'track.coverImage',
+        'track.durationSeconds',
+        'track.playCount',
+        'track.userId',
+        'trackUser.userId',
+        'trackUser.username',
+        'trackUser.displayName',
+        'trackUser.avatarUrl',
+      ])
+      .getMany();
   }
 }

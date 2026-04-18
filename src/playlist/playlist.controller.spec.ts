@@ -837,24 +837,24 @@ describe('PlaylistController', () => {
       };
       service.getPublicPlaylist.mockResolvedValue(mockResponse);
 
-      const result = await controller.getPublicPlaylist(mockPlaylistId, mockUserId);
+      const result = await controller.getPublicPlaylist(mockPlaylistId, mockUserId, '1.2.3.4');
 
-      expect(service.getPublicPlaylist).toHaveBeenCalledWith(mockPlaylistId, mockUserId);
+      expect(service.getPublicPlaylist).toHaveBeenCalledWith(mockPlaylistId, mockUserId, '1.2.3.4');
       expect(result).toBe(mockResponse);
     });
 
     it('should propagate NotFoundException from service', async () => {
       service.getPublicPlaylist.mockRejectedValue(new NotFoundException());
-      await expect(controller.getPublicPlaylist(mockPlaylistId, mockUserId)).rejects.toThrow(
-        NotFoundException
-      );
+      await expect(
+        controller.getPublicPlaylist(mockPlaylistId, mockUserId, '1.2.3.4')
+      ).rejects.toThrow(NotFoundException);
     });
 
     it('should propagate ForbiddenException from service', async () => {
       service.getPublicPlaylist.mockRejectedValue(new ForbiddenException());
-      await expect(controller.getPublicPlaylist(mockPlaylistId, mockUserId)).rejects.toThrow(
-        ForbiddenException
-      );
+      await expect(
+        controller.getPublicPlaylist(mockPlaylistId, mockUserId, '1.2.3.4')
+      ).rejects.toThrow(ForbiddenException);
     });
   });
 

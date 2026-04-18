@@ -7,7 +7,7 @@ import { PlaylistLike } from '../../playlist/entities/playlist-likes.entity';
 import { PlaylistRepost } from '../../playlist/entities/playlist-reposts.entity';
 import { PlaylistTrack } from '../../playlist/entities/playlist-tracks.entity';
 import { Genre } from '../../genre/entities/genre.entity';
-import { Activity, ActivityType } from '../../discovery/entities/activity.entity';
+import { Activity, ActivityType } from '../../activity/entities/activity.entity';
 import { generateVerificationToken } from '../../common/utilities/tokens.util';
 
 export class PlaylistSeeder implements Seeder {
