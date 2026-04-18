@@ -932,7 +932,8 @@ export function ApiGetPublicPlaylist() {
             repostsCount: 3,
             createdAt: '2026-03-31T12:00:00Z',
             updatedAt: '2026-04-01T08:00:00Z',
-            genre: 'Lo-fi',
+            genreName: 'Lo-fi',
+            genreId: 'genre-uuid',
             tags: [
               { tagId: 'tag-1', name: 'Lo-fi' },
               { tagId: 'tag-2', name: 'Relax' },
@@ -1005,7 +1006,8 @@ export function ApiGetSecretPlaylist() {
     ApiOperation({
       summary: 'Get a private playlist via secret token',
       description:
-        'Allows authenticated users with the secret link to view a private playlist. Used for SoundCloud-style sharing.',
+        'Allows users with the secret link to view a private playlist. Used for SoundCloud-style sharing. ' +
+        "For tracks blocked in the requester's region, `audioUrl` and `waveformUrl` are returned as `null`.",
     }),
     ApiParam({
       name: 'secretToken',
@@ -1015,39 +1017,70 @@ export function ApiGetSecretPlaylist() {
     }),
     ApiResponse({
       status: 200,
-      description: 'Secret playlist retrieved successfully',
+      description:
+        "Secret playlist retrieved successfully. `audioUrl` and `waveformUrl` per track are `null` when blocked in the requester's region.",
       schema: {
         example: {
           status: 'success',
           data: {
-            playlistId: 'uuid',
+            playlistId: '550e8400-e29b-41d4-a716-446655440000',
             title: 'Top Secret Beats',
             description: 'Private album drop',
             coverImage: 'https://cdn.harmonica.com/covers/secret.jpg',
             isPublic: false,
-            tracksCount: 3,
-            durationSeconds: 630,
+            tracksCount: 2,
+            durationSeconds: 420,
             likesCount: 0,
             repostsCount: 0,
             createdAt: '2026-04-01T10:00:00Z',
             updatedAt: '2026-04-02T08:00:00Z',
-            tags: [{ tagId: 'uuid', name: 'Experimental' }],
+            genreName: 'Experimental',
+            genreId: 'genre-uuid',
+            tags: [{ tagId: 'tag-uuid', name: 'Experimental' }],
             user: {
-              user_id: 'user-uuid',
+              userId: 'user-uuid',
+              username: 'harmonica_artist',
               displayName: 'ArtistName',
               avatarUrl: 'https://cdn.harmonica.com/avatars/artist.jpg',
             },
             tracks: [
               {
                 position: 1,
-                trackId: 'track-uuid',
+                trackId: 'track-uuid-1',
                 title: 'Unreleased Track',
-                duration_seconds: 210,
+                durationSeconds: 210,
                 coverImage: 'https://cdn.harmonica.com/covers/track.jpg',
+                audioUrl: 'https://cdn.harmonica.com/audio/unreleased.mp3',
+                waveformUrl: 'https://cdn.harmonica.com/waveforms/unreleased.json',
                 playCount: 0,
                 likesCount: 0,
                 repostsCount: 0,
                 commentsCount: 0,
+                artist: {
+                  userId: 'user-uuid',
+                  username: 'harmonica_artist',
+                  displayName: 'ArtistName',
+                  avatarUrl: 'https://cdn.harmonica.com/avatars/artist.jpg',
+                },
+              },
+              {
+                position: 2,
+                trackId: 'track-uuid-2',
+                title: 'Region Locked Track',
+                durationSeconds: 210,
+                coverImage: 'https://cdn.harmonica.com/covers/locked.jpg',
+                audioUrl: null,
+                waveformUrl: null,
+                playCount: 0,
+                likesCount: 0,
+                repostsCount: 0,
+                commentsCount: 0,
+                artist: {
+                  userId: 'user-uuid-2',
+                  username: 'artist2',
+                  displayName: 'Artist Two',
+                  avatarUrl: null,
+                },
               },
             ],
           },

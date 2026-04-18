@@ -16,6 +16,7 @@ const mockUserId = '550e8400-e29b-41d4-a716-446655440001';
 const mockMyUserId = '550e8400-e29b-41d4-a716-446655440002';
 const mockPage = 1;
 const mockLimit = 20;
+const mockIp = '192.168.1.1';
 
 // ─── Mock factory ─────────────────────────────────────────────────────────────
 
@@ -867,15 +868,17 @@ describe('PlaylistController', () => {
       const mockResponse = { status: 'success', data: { playlistId: mockPlaylistId } };
       service.getSecretPlaylist.mockResolvedValue(mockResponse);
 
-      const result = await controller.getSecretPlaylist(secretToken);
+      const result = await controller.getSecretPlaylist(secretToken, mockIp);
 
-      expect(service.getSecretPlaylist).toHaveBeenCalledWith(secretToken);
+      expect(service.getSecretPlaylist).toHaveBeenCalledWith(secretToken, mockIp);
       expect(result).toBe(mockResponse);
     });
 
     it('should propagate NotFoundException from service', async () => {
       service.getSecretPlaylist.mockRejectedValue(new NotFoundException());
-      await expect(controller.getSecretPlaylist(secretToken)).rejects.toThrow(NotFoundException);
+      await expect(controller.getSecretPlaylist(secretToken, mockIp)).rejects.toThrow(
+        NotFoundException
+      );
     });
   });
 

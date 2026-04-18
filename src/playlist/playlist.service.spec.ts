@@ -1313,7 +1313,7 @@ describe('PlaylistService', () => {
 
       expect(result.status).toBe('success');
       expect(result.data.playlistId).toBe(mockPlaylistId);
-      expect(result.data.genre).toBe('Lo-fi');
+      expect(result.data.genreName).toBe('Lo-fi');
       expect(result.data.tracks).toHaveLength(1);
       expect(result.data.tags).toEqual([{ tagId: 'tag-1', name: 'Chill' }]);
     });

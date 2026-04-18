@@ -328,7 +328,6 @@ export class PlaylistService {
     } else {
       shareUrl = `${this.configService.get('HARMONICA_BASE_URL')}/playlist/secret/${playlistCreated.secretToken}`;
     }
-    console.log('created playlist: ', playlistCreated);
     return {
       status: 'success',
       data: {
@@ -675,7 +674,8 @@ export class PlaylistService {
         repostsCount: playlist.repostsCount,
         createdAt: playlist.createdAt,
         updatedAt: playlist.updatedAt,
-        genre: playlist.genre?.name,
+        genreName: playlist.genre?.name,
+        genreId: playlist.genre?.genreId,
         tags: playlist.tags.map((tag) => ({
           tagId: tag.genreId,
           name: tag.name,
@@ -712,14 +712,15 @@ export class PlaylistService {
     };
   }
 
-  async getSecretPlaylist(secretToken: string) {
+  async getSecretPlaylist(secretToken: string, ip?: string) {
     const playlist = await this.playlistRepository.getSecretPlaylist(secretToken);
 
     if (!playlist) {
       throw new NotFoundException('Playlist not found');
     }
 
-    console.log('playlist:', playlist);
+    const country = ip ? getLocationFromIp(ip).country : null;
+
     return {
       status: 'success',
       data: {
@@ -734,26 +735,40 @@ export class PlaylistService {
         repostsCount: playlist.repostsCount,
         createdAt: playlist.createdAt,
         updatedAt: playlist.updatedAt,
+        genreName: playlist.genre?.name ?? null,
+        genreId: playlist.genre?.genreId ?? null,
         tags: playlist.tags.map((tag) => ({
           tagId: tag.genreId,
           name: tag.name,
         })),
         user: {
-          user_id: playlist.user.userId,
+          userId: playlist.user.userId,
+          username: playlist.user.username,
           displayName: playlist.user.displayName,
           avatarUrl: playlist.user.avatarUrl,
         },
-        tracks: playlist.playlistTracks.map((pt) => ({
-          position: pt.position,
-          trackId: pt.track.trackId,
-          title: pt.track.title,
-          duration_seconds: pt.track.durationSeconds,
-          coverImage: pt.track.coverImage,
-          playCount: pt.track.playCount,
-          likesCount: pt.track.likesCount,
-          repostsCount: pt.track.repostsCount,
-          commentsCount: pt.track.commentsCount,
-        })),
+        tracks: playlist.playlistTracks.map((pt) => {
+          const isBlocked = !!(country && pt.track.blockedRegions?.includes(country));
+          return {
+            position: pt.position,
+            trackId: pt.track.trackId,
+            title: pt.track.title,
+            durationSeconds: pt.track.durationSeconds,
+            coverImage: pt.track.coverImage,
+            audioUrl: isBlocked ? null : (pt.track.audioUrl ?? null),
+            waveformUrl: isBlocked ? null : (pt.track.waveformUrl ?? null),
+            playCount: pt.track.playCount,
+            likesCount: pt.track.likesCount,
+            repostsCount: pt.track.repostsCount,
+            commentsCount: pt.track.commentsCount,
+            artist: {
+              userId: pt.track.userId,
+              username: pt.track.user?.username || 'unknown',
+              displayName: pt.track.user?.displayName || 'Unknown Artist',
+              avatarUrl: pt.track.user?.avatarUrl || null,
+            },
+          };
+        }),
       },
     };
   }

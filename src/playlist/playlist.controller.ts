@@ -255,8 +255,8 @@ export class PlaylistController {
 
   @ApiGetSecretPlaylist()
   @Get('/secret/:secretToken')
-  getSecretPlaylist(@Param('secretToken') secretToken: string) {
-    return this.playlistService.getSecretPlaylist(secretToken);
+  getSecretPlaylist(@Param('secretToken') secretToken: string, @Ip() ip: string) {
+    return this.playlistService.getSecretPlaylist(secretToken, ip);
   }
 
   @ApiResetPlaylistSecretToken()
