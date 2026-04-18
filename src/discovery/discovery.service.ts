@@ -10,8 +10,7 @@ import { Track } from '../track/entities/track.entity';
 import { Playlist } from '../playlist/entities/playlist.entity';
 import { TrackVisibility } from '../track/enums/track-visibility.enum';
 import { getLocationFromIp } from '../common/utilities/geolocation.util';
-import { UserService } from '../user/user.service';
-
+import{ UserService } from '../user/user.service';
 interface TrackCandidate {
   track: Track;
   score: number;
