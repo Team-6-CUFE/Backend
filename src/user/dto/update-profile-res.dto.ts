@@ -27,4 +27,10 @@ export class UpdateProfileResDto {
   @Expose() isPublic!: boolean;
 
   @Expose() updatedAt!: Date;
+
+  @Expose() birthdate?: Date | null;
+
+  @Expose() coverPhoto?: string | null;
+
+  @Expose() avatarUrl?: string | null;
 }

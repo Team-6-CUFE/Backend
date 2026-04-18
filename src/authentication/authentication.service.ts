@@ -243,18 +243,19 @@ export class AuthenticationService {
     const tokenHash = crypto.createHash('sha256').update(refreshToken).digest('hex');
     await this.authRepository.saveRefreshToken(user.userId, tokenHash, expiresAt);
 
+    const isProduction = process.env.NODE_ENV === 'production';
     // Set httpOnly cookies
     response.cookie('access_token', accessToken, {
       httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'none',
+      secure: isProduction,
+      sameSite: isProduction ? 'none' : 'lax',
       maxAge: COOKIE_MAX_AGE_MS,
     });
 
     response.cookie('refresh_token', refreshToken, {
       httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'none',
+      secure: isProduction,
+      sameSite: isProduction ? 'none' : 'lax',
       maxAge: REFRESH_COOKIE_MAX_AGE_MS,
     });
   }
@@ -298,17 +299,18 @@ export class AuthenticationService {
     const tokenHash = crypto.createHash('sha256').update(newRefreshToken).digest('hex');
     await this.authRepository.saveRefreshToken(userId, tokenHash, expiresAt);
 
+    const isProduction = process.env.NODE_ENV === 'production';
     response.cookie('access_token', newAccessToken, {
       httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'none',
+      secure: isProduction,
+      sameSite: isProduction ? 'none' : 'lax',
       maxAge: COOKIE_MAX_AGE_MS,
     });
 
     response.cookie('refresh_token', newRefreshToken, {
       httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'none',
+      secure: isProduction,
+      sameSite: isProduction ? 'none' : 'lax',
       maxAge: REFRESH_COOKIE_MAX_AGE_MS,
     });
 

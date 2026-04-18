@@ -759,8 +759,13 @@ export class TrackService {
         throw new ForbiddenException('This track is not available in your region');
       }
     }
+    if (track.trackStatus !== TrackStatus.FINISHED) {
+      throw new ConflictException('Track audio is not available yet');
+    }
     const shaped: GetTrackResDto = {
       ...track,
+      audioUrl: this.resolveAudioUrl(track, user),
+      previewAudioUrl: track.previewAudioUrl ?? null,
       genre: plainToInstance(TrackGenreDto, track.genre, { excludeExtraneousValues: true }),
       tags: plainToInstance(TrackTagDto, track.tags, { excludeExtraneousValues: true }),
       owner: plainToInstance(TrackOwnerDto, track.user, { excludeExtraneousValues: true }),
@@ -769,6 +774,7 @@ export class TrackService {
     return { status: 'success', data };
   }
 
+  // WARNING: will be depracted, replaced in getTrack
   async getTrackAudio(trackId: string, user?: JwtPayload) {
     const track = await this.trackRepository.findById(trackId);
     if (!track) throw new NotFoundException('Track not found');
@@ -830,11 +836,34 @@ export class TrackService {
     };
   }
 
+  async getRelatedTracksByTrackId(trackId: string): Promise<Track[]> {
+    const cached = await this.redis.get(`related_tracks:${trackId}`);
+    if (cached) {
+      const data = JSON.parse(cached) as Track[];
+      return data;
+    }
+
+    const topFans = await this.trackRepository.getTrackTopFansIds(trackId);
+    if (topFans.length === 0) {
+      return [];
+    }
+
+    const relatedTracks = await this.trackRepository.findRelatedTracks(trackId, topFans);
+
+    if (relatedTracks.length > 0) {
+      await this.redis.set(`related_tracks:${trackId}`, JSON.stringify(relatedTracks), {
+        EX: RELATED_TRACKS_TTL_SECS,
+      });
+    }
+    return relatedTracks;
+  }
+
   async getRelatedTracks(
     title: string,
     artistUsername: string,
     page: number = 1,
-    limit: number = 10
+    limit: number = 10,
+    ip?: string
   ): Promise<{
     status: string;
     data: UserTrackResponseDto[];
@@ -848,33 +877,24 @@ export class TrackService {
     }
 
     const { trackId } = track;
-    const cached = await this.redis.get(`related_tracks:${trackId}`);
-    if (cached) {
-      const data = JSON.parse(cached) as UserTrackResponseDto[];
-      const startIndex = (page - 1) * limit;
-      const paginatedData = data.slice(startIndex, startIndex + limit);
-      return {
-        status: 'success',
-        ...buildPaginationResponse(paginatedData, data.length, page, limit),
-      };
-    }
+    const relatedTracks = await this.getRelatedTracksByTrackId(trackId);
 
-    const topFans = await this.trackRepository.getTrackTopFansIds(trackId);
-    if (topFans.length === 0) {
-      return { status: 'success', data: [] };
-    }
+    const country = ip ? getLocationFromIp(ip).country : null;
 
-    const relatedTracks = await this.trackRepository.findRelatedTracks(trackId, topFans);
-
-    const data = plainToInstance(UserTrackResponseDto, relatedTracks, {
-      excludeExtraneousValues: true,
+    const data = relatedTracks.map((t) => {
+      const dto = plainToInstance(UserTrackResponseDto, t, { excludeExtraneousValues: true });
+      console.log(`Track ${t.title} blocked regions:`, t.blockedRegions);
+      if (country && t.blockedRegions?.includes(country)) {
+        dto.audioUrl = null;
+        dto.waveformUrl = null;
+      }
+      dto.genreName = t.genre?.name ?? null;
+      dto.artistId = t.user.userId;
+      dto.artistDisplayName = t.user.displayName;
+      dto.artistUsername = t.user.username;
+      return dto;
     });
 
-    if (data.length > 0) {
-      await this.redis.set(`related_tracks:${trackId}`, JSON.stringify(data), {
-        EX: RELATED_TRACKS_TTL_SECS,
-      });
-    }
     const startIndex = (page - 1) * limit;
     const paginatedData = data.slice(startIndex, startIndex + limit);
     return {

@@ -2,6 +2,7 @@ import {
   Controller,
   Delete,
   Get,
+  Ip,
   Param,
   Post,
   ParseUUIDPipe,
@@ -246,9 +247,10 @@ export class PlaylistController {
   @Get('/:playlistId')
   async getPublicPlaylist(
     @Param('playlistId', ParseUUIDPipe) playlistId: string,
-    @CurrentUser('sub') userId: string
+    @CurrentUser('sub') userId: string,
+    @Ip() ip: string
   ) {
-    return this.playlistService.getPublicPlaylist(playlistId, userId);
+    return this.playlistService.getPublicPlaylist(playlistId, userId, ip);
   }
 
   @ApiGetSecretPlaylist()

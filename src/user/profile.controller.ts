@@ -13,10 +13,11 @@ import {
   FileTypeValidator,
   UploadedFile,
   UseInterceptors,
+  UploadedFiles,
 } from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
 
-import { FileInterceptor } from '@nestjs/platform-express';
+import { FileFieldsInterceptor, FileInterceptor } from '@nestjs/platform-express';
 import { ProfileService } from './profile.service';
 import { UpdateProfileReqDto } from './dto/update-profile-req.dto';
 import { UpdateBirthdateReqDto } from './dto/update-birthdate.dto';
@@ -71,14 +72,29 @@ export class ProfileController {
   }
 
   @ApiUpdateProfile()
+  @UseInterceptors(
+    FileFieldsInterceptor([
+      { name: 'avatarFile', maxCount: 1 },
+      { name: 'coverFile', maxCount: 1 },
+    ])
+  )
   @Put('me')
   async updateMyProfile(
     @CurrentUser('sub') userId: string,
-    @Body() updateProfileReqDto: UpdateProfileReqDto
+    @Body() updateProfileReqDto: UpdateProfileReqDto,
+    @UploadedFiles()
+    files: {
+      avatarFile?: Express.Multer.File[];
+      coverFile?: Express.Multer.File[];
+    }
   ) {
-    return this.profileService.updateProfile(userId, updateProfileReqDto);
+    return this.profileService.updateProfile(userId, updateProfileReqDto, {
+      avatarFile: files?.avatarFile?.[0],
+      coverFile: files?.coverFile?.[0],
+    });
   }
 
+  // WARNING: will be deprecated, moved to updateprofile
   @ApiUpdateBirthdate()
   @Put('me/birthdate')
   async updateMyBirthdate(
@@ -88,6 +104,7 @@ export class ProfileController {
     return this.profileService.updateMyBirthdate(userId, updateBirthdateReqDto);
   }
 
+  // WARNING: will be deprecated, moved to updateprofile
   @ApiUpdateGender()
   @Put('me/gender')
   async updateMyGender(
@@ -97,6 +114,7 @@ export class ProfileController {
     return this.profileService.updateMyGender(userId, updateGenderReqDto);
   }
 
+  // WARNING: will be deprecated, moved to updateprofile
   @ApiUpdatePrivacy()
   @Put('me/privacy')
   async updateMyPrivacy(
@@ -137,6 +155,7 @@ export class ProfileController {
     return this.profileService.deleteExternalProfile(userId, profileId);
   }
 
+  // WARNING: will be deprecated, moved to updateprofile
   @ApiUpdateAvatar()
   @UseInterceptors(FileInterceptor('file')) // NestJS looks for "file"
   @Put('me/avatar')
@@ -155,6 +174,7 @@ export class ProfileController {
     return this.profileService.updateAvatar(userId, file);
   }
 
+  // WARNING: will be deprecated, moved to updateprofile
   @ApiUpdateCover()
   @UseInterceptors(FileInterceptor('file')) // NestJS looks for "file"
   @Put('me/cover')
