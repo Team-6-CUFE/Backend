@@ -323,7 +323,6 @@ export class DiscoveryService {
 
     // 2. Fetch the IDs of users being followed
     const targetUser = await this.userService.findByUsername(username);
-    console.log('Target user:', targetUser);
     if (!targetUser) {
       throw new Error('User not found');
     }
