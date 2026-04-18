@@ -5,6 +5,7 @@ import { ActivityService } from '../activity/activity.service';
 import { TrackRepository } from '../track/track.repository';
 import { TrackService } from '../track/track.service';
 import { PlaylistRepository } from '../playlist/playlist.repository';
+import { UserService } from '../user/user.service';
 
 describe('DiscoveryService', () => {
   let service: DiscoveryService;
@@ -18,6 +19,7 @@ describe('DiscoveryService', () => {
     findByUserId: jest.fn(),
     save: jest.fn(),
   };
+  const mockUserService = { findByUsername: jest.fn() };
 
   beforeEach(async () => {
     jest.clearAllMocks();
@@ -30,6 +32,7 @@ describe('DiscoveryService', () => {
         { provide: TrackRepository, useValue: mockTrackRepository },
         { provide: TrackService, useValue: mockTrackService },
         { provide: PlaylistRepository, useValue: mockPlaylistRepository },
+        { provide: UserService, useValue: mockUserService },
       ],
     }).compile();
 
