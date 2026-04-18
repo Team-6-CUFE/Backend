@@ -31,6 +31,8 @@ export class DiscoveryController {
     @Query('limit') limit: number = 20
   ) {
     return this.discoveryService.getUserRecentActivities(userId, username, ip, page, limit);
+  }
+
   @ApiGetTrackStation()
   @Get('track-station/:artist_username/:track_name')
   async getTrackStation(
