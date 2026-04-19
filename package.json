@@ -51,8 +51,10 @@
     "@nestjs/mapped-types": "^2.1.0",
     "@nestjs/passport": "^11.0.5",
     "@nestjs/platform-express": "^11.1.16",
+    "@nestjs/platform-socket.io": "^11.1.19",
     "@nestjs/swagger": "^11.2.6",
     "@nestjs/typeorm": "^11.0.0",
+    "@nestjs/websockets": "^11.1.19",
     "aws-sdk": "^2.1693.0",
     "axios": "^1.13.6",
     "bcrypt": "^6.0.0",
@@ -198,7 +200,7 @@
     "coverageProvider": "v8",
     "maxWorkers": 2,
     "moduleNameMapper": {
-    "@ffprobe-installer/ffprobe": "<rootDir>/src/__mocks__/@ffprobe-installer/ffprobe.js"
-  }
+      "@ffprobe-installer/ffprobe": "<rootDir>/src/__mocks__/@ffprobe-installer/ffprobe.js"
+    }
   }
 }
