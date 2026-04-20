@@ -43,4 +43,14 @@ export class DiscoveryController {
   ) {
     return this.discoveryService.getTrackStation(artistUsername, trackName, userId, ip);
   }
+
+  @ApiGetTrackStation()
+  @Get('/profile/:username/popular-tracks')
+  async getUserPopularTracks(
+    @CurrentUser('sub') userId: string,
+    @Param('username') username: string,
+    @Ip() ip: string
+  ) {
+    return this.discoveryService.getUserPopularTracks(username, userId, ip);
+  }
 }

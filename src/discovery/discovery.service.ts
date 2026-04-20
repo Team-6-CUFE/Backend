@@ -428,4 +428,52 @@ export class DiscoveryService {
       };
     });
   }
+
+  async getUserPopularTracks(username: string, currentUserId: string, ip: string) {
+    const targetUser = await this.userService.findByUsername(username);
+    if (!targetUser) {
+      return { status: 'error', message: 'User not found' };
+    }
+
+    if (await this.followersRepository.hasBlockRelationship(currentUserId, targetUser.userId)) {
+      throw new ForbiddenException("You cannot view this user's profile");
+    }
+
+    const tracks = await this.trackRepository.getAllUserTracks(username);
+    const { country } = getLocationFromIp(ip);
+    if (tracks.length === 0) {
+      return { status: 'success', data: [] };
+    }
+    // Resolve all promises first, then sort
+    const tracksWithScores = await Promise.all(
+      tracks.map(async (track) => ({
+        ...track,
+        popularityScore: await this.trackService.getPopularityScore(track.trackId),
+      }))
+    );
+
+    const sortedTracks = tracksWithScores
+      .sort((a, b) => b.popularityScore - a.popularityScore)
+      .slice(0, 10);
+    return {
+      status: 'success',
+      data: sortedTracks.map((track) => {
+        const isBlocked = country && track.blockedRegions?.includes(country);
+        return {
+          trackId: track.trackId,
+          title: track.title,
+          coverImage: track.coverImage,
+          user: track.user,
+          genre: track.genre,
+          isBlocked,
+          audioUrl: isBlocked ? null : track.audioUrl,
+          waveformUrl: isBlocked ? null : track.waveformUrl,
+          playCount: track.playCount,
+          likesCount: track.likesCount,
+          repostsCount: track.repostsCount,
+          commentsCount: track.commentsCount,
+        };
+      }),
+    };
+  }
 }
