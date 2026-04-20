@@ -103,31 +103,7 @@ export class DiscoveryController {
       limit
     );
   }
-  // GET /search?q=summer&type=track&genre=Hip-Hop
-  // app.get('/search', async (req, res) => {
-  //   const { q, type, genre, tags, city } = req.query
 
-  //   const ids = await search({
-  //     query: q as string,
-  //     type: type as string,
-  //     genre: genre as string,
-  //     tags: tags ? (tags as string).split(',') : undefined,
-  //     city: city as string,
-  //   })
-
-  //   // Strip prefix and batch fetch from DB
-  //   const rawIds = ids.map((id) => id.replace(/^(track|user|playlist|album)_/, ''))
-  //   const tracks = await db.track.findMany({ where: { id: { in: rawIds } } })
-
-  //   // Reorder to match search ranking
-  //   const ordered = ids
-  //     .map((id) => tracks.find((t) => `track_${t.id}` === id))
-  //     .filter(Boolean)
-
-  //   res.json(ordered)
-  // })
-
-  // // GET /search/autocomplete?q=su
   // app.get('/search/autocomplete', async (req, res) => {
   //   const { q, type } = req.query
   //   const hits = await autocomplete({ query: q as string, type: type as string })

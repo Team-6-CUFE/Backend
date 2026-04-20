@@ -497,122 +497,189 @@ export class PlaylistRepository {
   }
 
   async findByIds(ids: string[]): Promise<Playlist[]> {
-    return (
-      this.playlistRepository
-        .createQueryBuilder('playlist')
-        .where('playlist.playlistId IN (:...ids)', { ids })
-        // Join the primary genre
-        .leftJoin('playlist.genre', 'genre')
-        .leftJoinAndSelect('playlist.playlistTracks', 'playlistTrack')
-        .leftJoinAndSelect('playlistTrack.track', 'track')
-        .leftJoin('track.user', 'trackUser')
-        .orderBy('playlistTrack.position', 'ASC')
-        .select([
-          'playlist.playlistId',
-          'playlist.title',
-          'playlist.coverImage',
-          'playlist.totalDurationSeconds',
-          'playlist.tracksCount',
-          'playlist.userId',
-          'playlist.type',
-          'genre.genreId',
-          'genre.name',
-          'playlistTrack.position',
-          'playlistTrack.trackId',
-          'track.trackId',
-          'track.title',
-          'track.audioUrl',
-          'track.coverImage',
-          'track.durationSeconds',
-          'track.playCount',
-          'track.userId',
-          'trackUser.userId',
-          'trackUser.username',
-          'trackUser.displayName',
-          'trackUser.avatarUrl',
-        ])
-        .getMany()
-    );
+    return this.playlistRepository
+      .createQueryBuilder('playlist')
+      .where('playlist.playlistId IN (:...ids)', { ids })
+      .leftJoin('playlist.genre', 'genre')
+      .leftJoin('playlist.user', 'playlistUser')
+      .leftJoinAndSelect('playlist.playlistTracks', 'playlistTrack')
+      .leftJoinAndSelect('playlistTrack.track', 'track')
+      .leftJoin('track.user', 'trackUser')
+      .orderBy('playlistTrack.position', 'ASC')
+      .select([
+        'playlist.playlistId',
+        'playlist.title',
+        'playlist.description',
+        'playlist.coverImage',
+        'playlist.totalDurationSeconds',
+        'playlist.tracksCount',
+        'playlist.likesCount',
+        'playlist.repostsCount',
+        'playlist.userId',
+        'playlist.type',
+        'playlist.createdAt',
+        'genre.genreId',
+        'genre.name',
+        'playlistUser.userId',
+        'playlistUser.username',
+        'playlistUser.displayName',
+        'playlistUser.avatarUrl',
+        'playlistUser.city',
+        'playlistUser.country',
+        'playlistUser.followersCount',
+        'playlistTrack.position',
+        'playlistTrack.trackId',
+        'track.trackId',
+        'track.title',
+        'track.audioUrl',
+        'track.waveformUrl',
+        'track.coverImage',
+        'track.durationSeconds',
+        'track.playCount',
+        'track.likesCount',
+        'track.repostsCount',
+        'track.commentsCount',
+        'track.blockedRegions',
+        'track.hidden',
+        'track.visibility',
+        'track.userId',
+        'trackUser.userId',
+        'trackUser.username',
+        'trackUser.displayName',
+        'trackUser.avatarUrl',
+        'trackUser.city',
+        'trackUser.country',
+        'trackUser.followersCount',
+      ])
+      .getMany();
   }
 
   async findPlaylistsByIds(ids: string[]): Promise<Playlist[]> {
-    return (
-      this.playlistRepository
-        .createQueryBuilder('playlist')
-        .where('playlist.playlistId IN (:...ids)', { ids })
-        .where('playlist.type == :type', { type: PlaylistType.PLAYLIST })
-        // Join the primary genre
-        .leftJoin('playlist.genre', 'genre')
-        .leftJoinAndSelect('playlist.playlistTracks', 'playlistTrack')
-        .leftJoinAndSelect('playlistTrack.track', 'track')
-        .leftJoin('track.user', 'trackUser')
-        .orderBy('playlistTrack.position', 'ASC')
-        .select([
-          'playlist.playlistId',
-          'playlist.title',
-          'playlist.coverImage',
-          'playlist.totalDurationSeconds',
-          'playlist.tracksCount',
-          'playlist.userId',
-          'playlist.type',
-          'genre.genreId',
-          'genre.name',
-          'playlistTrack.position',
-          'playlistTrack.trackId',
-          'track.trackId',
-          'track.title',
-          'track.audioUrl',
-          'track.coverImage',
-          'track.durationSeconds',
-          'track.playCount',
-          'track.userId',
-          'trackUser.userId',
-          'trackUser.username',
-          'trackUser.displayName',
-          'trackUser.avatarUrl',
-        ])
-        .getMany()
-    );
+    return this.playlistRepository
+      .createQueryBuilder('playlist')
+      .where('playlist.playlistId IN (:...ids)', { ids })
+      .andWhere('playlist.type = :type', { type: PlaylistType.PLAYLIST })
+      .leftJoin('playlist.genre', 'genre')
+      .leftJoin('playlist.user', 'playlistUser')
+      .leftJoinAndSelect('playlist.playlistTracks', 'playlistTrack')
+      .leftJoinAndSelect('playlistTrack.track', 'track')
+      .leftJoin('track.user', 'trackUser')
+      .orderBy('playlistTrack.position', 'ASC')
+      .select([
+        'playlist.playlistId',
+        'playlist.title',
+        'playlist.description',
+        'playlist.coverImage',
+        'playlist.totalDurationSeconds',
+        'playlist.tracksCount',
+        'playlist.likesCount',
+        'playlist.repostsCount',
+        'playlist.userId',
+        'playlist.type',
+        'playlist.createdAt',
+        'genre.genreId',
+        'genre.name',
+        'playlistUser.userId',
+        'playlistUser.username',
+        'playlistUser.displayName',
+        'playlistUser.avatarUrl',
+        'playlistUser.city',
+        'playlistUser.followersCount',
+        'playlistTrack.position',
+        'playlistTrack.trackId',
+        'track.trackId',
+        'track.title',
+        'track.audioUrl',
+        'track.waveformUrl',
+        'track.coverImage',
+        'track.durationSeconds',
+        'track.playCount',
+        'track.likesCount',
+        'track.repostsCount',
+        'track.commentsCount',
+        'track.blockedRegions',
+        'track.hidden',
+        'track.visibility',
+        'track.userId',
+        'trackUser.userId',
+        'trackUser.username',
+        'trackUser.displayName',
+        'trackUser.avatarUrl',
+      ])
+      .getMany();
   }
 
   async findAlbumsByIds(ids: string[]): Promise<Playlist[]> {
-    return (
-      this.playlistRepository
-        .createQueryBuilder('playlist')
-        .where('playlist.playlistId IN (:...ids)', { ids })
-        .where('playlist.type != :type', { type: PlaylistType.PLAYLIST })
-        .where('playlist.type != :type2', { type2: PlaylistType.STATION })
-        // Join the primary genre
-        .leftJoin('playlist.genre', 'genre')
-        .leftJoinAndSelect('playlist.playlistTracks', 'playlistTrack')
-        .leftJoinAndSelect('playlistTrack.track', 'track')
-        .leftJoin('track.user', 'trackUser')
-        .orderBy('playlistTrack.position', 'ASC')
-        .select([
-          'playlist.playlistId',
-          'playlist.title',
-          'playlist.coverImage',
-          'playlist.totalDurationSeconds',
-          'playlist.tracksCount',
-          'playlist.userId',
-          'playlist.type',
-          'genre.genreId',
-          'genre.name',
-          'playlistTrack.position',
-          'playlistTrack.trackId',
-          'track.trackId',
-          'track.title',
-          'track.audioUrl',
-          'track.coverImage',
-          'track.durationSeconds',
-          'track.playCount',
-          'track.userId',
-          'trackUser.userId',
-          'trackUser.username',
-          'trackUser.displayName',
-          'trackUser.avatarUrl',
-        ])
-        .getMany()
-    );
+    return this.playlistRepository
+      .createQueryBuilder('playlist')
+      .where('playlist.playlistId IN (:...ids)', { ids })
+      .andWhere('playlist.type != :type', { type: PlaylistType.PLAYLIST })
+      .andWhere('playlist.type != :stationType', { stationType: PlaylistType.STATION })
+      .leftJoin('playlist.genre', 'genre')
+      .leftJoin('playlist.user', 'playlistUser')
+      .leftJoinAndSelect('playlist.playlistTracks', 'playlistTrack')
+      .leftJoinAndSelect('playlistTrack.track', 'track')
+      .leftJoin('track.user', 'trackUser')
+      .orderBy('playlistTrack.position', 'ASC')
+      .select([
+        'playlist.playlistId',
+        'playlist.title',
+        'playlist.description',
+        'playlist.coverImage',
+        'playlist.totalDurationSeconds',
+        'playlist.tracksCount',
+        'playlist.likesCount',
+        'playlist.repostsCount',
+        'playlist.userId',
+        'playlist.type',
+        'playlist.createdAt',
+        'genre.genreId',
+        'genre.name',
+        'playlistUser.userId',
+        'playlistUser.username',
+        'playlistUser.displayName',
+        'playlistUser.avatarUrl',
+        'playlistUser.city',
+        'playlistUser.followersCount',
+        'playlistTrack.position',
+        'playlistTrack.trackId',
+        'track.trackId',
+        'track.title',
+        'track.audioUrl',
+        'track.waveformUrl',
+        'track.coverImage',
+        'track.durationSeconds',
+        'track.playCount',
+        'track.likesCount',
+        'track.repostsCount',
+        'track.commentsCount',
+        'track.blockedRegions',
+        'track.hidden',
+        'track.visibility',
+        'track.userId',
+        'trackUser.userId',
+        'trackUser.username',
+        'trackUser.displayName',
+        'trackUser.avatarUrl',
+      ])
+      .getMany();
+  }
+
+  async getUserLikedPlaylistIds(userId: string, playlistIds: string[]): Promise<Set<string>> {
+    if (!playlistIds.length) return new Set();
+    const likes = await this.playlistLikesRepository.find({
+      where: { userId, playlistId: In(playlistIds) },
+      select: ['playlistId'],
+    });
+    return new Set(likes.map((l) => l.playlistId));
+  }
+
+  async getUserRepostedPlaylistIds(userId: string, playlistIds: string[]): Promise<Set<string>> {
+    if (!playlistIds.length) return new Set();
+    const reposts = await this.playlistRepostRepository.find({
+      where: { userId, playlistId: In(playlistIds) },
+      select: ['playlistId'],
+    });
+    return new Set(reposts.map((r) => r.playlistId));
   }
 }

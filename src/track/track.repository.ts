@@ -539,8 +539,8 @@ export class TrackRepository {
     const tracks = await this.trackRepository
       .createQueryBuilder('track')
       .where('track.trackId IN (:...ids)', { ids })
-      // 1. Join the genre relation
       .leftJoin('track.genre', 'genre')
+      .leftJoin('track.user', 'user')
       .leftJoinAndSelect('track.likes', 'like', 'like.user_id = :userId')
       .leftJoinAndSelect('track.reposts', 'repost', 'repost.user_id = :userId')
       .select([
@@ -548,16 +548,27 @@ export class TrackRepository {
         'track.title',
         'track.coverImage',
         'track.audioUrl',
+        'track.waveformUrl',
         'track.durationSeconds',
         'track.userId',
         'track.createdAt',
+        'track.playCount',
         'track.likesCount',
         'track.repostsCount',
         'track.commentsCount',
         'track.blockedRegions',
-        // 2. Select the genre name
-        'genre.name',
+        'track.hidden',
+        'track.visibility',
+        'track.mainArtists',
         'genre.genreId',
+        'genre.name',
+        'user.userId',
+        'user.username',
+        'user.displayName',
+        'user.avatarUrl',
+        'user.city',
+        'user.country',
+        'user.followersCount',
       ])
       .setParameter('userId', userId)
       .getMany();
@@ -568,11 +579,32 @@ export class TrackRepository {
     }));
   }
 
+  async getUserLikedTrackIds(userId: string, trackIds: string[]): Promise<Set<string>> {
+    if (!trackIds.length) return new Set();
+    const likes = await this.trackLikesRepository.find({
+      where: { userId, trackId: In(trackIds) },
+      select: ['trackId'],
+    });
+    return new Set(likes.map((l) => l.trackId));
+  }
+
+  async getUserRepostedTrackIds(userId: string, trackIds: string[]): Promise<Set<string>> {
+    if (!trackIds.length) return new Set();
+    const reposts = await this.trackRepostRepository.find({
+      where: { userId, trackId: In(trackIds) },
+      select: ['trackId'],
+    });
+    return new Set(reposts.map((r) => r.trackId));
+  }
+
   async getAllUserTracks(username: string): Promise<Track[]> {
     return this.trackRepository
       .createQueryBuilder('track')
       .innerJoin('track.user', 'user')
+      .leftJoinAndSelect('track.user', 'trackUser')
       .where('user.username = :username', { username })
+      .andWhere('track.visibility = :visibility', { visibility: TrackVisibility.PUBLIC })
+      .andWhere('track.hidden = false')
       .getMany();
   }
 
@@ -667,11 +699,34 @@ export class TrackRepository {
     const tracks = await this.trackRepository
       .createQueryBuilder('track')
       .innerJoin('track.tags', 'tag')
+      .leftJoin('track.user', 'user')
       .leftJoinAndSelect('track.likes', 'like', 'like.user_id = :userId')
       .leftJoinAndSelect('track.reposts', 'repost', 'repost.user_id = :userId')
       .where('tag.genre_id IN (:...tagIds)', { tagIds })
       .andWhere('track.visibility = :visibility', { visibility: TrackVisibility.PUBLIC })
       .andWhere('track.hidden = false')
+      .addSelect([
+        'track.trackId',
+        'track.title',
+        'track.coverImage',
+        'track.audioUrl',
+        'track.waveformUrl',
+        'track.durationSeconds',
+        'track.userId',
+        'track.playCount',
+        'track.likesCount',
+        'track.repostsCount',
+        'track.commentsCount',
+        'track.blockedRegions',
+        'track.mainArtists',
+        'user.userId',
+        'user.username',
+        'user.displayName',
+        'user.avatarUrl',
+        'user.city',
+        'user.country',
+        'user.followersCount',
+      ])
       .setParameter('userId', userId)
       .orderBy('track.playCount', 'DESC')
       .take(20)

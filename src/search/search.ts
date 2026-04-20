@@ -1,8 +1,13 @@
 import { getIndex } from './client';
 import { AutocompleteHit, SearchParams, SearchResult } from './types';
 
-// Returns ordered IDs — caller fetches live data from DB
-export async function search(params: SearchParams): Promise<SearchResult[]> {
+export interface SearchResponse {
+  hits: SearchResult[];
+  total: number;
+}
+
+// Returns ordered IDs and total count — caller fetches live data from DB
+export async function search(params: SearchParams): Promise<SearchResponse> {
   const {
     query,
     type,
@@ -42,7 +47,10 @@ export async function search(params: SearchParams): Promise<SearchResult[]> {
     attributesToRetrieve: ['id', 'type'],
   });
 
-  return results.hits as SearchResult[];
+  return {
+    hits: results.hits as SearchResult[],
+    total: (results as any).estimatedTotalHits ?? (results as any).nbHits ?? results.hits.length,
+  };
 }
 
 export async function wordAutocomplete(query: string): Promise<string[]> {

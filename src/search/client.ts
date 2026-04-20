@@ -3,7 +3,7 @@ import { SearchDocument } from './types';
 
 const client = new Meilisearch({
   host: process.env.MEILI_HOST ?? 'http://localhost:7700',
-  apiKey: process.env.MEILI_KEY,
+  apiKey: process.env.MEILI_API_KEY,
 });
 
 export const getIndex = (): Index<SearchDocument> => client.index<SearchDocument>('catalog');
