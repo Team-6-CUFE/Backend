@@ -89,6 +89,7 @@ const mockActivity = (overrides?: object) => ({
 const mockFollowersRepository = () => ({
   getFollowingIds: jest.fn(),
   isFollowing: jest.fn(),
+  hasBlockRelationship: jest.fn(),
 });
 
 const mockActivityService = () => ({

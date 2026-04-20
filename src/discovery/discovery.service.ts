@@ -324,6 +324,12 @@ export class DiscoveryService {
       throw new ForbiddenException('User is private');
     }
 
+    if (user.trackCount === 0) {
+      throw new NotFoundException('Artist has no tracks');
+    }
+    if (await this.followersRepository.hasBlockRelationship(currentUserId, user.userId)) {
+      throw new ForbiddenException("You cannot view this user's station");
+    }
     const station = await this.playlistRepository.getArtistStation(user.userId);
     if (station && station?.createdAt.getTime() > new Date().getTime() - 15 * 24 * 60 * 60 * 1000) {
       // If station exists and is less than 15 days old, return it
@@ -444,6 +450,9 @@ export class DiscoveryService {
     }
     if (targetUser.isPublic === false) {
       throw new Error('User activities are private');
+    }
+    if (await this.followersRepository.hasBlockRelationship(userId, targetUser.userId)) {
+      throw new ForbiddenException("You cannot view this user's profile");
     }
 
     // 3. Fetch activities (reposts and posts)
