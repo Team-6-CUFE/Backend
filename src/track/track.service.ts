@@ -48,6 +48,7 @@ import { FansService } from './services/fans.service';
 import { ActivityService } from '../activity/activity.service';
 import { ActivityType } from '../activity/entities/activity.entity';
 import { REDIS_CLIENT } from '../redis/redis.module';
+import { Genre } from '../genre/entities/genre.entity';
 
 const RELATED_TRACKS_TTL_SECS = 3 * 24 * 60 * 60; // 3 days
 const ALL_TIME_STATS_TTL_SECS = 24 * 60 * 60; // 1 day
@@ -475,6 +476,7 @@ export class TrackService {
       durationSeconds: like.track.durationSeconds,
       playCount: like.track.playCount,
       repostsCount: like.track.repostsCount,
+      genre: like.track.genre,
       artist: {
         userId: like.track.user.userId,
         username: like.track.user.username,
@@ -928,5 +930,14 @@ export class TrackService {
 
   async getPopularityScore(trackId: string): Promise<number> {
     return this.trackRepository.calculatePopularityScore(trackId);
+  }
+
+  async getUserInteractedTrackTags(userId: string): Promise<Genre[]> {
+    // This method retrieves the genres of tracks that the user has interacted with (liked, reposted, commented, or played).
+    return this.trackRepository.getUserInteractedTrackTags(userId);
+  }
+
+  async getTopTracksByTagIds(tagIds: string[], userId: string) {
+    return this.trackRepository.getTopTracksByTagIds(tagIds, userId);
   }
 }

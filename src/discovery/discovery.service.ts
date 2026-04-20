@@ -476,8 +476,62 @@ export class DiscoveryService {
           likesCount: track.likesCount,
           repostsCount: track.repostsCount,
           commentsCount: track.commentsCount,
+          duration: track.durationSeconds,
+          artists: track.mainArtists,
+          comments: track.comments,
         };
       }),
+    };
+  }
+
+  async getMoreOfWhatYouLike(userId: string, ip: string) {
+    // get genres of tracks the user has interacted with
+    const interactedTrackTags = await this.trackService.getUserInteractedTrackTags(userId);
+    // determine top 5 most interacted genres
+    const tagFrequency = interactedTrackTags.reduce<
+      Record<string, { count: number; name: string }>
+    >((acc, tag) => {
+      acc[tag.genreId] = acc[tag.genreId]
+        ? { ...acc[tag.genreId], count: acc[tag.genreId].count + 1 }
+        : { count: 1, name: tag.name };
+      return acc;
+    }, {});
+    const topTagIds = Object.entries(tagFrequency)
+      .sort((a, b) => b[1].count - a[1].count)
+      .slice(0, 5)
+      .map(([genreId]) => genreId);
+
+    if (topTagIds.length === 0) {
+      return { status: 'success', data: [] };
+    }
+    // get top tracks with those genres
+    const tracks = await this.trackService.getTopTracksByTagIds(topTagIds, userId);
+    // filter out blocked tracks based on IP geolocation
+    const { country } = getLocationFromIp(ip);
+    const filteredTracks = tracks.filter((track) => {
+      const isBlocked = country && track.blockedRegions?.includes(country);
+      return !isBlocked;
+    });
+    return {
+      status: 'sucess',
+      data: filteredTracks.map((track) => ({
+        trackId: track.trackId,
+        title: track.title,
+        coverImage: track.coverImage,
+        user: track.user,
+        genre: track.genre,
+        audioUrl: track.audioUrl,
+        waveformUrl: track.waveformUrl,
+        playCount: track.playCount,
+        likesCount: track.likesCount,
+        repostsCount: track.repostsCount,
+        commentsCount: track.commentsCount,
+        isLiked: track.isLiked,
+        isReposted: track.isReposted,
+        artists: track.mainArtists,
+        duration: track.durationSeconds,
+        comments: track.comments,
+      })),
     };
   }
 }

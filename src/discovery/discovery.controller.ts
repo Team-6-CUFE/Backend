@@ -53,4 +53,10 @@ export class DiscoveryController {
   ) {
     return this.discoveryService.getUserPopularTracks(username, userId, ip);
   }
+
+  @ApiGetTrackStation()
+  @Get('/more-of-what-you-like')
+  async getMoreOfWhatYouLike(@CurrentUser('sub') userId: string, @Ip() ip: string) {
+    return this.discoveryService.getMoreOfWhatYouLike(userId, ip);
+  }
 }
