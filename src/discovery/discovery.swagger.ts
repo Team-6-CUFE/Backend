@@ -214,7 +214,8 @@ export function ApiGetTrackStation() {
         'Returns a dynamically generated station (playlist) seeded by a specific track. ' +
         'The station is built from tracks that share fans, genres, and tags with the seed track. ' +
         'Stations are cached for 7 days before being regenerated. ' +
-        "For tracks blocked in the requester's region, `audioUrl` and `waveformUrl` are returned as `null`.",
+        "For tracks blocked in the requester's region, `audioUrl` and `waveformUrl` are returned as `null`." +
+        'Returns max 3 featured artists.',
     }),
     ApiParam({
       name: 'artist_username',
@@ -329,7 +330,8 @@ export function ApiGetArtistStation() {
         'Returns a dynamically generated station (playlist) seeded by a specific username. ' +
         'The station is built from tracks that share fans, genres, and tags with the user popular tracks. ' +
         'Stations are cached for 7 days before being regenerated. ' +
-        "For tracks blocked in the requester's region, `audioUrl` and `waveformUrl` are returned as `null`.",
+        "For tracks blocked in the requester's region, `audioUrl` and `waveformUrl` are returned as `null`." +
+        'Returns max 3 featured artists.',
     }),
     ApiParam({
       name: 'username',
