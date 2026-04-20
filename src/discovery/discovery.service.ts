@@ -1,4 +1,4 @@
-import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
+import { ForbiddenException, Injectable, NotFoundException, Logger } from '@nestjs/common';
 // import { DiscoveryRepository } from './discovery.repository';
 import { FollowersRepository } from '../followers/followers.repository';
 import { ActivityService } from '../activity/activity.service';
@@ -11,6 +11,8 @@ import { Playlist } from '../playlist/entities/playlist.entity';
 import { TrackVisibility } from '../track/enums/track-visibility.enum';
 import { getLocationFromIp } from '../common/utilities/geolocation.util';
 import { UserService } from '../user/user.service';
+
+const logger = new Logger('DiscoveryService');
 
 interface TrackCandidate {
   track: Track;
@@ -311,6 +313,118 @@ export class DiscoveryService {
     } else {
       map.set(track.trackId, { track, score: points });
     }
+  }
+
+  async getArtistStation(username: string, currentUserId: string, ip?: string) {
+    const user = await this.userService.findByUsername(username);
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+    if (user.isPublic === false) {
+      throw new ForbiddenException('User is private');
+    }
+
+    const station = await this.playlistRepository.getArtistStation(user.userId);
+    if (station && station?.createdAt.getTime() > new Date().getTime() - 15 * 24 * 60 * 60 * 1000) {
+      // If station exists and is less than 15 days old, return it
+      return this.stationResponse(currentUserId, station, ip);
+    }
+
+    // get the user's most popular tracks
+    const tracks = await this.trackRepository.getAllUserTracks(username);
+
+    // Resolve all promises first, then sort
+    const tracksWithScores = await Promise.all(
+      tracks.map(async (track) => ({
+        ...track,
+        popularityScore: await this.trackService.getPopularityScore(track.trackId),
+      }))
+    );
+
+    const popularTracks = tracksWithScores
+      .sort((a, b) => b.popularityScore - a.popularityScore)
+      .slice(0, 10);
+    logger.debug(`Popular tracks for ${username}: ${popularTracks.map((t) => t.title).join(', ')}`);
+    const candidateMap = new Map<string, { track: Track; score: number }>();
+    popularTracks.forEach((t) => {
+      this.updateScore(candidateMap, t, 10); // Base 10 points for being a top track of the artist
+    });
+
+    // Get related tracks for each of the top tracks and flatten the results
+    const relatedTracks = await Promise.all(
+      popularTracks.map((track) => this.trackService.getRelatedTracksByTrackId(track.trackId))
+    ).then((arrays) => arrays.flat());
+    logger.debug(
+      `Related tracks count for ${username}: ${relatedTracks.map((t) => t.title).join(', ')}`
+    );
+    relatedTracks.forEach((c) => {
+      this.updateScore(candidateMap, c, 8); // Base 8 points for being a shared listener track
+    });
+
+    const artistGenres = [...new Set(popularTracks.map((t) => t.genreId))];
+    const artistTags = popularTracks.flatMap((t) => t.tags);
+    const metadataCandidates = await this.trackRepository.findPopularTracksByGenreOrTags(
+      artistGenres.length > 0 ? artistGenres[0] : null, // Use the most common genre if available
+      artistTags,
+      1,
+      40
+    );
+    logger.debug(
+      `Metadata candidates count for ${username}: ${metadataCandidates.map((c) => c.title).join(', ')}`
+    );
+    metadataCandidates.forEach((c) => {
+      // Add 5 points if genre matches
+      const matchesGenre = c.genreId && artistGenres.includes(c.genreId);
+      let score = matchesGenre ? 5 : 0;
+      // Add 3 points for each matching tag
+      const matches = c.tags.filter((t) =>
+        artistTags.some((trackTag) => trackTag.genreId === t.genreId)
+      ).length;
+      score += matches * 3;
+
+      this.updateScore(candidateMap, c, score);
+    });
+
+    // if Same Artist add 10 points
+    candidateMap.forEach((val, key) => {
+      if (val.track.userId === user.userId) {
+        candidateMap.get(key)!.score += 15;
+      }
+    });
+
+    const results = Array.from(candidateMap.values())
+      .sort((a, b) => b.score - a.score)
+      .slice(0, 50)
+      .map((item) => item.track);
+
+    // create station
+    const newStation = await this.playlistRepository.createArtistStation(
+      user.displayName,
+      user.avatarUrl,
+      user.userId
+    );
+
+    if (station) {
+      // If an old station exists, transfer likes and delete it
+      await this.playlistRepository.transferStationLikes(station.playlistId, newStation.playlistId);
+      await this.playlistRepository.deletePlaylist(station.playlistId);
+    }
+
+    // add tracks to station
+    const addTrackPromises = results.map((relatedTrack, index) =>
+      this.playlistRepository.addTrackToPlaylist(
+        newStation.playlistId,
+        relatedTrack.trackId,
+        index + 1
+      )
+    );
+
+    await Promise.all(addTrackPromises);
+    const stationWithTracks = await this.playlistRepository.getPublicPlaylist(
+      newStation.playlistId
+    );
+
+    return this.stationResponse(currentUserId, stationWithTracks!, ip);
   }
 
   async getUserRecentActivities(

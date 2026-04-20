@@ -1,5 +1,5 @@
 import { ConflictException, Injectable } from '@nestjs/common';
-import { In, Repository } from 'typeorm';
+import { In, IsNull, Repository } from 'typeorm';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Playlist, PlaylistType } from './entities/playlist.entity';
 import { PlaylistRepost } from './entities/playlist-reposts.entity';
@@ -176,24 +176,6 @@ export class PlaylistRepository {
     });
   }
 
-  async createTrackStation(
-    trackId: string,
-    trackTitle: string,
-    trackImage: string,
-    userId: string
-  ): Promise<Playlist> {
-    const station = this.playlistRepository.create({
-      title: trackTitle,
-      description: `Based on ${trackTitle}`,
-      userId,
-      isPublic: true,
-      type: PlaylistType.STATION,
-      trackId,
-      coverImage: trackImage,
-    });
-    return this.playlistRepository.save(station);
-  }
-
   async updatePlaylist(
     playlistId: string,
     updateData: Partial<Playlist>
@@ -362,6 +344,56 @@ export class PlaylistRepository {
         playlistTracks: { position: 'ASC' },
       },
     });
+  }
+
+  async getArtistStation(userId: string): Promise<Playlist | null> {
+    return this.playlistRepository.findOne({
+      where: { userId, type: PlaylistType.STATION, trackId: IsNull() },
+      relations: [
+        'user',
+        'playlistTracks',
+        'playlistTracks.track',
+        'playlistTracks.track.user',
+        'tags',
+      ],
+      order: {
+        playlistTracks: { position: 'ASC' },
+      },
+    });
+  }
+
+  async createTrackStation(
+    trackId: string,
+    trackTitle: string,
+    trackImage: string,
+    userId: string
+  ): Promise<Playlist> {
+    const station = this.playlistRepository.create({
+      title: trackTitle,
+      description: `Based on ${trackTitle}`,
+      userId,
+      isPublic: true,
+      type: PlaylistType.STATION,
+      trackId,
+      coverImage: trackImage,
+    });
+    return this.playlistRepository.save(station);
+  }
+
+  async createArtistStation(
+    displayName: string,
+    artist_avatar: string,
+    userId: string
+  ): Promise<Playlist> {
+    const station = this.playlistRepository.create({
+      title: displayName,
+      description: `Based on ${displayName}`,
+      userId,
+      isPublic: true,
+      type: PlaylistType.STATION,
+      coverImage: artist_avatar,
+    });
+    return this.playlistRepository.save(station);
   }
 
   async getSecretPlaylist(secretToken: string): Promise<Playlist | null> {

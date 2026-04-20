@@ -83,11 +83,13 @@ export class TrackRepository {
         }
 
         if (tags && tags.length > 0) {
-          const tagIds = tags.map((t) => t.genreId);
-          if (hasCondition) {
-            qb.orWhere('tag.genreId IN (:...tagIds)', { tagIds });
-          } else {
-            qb.where('tag.genreId IN (:...tagIds)', { tagIds });
+          const tagIds = tags.filter((t) => t && t.genreId).map((t) => t.genreId);
+          if (tagIds.length > 0) {
+            if (hasCondition) {
+              qb.orWhere('tag.genreId IN (:...tagIds)', { tagIds });
+            } else {
+              qb.where('tag.genreId IN (:...tagIds)', { tagIds });
+            }
           }
         }
       })

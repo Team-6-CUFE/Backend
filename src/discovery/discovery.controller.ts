@@ -1,7 +1,12 @@
 import { Body, Controller, Get, Ip, Query, Param } from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
 import { DiscoveryService } from './discovery.service';
-import { ApiGetFeed, ApiGetTrackStation, ApiGetUserRecentActivities } from './discovery.swagger';
+import {
+  ApiGetFeed,
+  ApiGetTrackStation,
+  ApiGetUserRecentActivities,
+  ApiGetArtistStation,
+} from './discovery.swagger';
 import { CurrentUser } from '../authentication/decorators/current-user.decorator';
 
 @ApiTags('Discovery')
@@ -42,6 +47,16 @@ export class DiscoveryController {
     @Ip() ip: string
   ) {
     return this.discoveryService.getTrackStation(artistUsername, trackName, userId, ip);
+  }
+
+  @ApiGetArtistStation()
+  @Get('artist-station/:username')
+  async getArtistStation(
+    @CurrentUser('sub') userId: string,
+    @Param('username') username: string,
+    @Ip() ip: string
+  ) {
+    return this.discoveryService.getArtistStation(username, userId, ip);
   }
 
   @ApiGetTrackStation()
