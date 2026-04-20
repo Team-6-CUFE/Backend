@@ -556,4 +556,24 @@ export class TrackRepository {
         .getMany()
     );
   }
+
+  async getAllUserTracks(username: string): Promise<Track[]> {
+    return this.trackRepository
+      .createQueryBuilder('track')
+      .innerJoin('track.user', 'user')
+      .where('user.username = :username', { username })
+      .getMany();
+  }
+
+  async calculatePopularityScore(trackId: string): Promise<number> {
+    const track = await this.trackRepository.findOne({
+      where: { trackId },
+    });
+    if (!track) {
+      return 0;
+    }
+    return (
+      track.playCount * 1 + track.likesCount * 3 + track.commentsCount * 2 + track.repostsCount * 5
+    );
+  }
 }

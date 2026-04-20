@@ -921,4 +921,12 @@ export class TrackService {
       data,
     };
   }
+
+  async getUserTracks(username: string) {
+    return this.trackRepository.getAllUserTracks(username);
+  }
+
+  async getPopularityScore(trackId: string): Promise<number> {
+    return this.trackRepository.calculatePopularityScore(trackId);
+  }
 }
