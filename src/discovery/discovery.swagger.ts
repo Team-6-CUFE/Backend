@@ -214,7 +214,8 @@ export function ApiGetTrackStation() {
         'Returns a dynamically generated station (playlist) seeded by a specific track. ' +
         'The station is built from tracks that share fans, genres, and tags with the seed track. ' +
         'Stations are cached for 7 days before being regenerated. ' +
-        "For tracks blocked in the requester's region, `audioUrl` and `waveformUrl` are returned as `null`.",
+        "For tracks blocked in the requester's region, `audioUrl` and `waveformUrl` are returned as `null`." +
+        'Returns max 3 featured artists.',
     }),
     ApiParam({
       name: 'artist_username',
@@ -313,6 +314,125 @@ export function ApiGetTrackStation() {
       status: 404,
       description: 'Track not found',
       schema: { example: { statusCode: 404, message: 'Track not found' } },
+    }),
+    ApiResponse({ status: 401, description: 'Unauthorized' })
+  );
+}
+
+// ─── Get Artist Station ───────────────────────────────────────────────────────
+
+export function ApiGetArtistStation() {
+  return applyDecorators(
+    ApiCookieAuth('access_token'),
+    ApiOperation({
+      summary: 'Get artist station',
+      description:
+        'Returns a dynamically generated station (playlist) seeded by a specific username. ' +
+        'The station is built from tracks that share fans, genres, and tags with the user popular tracks. ' +
+        'Stations are cached for 7 days before being regenerated. ' +
+        "For tracks blocked in the requester's region, `audioUrl` and `waveformUrl` are returned as `null`." +
+        'Returns max 3 featured artists.',
+    }),
+    ApiParam({
+      name: 'username',
+      description: 'Username of the artist who owns the station',
+      type: 'string',
+      example: 'dj_nour',
+    }),
+    ApiResponse({
+      status: 200,
+      description:
+        "Station retrieved successfully. `audioUrl` and `waveformUrl` per track are `null` when blocked in the requester's region.",
+      schema: {
+        example: {
+          status: 'success',
+          data: {
+            playlistId: '550e8400-e29b-41d4-a716-446655440000',
+            title: 'DJ Nour Station',
+            description: null,
+            coverImage: 'https://cdn.harmonica.com/avatars/dj_nour.jpg',
+            tracksCount: 25,
+            durationSeconds: 5400,
+            likesCount: 0,
+            createdAt: '2026-04-17T10:00:00.000Z',
+            trackArtist: {
+              userId: 'user-uuid-1',
+              displayName: 'DJ Nour',
+              avatarUrl: 'https://cdn.harmonica.com/avatars/dj_nour.jpg',
+            },
+            tracks: [
+              {
+                position: 1,
+                trackId: 'track-uuid-1',
+                title: 'Midnight Drive',
+                durationSeconds: 213,
+                coverImage: 'https://cdn.harmonica.com/covers/midnight.jpg',
+                audioUrl: 'https://cdn.harmonica.com/audio/midnight.mp3',
+                waveformUrl: 'https://cdn.harmonica.com/waveforms/midnight.json',
+                playCount: 12000,
+                likesCount: 870,
+                repostsCount: 130,
+                commentsCount: 45,
+                artist: {
+                  userId: 'user-uuid',
+                  username: 'dj_nour',
+                  displayName: 'DJ Nour',
+                  avatarUrl: 'https://cdn.harmonica.com/avatars/dj_nour.jpg',
+                },
+              },
+              {
+                position: 2,
+                trackId: 'track-uuid-2',
+                title: 'Region Locked Track',
+                durationSeconds: 198,
+                coverImage: 'https://cdn.harmonica.com/covers/locked.jpg',
+                audioUrl: null,
+                waveformUrl: null,
+                playCount: 3400,
+                likesCount: 210,
+                repostsCount: 30,
+                commentsCount: 8,
+                artist: {
+                  userId: 'user-uuid-2',
+                  username: 'artist2',
+                  displayName: 'Artist Two',
+                  avatarUrl: null,
+                },
+              },
+            ],
+            featuredArtists: [
+              {
+                userId: 'user-uuid',
+                username: 'dj_nour',
+                displayName: 'DJ Nour',
+                avatarUrl: 'https://cdn.harmonica.com/avatars/dj_nour.jpg',
+                trackCount: 34,
+                followersCount: 5200,
+                isFollowedByCurrentUser: false,
+              },
+              {
+                userId: 'user-uuid-2',
+                username: 'artist2',
+                displayName: 'Artist Two',
+                avatarUrl: null,
+                trackCount: 12,
+                followersCount: 800,
+                isFollowedByCurrentUser: true,
+              },
+            ],
+          },
+        },
+      },
+    }),
+    ApiResponse({
+      status: 403,
+      description: 'User is private',
+      schema: { example: { statusCode: 403, message: 'User is private' } },
+    }),
+    ApiResponse({
+      status: 404,
+      description: 'User not found',
+      schema: { example: { statusCode: 404, message: 'User not found' } },
     }),
     ApiResponse({ status: 401, description: 'Unauthorized' })
   );

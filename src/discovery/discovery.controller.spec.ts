@@ -1,4 +1,5 @@
 import { Test, TestingModule } from '@nestjs/testing';
+import { ForbiddenException, NotFoundException } from '@nestjs/common';
 import { DiscoveryController } from './discovery.controller';
 import { DiscoveryService } from './discovery.service';
 import { FollowersRepository } from '../followers/followers.repository';
@@ -15,10 +16,12 @@ describe('DiscoveryController', () => {
     getFeed: jest.fn(),
     getTrackStation: jest.fn(),
     getUserRecentActivities: jest.fn(),
+    getArtistStation: jest.fn(),
   };
 
   const mockUserId = 'user-123';
   const mockIp = '192.168.1.1';
+  const mockUsername = 'artist-user';
 
   beforeEach(async () => {
     jest.clearAllMocks();
@@ -146,8 +149,6 @@ describe('DiscoveryController', () => {
   });
 
   describe('getUserRecentActivities', () => {
-    const mockUsername = 'testuser';
-
     it('should call discoveryService.getUserRecentActivities with correct parameters', async () => {
       const mockActivities = [
         {
@@ -554,6 +555,248 @@ describe('DiscoveryController', () => {
 
       expect(result.data.tracks).toHaveLength(0);
       expect(result.data.featuredArtists).toHaveLength(0);
+    });
+  });
+
+  describe('getArtistStation', () => {
+    it('should call discoveryService.getArtistStation with correct parameters', async () => {
+      const mockStation = {
+        status: 'success',
+        data: {
+          playlistId: 'playlist-123',
+          title: 'artist-user Station',
+          description: null,
+          coverImage: 'http://example.com/avatar.jpg',
+          tracksCount: 50,
+          durationSeconds: 15000,
+          likesCount: 100,
+          createdAt: new Date(),
+          trackArtist: {
+            userId: 'user-1',
+            username: 'artist-user',
+            displayName: 'Artist User',
+            avatarUrl: 'http://example.com/avatar.jpg',
+          },
+          tracks: [
+            {
+              position: 1,
+              trackId: 'track-1',
+              title: 'Popular Track',
+              durationSeconds: 300,
+              coverImage: 'http://example.com/cover.jpg',
+              audioUrl: 'http://example.com/audio.mp3',
+              waveformUrl: 'http://example.com/waveform.json',
+              playCount: 1000,
+              likesCount: 50,
+              repostsCount: 10,
+              commentsCount: 5,
+              artist: {
+                userId: 'user-1',
+                username: 'artist-user',
+                displayName: 'Artist User',
+                avatarUrl: 'http://example.com/avatar.jpg',
+              },
+            },
+          ],
+          featuredArtists: [
+            {
+              userId: 'user-1',
+              username: 'artist-user',
+              displayName: 'Artist User',
+              avatarUrl: 'http://example.com/avatar.jpg',
+              trackCount: 25,
+              followersCount: 500,
+              isFollowedByCurrentUser: false,
+            },
+          ],
+        },
+      };
+
+      mockDiscoveryService.getArtistStation.mockResolvedValue(mockStation);
+
+      const result = await controller.getArtistStation(mockUserId, mockUsername, mockIp);
+
+      expect(discoveryService.getArtistStation).toHaveBeenCalledWith(
+        mockUsername,
+        mockUserId,
+        mockIp
+      );
+      expect(discoveryService.getArtistStation).toHaveBeenCalledTimes(1);
+      expect(result).toEqual(mockStation);
+    });
+
+    it('should handle different usernames', async () => {
+      const mockStation = {
+        status: 'success',
+        data: {
+          playlistId: 'playlist-456',
+          title: 'different-artist Station',
+          tracks: [],
+          featuredArtists: [],
+        },
+      };
+
+      mockDiscoveryService.getArtistStation.mockResolvedValue(mockStation);
+
+      await controller.getArtistStation(mockUserId, 'different-artist', mockIp);
+
+      expect(discoveryService.getArtistStation).toHaveBeenCalledWith(
+        'different-artist',
+        mockUserId,
+        mockIp
+      );
+    });
+
+    it('should propagate NotFoundException when user not found', async () => {
+      const error = new NotFoundException('User not found');
+      mockDiscoveryService.getArtistStation.mockRejectedValue(error);
+
+      await expect(
+        controller.getArtistStation(mockUserId, 'nonexistent-user', mockIp)
+      ).rejects.toThrow(NotFoundException);
+
+      await expect(
+        controller.getArtistStation(mockUserId, 'nonexistent-user', mockIp)
+      ).rejects.toThrow('User not found');
+    });
+
+    it('should propagate ForbiddenException when user is private', async () => {
+      const error = new ForbiddenException('User is private');
+      mockDiscoveryService.getArtistStation.mockRejectedValue(error);
+
+      await expect(controller.getArtistStation(mockUserId, 'private-user', mockIp)).rejects.toThrow(
+        ForbiddenException
+      );
+
+      await expect(controller.getArtistStation(mockUserId, 'private-user', mockIp)).rejects.toThrow(
+        'User is private'
+      );
+    });
+
+    it('should return station with featured artists and follow status', async () => {
+      const mockStation = {
+        status: 'success',
+        data: {
+          playlistId: 'playlist-123',
+          title: 'Artist Station',
+          tracks: [],
+          featuredArtists: [
+            {
+              userId: 'artist-1',
+              username: 'featured1',
+              displayName: 'Featured Artist 1',
+              avatarUrl: 'http://example.com/avatar1.jpg',
+              trackCount: 15,
+              followersCount: 200,
+              isFollowedByCurrentUser: true,
+            },
+            {
+              userId: 'artist-2',
+              username: 'featured2',
+              displayName: 'Featured Artist 2',
+              avatarUrl: 'http://example.com/avatar2.jpg',
+              trackCount: 8,
+              followersCount: 100,
+              isFollowedByCurrentUser: false,
+            },
+          ],
+        },
+      };
+
+      mockDiscoveryService.getArtistStation.mockResolvedValue(mockStation);
+
+      const result = await controller.getArtistStation(mockUserId, mockUsername, mockIp);
+
+      expect(result.data.featuredArtists).toHaveLength(2);
+      expect(result.data.featuredArtists[0].isFollowedByCurrentUser).toBe(true);
+      expect(result.data.featuredArtists[1].isFollowedByCurrentUser).toBe(false);
+    });
+
+    it('should return station with region-blocked tracks censored', async () => {
+      const mockStation = {
+        status: 'success',
+        data: {
+          playlistId: 'playlist-123',
+          title: 'Artist Station',
+          tracks: [
+            {
+              position: 1,
+              trackId: 'track-1',
+              title: 'Blocked Track',
+              audioUrl: null,
+              waveformUrl: null,
+            },
+            {
+              position: 2,
+              trackId: 'track-2',
+              title: 'Available Track',
+              audioUrl: 'http://example.com/audio.mp3',
+              waveformUrl: 'http://example.com/waveform.json',
+            },
+          ],
+          featuredArtists: [],
+        },
+      };
+
+      mockDiscoveryService.getArtistStation.mockResolvedValue(mockStation);
+
+      const result = await controller.getArtistStation(mockUserId, mockUsername, mockIp);
+
+      expect(result.data.tracks[0].audioUrl).toBeNull();
+      expect(result.data.tracks[0].waveformUrl).toBeNull();
+      expect(result.data.tracks[1].audioUrl).not.toBeNull();
+    });
+
+    it('should handle artist with no tracks gracefully', async () => {
+      const mockStation = {
+        status: 'success',
+        data: {
+          playlistId: 'playlist-empty',
+          title: 'Empty Artist Station',
+          tracksCount: 0,
+          tracks: [],
+          featuredArtists: [],
+        },
+      };
+
+      mockDiscoveryService.getArtistStation.mockResolvedValue(mockStation);
+
+      const result = await controller.getArtistStation(mockUserId, mockUsername, mockIp);
+
+      expect(result.data.tracks).toHaveLength(0);
+      expect(result.data.tracksCount).toBe(0);
+    });
+
+    it('should handle different IP addresses for geolocation', async () => {
+      const mockStation = {
+        status: 'success',
+        data: {
+          playlistId: 'playlist-123',
+          title: 'Artist Station',
+          tracks: [],
+          featuredArtists: [],
+        },
+      };
+
+      mockDiscoveryService.getArtistStation.mockResolvedValue(mockStation);
+
+      const differentIp = '82.45.123.45'; // UK IP
+      await controller.getArtistStation(mockUserId, mockUsername, differentIp);
+
+      expect(discoveryService.getArtistStation).toHaveBeenCalledWith(
+        mockUsername,
+        mockUserId,
+        differentIp
+      );
+    });
+
+    it('should propagate generic errors from service', async () => {
+      const error = new Error('Database connection failed');
+      mockDiscoveryService.getArtistStation.mockRejectedValue(error);
+
+      await expect(controller.getArtistStation(mockUserId, mockUsername, mockIp)).rejects.toThrow(
+        'Database connection failed'
+      );
     });
   });
 });
