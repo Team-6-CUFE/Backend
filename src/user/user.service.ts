@@ -108,4 +108,8 @@ export class UserService {
   async getSocialAccounts(userId: string) {
     return this.userRepository.getSocialAccounts(userId);
   }
+
+  async findByIds(ids: string[]): Promise<User[]> {
+    return this.userRepository.findbyIds(ids);
+  }
 }

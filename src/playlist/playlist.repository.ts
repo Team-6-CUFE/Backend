@@ -534,4 +534,85 @@ export class PlaylistRepository {
         .getMany()
     );
   }
+
+  async findPlaylistsByIds(ids: string[]): Promise<Playlist[]> {
+    return (
+      this.playlistRepository
+        .createQueryBuilder('playlist')
+        .where('playlist.playlistId IN (:...ids)', { ids })
+        .where('playlist.type == :type', { type: PlaylistType.PLAYLIST })
+        // Join the primary genre
+        .leftJoin('playlist.genre', 'genre')
+        .leftJoinAndSelect('playlist.playlistTracks', 'playlistTrack')
+        .leftJoinAndSelect('playlistTrack.track', 'track')
+        .leftJoin('track.user', 'trackUser')
+        .orderBy('playlistTrack.position', 'ASC')
+        .select([
+          'playlist.playlistId',
+          'playlist.title',
+          'playlist.coverImage',
+          'playlist.totalDurationSeconds',
+          'playlist.tracksCount',
+          'playlist.userId',
+          'playlist.type',
+          'genre.genreId',
+          'genre.name',
+          'playlistTrack.position',
+          'playlistTrack.trackId',
+          'track.trackId',
+          'track.title',
+          'track.audioUrl',
+          'track.coverImage',
+          'track.durationSeconds',
+          'track.playCount',
+          'track.userId',
+          'trackUser.userId',
+          'trackUser.username',
+          'trackUser.displayName',
+          'trackUser.avatarUrl',
+        ])
+        .getMany()
+    );
+  }
+
+  async findAlbumsByIds(ids: string[]): Promise<Playlist[]> {
+    return (
+      this.playlistRepository
+        .createQueryBuilder('playlist')
+        .where('playlist.playlistId IN (:...ids)', { ids })
+        .where('playlist.type != :type', { type: PlaylistType.PLAYLIST })
+        .where('playlist.type != :type2', { type2: PlaylistType.STATION })
+        // Join the primary genre
+        .leftJoin('playlist.genre', 'genre')
+        .leftJoinAndSelect('playlist.playlistTracks', 'playlistTrack')
+        .leftJoinAndSelect('playlistTrack.track', 'track')
+        .leftJoin('track.user', 'trackUser')
+        .orderBy('playlistTrack.position', 'ASC')
+        .select([
+          'playlist.playlistId',
+          'playlist.title',
+          'playlist.coverImage',
+          'playlist.totalDurationSeconds',
+          'playlist.tracksCount',
+          'playlist.userId',
+          'playlist.type',
+          'genre.genreId',
+          'genre.name',
+          'playlistTrack.position',
+          'playlistTrack.trackId',
+          'track.trackId',
+          'track.title',
+          'track.audioUrl',
+          'track.coverImage',
+          'track.durationSeconds',
+          'track.playCount',
+          'track.userId',
+          'trackUser.userId',
+          'trackUser.username',
+          'trackUser.displayName',
+          'trackUser.avatarUrl',
+        ])
+        .getMany()
+    );
+  }
 }

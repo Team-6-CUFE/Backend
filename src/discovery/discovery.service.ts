@@ -11,6 +11,8 @@ import { Playlist } from '../playlist/entities/playlist.entity';
 import { TrackVisibility } from '../track/enums/track-visibility.enum';
 import { getLocationFromIp } from '../common/utilities/geolocation.util';
 import { UserService } from '../user/user.service';
+import { search } from '../search/search';
+import { EntityType } from '../search/types';
 
 const logger = new Logger('DiscoveryService');
 
@@ -482,7 +484,7 @@ export class DiscoveryService {
 
     // 5. Fetch Tracks and Playlists concurrently
     const [tracks, playlists] = await Promise.all([
-      trackIds.length ? this.trackRepository.findByIds(trackIds) : [],
+      trackIds.length ? this.trackRepository.findByIds(trackIds, userId) : [],
       playlistIds.length ? this.playlistRepository.findByIds(playlistIds) : [],
     ]);
 
@@ -651,6 +653,176 @@ export class DiscoveryService {
         duration: track.durationSeconds,
         comments: track.comments,
       })),
+    };
+  }
+
+  async getSearchResults(
+    userId: string,
+    q: string,
+    type: EntityType | undefined,
+    genre: string | undefined,
+    tag: string | undefined,
+    city: string | undefined,
+    ip: string,
+    page: number = 1,
+    limit: number = 20
+  ) {
+    const offset = (page - 1) * limit;
+    const searchResult = await search({
+      query: q,
+      type: type || 'all',
+      genre,
+      tag,
+      city,
+      offset,
+      limit,
+    });
+    const userIds = searchResult
+      .filter((hit: any) => hit.type === 'user')
+      .map((hit: any) => hit.id);
+    const trackIds = searchResult
+      .filter((hit: any) => hit.type === 'track')
+      .map((hit: any) => hit.id);
+    const playlistIds = searchResult
+      .filter((hit: any) => hit.type === 'playlist')
+      .map((hit: any) => hit.id);
+    const albumIds = searchResult
+      .filter((hit: any) => hit.type === 'album')
+      .map((hit: any) => hit.id);
+    const [users, tracks, playlists, albums] = await Promise.all([
+      userIds.length ? this.userService.findByIds(userIds) : [],
+      trackIds.length ? this.trackRepository.findByIds(trackIds, userId) : [],
+      playlistIds.length ? this.playlistRepository.findPlaylistsByIds(playlistIds) : [],
+      albumIds.length ? this.playlistRepository.findAlbumsByIds(albumIds) : [],
+    ]);
+    const { country } = getLocationFromIp(ip);
+    const formattedResults = searchResult.map(async (hit: any) => {
+      if (hit.type === 'user') {
+        const user = users.find((u) => u.userId === hit.id);
+        return user
+          ? {
+              type: 'user',
+              userId: user.userId,
+              username: user.username,
+              displayName: user.displayName,
+              avatarUrl: user.avatarUrl,
+              city: user.city,
+              country: user.country,
+              followersCount: user.followersCount,
+              isFollowedByCurrentUser:
+                userId === user.userId
+                  ? true
+                  : await this.followersRepository.isFollowing(userId, user.userId),
+            }
+          : null;
+      }
+      if (hit.type === 'track') {
+        const track = tracks.find((t) => t.trackId === hit.id);
+        if (!track) return null;
+        const isBlocked = country && track.blockedRegions?.includes(country);
+        return {
+          type: 'track',
+          trackId: track.trackId,
+          title: track.title,
+          coverImage: track.coverImage,
+          user: track.user,
+          genre: track.genre,
+          audioUrl: isBlocked ? null : track.audioUrl,
+          waveformUrl: track.waveformUrl,
+          playCount: track.playCount,
+          likesCount: track.likesCount,
+          repostsCount: track.repostsCount,
+          commentsCount: track.commentsCount,
+          duration: track.durationSeconds,
+          artists: track.mainArtists,
+          comments: track.comments,
+          createdAt: track.createdAt,
+          isLiked: track.isLiked,
+          isReposted: track.isReposted,
+        };
+      }
+      if (hit.type === 'playlist') {
+        const playlist = playlists.find((p) => p.playlistId === hit.id);
+        return playlist
+          ? {
+              type: 'playlist',
+              playlistId: playlist.playlistId,
+              title: playlist.title,
+              description: playlist.description,
+              coverImage: playlist.coverImage,
+              tracksCount: playlist.tracksCount,
+              durationSeconds: playlist.totalDurationSeconds,
+              likesCount: playlist.likesCount,
+              createdAt: playlist.createdAt,
+              user: {
+                userId: playlist.user.userId,
+                username: playlist.user.username,
+                displayName: playlist.user.displayName,
+                avatarUrl: playlist.user.avatarUrl,
+                city: playlist.user.city,
+                followersCount: playlist.user.followersCount,
+              },
+              playlistTracks: playlist.playlistTracks.map((pt: any) => {
+                const isBlocked = country && pt.track.blockedRegions?.includes(country);
+                return {
+                  position: pt.position,
+                  trackId: pt.track.trackId,
+                  title: pt.track.title,
+                  durationSeconds: pt.track.durationSeconds,
+                  coverImage: pt.track.coverImage,
+                  audioUrl: isBlocked ? null : pt.track.audioUrl,
+                  waveformUrl: pt.track.waveformUrl,
+                  playCount: pt.track.playCount,
+                  isLiked: pt.track.isLiked,
+                  isReposted: pt.track.isReposted,
+                  likesCount: pt.track.likesCount,
+                };
+              }),
+            }
+          : null;
+      }
+      const album = albums.find((a) => a.playlistId === hit.id);
+      return album
+        ? {
+            type: 'album',
+            playlistId: album.playlistId,
+            title: album.title,
+            description: album.description,
+            coverImage: album.coverImage,
+            tracksCount: album.tracksCount,
+            durationSeconds: album.totalDurationSeconds,
+            likesCount: album.likesCount,
+            createdAt: album.createdAt,
+            user: {
+              userId: album.user.userId,
+              username: album.user.username,
+              displayName: album.user.displayName,
+              avatarUrl: album.user.avatarUrl,
+              city: album.user.city,
+              followersCount: album.user.followersCount,
+            },
+            playlistTracks: album.playlistTracks.map((pt: any) => {
+              const isBlocked = country && pt.track.blockedRegions?.includes(country);
+              return {
+                position: pt.position,
+                trackId: pt.track.trackId,
+                title: pt.track.title,
+                durationSeconds: pt.track.durationSeconds,
+                coverImage: pt.track.coverImage,
+                audioUrl: isBlocked ? null : pt.track.audioUrl,
+                waveformUrl: pt.track.waveformUrl,
+                playCount: pt.track.playCount,
+                isLiked: pt.track.isLiked,
+                isReposted: pt.track.isReposted,
+                likesCount: pt.track.likesCount,
+              };
+            }),
+          }
+        : null;
+    });
+    return {
+      status: 'success',
+      data: formattedResults.filter((r) => r !== null),
     };
   }
 }

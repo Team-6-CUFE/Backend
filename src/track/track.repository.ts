@@ -532,31 +532,40 @@ export class TrackRepository {
     };
   }
 
-  async findByIds(ids: string[]): Promise<Track[]> {
-    return (
-      this.trackRepository
-        .createQueryBuilder('track')
-        .where('track.trackId IN (:...ids)', { ids })
-        // 1. Join the genre relation
-        .leftJoin('track.genre', 'genre')
-        .select([
-          'track.trackId',
-          'track.title',
-          'track.coverImage',
-          'track.audioUrl',
-          'track.durationSeconds',
-          'track.userId',
-          'track.createdAt',
-          'track.likesCount',
-          'track.repostsCount',
-          'track.commentsCount',
-          'track.blockedRegions',
-          // 2. Select the genre name
-          'genre.name',
-          'genre.genreId',
-        ])
-        .getMany()
-    );
+  async findByIds(
+    ids: string[],
+    userId: string
+  ): Promise<(Track & { isLiked: boolean; isReposted: boolean })[]> {
+    const tracks = await this.trackRepository
+      .createQueryBuilder('track')
+      .where('track.trackId IN (:...ids)', { ids })
+      // 1. Join the genre relation
+      .leftJoin('track.genre', 'genre')
+      .leftJoinAndSelect('track.likes', 'like', 'like.user_id = :userId')
+      .leftJoinAndSelect('track.reposts', 'repost', 'repost.user_id = :userId')
+      .select([
+        'track.trackId',
+        'track.title',
+        'track.coverImage',
+        'track.audioUrl',
+        'track.durationSeconds',
+        'track.userId',
+        'track.createdAt',
+        'track.likesCount',
+        'track.repostsCount',
+        'track.commentsCount',
+        'track.blockedRegions',
+        // 2. Select the genre name
+        'genre.name',
+        'genre.genreId',
+      ])
+      .setParameter('userId', userId)
+      .getMany();
+    return tracks.map((track) => ({
+      ...track,
+      isLiked: track.likes.length > 0,
+      isReposted: track.reposts.length > 0,
+    }));
   }
 
   async getAllUserTracks(username: string): Promise<Track[]> {

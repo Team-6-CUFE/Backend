@@ -250,4 +250,11 @@ export class UserRepository {
   async getSocialAccounts(userId: string) {
     return this.socialAccountRepo.find({ where: { userId } });
   }
+
+  async findbyIds(ids: string[]): Promise<User[]> {
+    return this.repository
+      .createQueryBuilder('user')
+      .where('user.userId IN (:...ids)', { ids })
+      .getMany();
+  }
 }

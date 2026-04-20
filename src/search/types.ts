@@ -40,13 +40,18 @@ export interface AlbumDocument extends BaseDocument {
   genre: string;
 }
 
-export type SearchDocument = TrackDocument | UserDocument | PlaylistDocument | AlbumDocument;
+export type SearchDocument =
+  | TrackDocument
+  | UserDocument
+  | PlaylistDocument
+  | AlbumDocument
+  | AutocompleteHit;
 
 export interface SearchParams {
   query: string;
   type?: EntityType | 'all';
   genre?: string;
-  tags?: string[];
+  tag?: string;
   city?: string;
   durationRange?: {
     min?: number;
@@ -66,20 +71,18 @@ export interface AutocompleteParams {
 }
 
 export interface AutocompleteHit {
-  id: string;
-  type: EntityType;
-  title?: string;
-  artist_name?: string;
-  username?: string;
-  display_name?: string;
-  city?: string;
-  avatar_url?: string;
-  genre?: string;
-  tags?: string[];
-  track_count?: number;
+  title: string;
+  display_name: string;
+  username: string;
 }
 
 export interface SearchResult {
   id: string;
   type: EntityType;
+}
+export enum DurationRange {
+  'LESS_THAN_2',
+  'TWO_TO_TEN',
+  'TEN_TO_THIRTY',
+  'MORE_THAN_30',
 }

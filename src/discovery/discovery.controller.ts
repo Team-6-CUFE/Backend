@@ -8,6 +8,7 @@ import {
   ApiGetArtistStation,
 } from './discovery.swagger';
 import { CurrentUser } from '../authentication/decorators/current-user.decorator';
+import { EntityType } from '../search/types';
 // import { search } from '../search/search'
 // import { mapTrack, addDocuments, updateDocument, deleteDocument } from '../search/indexing'
 
@@ -77,6 +78,31 @@ export class DiscoveryController {
     return this.discoveryService.getMoreOfWhatYouLike(userId, ip);
   }
 
+  @ApiGetArtistStation()
+  @Get('/search')
+  async search(
+    @CurrentUser('sub') userId: string,
+    @Ip() ip: string,
+    @Query('q') q: string,
+    @Query('type') type?: EntityType,
+    @Query('genre') genre?: string,
+    @Query('tag') tag?: string,
+    @Query('city') city?: string,
+    @Query('page') page: number = 1,
+    @Query('limit') limit: number = 20
+  ) {
+    return this.discoveryService.getSearchResults(
+      userId,
+      q,
+      type,
+      genre,
+      tag,
+      city,
+      ip,
+      page,
+      limit
+    );
+  }
   // GET /search?q=summer&type=track&genre=Hip-Hop
   // app.get('/search', async (req, res) => {
   //   const { q, type, genre, tags, city } = req.query
