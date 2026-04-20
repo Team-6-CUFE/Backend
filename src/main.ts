@@ -6,6 +6,7 @@ import session from 'express-session';
 import { ConfigService } from '@nestjs/config';
 import { AppModule } from './app.module';
 import { createRedisSessionStore } from './redis/redis-session.store';
+import { configureMeilisearch } from './search/configure';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
@@ -75,6 +76,7 @@ async function bootstrap() {
       transform: true,
     })
   );
+  await configureMeilisearch();
 
   const PORT = process.env.PORT || 8080;
   await app.listen(PORT);
