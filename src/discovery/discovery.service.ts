@@ -76,7 +76,7 @@ export class DiscoveryService {
 
     // 5. Fetch Tracks and Playlists concurrently
     const [tracks, playlists] = await Promise.all([
-      trackIds.length ? this.trackRepository.findByIds(trackIds) : [],
+      trackIds.length ? this.trackRepository.findByIds(trackIds, userId) : [],
       playlistIds.length ? this.playlistRepository.findByIds(playlistIds) : [],
     ]);
 
