@@ -578,4 +578,100 @@ export class TrackRepository {
       track.playCount * 1 + track.likesCount * 3 + track.commentsCount * 2 + track.repostsCount * 5
     );
   }
+
+  async getUserInteractedTrackTags(userId: string): Promise<Genre[]> {
+    // Subquery to find track IDs the user has interacted with
+    const subQuery = (qb: {
+      subQuery: () => {
+        (): any;
+        new (): any;
+        select: {
+          (arg0: string): {
+            (): any;
+            new (): any;
+            from: {
+              (
+                arg0: string,
+                arg1: string
+              ): {
+                (): any;
+                new (): any;
+                where: {
+                  (arg0: string): { (): any; new (): any; getQuery: { (): any; new (): any } };
+                  new (): any;
+                };
+              };
+              new (): any;
+            };
+          };
+          new (): any;
+        };
+      };
+    }) => {
+      const liked = qb
+        .subQuery()
+        .select('tl.track_id')
+        .from('track_likes', 'tl')
+        .where('tl.user_id = :userId')
+        .getQuery();
+      const reposted = qb
+        .subQuery()
+        .select('tr.track_id')
+        .from('track_reposts', 'tr')
+        .where('tr.user_id = :userId')
+        .getQuery();
+      const played = qb
+        .subQuery()
+        .select('tp.track_id')
+        .from('track_plays', 'tp')
+        .where('tp.user_id = :userId')
+        .getQuery();
+      return `track.track_id IN ${liked} OR track.track_id IN ${reposted} OR track.track_id IN ${played}`;
+    };
+
+    // Get genres from ManyToOne
+    const mainGenres = await this.genreRepository
+      .createQueryBuilder('genre')
+      .innerJoin('genre.tracks', 'track')
+      .where(subQuery)
+      .setParameter('userId', userId)
+      .getMany();
+
+    // Get genres from ManyToMany tags
+    const tagGenres = await this.genreRepository
+      .createQueryBuilder('genre')
+      .innerJoin('genre.trackTags', 'track')
+      .where(subQuery)
+      .setParameter('userId', userId)
+      .getMany();
+
+    // Combine and deduplicate
+    const allGenres = [...mainGenres, ...tagGenres];
+    const unique = allGenres.filter(
+      (genre, index, self) => index === self.findIndex((g) => g.genreId === genre.genreId)
+    );
+    // return unique genres
+    return unique;
+  }
+
+  async getTopTracksByTagIds(tagIds: string[], userId: string) {
+    const tracks = await this.trackRepository
+      .createQueryBuilder('track')
+      .innerJoin('track.tags', 'tag')
+      .leftJoinAndSelect('track.likes', 'like', 'like.user_id = :userId')
+      .leftJoinAndSelect('track.reposts', 'repost', 'repost.user_id = :userId')
+      .where('tag.genre_id IN (:...tagIds)', { tagIds })
+      .andWhere('track.visibility = :visibility', { visibility: TrackVisibility.PUBLIC })
+      .andWhere('track.hidden = false')
+      .setParameter('userId', userId)
+      .orderBy('track.playCount', 'DESC')
+      .take(20)
+      .getMany();
+
+    return tracks.map((track) => ({
+      ...track,
+      isLiked: track.likes.length > 0,
+      isReposted: track.reposts.length > 0,
+    }));
+  }
 }
