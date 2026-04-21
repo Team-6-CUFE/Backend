@@ -88,6 +88,7 @@ export class DiscoveryController {
     @Query('genre') genre?: string,
     @Query('tag') tag?: string,
     @Query('city') city?: string,
+    @Query('duration')
     @Query('page') page: number = 1,
     @Query('limit') limit: number = 20
   ) {
@@ -104,11 +105,10 @@ export class DiscoveryController {
     );
   }
 
-  // app.get('/search/autocomplete', async (req, res) => {
-  //   const { q, type } = req.query
-  //   const hits = await autocomplete({ query: q as string, type: type as string })
-  //   res.json(hits)
-  // })
+  @Get('/autocomplete')
+  async searchAutocomplete(@Query('q') q: string) {
+    return this.discoveryService.searchAutocomplete(q);
+  }
 
   // Call these from your service layer on DB mutations
   // async function onTrackCreated(track: Track) {

@@ -53,7 +53,7 @@ export async function search(params: SearchParams): Promise<SearchResponse> {
   };
 }
 
-export async function wordAutocomplete(query: string): Promise<string[]> {
+export async function autocomplete(query: string): Promise<string[]> {
   const index = getIndex();
 
   const results = await index.search(query, {

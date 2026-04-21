@@ -11,7 +11,7 @@ import { Playlist } from '../playlist/entities/playlist.entity';
 import { TrackVisibility } from '../track/enums/track-visibility.enum';
 import { getLocationFromIp } from '../common/utilities/geolocation.util';
 import { UserService } from '../user/user.service';
-import { search } from '../search/search';
+import { search, autocomplete } from '../search/search';
 import { EntityType } from '../search/types';
 import { Genre } from '../genre/entities/genre.entity';
 import { User } from '../user/entities/user.entity';
@@ -811,6 +811,14 @@ export class DiscoveryService {
       status: 'success',
       total,
       data: formattedResults.filter((r): r is NonNullable<typeof r> => r !== null),
+    };
+  }
+
+  async searchAutocomplete(q: string) {
+    const data = autocomplete(q);
+    return {
+      status: 'success',
+      data,
     };
   }
 }
