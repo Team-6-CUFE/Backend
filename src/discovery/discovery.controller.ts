@@ -109,16 +109,8 @@ export class DiscoveryController {
     return this.discoveryService.searchAutocomplete(q);
   }
 
-  // Call these from your service layer on DB mutations
-  // async function onTrackCreated(track: Track) {
-  //   await addDocuments([mapTrack(track)])
-  // }
-
-  // async function onTrackUpdated(track: Track) {
-  //   await updateDocument(mapTrack(track))
-  // }
-
-  // async function onTrackDeleted(trackId: string) {
-  //   await deleteDocument(`track_${trackId}`)
-  // }
+  @Get('/recommended-stations')
+  async getRecommendedStations(@CurrentUser('sub') userId: string, @Ip() ip: string) {
+    return this.discoveryService.getRecommendedStations(userId, ip);
+  }
 }

@@ -411,4 +411,16 @@ export class FollowersRepository {
 
     return ids.map((u) => u.userId);
   }
+
+  async getTopFollowedArtistUsernames(userId: string, limit: number): Promise<string[]> {
+    const artists = await this.userRepository
+      .createQueryBuilder('user')
+      .innerJoin('user_follows', 'uf', 'uf.followed = user.user_id')
+      .where('uf.follower = :userId', { userId })
+      .orderBy('user.followersCount', 'DESC')
+      .limit(limit)
+      .select('user.username')
+      .getMany();
+    return artists.map((a) => a.username);
+  }
 }

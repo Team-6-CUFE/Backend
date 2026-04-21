@@ -4,8 +4,10 @@ import {
   NotFoundException,
   Logger,
   BadRequestException,
+  Inject,
 } from '@nestjs/common';
 // import { DiscoveryRepository } from './discovery.repository';
+import { createClient } from 'redis';
 import { FollowersRepository } from '../followers/followers.repository';
 import { ActivityService } from '../activity/activity.service';
 import { ActivityType } from '../activity/entities/activity.entity';
@@ -21,6 +23,7 @@ import { search, autocomplete } from '../search/search';
 import { EntityType } from '../search/types';
 import { Genre } from '../genre/entities/genre.entity';
 import { User } from '../user/entities/user.entity';
+import { REDIS_CLIENT } from '../redis/redis.module';
 
 const logger = new Logger('DiscoveryService');
 
@@ -28,6 +31,8 @@ interface TrackCandidate {
   track: Track;
   score: number;
 }
+
+const RECOMMENDED_STATIONS_TTL_SECS = 7 * 24 * 60 * 60; // 1 week
 
 @Injectable()
 export class DiscoveryService {
@@ -38,7 +43,9 @@ export class DiscoveryService {
     private readonly trackRepository: TrackRepository,
     private readonly trackService: TrackService,
     private readonly playlistRepository: PlaylistRepository,
-    private readonly userService: UserService
+    private readonly userService: UserService,
+    @Inject(REDIS_CLIENT)
+    private readonly redis: ReturnType<typeof createClient>
   ) {}
 
   // ─── Private helpers ────────────────────────────────────────────────────────
@@ -880,6 +887,41 @@ export class DiscoveryService {
     return {
       status: 'success',
       data,
+    };
+  }
+
+  async getRecommendedStations(userId: string, ip: string) {
+    const cached = await this.redis.get(`recommended_stations:${userId}`);
+    if (cached) {
+      const data = JSON.parse(cached) as Track[];
+      return data;
+    }
+    // get last 5 artists user listened to
+    const lastListenedArtistUsernames =
+      await this.trackRepository.getUserLastListenedArtistUsernames(userId);
+    // get top 5 popular artists user follows
+    const topFollowedArtistUsernames = await this.followersRepository.getTopFollowedArtistUsernames(
+      userId,
+      5
+    );
+
+    // get stations for those artists
+    const stationPromises = [
+      ...new Set([...lastListenedArtistUsernames, ...topFollowedArtistUsernames]),
+    ].map(async (username) => {
+      try {
+        return (await this.getArtistStation(username, userId, ip)).data;
+      } catch (e) {
+        return null;
+      }
+    });
+    const stations = await Promise.all(stationPromises);
+    await this.redis.set(`recommended_stations:${userId}`, JSON.stringify(stations), {
+      EX: RECOMMENDED_STATIONS_TTL_SECS,
+    });
+    return {
+      status: 'success',
+      data: stations.filter((s): s is NonNullable<typeof s> => s !== null),
     };
   }
 }

@@ -742,4 +742,23 @@ export class TrackRepository {
       isReposted: track.reposts.length > 0,
     }));
   }
+
+  async getUserLastListenedArtistUsernames(userId: string): Promise<string[]> {
+    const rows = await this.trackPlayRepository
+      .createQueryBuilder('play')
+      // 1. Select the username and the most recent play time
+      .select('user.username', 'username')
+      .addSelect('MAX(play.playedAt)', 'latestPlay')
+      .innerJoin('play.track', 'track')
+      .innerJoin('track.user', 'user')
+      .where('play.userId = :userId', { userId })
+      // 2. Group by username to ensure uniqueness
+      .groupBy('user.username')
+      // 3. Order by that max timestamp
+      .orderBy('"latestPlay"', 'DESC')
+      .limit(5)
+      .getRawMany();
+
+    return rows.map((row) => row.username);
+  }
 }
