@@ -13,7 +13,7 @@ export class NoBlockGuard implements CanActivate {
   async canActivate(context: ExecutionContext): Promise<boolean> {
     const request = context.switchToHttp().getRequest();
     const currentUserId: string = request.user.sub;
-    const targetUserId: string = request.params.userId;
+    const targetUserId: string = request.params.user_id;
 
     if (currentUserId === targetUserId) return true;
 
