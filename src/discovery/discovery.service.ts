@@ -684,7 +684,6 @@ export class DiscoveryService {
     userId: string,
     q: string,
     type: EntityType | undefined,
-    genre: string | undefined,
     tag: string | undefined,
     city: string | undefined,
     duration: string | undefined,
@@ -740,7 +739,7 @@ export class DiscoveryService {
     const { hits: searchResult, total } = await search({
       query: q,
       type: type || 'all',
-      genre,
+      genre: tag,
       tag,
       city,
       durationRange,

@@ -1,3 +1,6 @@
+import { Playlist } from '../playlist/entities/playlist.entity';
+import { Track } from '../track/entities/track.entity';
+import { User } from '../user/entities/user.entity';
 import { getIndex } from './client';
 import {
   SearchDocument,
@@ -9,38 +12,23 @@ import {
 
 // --- Mappers (from DB model to search document) ---
 
-export function mapTrack(track: {
-  id: string;
-  title: string;
-  artistName: string;
-  description?: string;
-  tags: string[];
-  genre: string;
-  durationSeconds: number;
-  createdAt: Date;
-}): TrackDocument {
+export function mapTrack(track: Track): TrackDocument {
   return {
-    id: `track_${track.id}`,
+    id: `track_${track.trackId}`,
     type: 'track',
     title: track.title,
-    artist_name: track.artistName,
+    artist_name: track.user.displayName,
     description: track.description,
-    tags: track.tags,
-    genre: track.genre,
+    tags: track.tags?.map((t) => t.name),
+    genre: track.genre?.name,
     duration: track.durationSeconds,
     created_at: track.createdAt,
   };
 }
 
-export function mapUser(user: {
-  id: string;
-  username: string;
-  displayName: string;
-  city?: string;
-  avatarUrl?: string;
-}): UserDocument {
+export function mapUser(user: User): UserDocument {
   return {
-    id: `user_${user.id}`,
+    id: `user_${user.userId}`,
     type: 'user',
     username: user.username,
     display_name: user.displayName,
@@ -49,38 +37,25 @@ export function mapUser(user: {
   };
 }
 
-export function mapPlaylist(playlist: {
-  id: string;
-  title: string;
-  artistName: string;
-  tags: string[];
-  genre: string;
-  trackCount: number;
-}): PlaylistDocument {
+export function mapPlaylist(playlist: Playlist): PlaylistDocument {
   return {
-    id: `playlist_${playlist.id}`,
+    id: `playlist_${playlist.playlistId}`,
     type: 'playlist',
     title: playlist.title,
-    artist_name: playlist.artistName,
-    tags: playlist.tags,
-    genre: playlist.genre,
+    artist_name: playlist.user.displayName,
+    tags: playlist.tags?.map((t) => t.name),
+    genre: playlist.genre?.name,
   };
 }
 
-export function mapAlbum(album: {
-  id: string;
-  title: string;
-  artistName: string;
-  tags: string[];
-  genre: string;
-}): AlbumDocument {
+export function mapAlbum(album: Playlist): AlbumDocument {
   return {
-    id: `album_${album.id}`,
+    id: `album_${album.playlistId}`,
     type: 'album',
     title: album.title,
-    artist_name: album.artistName,
-    tags: album.tags,
-    genre: album.genre,
+    artist_name: album.user.displayName,
+    tags: album.tags?.map((t) => t.name),
+    genre: album.genre?.name,
   };
 }
 

@@ -9,6 +9,7 @@ import { generateVerificationToken } from '../common/utilities/tokens.util';
 import { PlaylistTrack } from './entities/playlist-tracks.entity';
 import { Track } from '../track/entities/track.entity';
 import { Genre } from '../genre/entities/genre.entity';
+import { mapPlaylist, mapAlbum, addDocuments, deleteDocument } from '../search/indexing';
 
 @Injectable()
 export class PlaylistRepository {
@@ -158,7 +159,10 @@ export class PlaylistRepository {
       secretToken,
     });
 
-    return this.playlistRepository.save(playlist);
+    const savedPlaylist = await this.playlistRepository.save(playlist);
+    const completePlaylist = await this.getPlaylistDetails(savedPlaylist.playlistId);
+    await addDocuments([mapPlaylist(completePlaylist!)]);
+    return savedPlaylist;
   }
 
   async transferStationLikes(oldPlaylistId: string, newPlaylistId: string): Promise<void> {
@@ -181,6 +185,19 @@ export class PlaylistRepository {
     updateData: Partial<Playlist>
   ): Promise<Playlist | null> {
     await this.playlistRepository.update({ playlistId }, updateData);
+    if (updateData.type === PlaylistType.PLAYLIST) {
+      await deleteDocument(`album_${playlistId}`);
+      const playlist = await this.findPlaylistById(playlistId);
+      if (playlist) {
+        await addDocuments([mapPlaylist(playlist)]);
+      }
+    } else if (updateData.type !== null) {
+      await deleteDocument(`playlist_${playlistId}`);
+      const playlist = await this.findPlaylistById(playlistId);
+      if (playlist) {
+        await addDocuments([mapAlbum(playlist)]);
+      }
+    }
     return this.findPlaylistById(playlistId);
   }
 
@@ -246,6 +263,12 @@ export class PlaylistRepository {
   }
 
   async deletePlaylist(playlistId: string): Promise<void> {
+    const playlist = await this.findPlaylistById(playlistId);
+    if (playlist?.type === PlaylistType.PLAYLIST) {
+      await deleteDocument(`playlist_${playlistId}`);
+    } else if (playlist?.type !== PlaylistType.STATION) {
+      await deleteDocument(`album_${playlistId}`);
+    }
     await this.playlistRepository.delete({ playlistId });
   }
 

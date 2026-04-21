@@ -29,7 +29,7 @@ export interface PlaylistDocument extends BaseDocument {
   title: string;
   artist_name: string;
   tags: string[];
-  genre: string;
+  genre?: string;
 }
 
 export interface AlbumDocument extends BaseDocument {
@@ -37,7 +37,7 @@ export interface AlbumDocument extends BaseDocument {
   title: string;
   artist_name: string;
   tags: string[];
-  genre: string;
+  genre?: string;
 }
 
 export type SearchDocument =

@@ -13,6 +13,7 @@ import { TrackStatus } from './enums/track-status.enum';
 import { TrackVisibility } from './enums/track-visibility.enum';
 import { TrackPlay } from './entities/track-play.entity';
 import { RecentlyPlayed, RecentlyPlayedItemType } from './entities/recently-played.entity';
+import { mapTrack, addDocuments, updateDocument, deleteDocument } from '../search/indexing';
 
 const RECENTLY_PLAYED_LIMIT = 6;
 
@@ -327,7 +328,8 @@ export class TrackRepository {
     if (dto.genreName || dto.tags?.length) {
       await this.trackRepository.save(savedTrack);
     }
-
+    const completeTrack = await this.findByIdWithRelations(savedTrack.trackId);
+    await addDocuments([mapTrack(completeTrack!)]);
     return savedTrack;
   }
 
@@ -364,6 +366,7 @@ export class TrackRepository {
       await this.trackRepository.save(track);
     }
 
+    await updateDocument(mapTrack(track));
     return track;
   }
 
@@ -458,6 +461,7 @@ export class TrackRepository {
 
   async deleteTrack(trackId: string): Promise<void> {
     await this.trackRepository.delete(trackId);
+    await deleteDocument(`track_${trackId}`);
   }
 
   async findTrackByTitleAndArtist(title: string, artistUsername: string): Promise<Track | null> {
