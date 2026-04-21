@@ -748,10 +748,18 @@ export class DiscoveryService {
       limit,
     });
 
-    const userIds = searchResult.filter((hit) => hit.type === 'user').map((hit) => hit.id);
-    const trackIds = searchResult.filter((hit) => hit.type === 'track').map((hit) => hit.id);
-    const playlistIds = searchResult.filter((hit) => hit.type === 'playlist').map((hit) => hit.id);
-    const albumIds = searchResult.filter((hit) => hit.type === 'album').map((hit) => hit.id);
+    const userIds = searchResult
+      .filter((hit) => hit.type === 'user')
+      .map((hit) => hit.id.replace('user_', ''));
+    const trackIds = searchResult
+      .filter((hit) => hit.type === 'track')
+      .map((hit) => hit.id.replace('track_', ''));
+    const playlistIds = searchResult
+      .filter((hit) => hit.type === 'playlist')
+      .map((hit) => hit.id.replace('playlist_', ''));
+    const albumIds = searchResult
+      .filter((hit) => hit.type === 'album')
+      .map((hit) => hit.id.replace('album_', ''));
 
     const [users, tracks, playlists, albums] = await Promise.all([
       userIds.length ? this.userService.findByIds(userIds) : [],
@@ -780,11 +788,11 @@ export class DiscoveryService {
     ]);
 
     const { country } = getLocationFromIp(ip);
-
     const formattedResults = await Promise.all(
       searchResult.map(async (hit) => {
         if (hit.type === 'user') {
-          const user = users.find((u) => u.userId === hit.id);
+          const id = hit.id.replace('user_', '');
+          const user = users.find((u) => u.userId === id);
           return user
             ? {
                 type: 'user',
@@ -804,7 +812,8 @@ export class DiscoveryService {
         }
 
         if (hit.type === 'track') {
-          const track = tracks.find((t) => t.trackId === hit.id);
+          const id = hit.id.replace('track_', '');
+          const track = tracks.find((t) => t.trackId === id);
           if (!track) return null;
           const formatted = this.formatTrack(track, country);
           if (!formatted) return null;
@@ -812,7 +821,8 @@ export class DiscoveryService {
         }
 
         if (hit.type === 'playlist') {
-          const playlist = playlists.find((p) => p.playlistId === hit.id);
+          const id = hit.id.replace('playlist_', '');
+          const playlist = playlists.find((p) => p.playlistId === id);
           if (!playlist) return null;
           const playlistWithStatus = {
             ...playlist,
@@ -834,8 +844,8 @@ export class DiscoveryService {
             ...this.formatPlaylist(playlistWithStatus, country),
           };
         }
-
-        const album = albums.find((a) => a.playlistId === hit.id);
+        const id = hit.id.replace('album_', '');
+        const album = albums.find((a) => a.playlistId === id);
         if (!album) return null;
         const albumWithStatus = {
           ...album,
@@ -858,7 +868,6 @@ export class DiscoveryService {
         };
       })
     );
-
     return {
       status: 'success',
       total,
@@ -867,7 +876,7 @@ export class DiscoveryService {
   }
 
   async searchAutocomplete(q: string) {
-    const data = autocomplete(q);
+    const data = await autocomplete(q);
     return {
       status: 'success',
       data,

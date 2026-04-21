@@ -65,6 +65,5 @@ export async function autocomplete(query: string): Promise<string[]> {
     .map((s) => s.toLowerCase().trim())
     .filter((s, i, arr) => arr.indexOf(s) === i)
     .slice(0, 8);
-
   return suggestions;
 }
