@@ -51,6 +51,15 @@ const mockPlaylistService = () => ({
   getUserPlaylists: jest.fn(),
 });
 
+jest.mock('meilisearch', () => ({
+  Meilisearch: jest.fn().mockImplementation(() => ({
+    index: jest.fn().mockReturnValue({
+      addDocuments: jest.fn(),
+      search: jest.fn(),
+    }),
+  })),
+}));
+
 // ─── Suite ────────────────────────────────────────────────────────────────────
 
 describe('PlaylistController', () => {

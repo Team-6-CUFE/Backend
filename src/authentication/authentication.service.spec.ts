@@ -52,6 +52,15 @@ import {
 } from './test/auth.mock';
 import { REDIS_CLIENT } from '../redis/redis.module';
 
+jest.mock('meilisearch', () => ({
+  Meilisearch: jest.fn().mockImplementation(() => ({
+    index: jest.fn().mockReturnValue({
+      addDocuments: jest.fn(),
+      search: jest.fn(),
+    }),
+  })),
+}));
+
 describe('AuthenticationService', () => {
   let service: AuthenticationService;
   let authRepo: ReturnType<typeof mockAuthenticationRepository>;

@@ -23,6 +23,15 @@ import {
   mockConfigService,
 } from './test/auth.mock';
 
+jest.mock('meilisearch', () => ({
+  Meilisearch: jest.fn().mockImplementation(() => ({
+    index: jest.fn().mockReturnValue({
+      addDocuments: jest.fn(),
+      search: jest.fn(),
+    }),
+  })),
+}));
+
 describe('AuthenticationController', () => {
   let controller: AuthenticationController;
   let service: ReturnType<typeof mockAuthenticationService>;
