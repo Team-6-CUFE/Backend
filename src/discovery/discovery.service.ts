@@ -1,4 +1,10 @@
-import { ForbiddenException, Injectable, NotFoundException, Logger } from '@nestjs/common';
+import {
+  ForbiddenException,
+  Injectable,
+  NotFoundException,
+  Logger,
+  BadRequestException,
+} from '@nestjs/common';
 // import { DiscoveryRepository } from './discovery.repository';
 import { FollowersRepository } from '../followers/followers.repository';
 import { ActivityService } from '../activity/activity.service';
@@ -681,10 +687,55 @@ export class DiscoveryService {
     genre: string | undefined,
     tag: string | undefined,
     city: string | undefined,
+    duration: string | undefined,
+    createdAt: string | undefined,
     ip: string,
     page: number = 1,
     limit: number = 20
   ) {
+    let durationRange;
+    if (duration && type === 'track') {
+      if (duration === '<2') {
+        durationRange = {
+          min: 0,
+          max: 2 * 60,
+        };
+      } else if (duration === '2-10') {
+        durationRange = {
+          min: 2 * 60,
+          max: 10 * 60,
+        };
+      } else if (duration === '10-30') {
+        durationRange = {
+          min: 10 * 60,
+          max: 30 * 60,
+        };
+      } else if (duration === '>30') {
+        durationRange = {
+          min: 30 * 60,
+          max: undefined,
+        };
+      } else {
+        return new BadRequestException('Incorrect duration range');
+      }
+    }
+
+    let createdAtLimit;
+    if (createdAt) {
+      if (createdAt === 'h') {
+        createdAtLimit = new Date(Date.now() - 60 * 60 * 1000);
+      } else if (createdAt === 'd') {
+        createdAtLimit = new Date(Date.now() - 24 * 60 * 60 * 1000);
+      } else if (createdAt === 'w') {
+        createdAtLimit = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+      } else if (createdAt === 'm') {
+        createdAtLimit = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+      } else if (createdAt === 'y') {
+        createdAtLimit = new Date(Date.now() - 365 * 24 * 60 * 60 * 1000);
+      } else {
+        return new BadRequestException('Incorrect created at range');
+      }
+    }
     const offset = (page - 1) * limit;
     const { hits: searchResult, total } = await search({
       query: q,
@@ -692,6 +743,8 @@ export class DiscoveryService {
       genre,
       tag,
       city,
+      durationRange,
+      createdAtLimit,
       offset,
       limit,
     });

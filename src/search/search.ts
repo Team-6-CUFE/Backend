@@ -15,7 +15,7 @@ export async function search(params: SearchParams): Promise<SearchResponse> {
     tag,
     city,
     durationRange,
-    createdAtRange,
+    createdAtLimit,
     limit = 20,
     offset = 0,
   } = params;
@@ -33,11 +33,9 @@ export async function search(params: SearchParams): Promise<SearchResponse> {
     if (!Number.isNaN(min)) filters.push(`duration >= ${min}`);
     if (!Number.isNaN(max)) filters.push(`duration <= ${max}`);
   }
-  if (createdAtRange) {
-    const from = createdAtRange.from ? new Date(createdAtRange.from).toISOString() : null;
-    const to = createdAtRange.to ? new Date(createdAtRange.to).toISOString() : null;
-    if (from) filters.push(`created_at >= ${from}`);
-    if (to) filters.push(`created_at <= ${to}`);
+  if (createdAtLimit) {
+    const createdAtLimitString = new Date(createdAtLimit).toISOString();
+    filters.push(`created_at >= ${createdAtLimitString}`);
   }
 
   const results = await index.search(query, {

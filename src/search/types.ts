@@ -57,10 +57,7 @@ export interface SearchParams {
     min?: number;
     max?: number;
   };
-  createdAtRange?: {
-    from?: Date;
-    to?: Date;
-  };
+  createdAtLimit?: Date;
   limit?: number;
   offset?: number;
 }
@@ -79,10 +76,4 @@ export interface AutocompleteHit {
 export interface SearchResult {
   id: string;
   type: EntityType;
-}
-export enum DurationRange {
-  'LESS_THAN_2',
-  'TWO_TO_TEN',
-  'TEN_TO_THIRTY',
-  'MORE_THAN_30',
 }

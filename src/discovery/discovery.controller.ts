@@ -9,8 +9,6 @@ import {
 } from './discovery.swagger';
 import { CurrentUser } from '../authentication/decorators/current-user.decorator';
 import { EntityType } from '../search/types';
-// import { search } from '../search/search'
-// import { mapTrack, addDocuments, updateDocument, deleteDocument } from '../search/indexing'
 
 @ApiTags('Discovery')
 @Controller('discovery')
@@ -88,7 +86,8 @@ export class DiscoveryController {
     @Query('genre') genre?: string,
     @Query('tag') tag?: string,
     @Query('city') city?: string,
-    @Query('duration')
+    @Query('duration') duration?: string,
+    @Query('created') createdAt?: string,
     @Query('page') page: number = 1,
     @Query('limit') limit: number = 20
   ) {
@@ -99,6 +98,8 @@ export class DiscoveryController {
       genre,
       tag,
       city,
+      duration,
+      createdAt,
       ip,
       page,
       limit
