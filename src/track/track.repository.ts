@@ -542,11 +542,11 @@ export class TrackRepository {
   ): Promise<(Track & { isLiked: boolean; isReposted: boolean })[]> {
     const tracks = await this.trackRepository
       .createQueryBuilder('track')
-      .where('track.trackId IN (:...ids)', { ids })
+      .leftJoinAndSelect('track.likes', 'userlike', 'userlike.user_id = :userId', { userId })
+      .leftJoinAndSelect('track.reposts', 'userrepost', 'userrepost.user_id = :userId', { userId })
       .leftJoin('track.genre', 'genre')
       .leftJoin('track.user', 'user')
-      .leftJoinAndSelect('track.likes', 'like', 'like.user_id = :userId')
-      .leftJoinAndSelect('track.reposts', 'repost', 'repost.user_id = :userId')
+      .where('track.trackId IN (:...ids)', { ids })
       .select([
         'track.trackId',
         'track.title',
@@ -574,12 +574,17 @@ export class TrackRepository {
         'user.country',
         'user.followersCount',
       ])
-      .setParameter('userId', userId)
+      .addSelect('userlike.userId')
+      .addSelect('userlike.trackId')
+      .addSelect('userrepost.userId')
+      .addSelect('userrepost.trackId')
       .getMany();
+
     return tracks.map((track) => ({
       ...track,
-      isLiked: track.likes.length > 0,
-      isReposted: track.reposts.length > 0,
+      // Optional chaining is vital because if there is no like, the array is undefined or empty
+      isLiked: (track.likes?.length ?? 0) > 0,
+      isReposted: (track.reposts?.length ?? 0) > 0,
     }));
   }
 
