@@ -6,8 +6,14 @@ import {
   ApiGetTrackStation,
   ApiGetUserRecentActivities,
   ApiGetArtistStation,
+  ApiGetUserPopularTracks,
+  ApiGetMoreOfWhatYouLike,
+  ApiSearch,
+  ApiSearchAutocomplete,
+  ApiGetRecommendedStations,
 } from './discovery.swagger';
 import { CurrentUser } from '../authentication/decorators/current-user.decorator';
+import { EntityType } from '../search/types';
 
 @ApiTags('Discovery')
 @Controller('discovery')
@@ -59,7 +65,7 @@ export class DiscoveryController {
     return this.discoveryService.getArtistStation(username, userId, ip);
   }
 
-  @ApiGetTrackStation()
+  @ApiGetUserPopularTracks()
   @Get('/profile/:username/popular-tracks')
   async getUserPopularTracks(
     @CurrentUser('sub') userId: string,
@@ -69,9 +75,49 @@ export class DiscoveryController {
     return this.discoveryService.getUserPopularTracks(username, userId, ip);
   }
 
-  @ApiGetTrackStation()
+  @ApiGetMoreOfWhatYouLike()
   @Get('/more-of-what-you-like')
   async getMoreOfWhatYouLike(@CurrentUser('sub') userId: string, @Ip() ip: string) {
     return this.discoveryService.getMoreOfWhatYouLike(userId, ip);
+  }
+
+  @ApiSearch()
+  @Get('/search')
+  async search(
+    @CurrentUser('sub') userId: string,
+    @Ip() ip: string,
+    @Query('q') q: string,
+    @Query('type') type?: EntityType,
+    @Query('tag') tag?: string,
+    @Query('city') city?: string,
+    @Query('duration') duration?: string,
+    @Query('created') createdAt?: string,
+    @Query('page') page: number = 1,
+    @Query('limit') limit: number = 20
+  ) {
+    return this.discoveryService.getSearchResults(
+      userId,
+      q,
+      type,
+      tag,
+      city,
+      duration,
+      createdAt,
+      ip,
+      page,
+      limit
+    );
+  }
+
+  @ApiSearchAutocomplete()
+  @Get('/autocomplete')
+  async searchAutocomplete(@Query('q') q: string) {
+    return this.discoveryService.searchAutocomplete(q);
+  }
+
+  @ApiGetRecommendedStations()
+  @Get('/recommended-stations')
+  async getRecommendedStations(@CurrentUser('sub') userId: string, @Ip() ip: string) {
+    return this.discoveryService.getRecommendedStations(userId, ip);
   }
 }

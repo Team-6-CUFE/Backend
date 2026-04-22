@@ -9,6 +9,7 @@ import { PlaylistTrack } from '../../playlist/entities/playlist-tracks.entity';
 import { Genre } from '../../genre/entities/genre.entity';
 import { Activity, ActivityType } from '../../activity/entities/activity.entity';
 import { generateVerificationToken } from '../../common/utilities/tokens.util';
+import { getIndex } from '../../search/client';
 
 export class PlaylistSeeder implements Seeder {
   public async run(dataSource: DataSource, factoryManager: SeederFactoryManager): Promise<void> {
@@ -78,7 +79,7 @@ export class PlaylistSeeder implements Seeder {
 
     const allCreatedPlaylists: { playlist: Playlist; owner: User }[] = [];
     const artist1 = users.find((u) => u.username === 'artist1');
-    const artist2 = users.find((u) => u.username === 'artist2');
+    const index = getIndex();
 
     if (artist1) {
       const p1 = await playlistRepository.save(
@@ -94,6 +95,16 @@ export class PlaylistSeeder implements Seeder {
           tags: [tags.find((t) => t.name === 'lo-fi')!, tags.find((t) => t.name === 'chill')!],
         })
       );
+      await index.addDocuments([
+        {
+          id: `album_${p1.playlistId}`,
+          type: 'album',
+          title: p1.title,
+          artist_name: artist1.displayName,
+          tags: p1.tags?.map((t) => t.name),
+          genre: p1.genre?.name,
+        },
+      ]);
       allCreatedPlaylists.push({ playlist: p1, owner: artist1 });
 
       const p2 = await playlistRepository.save(
@@ -133,6 +144,30 @@ export class PlaylistSeeder implements Seeder {
           tags: [...tags].sort(() => 0.5 - Math.random()).slice(0, 2),
         })
       );
+
+      if (savedPlaylist.isPublic && savedPlaylist.type === PlaylistType.PLAYLIST) {
+        await index.addDocuments([
+          {
+            id: `playlist_${savedPlaylist.playlistId}`,
+            type: 'playlist',
+            title: savedPlaylist.title,
+            artist_name: randomOwner.displayName,
+            tags: savedPlaylist.tags?.map((t) => t.name),
+            genre: savedPlaylist.genre?.name,
+          },
+        ]);
+      } else if (savedPlaylist.isPublic && savedPlaylist.type !== PlaylistType.STATION) {
+        await index.addDocuments([
+          {
+            id: `album_${savedPlaylist.playlistId}`,
+            type: 'album',
+            title: savedPlaylist.title,
+            artist_name: randomOwner.displayName,
+            tags: savedPlaylist.tags?.map((t) => t.name),
+            genre: savedPlaylist.genre?.name,
+          },
+        ]);
+      }
       allCreatedPlaylists.push({ playlist: savedPlaylist, owner: randomOwner });
     }
 

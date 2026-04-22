@@ -20,6 +20,15 @@ jest.mock('sharp', () => () => ({
   toBuffer: jest.fn().mockResolvedValue(Buffer.from('ok')),
 }));
 
+jest.mock('meilisearch', () => ({
+  Meilisearch: jest.fn().mockImplementation(() => ({
+    index: jest.fn().mockReturnValue({
+      addDocuments: jest.fn(),
+      search: jest.fn(),
+    }),
+  })),
+}));
+
 const mockPlaylistId = '550e8400-e29b-41d4-a716-446655440000';
 const mockUserId = '550e8400-e29b-41d4-a716-446655440001';
 const mockOwnerId = '550e8400-e29b-41d4-a716-446655440002';

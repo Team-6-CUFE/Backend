@@ -1,5 +1,13 @@
-import { ForbiddenException, Injectable, NotFoundException, Logger } from '@nestjs/common';
+import {
+  ForbiddenException,
+  Injectable,
+  NotFoundException,
+  Logger,
+  BadRequestException,
+  Inject,
+} from '@nestjs/common';
 // import { DiscoveryRepository } from './discovery.repository';
+import { createClient } from 'redis';
 import { FollowersRepository } from '../followers/followers.repository';
 import { ActivityService } from '../activity/activity.service';
 import { ActivityType } from '../activity/entities/activity.entity';
@@ -11,6 +19,11 @@ import { Playlist } from '../playlist/entities/playlist.entity';
 import { TrackVisibility } from '../track/enums/track-visibility.enum';
 import { getLocationFromIp } from '../common/utilities/geolocation.util';
 import { UserService } from '../user/user.service';
+import { search, autocomplete } from '../search/search';
+import { EntityType } from '../search/types';
+import { Genre } from '../genre/entities/genre.entity';
+import { User } from '../user/entities/user.entity';
+import { REDIS_CLIENT } from '../redis/redis.module';
 
 const logger = new Logger('DiscoveryService');
 
@@ -18,6 +31,8 @@ interface TrackCandidate {
   track: Track;
   score: number;
 }
+
+const RECOMMENDED_STATIONS_TTL_SECS = 7 * 24 * 60 * 60; // 1 week
 
 @Injectable()
 export class DiscoveryService {
@@ -28,34 +43,144 @@ export class DiscoveryService {
     private readonly trackRepository: TrackRepository,
     private readonly trackService: TrackService,
     private readonly playlistRepository: PlaylistRepository,
-    private readonly userService: UserService
+    private readonly userService: UserService,
+    @Inject(REDIS_CLIENT)
+    private readonly redis: ReturnType<typeof createClient>
   ) {}
 
-  async getFeed(
+  // ─── Private helpers ────────────────────────────────────────────────────────
+
+  /**
+   * Formats a track for API responses.
+   * Returns null if the track should be filtered out (hidden or region-blocked).
+   */
+  private formatTrack(
+    track: Track & { isLiked?: boolean; isReposted?: boolean },
+    country: string | null
+  ): Record<string, any> | null {
+    if (track.hidden || track.visibility !== TrackVisibility.PUBLIC) return null;
+    const isBlocked = country && track.blockedRegions?.includes(country);
+
+    const user = track.user as User;
+    return {
+      trackId: track.trackId,
+      title: track.title,
+      coverImage: track.coverImage,
+      user: user
+        ? {
+            userId: user.userId,
+            username: user.username,
+            displayName: user.displayName,
+            avatarUrl: user.avatarUrl,
+            followersCount: user.followersCount,
+            city: user.city,
+            country: user.country,
+          }
+        : null,
+      genre: track.genre
+        ? { genreId: (track.genre as Genre).genreId, name: (track.genre as Genre).name }
+        : null,
+      audioUrl: isBlocked ? null : track.audioUrl,
+      waveformUrl: track.waveformUrl,
+      playCount: track.playCount,
+      likesCount: track.likesCount,
+      repostsCount: track.repostsCount,
+      commentsCount: track.commentsCount,
+      durationSeconds: track.durationSeconds,
+      mainArtists: track.mainArtists,
+      createdAt: track.createdAt,
+      isLiked: track.isLiked ?? false,
+      isReposted: track.isReposted ?? false,
+    };
+  }
+
+  /**
+   * Formats a playlist-track entry.
+   * Returns null if the track is hidden or region-blocked.
+   */
+  private formatPlaylistTrack(
+    pt: { position: number; track: Track & { isLiked?: boolean; isReposted?: boolean } },
+    country: string | null
+  ): Record<string, any> | null {
+    const { track } = pt;
+    if (!track) return null;
+    if (track.hidden || track.visibility !== TrackVisibility.PUBLIC) return null;
+    const isBlocked = country && track.blockedRegions?.includes(country);
+
+    const artist = track.user as User;
+    return {
+      position: pt.position,
+      trackId: track.trackId,
+      title: track.title,
+      durationSeconds: track.durationSeconds,
+      coverImage: track.coverImage,
+      audioUrl: isBlocked ? null : track.audioUrl,
+      waveformUrl: track.waveformUrl,
+      playCount: track.playCount,
+      likesCount: track.likesCount,
+      repostsCount: track.repostsCount,
+      commentsCount: track.commentsCount,
+      artist: artist
+        ? {
+            userId: artist.userId,
+            username: artist.username,
+            displayName: artist.displayName,
+            avatarUrl: artist.avatarUrl,
+            city: artist.city,
+            country: artist.country,
+            followersCount: artist.followersCount,
+          }
+        : null,
+      isLiked: track.isLiked ?? false,
+      isReposted: track.isReposted ?? false,
+    };
+  }
+
+  /**
+   * Formats a playlist for API responses, filtering hidden/blocked tracks within it.
+   */
+  private formatPlaylist(
+    playlist: Playlist & { isLiked?: boolean; isReposted?: boolean },
+    country: string | null
+  ): Record<string, any> {
+    const owner = playlist.user as User;
+    return {
+      playlistId: playlist.playlistId,
+      title: playlist.title,
+      description: playlist.description,
+      coverImage: playlist.coverImage,
+      tracksCount: playlist.tracksCount,
+      durationSeconds: playlist.totalDurationSeconds,
+      likesCount: playlist.likesCount,
+      repostsCount: playlist.repostsCount,
+      createdAt: playlist.createdAt,
+      isLiked: playlist.isLiked ?? false,
+      isReposted: playlist.isReposted ?? false,
+      user: owner
+        ? {
+            userId: owner.userId,
+            username: owner.username,
+            displayName: owner.displayName,
+            avatarUrl: owner.avatarUrl,
+            city: owner.city,
+            country: owner.country,
+            followersCount: owner.followersCount,
+          }
+        : null,
+      playlistTracks: (playlist.playlistTracks ?? [])
+        .map((pt: any) => this.formatPlaylistTrack(pt, country))
+        .filter((pt): pt is NonNullable<typeof pt> => pt !== null),
+    };
+  }
+
+  /**
+   * Assembles activity feed items with fully formatted targets.
+   */
+  private async assembleActivities(
+    activities: any[],
     userId: string,
-    ip: string,
-    includeReposts: boolean = true,
-    page: number = 1,
-    limit: number = 20
-  ) {
-    // 1. Resolve geolocation from the provided IP
-    const { country } = getLocationFromIp(ip);
-
-    // 2. Fetch the IDs of users being followed
-    const followingIds = await this.followersRepository.getFollowingIds(userId);
-    if (followingIds.length === 0) {
-      return { activities: [], total: 0 };
-    }
-
-    // 3. Fetch activities (reposts and posts)
-    const activities = await this.activityService.getActivitiesByUserIds(
-      followingIds,
-      page,
-      limit,
-      includeReposts
-    );
-
-    // 4. Separate IDs by type to fetch full data from repositories
+    country: string | null
+  ): Promise<any[]> {
     const trackIds = activities
       .filter(
         (a) =>
@@ -72,79 +197,99 @@ export class DiscoveryService {
       )
       .map((a) => a.targetId);
 
-    // 5. Fetch Tracks and Playlists concurrently
     const [tracks, playlists] = await Promise.all([
-      trackIds.length ? this.trackRepository.findByIds(trackIds) : [],
+      trackIds.length ? this.trackRepository.findByIds(trackIds, userId) : [],
       playlistIds.length ? this.playlistRepository.findByIds(playlistIds) : [],
     ]);
 
-    // 6. Map results for O(1) lookup
+    // Batch-check playlist like/repost status for the current user
+    const playlistTrackIds = playlists.flatMap(
+      (p) => p.playlistTracks?.map((pt: any) => pt.trackId) ?? []
+    );
+    const [likedPlaylistIds, repostedPlaylistIds, likedPlaylistTrackIds, repostedPlaylistTrackIds] =
+      await Promise.all([
+        this.playlistRepository.getUserLikedPlaylistIds(userId, playlistIds),
+        this.playlistRepository.getUserRepostedPlaylistIds(userId, playlistIds),
+        this.trackRepository.getUserLikedTrackIds(userId, playlistTrackIds),
+        this.trackRepository.getUserRepostedTrackIds(userId, playlistTrackIds),
+      ]);
+
     const trackMap = new Map(tracks.map((t) => [t.trackId, t]));
     const playlistMap = new Map(playlists.map((p) => [p.playlistId, p]));
 
-    // 7. Assemble the feed and apply region-based censorship
     return activities.map((a) => {
-      // Cast to 'any' to allow for partial object construction later
-      let target: any = trackMap.get(a.targetId) ?? playlistMap.get(a.targetId) ?? null;
+      const rawTarget: any = trackMap.get(a.targetId) ?? playlistMap.get(a.targetId) ?? null;
+      if (!rawTarget) return { ...a, target: null };
 
-      if (!target) return { ...a, target: null };
-
-      // --- TRACK LOGIC ---
       if (
         a.activityType === ActivityType.TRACK_POSTED ||
         a.activityType === ActivityType.TRACK_REPOST
       ) {
-        const isBlocked = country && target.blockedRegions?.includes(country);
-
-        if (isBlocked) {
-          // Return only allowed fields
-          target = {
-            trackId: target.trackId,
-            title: target.title,
-            coverImage: target.coverImage,
-            user: target.user,
-            genre: target.genre,
-            isBlocked: true,
-            audioUrl: null, // Censored
-          };
-        }
+        return { ...a, target: this.formatTrack(rawTarget, country) };
       }
 
-      // --- PLAYLIST LOGIC ---
       if (
         a.activityType === ActivityType.PLAYLIST_POSTED ||
         a.activityType === ActivityType.PLAYLIST_REPOST
       ) {
-        if (target.playlistTracks) {
-          target.playlistTracks = target.playlistTracks.map((pt: any) => {
-            const trackIsBlocked = country && pt.track?.blockedRegions?.includes(country);
-
-            if (trackIsBlocked) {
-              return {
-                ...pt,
-                track: {
-                  trackId: pt.track.trackId,
-                  title: pt.track.title,
-                  coverImage: pt.track.coverImage,
-                  user: pt.track.user,
-                  isBlocked: true,
-                  audioUrl: null, // Censored
-                },
-              };
-            }
-            return pt;
-          });
-        }
+        // Inject isLiked/isReposted for each playlist track then format
+        const playlistWithStatus = {
+          ...rawTarget,
+          isLiked: likedPlaylistIds.has(rawTarget.playlistId),
+          isReposted: repostedPlaylistIds.has(rawTarget.playlistId),
+          playlistTracks: (rawTarget.playlistTracks ?? []).map((pt: any) => ({
+            ...pt,
+            track: pt.track
+              ? {
+                  ...pt.track,
+                  isLiked: likedPlaylistTrackIds.has(pt.track.trackId),
+                  isReposted: repostedPlaylistTrackIds.has(pt.track.trackId),
+                }
+              : pt.track,
+          })),
+        };
+        return { ...a, target: this.formatPlaylist(playlistWithStatus, country) };
       }
 
-      return {
-        ...a,
-        target,
-      };
+      return { ...a, target: rawTarget };
     });
   }
 
+  async getFeed(
+    userId: string,
+    ip: string,
+    includeReposts: boolean = true,
+    page: number = 1,
+    limit: number = 20
+  ) {
+    const { country } = getLocationFromIp(ip);
+
+    const followingIds = await this.followersRepository.getFollowingIds(userId);
+    if (followingIds.length === 0) {
+      return { activities: [], total: 0 };
+    }
+
+    const activities = await this.activityService.getActivitiesByUserIds(
+      followingIds,
+      page,
+      limit,
+      includeReposts
+    );
+
+    return this.assembleActivities(activities, userId, country);
+  }
+
   private async stationResponse(currentUserId: string, station: Playlist, ip?: string) {
+    // Batch-query like/repost status for the station and its tracks
+    const stationTrackIds = station.playlistTracks
+      .map((pt) => pt.track?.trackId)
+      .filter(Boolean) as string[];
+    const [likedStationIds, likedTrackIds, repostedTrackIds] = await Promise.all([
+      this.playlistRepository.getUserLikedPlaylistIds(currentUserId, [station.playlistId]),
+      this.trackRepository.getUserLikedTrackIds(currentUserId, stationTrackIds),
+      this.trackRepository.getUserRepostedTrackIds(currentUserId, stationTrackIds),
+    ]);
+
     // get first 3 unique featured artists
     const uniqueArtistTracks = station.playlistTracks
       .map((pt) => pt.track)
@@ -179,6 +324,7 @@ export class DiscoveryService {
         tracksCount: station.tracksCount,
         durationSeconds: station.totalDurationSeconds,
         likesCount: station.likesCount,
+        isLiked: likedStationIds.has(station.playlistId),
         createdAt: station.createdAt,
         trackArtist: {
           userId: station.user.userId,
@@ -186,28 +332,23 @@ export class DiscoveryService {
           displayName: station.user.displayName,
           avatarUrl: station.user.avatarUrl,
         },
-        tracks: station.playlistTracks.map((pt) => {
-          const isBlocked = !!(country && pt.track.blockedRegions?.includes(country));
-          return {
-            position: pt.position,
-            trackId: pt.track.trackId,
-            title: pt.track.title,
-            durationSeconds: pt.track.durationSeconds,
-            coverImage: pt.track.coverImage,
-            audioUrl: isBlocked ? null : pt.track.audioUrl,
-            waveformUrl: isBlocked ? null : pt.track.waveformUrl,
-            playCount: pt.track.playCount,
-            likesCount: pt.track.likesCount,
-            repostsCount: pt.track.repostsCount,
-            commentsCount: pt.track.commentsCount,
-            artist: {
-              userId: pt.track.userId,
-              username: pt.track.user?.username || 'unknown',
-              displayName: pt.track.user?.displayName || 'Unknown Artist',
-              avatarUrl: pt.track.user?.avatarUrl || null,
-            },
-          };
-        }),
+        tracks: station.playlistTracks
+          .map((pt) =>
+            this.formatPlaylistTrack(
+              {
+                ...pt,
+                track: pt.track
+                  ? {
+                      ...pt.track,
+                      isLiked: likedTrackIds.has(pt.track.trackId),
+                      isReposted: repostedTrackIds.has(pt.track.trackId),
+                    }
+                  : pt.track,
+              },
+              country
+            )
+          )
+          .filter((pt): pt is NonNullable<typeof pt> => pt !== null),
         featuredArtists,
       },
     };
@@ -440,10 +581,8 @@ export class DiscoveryService {
     page: number = 1,
     limit: number = 20
   ) {
-    // 1. Resolve geolocation from the provided IP
     const { country } = getLocationFromIp(ip);
 
-    // 2. Fetch the IDs of users being followed
     const targetUser = await this.userService.findByUsername(username);
     if (!targetUser) {
       throw new Error('User not found');
@@ -455,7 +594,6 @@ export class DiscoveryService {
       throw new ForbiddenException("You cannot view this user's profile");
     }
 
-    // 3. Fetch activities (reposts and posts)
     const activities = await this.activityService.getActivitiesByUserIds(
       [targetUser.userId],
       page,
@@ -463,93 +601,7 @@ export class DiscoveryService {
       true
     );
 
-    // 4. Separate IDs by type to fetch full data from repositories
-    const trackIds = activities
-      .filter(
-        (a) =>
-          a.activityType === ActivityType.TRACK_POSTED ||
-          a.activityType === ActivityType.TRACK_REPOST
-      )
-      .map((a) => a.targetId);
-
-    const playlistIds = activities
-      .filter(
-        (a) =>
-          a.activityType === ActivityType.PLAYLIST_POSTED ||
-          a.activityType === ActivityType.PLAYLIST_REPOST
-      )
-      .map((a) => a.targetId);
-
-    // 5. Fetch Tracks and Playlists concurrently
-    const [tracks, playlists] = await Promise.all([
-      trackIds.length ? this.trackRepository.findByIds(trackIds) : [],
-      playlistIds.length ? this.playlistRepository.findByIds(playlistIds) : [],
-    ]);
-
-    // 6. Map results for O(1) lookup
-    const trackMap = new Map(tracks.map((t) => [t.trackId, t]));
-    const playlistMap = new Map(playlists.map((p) => [p.playlistId, p]));
-
-    // 7. Assemble the feed and apply region-based censorship
-    return activities.map((a) => {
-      // Cast to 'any' to allow for partial object construction later
-      let target: any = trackMap.get(a.targetId) ?? playlistMap.get(a.targetId) ?? null;
-
-      if (!target) return { ...a, target: null };
-
-      // --- TRACK LOGIC ---
-      if (
-        a.activityType === ActivityType.TRACK_POSTED ||
-        a.activityType === ActivityType.TRACK_REPOST
-      ) {
-        const isBlocked = country && target.blockedRegions?.includes(country);
-
-        if (isBlocked) {
-          // Return only allowed fields
-          target = {
-            trackId: target.trackId,
-            title: target.title,
-            coverImage: target.coverImage,
-            user: target.user,
-            genre: target.genre,
-            isBlocked: true,
-            audioUrl: null, // Censored
-          };
-        }
-      }
-
-      // --- PLAYLIST LOGIC ---
-      if (
-        a.activityType === ActivityType.PLAYLIST_POSTED ||
-        a.activityType === ActivityType.PLAYLIST_REPOST
-      ) {
-        if (target.playlistTracks) {
-          target.playlistTracks = target.playlistTracks.map((pt: any) => {
-            const trackIsBlocked = country && pt.track?.blockedRegions?.includes(country);
-
-            if (trackIsBlocked) {
-              return {
-                ...pt,
-                track: {
-                  trackId: pt.track.trackId,
-                  title: pt.track.title,
-                  coverImage: pt.track.coverImage,
-                  user: pt.track.user,
-                  isBlocked: true,
-                  audioUrl: null, // Censored
-                },
-              };
-            }
-            return pt;
-          });
-        }
-      }
-
-      return {
-        ...a,
-        target,
-      };
-    });
+    return this.assembleActivities(activities, userId, country);
   }
 
   async getUserPopularTracks(username: string, currentUserId: string, ip: string) {
@@ -578,28 +630,27 @@ export class DiscoveryService {
     const sortedTracks = tracksWithScores
       .sort((a, b) => b.popularityScore - a.popularityScore)
       .slice(0, 10);
+
+    const trackIds = sortedTracks.map((t) => t.trackId);
+    const [likedIds, repostedIds] = await Promise.all([
+      this.trackRepository.getUserLikedTrackIds(currentUserId, trackIds),
+      this.trackRepository.getUserRepostedTrackIds(currentUserId, trackIds),
+    ]);
+
     return {
       status: 'success',
-      data: sortedTracks.map((track) => {
-        const isBlocked = country && track.blockedRegions?.includes(country);
-        return {
-          trackId: track.trackId,
-          title: track.title,
-          coverImage: track.coverImage,
-          user: track.user,
-          genre: track.genre,
-          isBlocked,
-          audioUrl: isBlocked ? null : track.audioUrl,
-          waveformUrl: isBlocked ? null : track.waveformUrl,
-          playCount: track.playCount,
-          likesCount: track.likesCount,
-          repostsCount: track.repostsCount,
-          commentsCount: track.commentsCount,
-          duration: track.durationSeconds,
-          artists: track.mainArtists,
-          comments: track.comments,
-        };
-      }),
+      data: sortedTracks
+        .map((track) =>
+          this.formatTrack(
+            {
+              ...track,
+              isLiked: likedIds.has(track.trackId),
+              isReposted: repostedIds.has(track.trackId),
+            },
+            country
+          )
+        )
+        .filter((t): t is NonNullable<typeof t> => t !== null),
     };
   }
 
@@ -627,30 +678,250 @@ export class DiscoveryService {
     const tracks = await this.trackService.getTopTracksByTagIds(topTagIds, userId);
     // filter out blocked tracks based on IP geolocation
     const { country } = getLocationFromIp(ip);
-    const filteredTracks = tracks.filter((track) => {
-      const isBlocked = country && track.blockedRegions?.includes(country);
-      return !isBlocked;
+
+    return {
+      status: 'success',
+      data: tracks
+        .map((track) => this.formatTrack(track as any, country))
+        .filter((t): t is NonNullable<typeof t> => t !== null),
+    };
+  }
+
+  async getSearchResults(
+    userId: string,
+    q: string,
+    type: EntityType | undefined,
+    tag: string | undefined,
+    city: string | undefined,
+    duration: string | undefined,
+    createdAt: string | undefined,
+    ip: string,
+    page: number = 1,
+    limit: number = 20
+  ) {
+    let durationRange;
+    if (duration && type === 'track') {
+      if (duration === '<2') {
+        durationRange = {
+          min: 0,
+          max: 2 * 60,
+        };
+      } else if (duration === '2-10') {
+        durationRange = {
+          min: 2 * 60,
+          max: 10 * 60,
+        };
+      } else if (duration === '10-30') {
+        durationRange = {
+          min: 10 * 60,
+          max: 30 * 60,
+        };
+      } else if (duration === '>30') {
+        durationRange = {
+          min: 30 * 60,
+          max: undefined,
+        };
+      } else {
+        return new BadRequestException('Incorrect duration range');
+      }
+    }
+
+    let createdAtLimit;
+    if (createdAt) {
+      if (createdAt === 'h') {
+        createdAtLimit = new Date(Date.now() - 60 * 60 * 1000);
+      } else if (createdAt === 'd') {
+        createdAtLimit = new Date(Date.now() - 24 * 60 * 60 * 1000);
+      } else if (createdAt === 'w') {
+        createdAtLimit = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+      } else if (createdAt === 'm') {
+        createdAtLimit = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+      } else if (createdAt === 'y') {
+        createdAtLimit = new Date(Date.now() - 365 * 24 * 60 * 60 * 1000);
+      } else {
+        return new BadRequestException('Incorrect created at range');
+      }
+    }
+    const offset = (page - 1) * limit;
+    const { hits: searchResult, total } = await search({
+      query: q,
+      type: type || 'all',
+      genre: tag,
+      tag,
+      city,
+      durationRange,
+      createdAtLimit,
+      offset,
+      limit,
+    });
+
+    const userIds = searchResult
+      .filter((hit) => hit.type === 'user')
+      .map((hit) => hit.id.replace('user_', ''));
+    const trackIds = searchResult
+      .filter((hit) => hit.type === 'track')
+      .map((hit) => hit.id.replace('track_', ''));
+    const playlistIds = searchResult
+      .filter((hit) => hit.type === 'playlist')
+      .map((hit) => hit.id.replace('playlist_', ''));
+    const albumIds = searchResult
+      .filter((hit) => hit.type === 'album')
+      .map((hit) => hit.id.replace('album_', ''));
+
+    const [users, tracks, playlists, albums] = await Promise.all([
+      userIds.length ? this.userService.findByIds(userIds) : [],
+      trackIds.length ? this.trackRepository.findByIds(trackIds, userId) : [],
+      playlistIds.length ? this.playlistRepository.findPlaylistsByIds(playlistIds) : [],
+      albumIds.length ? this.playlistRepository.findAlbumsByIds(albumIds) : [],
+    ]);
+
+    // Batch-check like/repost status for playlists and their tracks
+    const allCollectionIds = [...playlistIds, ...albumIds];
+    const allCollections = [...playlists, ...albums];
+    const collectionTrackIds = allCollections.flatMap(
+      (c) => c.playlistTracks?.map((pt: any) => pt.trackId) ?? []
+    );
+
+    const [
+      likedPlaylistIds,
+      repostedPlaylistIds,
+      likedCollectionTrackIds,
+      repostedCollectionTrackIds,
+    ] = await Promise.all([
+      this.playlistRepository.getUserLikedPlaylistIds(userId, allCollectionIds),
+      this.playlistRepository.getUserRepostedPlaylistIds(userId, allCollectionIds),
+      this.trackRepository.getUserLikedTrackIds(userId, collectionTrackIds),
+      this.trackRepository.getUserRepostedTrackIds(userId, collectionTrackIds),
+    ]);
+
+    const { country } = getLocationFromIp(ip);
+    const formattedResults = await Promise.all(
+      searchResult.map(async (hit) => {
+        if (hit.type === 'user') {
+          const id = hit.id.replace('user_', '');
+          const user = users.find((u) => u.userId === id);
+          return user
+            ? {
+                type: 'user',
+                userId: user.userId,
+                username: user.username,
+                displayName: user.displayName,
+                avatarUrl: user.avatarUrl,
+                city: user.city,
+                country: user.country,
+                followersCount: user.followersCount,
+                isFollowedByCurrentUser:
+                  userId === user.userId
+                    ? true
+                    : await this.followersRepository.isFollowing(userId, user.userId),
+              }
+            : null;
+        }
+
+        if (hit.type === 'track') {
+          const id = hit.id.replace('track_', '');
+          const track = tracks.find((t) => t.trackId === id);
+          if (!track) return null;
+          const formatted = this.formatTrack(track, country);
+          if (!formatted) return null;
+          return { type: 'track', ...formatted };
+        }
+
+        if (hit.type === 'playlist') {
+          const id = hit.id.replace('playlist_', '');
+          const playlist = playlists.find((p) => p.playlistId === id);
+          if (!playlist) return null;
+          const playlistWithStatus = {
+            ...playlist,
+            isLiked: likedPlaylistIds.has(playlist.playlistId),
+            isReposted: repostedPlaylistIds.has(playlist.playlistId),
+            playlistTracks: (playlist.playlistTracks ?? []).map((pt: any) => ({
+              ...pt,
+              track: pt.track
+                ? {
+                    ...pt.track,
+                    isLiked: likedCollectionTrackIds.has(pt.track.trackId),
+                    isReposted: repostedCollectionTrackIds.has(pt.track.trackId),
+                  }
+                : pt.track,
+            })),
+          };
+          return {
+            type: 'playlist',
+            ...this.formatPlaylist(playlistWithStatus, country),
+          };
+        }
+        const id = hit.id.replace('album_', '');
+        const album = albums.find((a) => a.playlistId === id);
+        if (!album) return null;
+        const albumWithStatus = {
+          ...album,
+          isLiked: likedPlaylistIds.has(album.playlistId),
+          isReposted: repostedPlaylistIds.has(album.playlistId),
+          playlistTracks: (album.playlistTracks ?? []).map((pt: any) => ({
+            ...pt,
+            track: pt.track
+              ? {
+                  ...pt.track,
+                  isLiked: likedCollectionTrackIds.has(pt.track.trackId),
+                  isReposted: repostedCollectionTrackIds.has(pt.track.trackId),
+                }
+              : pt.track,
+          })),
+        };
+        return {
+          type: 'album',
+          ...this.formatPlaylist(albumWithStatus, country),
+        };
+      })
+    );
+    return {
+      status: 'success',
+      total,
+      data: formattedResults.filter((r): r is NonNullable<typeof r> => r !== null),
+    };
+  }
+
+  async searchAutocomplete(q: string) {
+    const data = await autocomplete(q);
+    return {
+      status: 'success',
+      data,
+    };
+  }
+
+  async getRecommendedStations(userId: string, ip: string) {
+    const cached = await this.redis.get(`recommended_stations:${userId}`);
+    if (cached) {
+      const data = JSON.parse(cached) as Track[];
+      return data;
+    }
+    // get last 5 artists user listened to
+    const lastListenedArtistUsernames =
+      await this.trackRepository.getUserLastListenedArtistUsernames(userId);
+    // get top 5 popular artists user follows
+    const topFollowedArtistUsernames = await this.followersRepository.getTopFollowedArtistUsernames(
+      userId,
+      5
+    );
+
+    // get stations for those artists
+    const stationPromises = [
+      ...new Set([...lastListenedArtistUsernames, ...topFollowedArtistUsernames]),
+    ].map(async (username) => {
+      try {
+        return (await this.getArtistStation(username, userId, ip)).data;
+      } catch (e) {
+        return null;
+      }
+    });
+    const stations = await Promise.all(stationPromises);
+    await this.redis.set(`recommended_stations:${userId}`, JSON.stringify(stations), {
+      EX: RECOMMENDED_STATIONS_TTL_SECS,
     });
     return {
-      status: 'sucess',
-      data: filteredTracks.map((track) => ({
-        trackId: track.trackId,
-        title: track.title,
-        coverImage: track.coverImage,
-        user: track.user,
-        genre: track.genre,
-        audioUrl: track.audioUrl,
-        waveformUrl: track.waveformUrl,
-        playCount: track.playCount,
-        likesCount: track.likesCount,
-        repostsCount: track.repostsCount,
-        commentsCount: track.commentsCount,
-        isLiked: track.isLiked,
-        isReposted: track.isReposted,
-        artists: track.mainArtists,
-        duration: track.durationSeconds,
-        comments: track.comments,
-      })),
+      status: 'success',
+      data: stations.filter((s): s is NonNullable<typeof s> => s !== null),
     };
   }
 }

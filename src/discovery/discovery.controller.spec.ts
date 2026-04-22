@@ -17,6 +17,11 @@ describe('DiscoveryController', () => {
     getTrackStation: jest.fn(),
     getUserRecentActivities: jest.fn(),
     getArtistStation: jest.fn(),
+    getUserPopularTracks: jest.fn(),
+    getMoreOfWhatYouLike: jest.fn(),
+    getSearchResults: jest.fn(),
+    searchAutocomplete: jest.fn(),
+    getRecommendedStations: jest.fn(),
   };
 
   const mockUserId = 'user-123';
@@ -796,6 +801,349 @@ describe('DiscoveryController', () => {
 
       await expect(controller.getArtistStation(mockUserId, mockUsername, mockIp)).rejects.toThrow(
         'Database connection failed'
+      );
+    });
+  });
+
+  describe('getUserPopularTracks', () => {
+    it('should call discoveryService.getUserPopularTracks with correct parameters', async () => {
+      const mockResult = {
+        status: 'success',
+        data: [
+          {
+            trackId: 'track-1',
+            title: 'Popular Track',
+            audioUrl: 'http://example.com/audio.mp3',
+            playCount: 5000,
+          },
+        ],
+      };
+      mockDiscoveryService.getUserPopularTracks.mockResolvedValue(mockResult);
+
+      const result = await controller.getUserPopularTracks(mockUserId, mockUsername, mockIp);
+
+      expect(discoveryService.getUserPopularTracks).toHaveBeenCalledWith(
+        mockUsername,
+        mockUserId,
+        mockIp
+      );
+      expect(discoveryService.getUserPopularTracks).toHaveBeenCalledTimes(1);
+      expect(result).toEqual(mockResult);
+    });
+
+    it('should return empty data array when user has no tracks', async () => {
+      const mockResult = { status: 'success', data: [] };
+      mockDiscoveryService.getUserPopularTracks.mockResolvedValue(mockResult);
+
+      const result = await controller.getUserPopularTracks(mockUserId, mockUsername, mockIp);
+
+      expect(result).toEqual(mockResult);
+      expect((result as any).data).toHaveLength(0);
+    });
+
+    it('should return null audioUrl for region-blocked tracks', async () => {
+      const mockResult = {
+        status: 'success',
+        data: [{ trackId: 'track-1', title: 'Blocked', audioUrl: null, isBlocked: true }],
+      };
+      mockDiscoveryService.getUserPopularTracks.mockResolvedValue(mockResult);
+
+      const result = await controller.getUserPopularTracks(mockUserId, mockUsername, mockIp);
+
+      expect((result as any).data[0].audioUrl).toBeNull();
+    });
+
+    it('should propagate NotFoundException when user is not found', async () => {
+      mockDiscoveryService.getUserPopularTracks.mockRejectedValue(new Error('User not found'));
+
+      await expect(
+        controller.getUserPopularTracks(mockUserId, 'unknown-user', mockIp)
+      ).rejects.toThrow('User not found');
+    });
+
+    it('should propagate ForbiddenException when block relationship exists', async () => {
+      mockDiscoveryService.getUserPopularTracks.mockRejectedValue(
+        new Error("You cannot view this user's profile")
+      );
+
+      await expect(
+        controller.getUserPopularTracks(mockUserId, mockUsername, mockIp)
+      ).rejects.toThrow("You cannot view this user's profile");
+    });
+  });
+
+  describe('getMoreOfWhatYouLike', () => {
+    it('should call discoveryService.getMoreOfWhatYouLike with correct parameters', async () => {
+      const mockResult = {
+        status: 'success',
+        data: [
+          {
+            trackId: 'track-1',
+            title: 'Recommended Track',
+            audioUrl: 'http://example.com/audio.mp3',
+          },
+        ],
+      };
+      mockDiscoveryService.getMoreOfWhatYouLike.mockResolvedValue(mockResult);
+
+      const result = await controller.getMoreOfWhatYouLike(mockUserId, mockIp);
+
+      expect(discoveryService.getMoreOfWhatYouLike).toHaveBeenCalledWith(mockUserId, mockIp);
+      expect(discoveryService.getMoreOfWhatYouLike).toHaveBeenCalledTimes(1);
+      expect(result).toEqual(mockResult);
+    });
+
+    it('should return empty data when user has no interaction history', async () => {
+      const mockResult = { status: 'success', data: [] };
+      mockDiscoveryService.getMoreOfWhatYouLike.mockResolvedValue(mockResult);
+
+      const result = await controller.getMoreOfWhatYouLike(mockUserId, mockIp);
+
+      expect((result as any).data).toHaveLength(0);
+    });
+
+    it('should return null audioUrl for region-blocked tracks', async () => {
+      const mockResult = {
+        status: 'success',
+        data: [{ trackId: 'track-1', title: 'Blocked', audioUrl: null, isBlocked: true }],
+      };
+      mockDiscoveryService.getMoreOfWhatYouLike.mockResolvedValue(mockResult);
+
+      const result = await controller.getMoreOfWhatYouLike(mockUserId, mockIp);
+
+      expect((result as any).data[0].audioUrl).toBeNull();
+    });
+
+    it('should propagate errors from service', async () => {
+      mockDiscoveryService.getMoreOfWhatYouLike.mockRejectedValue(new Error('Service error'));
+
+      await expect(controller.getMoreOfWhatYouLike(mockUserId, mockIp)).rejects.toThrow(
+        'Service error'
+      );
+    });
+  });
+
+  describe('search', () => {
+    it('should call discoveryService.getSearchResults with all parameters', async () => {
+      const mockResult = {
+        status: 'success',
+        total: 2,
+        data: [
+          { type: 'track', trackId: 'track-1', title: 'Midnight Drive' },
+          { type: 'user', userId: 'user-1', username: 'dj_nour' },
+        ],
+      };
+      mockDiscoveryService.getSearchResults.mockResolvedValue(mockResult);
+
+      const result = await controller.search(
+        mockUserId,
+        mockIp,
+        'midnight',
+        'track',
+        'Electronic',
+        'Cairo',
+        '2-10',
+        'd',
+        1,
+        20
+      );
+
+      expect(discoveryService.getSearchResults).toHaveBeenCalledWith(
+        mockUserId,
+        'midnight',
+        'track',
+        'Electronic',
+        'Cairo',
+        '2-10',
+        'd',
+        mockIp,
+        1,
+        20
+      );
+      expect(result).toEqual(mockResult);
+    });
+
+    it('should work with only the required query parameter', async () => {
+      const mockResult = { status: 'success', total: 0, data: [] };
+      mockDiscoveryService.getSearchResults.mockResolvedValue(mockResult);
+
+      await controller.search(
+        mockUserId,
+        mockIp,
+        'query',
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        1,
+        20
+      );
+
+      expect(discoveryService.getSearchResults).toHaveBeenCalledWith(
+        mockUserId,
+        'query',
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        mockIp,
+        1,
+        20
+      );
+    });
+
+    it('should use default pagination values', async () => {
+      const mockResult = { status: 'success', total: 0, data: [] };
+      mockDiscoveryService.getSearchResults.mockResolvedValue(mockResult);
+
+      await controller.search(
+        mockUserId,
+        mockIp,
+        'q',
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        undefined
+      );
+
+      expect(discoveryService.getSearchResults).toHaveBeenCalledWith(
+        mockUserId,
+        'q',
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        mockIp,
+        1,
+        20
+      );
+    });
+
+    it('should return null audioUrl for region-blocked tracks in results', async () => {
+      const mockResult = {
+        status: 'success',
+        total: 1,
+        data: [{ type: 'track', trackId: 'track-1', title: 'Blocked Track', audioUrl: null }],
+      };
+      mockDiscoveryService.getSearchResults.mockResolvedValue(mockResult);
+
+      const result = await controller.search(
+        mockUserId,
+        mockIp,
+        'blocked',
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        1,
+        20
+      );
+
+      expect((result as any).data[0].audioUrl).toBeNull();
+    });
+
+    it('should propagate errors from service', async () => {
+      mockDiscoveryService.getSearchResults.mockRejectedValue(new Error('Search failed'));
+
+      await expect(
+        controller.search(
+          mockUserId,
+          mockIp,
+          'q',
+          undefined,
+          undefined,
+          undefined,
+          undefined,
+          undefined,
+          1,
+          20
+        )
+      ).rejects.toThrow('Search failed');
+    });
+  });
+
+  describe('searchAutocomplete', () => {
+    it('should call discoveryService.searchAutocomplete with query', async () => {
+      const mockResult = { status: 'success', data: ['midnight drive', 'midnight bass'] };
+      mockDiscoveryService.searchAutocomplete.mockResolvedValue(mockResult);
+
+      const result = await controller.searchAutocomplete('mid');
+
+      expect(discoveryService.searchAutocomplete).toHaveBeenCalledWith('mid');
+      expect(discoveryService.searchAutocomplete).toHaveBeenCalledTimes(1);
+      expect(result).toEqual(mockResult);
+    });
+
+    it('should return empty suggestions when no matches', async () => {
+      const mockResult = { status: 'success', data: [] };
+      mockDiscoveryService.searchAutocomplete.mockResolvedValue(mockResult);
+
+      const result = await controller.searchAutocomplete('zzzzz');
+
+      expect((result as any).data).toHaveLength(0);
+    });
+
+    it('should handle empty query string', async () => {
+      const mockResult = { status: 'success', data: [] };
+      mockDiscoveryService.searchAutocomplete.mockResolvedValue(mockResult);
+
+      await controller.searchAutocomplete('');
+
+      expect(discoveryService.searchAutocomplete).toHaveBeenCalledWith('');
+    });
+
+    it('should propagate errors from service', async () => {
+      mockDiscoveryService.searchAutocomplete.mockRejectedValue(new Error('Autocomplete error'));
+
+      await expect(controller.searchAutocomplete('test')).rejects.toThrow('Autocomplete error');
+    });
+  });
+
+  describe('getRecommendedStations', () => {
+    it('should call discoveryService.getRecommendedStations with correct parameters', async () => {
+      const mockResult = {
+        status: 'success',
+        data: [
+          {
+            playlistId: 'station-1',
+            title: 'DJ Nour Station',
+            tracks: [],
+            featuredArtists: [],
+          },
+        ],
+      };
+      mockDiscoveryService.getRecommendedStations.mockResolvedValue(mockResult);
+
+      const result = await controller.getRecommendedStations(mockUserId, mockIp);
+
+      expect(discoveryService.getRecommendedStations).toHaveBeenCalledWith(mockUserId, mockIp);
+      expect(discoveryService.getRecommendedStations).toHaveBeenCalledTimes(1);
+      expect(result).toEqual(mockResult);
+    });
+
+    it('should return empty data when no stations are available', async () => {
+      const mockResult = { status: 'success', data: [] };
+      mockDiscoveryService.getRecommendedStations.mockResolvedValue(mockResult);
+
+      const result = await controller.getRecommendedStations(mockUserId, mockIp);
+
+      expect((result as any).data).toHaveLength(0);
+    });
+
+    it('should propagate errors from service', async () => {
+      mockDiscoveryService.getRecommendedStations.mockRejectedValue(
+        new Error('Stations unavailable')
+      );
+
+      await expect(controller.getRecommendedStations(mockUserId, mockIp)).rejects.toThrow(
+        'Stations unavailable'
       );
     });
   });
