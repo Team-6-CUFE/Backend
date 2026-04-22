@@ -607,6 +607,7 @@ export class PlaylistRepository {
         'playlistUser.displayName',
         'playlistUser.avatarUrl',
         'playlistUser.city',
+        'playlistUser.country',
         'playlistUser.followersCount',
         'playlistTrack.position',
         'playlistTrack.trackId',
@@ -628,6 +629,9 @@ export class PlaylistRepository {
         'trackUser.username',
         'trackUser.displayName',
         'trackUser.avatarUrl',
+        'trackUser.city',
+        'trackUser.country',
+        'trackUser.followersCount',
       ])
       .getMany();
   }
@@ -663,6 +667,7 @@ export class PlaylistRepository {
         'playlistUser.displayName',
         'playlistUser.avatarUrl',
         'playlistUser.city',
+        'playlistUser.country',
         'playlistUser.followersCount',
         'playlistTrack.position',
         'playlistTrack.trackId',
@@ -684,6 +689,9 @@ export class PlaylistRepository {
         'trackUser.username',
         'trackUser.displayName',
         'trackUser.avatarUrl',
+        'trackUser.city',
+        'trackUser.country',
+        'trackUser.followersCount',
       ])
       .getMany();
   }
