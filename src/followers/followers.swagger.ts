@@ -180,6 +180,10 @@ export function ApiGetFollowStatus() {
               summary: 'Not following',
               value: { status: 'success', data: { followStatus: 'notFollowing' } },
             },
+            followsYou: {
+              summary: 'They follow you (you do not follow back)',
+              value: { status: 'success', data: { followStatus: 'followsYou' } },
+            },
           },
         },
       },

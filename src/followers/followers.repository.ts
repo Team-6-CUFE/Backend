@@ -117,21 +117,25 @@ export class FollowersRepository {
   async getFollowStatus(
     currentUserId: string,
     targetUserId: string
-  ): Promise<{ status: 'following' | 'notFollowing' | 'mutual'; since?: Date }> {
-    const follow = await this.followRepository.findOne({
-      where: { follower: currentUserId, followed: targetUserId },
-      order: { createdAt: 'ASC' },
-    });
+  ): Promise<{ status: 'following' | 'notFollowing' | 'mutual' | 'followsYou'; since?: Date }> {
+    const [follow, reverseFollow] = await Promise.all([
+      this.followRepository.findOne({
+        where: { follower: currentUserId, followed: targetUserId },
+        order: { createdAt: 'ASC' },
+      }),
+      this.followRepository.findOne({
+        where: { follower: targetUserId, followed: currentUserId },
+        order: { createdAt: 'ASC' },
+      }),
+    ]);
 
-    if (!follow) {
-      return { status: 'notFollowing' };
-    }
+    if (!follow && !reverseFollow) return { status: 'notFollowing' };
+    if (!follow && reverseFollow) return { status: 'followsYou' };
 
-    const isMutual = await this.isMutualFollow(currentUserId, targetUserId);
-
+    const isMutual = !!reverseFollow;
     return {
       status: isMutual ? 'mutual' : 'following',
-      since: follow.createdAt,
+      since: follow!.createdAt,
     };
   }
 
