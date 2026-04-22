@@ -13,6 +13,7 @@ import { TrackStatus } from './enums/track-status.enum';
 import { TrackVisibility } from './enums/track-visibility.enum';
 import { TrackPlay } from './entities/track-play.entity';
 import { RecentlyPlayed, RecentlyPlayedItemType } from './entities/recently-played.entity';
+import { mapTrack, addDocuments, updateDocument, deleteDocument } from '../search/indexing';
 
 const RECENTLY_PLAYED_LIMIT = 6;
 
@@ -83,11 +84,13 @@ export class TrackRepository {
         }
 
         if (tags && tags.length > 0) {
-          const tagIds = tags.map((t) => t.genreId);
-          if (hasCondition) {
-            qb.orWhere('tag.genreId IN (:...tagIds)', { tagIds });
-          } else {
-            qb.where('tag.genreId IN (:...tagIds)', { tagIds });
+          const tagIds = tags.filter((t) => t && t.genreId).map((t) => t.genreId);
+          if (tagIds.length > 0) {
+            if (hasCondition) {
+              qb.orWhere('tag.genreId IN (:...tagIds)', { tagIds });
+            } else {
+              qb.where('tag.genreId IN (:...tagIds)', { tagIds });
+            }
           }
         }
       })
@@ -325,7 +328,8 @@ export class TrackRepository {
     if (dto.genreName || dto.tags?.length) {
       await this.trackRepository.save(savedTrack);
     }
-
+    const completeTrack = await this.findByIdWithRelations(savedTrack.trackId);
+    await addDocuments([mapTrack(completeTrack!)]);
     return savedTrack;
   }
 
@@ -362,6 +366,7 @@ export class TrackRepository {
       await this.trackRepository.save(track);
     }
 
+    await updateDocument(mapTrack(track));
     return track;
   }
 
@@ -456,6 +461,7 @@ export class TrackRepository {
 
   async deleteTrack(trackId: string): Promise<void> {
     await this.trackRepository.delete(trackId);
+    await deleteDocument(`track_${trackId}`);
   }
 
   async findTrackByTitleAndArtist(title: string, artistUsername: string): Promise<Track | null> {
@@ -530,30 +536,234 @@ export class TrackRepository {
     };
   }
 
-  async findByIds(ids: string[]): Promise<Track[]> {
+  async findByIds(
+    ids: string[],
+    userId: string
+  ): Promise<(Track & { isLiked: boolean; isReposted: boolean })[]> {
+    const tracks = await this.trackRepository
+      .createQueryBuilder('track')
+      .leftJoinAndSelect('track.likes', 'userlike', 'userlike.user_id = :userId', { userId })
+      .leftJoinAndSelect('track.reposts', 'userrepost', 'userrepost.user_id = :userId', { userId })
+      .leftJoin('track.genre', 'genre')
+      .leftJoin('track.user', 'user')
+      .where('track.trackId IN (:...ids)', { ids })
+      .select([
+        'track.trackId',
+        'track.title',
+        'track.coverImage',
+        'track.audioUrl',
+        'track.waveformUrl',
+        'track.durationSeconds',
+        'track.userId',
+        'track.createdAt',
+        'track.playCount',
+        'track.likesCount',
+        'track.repostsCount',
+        'track.commentsCount',
+        'track.blockedRegions',
+        'track.hidden',
+        'track.visibility',
+        'track.mainArtists',
+        'genre.genreId',
+        'genre.name',
+        'user.userId',
+        'user.username',
+        'user.displayName',
+        'user.avatarUrl',
+        'user.city',
+        'user.country',
+        'user.followersCount',
+      ])
+      .addSelect('userlike.userId')
+      .addSelect('userlike.trackId')
+      .addSelect('userrepost.userId')
+      .addSelect('userrepost.trackId')
+      .getMany();
+
+    return tracks.map((track) => ({
+      ...track,
+      // Optional chaining is vital because if there is no like, the array is undefined or empty
+      isLiked: (track.likes?.length ?? 0) > 0,
+      isReposted: (track.reposts?.length ?? 0) > 0,
+    }));
+  }
+
+  async getUserLikedTrackIds(userId: string, trackIds: string[]): Promise<Set<string>> {
+    if (!trackIds.length) return new Set();
+    const likes = await this.trackLikesRepository.find({
+      where: { userId, trackId: In(trackIds) },
+      select: ['trackId'],
+    });
+    return new Set(likes.map((l) => l.trackId));
+  }
+
+  async getUserRepostedTrackIds(userId: string, trackIds: string[]): Promise<Set<string>> {
+    if (!trackIds.length) return new Set();
+    const reposts = await this.trackRepostRepository.find({
+      where: { userId, trackId: In(trackIds) },
+      select: ['trackId'],
+    });
+    return new Set(reposts.map((r) => r.trackId));
+  }
+
+  async getAllUserTracks(username: string): Promise<Track[]> {
+    return this.trackRepository
+      .createQueryBuilder('track')
+      .innerJoin('track.user', 'user')
+      .leftJoinAndSelect('track.user', 'trackUser')
+      .where('user.username = :username', { username })
+      .andWhere('track.visibility = :visibility', { visibility: TrackVisibility.PUBLIC })
+      .andWhere('track.hidden = false')
+      .getMany();
+  }
+
+  async calculatePopularityScore(trackId: string): Promise<number> {
+    const track = await this.trackRepository.findOne({
+      where: { trackId },
+    });
+    if (!track) {
+      return 0;
+    }
     return (
-      this.trackRepository
-        .createQueryBuilder('track')
-        .where('track.trackId IN (:...ids)', { ids })
-        // 1. Join the genre relation
-        .leftJoin('track.genre', 'genre')
-        .select([
-          'track.trackId',
-          'track.title',
-          'track.coverImage',
-          'track.audioUrl',
-          'track.durationSeconds',
-          'track.userId',
-          'track.createdAt',
-          'track.likesCount',
-          'track.repostsCount',
-          'track.commentsCount',
-          'track.blockedRegions',
-          // 2. Select the genre name
-          'genre.name',
-          'genre.genreId',
-        ])
-        .getMany()
+      track.playCount * 1 + track.likesCount * 3 + track.commentsCount * 2 + track.repostsCount * 5
     );
+  }
+
+  async getUserInteractedTrackTags(userId: string): Promise<Genre[]> {
+    // Subquery to find track IDs the user has interacted with
+    const subQuery = (qb: {
+      subQuery: () => {
+        (): any;
+        new (): any;
+        select: {
+          (arg0: string): {
+            (): any;
+            new (): any;
+            from: {
+              (
+                arg0: string,
+                arg1: string
+              ): {
+                (): any;
+                new (): any;
+                where: {
+                  (arg0: string): { (): any; new (): any; getQuery: { (): any; new (): any } };
+                  new (): any;
+                };
+              };
+              new (): any;
+            };
+          };
+          new (): any;
+        };
+      };
+    }) => {
+      const liked = qb
+        .subQuery()
+        .select('tl.track_id')
+        .from('track_likes', 'tl')
+        .where('tl.user_id = :userId')
+        .getQuery();
+      const reposted = qb
+        .subQuery()
+        .select('tr.track_id')
+        .from('track_reposts', 'tr')
+        .where('tr.user_id = :userId')
+        .getQuery();
+      const played = qb
+        .subQuery()
+        .select('tp.track_id')
+        .from('track_plays', 'tp')
+        .where('tp.user_id = :userId')
+        .getQuery();
+      return `track.track_id IN ${liked} OR track.track_id IN ${reposted} OR track.track_id IN ${played}`;
+    };
+
+    // Get genres from ManyToOne
+    const mainGenres = await this.genreRepository
+      .createQueryBuilder('genre')
+      .innerJoin('genre.tracks', 'track')
+      .where(subQuery)
+      .setParameter('userId', userId)
+      .getMany();
+
+    // Get genres from ManyToMany tags
+    const tagGenres = await this.genreRepository
+      .createQueryBuilder('genre')
+      .innerJoin('genre.trackTags', 'track')
+      .where(subQuery)
+      .setParameter('userId', userId)
+      .getMany();
+
+    // Combine and deduplicate
+    const allGenres = [...mainGenres, ...tagGenres];
+    const unique = allGenres.filter(
+      (genre, index, self) => index === self.findIndex((g) => g.genreId === genre.genreId)
+    );
+    // return unique genres
+    return unique;
+  }
+
+  async getTopTracksByTagIds(tagIds: string[], userId: string) {
+    const tracks = await this.trackRepository
+      .createQueryBuilder('track')
+      .innerJoin('track.tags', 'tag')
+      .leftJoin('track.user', 'user')
+      .leftJoinAndSelect('track.likes', 'like', 'like.user_id = :userId')
+      .leftJoinAndSelect('track.reposts', 'repost', 'repost.user_id = :userId')
+      .where('tag.genre_id IN (:...tagIds)', { tagIds })
+      .andWhere('track.visibility = :visibility', { visibility: TrackVisibility.PUBLIC })
+      .andWhere('track.hidden = false')
+      .addSelect([
+        'track.trackId',
+        'track.title',
+        'track.coverImage',
+        'track.audioUrl',
+        'track.waveformUrl',
+        'track.durationSeconds',
+        'track.userId',
+        'track.playCount',
+        'track.likesCount',
+        'track.repostsCount',
+        'track.commentsCount',
+        'track.blockedRegions',
+        'track.mainArtists',
+        'user.userId',
+        'user.username',
+        'user.displayName',
+        'user.avatarUrl',
+        'user.city',
+        'user.country',
+        'user.followersCount',
+      ])
+      .setParameter('userId', userId)
+      .orderBy('track.playCount', 'DESC')
+      .take(20)
+      .getMany();
+
+    return tracks.map((track) => ({
+      ...track,
+      isLiked: track.likes.length > 0,
+      isReposted: track.reposts.length > 0,
+    }));
+  }
+
+  async getUserLastListenedArtistUsernames(userId: string): Promise<string[]> {
+    const rows = await this.trackPlayRepository
+      .createQueryBuilder('play')
+      // 1. Select the username and the most recent play time
+      .select('user.username', 'username')
+      .addSelect('MAX(play.playedAt)', 'latestPlay')
+      .innerJoin('play.track', 'track')
+      .innerJoin('track.user', 'user')
+      .where('play.userId = :userId', { userId })
+      // 2. Group by username to ensure uniqueness
+      .groupBy('user.username')
+      // 3. Order by that max timestamp
+      .orderBy('"latestPlay"', 'DESC')
+      .limit(5)
+      .getRawMany();
+
+    return rows.map((row) => row.username);
   }
 }

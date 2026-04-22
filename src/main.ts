@@ -1,11 +1,12 @@
 import { NestFactory } from '@nestjs/core';
-import { ValidationPipe } from '@nestjs/common';
+import { ValidationPipe, Logger } from '@nestjs/common';
 import cookieParser from 'cookie-parser';
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 import session from 'express-session';
 import { ConfigService } from '@nestjs/config';
 import { AppModule } from './app.module';
 import { createRedisSessionStore } from './redis/redis-session.store';
+import { configureMeilisearch } from './search/configure';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
@@ -75,6 +76,14 @@ async function bootstrap() {
       transform: true,
     })
   );
+  try {
+    await configureMeilisearch();
+  } catch (err) {
+    Logger.warn(
+      `Meilisearch configuration failed (search may be unavailable): ${(err as Error).message}`,
+      'Bootstrap'
+    );
+  }
 
   const PORT = process.env.PORT || 8080;
   await app.listen(PORT);

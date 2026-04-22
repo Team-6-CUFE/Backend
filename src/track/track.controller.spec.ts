@@ -56,6 +56,15 @@ const mockTrackService = () => ({
   getAllTimeStats: jest.fn(),
 });
 
+jest.mock('meilisearch', () => ({
+  Meilisearch: jest.fn().mockImplementation(() => ({
+    index: jest.fn().mockReturnValue({
+      addDocuments: jest.fn(),
+      search: jest.fn(),
+    }),
+  })),
+}));
+
 describe('TrackController', () => {
   let controller: TrackController;
   let service: ReturnType<typeof mockTrackService>;

@@ -8,6 +8,7 @@ import { FavoriteGenre } from '../../user/entities/favorite-genre.entity';
 import { Genre } from '../../genre/entities/genre.entity';
 import { Settings } from '../../settings/entities/settings.entity';
 import * as bcrypt from 'bcrypt';
+import { mapUser, addDocuments } from '../../search/indexing';
 
 export class UserSeeder implements Seeder {
   private async createSettingsForUser(
@@ -58,7 +59,8 @@ export class UserSeeder implements Seeder {
       plan: 'go+',
       isPublic: true,
     });
-    await userRepository.save(admin);
+    var adminUser = await userRepository.save(admin);
+    await addDocuments([mapUser(adminUser)]);
     await this.createSettingsForUser(admin.userId, settingsRepository);
 
     const adminEmail = emailRepository.create({
@@ -129,7 +131,8 @@ export class UserSeeder implements Seeder {
         isPublic: true,
         isSuspended: testUserData.isSuspended || false,
       });
-      await userRepository.save(user);
+      const savedUser = await userRepository.save(user);
+      await addDocuments([mapUser(savedUser)]);
       await this.createSettingsForUser(user.userId, settingsRepository);
 
       // Create primary email

@@ -62,6 +62,15 @@ import { ActivityService } from '../activity/activity.service';
 
 const MOCK_CAPTION = 'Great track!';
 
+jest.mock('meilisearch', () => ({
+  Meilisearch: jest.fn().mockImplementation(() => ({
+    index: jest.fn().mockReturnValue({
+      addDocuments: jest.fn(),
+      search: jest.fn(),
+    }),
+  })),
+}));
+
 describe('TrackService', () => {
   let service: TrackService;
   let trackRepo: ReturnType<typeof mockTrackRepository>;

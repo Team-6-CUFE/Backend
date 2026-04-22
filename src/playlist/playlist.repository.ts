@@ -1,5 +1,5 @@
 import { ConflictException, Injectable } from '@nestjs/common';
-import { In, Repository } from 'typeorm';
+import { In, IsNull, Repository } from 'typeorm';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Playlist, PlaylistType } from './entities/playlist.entity';
 import { PlaylistRepost } from './entities/playlist-reposts.entity';
@@ -9,6 +9,7 @@ import { generateVerificationToken } from '../common/utilities/tokens.util';
 import { PlaylistTrack } from './entities/playlist-tracks.entity';
 import { Track } from '../track/entities/track.entity';
 import { Genre } from '../genre/entities/genre.entity';
+import { mapPlaylist, mapAlbum, addDocuments, deleteDocument } from '../search/indexing';
 
 @Injectable()
 export class PlaylistRepository {
@@ -158,25 +159,25 @@ export class PlaylistRepository {
       secretToken,
     });
 
-    return this.playlistRepository.save(playlist);
+    const savedPlaylist = await this.playlistRepository.save(playlist);
+    const completePlaylist = await this.getPlaylistDetails(savedPlaylist.playlistId);
+    await addDocuments([mapPlaylist(completePlaylist!)]);
+    return savedPlaylist;
   }
 
-  async createTrackStation(
-    trackId: string,
-    trackTitle: string,
-    trackImage: string,
-    userId: string
-  ): Promise<Playlist> {
-    const station = this.playlistRepository.create({
-      title: trackTitle,
-      description: `Based on ${trackTitle}`,
-      userId,
-      isPublic: true,
-      type: PlaylistType.STATION,
-      trackId,
-      coverImage: trackImage,
+  async transferStationLikes(oldPlaylistId: string, newPlaylistId: string): Promise<void> {
+    // transfer like relations to new station
+    await this.playlistLikesRepository.manager.transaction(async (tm) => {
+      const existingLikes = await tm.find(PlaylistLike, { where: { playlistId: oldPlaylistId } });
+      const newLikes = existingLikes.map((like) => {
+        const newLike = tm.create(PlaylistLike, {
+          userId: like.userId,
+          playlistId: newPlaylistId,
+        });
+        return newLike;
+      });
+      await tm.save(newLikes);
     });
-    return this.playlistRepository.save(station);
   }
 
   async updatePlaylist(
@@ -184,6 +185,19 @@ export class PlaylistRepository {
     updateData: Partial<Playlist>
   ): Promise<Playlist | null> {
     await this.playlistRepository.update({ playlistId }, updateData);
+    if (updateData.type === PlaylistType.PLAYLIST) {
+      await deleteDocument(`album_${playlistId}`);
+      const playlist = await this.findPlaylistById(playlistId);
+      if (playlist) {
+        await addDocuments([mapPlaylist(playlist)]);
+      }
+    } else if (updateData.type !== null) {
+      await deleteDocument(`playlist_${playlistId}`);
+      const playlist = await this.findPlaylistById(playlistId);
+      if (playlist) {
+        await addDocuments([mapAlbum(playlist)]);
+      }
+    }
     return this.findPlaylistById(playlistId);
   }
 
@@ -249,6 +263,12 @@ export class PlaylistRepository {
   }
 
   async deletePlaylist(playlistId: string): Promise<void> {
+    const playlist = await this.findPlaylistById(playlistId);
+    if (playlist?.type === PlaylistType.PLAYLIST) {
+      await deleteDocument(`playlist_${playlistId}`);
+    } else if (playlist?.type !== PlaylistType.STATION) {
+      await deleteDocument(`album_${playlistId}`);
+    }
     await this.playlistRepository.delete({ playlistId });
   }
 
@@ -347,6 +367,56 @@ export class PlaylistRepository {
         playlistTracks: { position: 'ASC' },
       },
     });
+  }
+
+  async getArtistStation(userId: string): Promise<Playlist | null> {
+    return this.playlistRepository.findOne({
+      where: { userId, type: PlaylistType.STATION, trackId: IsNull() },
+      relations: [
+        'user',
+        'playlistTracks',
+        'playlistTracks.track',
+        'playlistTracks.track.user',
+        'tags',
+      ],
+      order: {
+        playlistTracks: { position: 'ASC' },
+      },
+    });
+  }
+
+  async createTrackStation(
+    trackId: string,
+    trackTitle: string,
+    trackImage: string,
+    userId: string
+  ): Promise<Playlist> {
+    const station = this.playlistRepository.create({
+      title: trackTitle,
+      description: `Based on ${trackTitle}`,
+      userId,
+      isPublic: true,
+      type: PlaylistType.STATION,
+      trackId,
+      coverImage: trackImage,
+    });
+    return this.playlistRepository.save(station);
+  }
+
+  async createArtistStation(
+    displayName: string,
+    artist_avatar: string,
+    userId: string
+  ): Promise<Playlist> {
+    const station = this.playlistRepository.create({
+      title: displayName,
+      description: `Based on ${displayName}`,
+      userId,
+      isPublic: true,
+      type: PlaylistType.STATION,
+      coverImage: artist_avatar,
+    });
+    return this.playlistRepository.save(station);
   }
 
   async getSecretPlaylist(secretToken: string): Promise<Playlist | null> {
@@ -450,41 +520,197 @@ export class PlaylistRepository {
   }
 
   async findByIds(ids: string[]): Promise<Playlist[]> {
-    return (
-      this.playlistRepository
-        .createQueryBuilder('playlist')
-        .where('playlist.playlistId IN (:...ids)', { ids })
-        // Join the primary genre
-        .leftJoin('playlist.genre', 'genre')
-        .leftJoinAndSelect('playlist.playlistTracks', 'playlistTrack')
-        .leftJoinAndSelect('playlistTrack.track', 'track')
-        .leftJoin('track.user', 'trackUser')
-        .orderBy('playlistTrack.position', 'ASC')
-        .select([
-          'playlist.playlistId',
-          'playlist.title',
-          'playlist.coverImage',
-          'playlist.totalDurationSeconds',
-          'playlist.tracksCount',
-          'playlist.userId',
-          'playlist.type',
-          'genre.genreId',
-          'genre.name',
-          'playlistTrack.position',
-          'playlistTrack.trackId',
-          'track.trackId',
-          'track.title',
-          'track.audioUrl',
-          'track.coverImage',
-          'track.durationSeconds',
-          'track.playCount',
-          'track.userId',
-          'trackUser.userId',
-          'trackUser.username',
-          'trackUser.displayName',
-          'trackUser.avatarUrl',
-        ])
-        .getMany()
-    );
+    return this.playlistRepository
+      .createQueryBuilder('playlist')
+      .where('playlist.playlistId IN (:...ids)', { ids })
+      .leftJoin('playlist.genre', 'genre')
+      .leftJoin('playlist.user', 'playlistUser')
+      .leftJoinAndSelect('playlist.playlistTracks', 'playlistTrack')
+      .leftJoinAndSelect('playlistTrack.track', 'track')
+      .leftJoin('track.user', 'trackUser')
+      .orderBy('playlistTrack.position', 'ASC')
+      .select([
+        'playlist.playlistId',
+        'playlist.title',
+        'playlist.description',
+        'playlist.coverImage',
+        'playlist.totalDurationSeconds',
+        'playlist.tracksCount',
+        'playlist.likesCount',
+        'playlist.repostsCount',
+        'playlist.userId',
+        'playlist.type',
+        'playlist.createdAt',
+        'genre.genreId',
+        'genre.name',
+        'playlistUser.userId',
+        'playlistUser.username',
+        'playlistUser.displayName',
+        'playlistUser.avatarUrl',
+        'playlistUser.city',
+        'playlistUser.country',
+        'playlistUser.followersCount',
+        'playlistTrack.position',
+        'playlistTrack.trackId',
+        'track.trackId',
+        'track.title',
+        'track.audioUrl',
+        'track.waveformUrl',
+        'track.coverImage',
+        'track.durationSeconds',
+        'track.playCount',
+        'track.likesCount',
+        'track.repostsCount',
+        'track.commentsCount',
+        'track.blockedRegions',
+        'track.hidden',
+        'track.visibility',
+        'track.userId',
+        'trackUser.userId',
+        'trackUser.username',
+        'trackUser.displayName',
+        'trackUser.avatarUrl',
+        'trackUser.city',
+        'trackUser.country',
+        'trackUser.followersCount',
+      ])
+      .getMany();
+  }
+
+  async findPlaylistsByIds(ids: string[]): Promise<Playlist[]> {
+    return this.playlistRepository
+      .createQueryBuilder('playlist')
+      .where('playlist.playlistId IN (:...ids)', { ids })
+      .andWhere('playlist.type = :type', { type: PlaylistType.PLAYLIST })
+      .leftJoin('playlist.genre', 'genre')
+      .leftJoin('playlist.user', 'playlistUser')
+      .leftJoinAndSelect('playlist.playlistTracks', 'playlistTrack')
+      .leftJoinAndSelect('playlistTrack.track', 'track')
+      .leftJoin('track.user', 'trackUser')
+      .orderBy('playlistTrack.position', 'ASC')
+      .select([
+        'playlist.playlistId',
+        'playlist.title',
+        'playlist.description',
+        'playlist.coverImage',
+        'playlist.totalDurationSeconds',
+        'playlist.tracksCount',
+        'playlist.likesCount',
+        'playlist.repostsCount',
+        'playlist.userId',
+        'playlist.type',
+        'playlist.createdAt',
+        'genre.genreId',
+        'genre.name',
+        'playlistUser.userId',
+        'playlistUser.username',
+        'playlistUser.displayName',
+        'playlistUser.avatarUrl',
+        'playlistUser.city',
+        'playlistUser.country',
+        'playlistUser.followersCount',
+        'playlistTrack.position',
+        'playlistTrack.trackId',
+        'track.trackId',
+        'track.title',
+        'track.audioUrl',
+        'track.waveformUrl',
+        'track.coverImage',
+        'track.durationSeconds',
+        'track.playCount',
+        'track.likesCount',
+        'track.repostsCount',
+        'track.commentsCount',
+        'track.blockedRegions',
+        'track.hidden',
+        'track.visibility',
+        'track.userId',
+        'trackUser.userId',
+        'trackUser.username',
+        'trackUser.displayName',
+        'trackUser.avatarUrl',
+        'trackUser.city',
+        'trackUser.country',
+        'trackUser.followersCount',
+      ])
+      .getMany();
+  }
+
+  async findAlbumsByIds(ids: string[]): Promise<Playlist[]> {
+    return this.playlistRepository
+      .createQueryBuilder('playlist')
+      .where('playlist.playlistId IN (:...ids)', { ids })
+      .andWhere('playlist.type != :type', { type: PlaylistType.PLAYLIST })
+      .andWhere('playlist.type != :stationType', { stationType: PlaylistType.STATION })
+      .leftJoin('playlist.genre', 'genre')
+      .leftJoin('playlist.user', 'playlistUser')
+      .leftJoinAndSelect('playlist.playlistTracks', 'playlistTrack')
+      .leftJoinAndSelect('playlistTrack.track', 'track')
+      .leftJoin('track.user', 'trackUser')
+      .orderBy('playlistTrack.position', 'ASC')
+      .select([
+        'playlist.playlistId',
+        'playlist.title',
+        'playlist.description',
+        'playlist.coverImage',
+        'playlist.totalDurationSeconds',
+        'playlist.tracksCount',
+        'playlist.likesCount',
+        'playlist.repostsCount',
+        'playlist.userId',
+        'playlist.type',
+        'playlist.createdAt',
+        'genre.genreId',
+        'genre.name',
+        'playlistUser.userId',
+        'playlistUser.username',
+        'playlistUser.displayName',
+        'playlistUser.avatarUrl',
+        'playlistUser.city',
+        'playlistUser.country',
+        'playlistUser.followersCount',
+        'playlistTrack.position',
+        'playlistTrack.trackId',
+        'track.trackId',
+        'track.title',
+        'track.audioUrl',
+        'track.waveformUrl',
+        'track.coverImage',
+        'track.durationSeconds',
+        'track.playCount',
+        'track.likesCount',
+        'track.repostsCount',
+        'track.commentsCount',
+        'track.blockedRegions',
+        'track.hidden',
+        'track.visibility',
+        'track.userId',
+        'trackUser.userId',
+        'trackUser.username',
+        'trackUser.displayName',
+        'trackUser.avatarUrl',
+        'trackUser.city',
+        'trackUser.country',
+        'trackUser.followersCount',
+      ])
+      .getMany();
+  }
+
+  async getUserLikedPlaylistIds(userId: string, playlistIds: string[]): Promise<Set<string>> {
+    if (!playlistIds.length) return new Set();
+    const likes = await this.playlistLikesRepository.find({
+      where: { userId, playlistId: In(playlistIds) },
+      select: ['playlistId'],
+    });
+    return new Set(likes.map((l) => l.playlistId));
+  }
+
+  async getUserRepostedPlaylistIds(userId: string, playlistIds: string[]): Promise<Set<string>> {
+    if (!playlistIds.length) return new Set();
+    const reposts = await this.playlistRepostRepository.find({
+      where: { userId, playlistId: In(playlistIds) },
+      select: ['playlistId'],
+    });
+    return new Set(reposts.map((r) => r.playlistId));
   }
 }
