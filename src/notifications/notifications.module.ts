@@ -4,11 +4,12 @@ import { NotificationsService } from './notifications.service';
 import { NotificationsController } from './notifications.controller';
 import { Notification } from './entities/notification.entity';
 import { WebsocketsModule } from '../websockets/websockets.module';
+import { NotificationsRepository } from './notifications.repository';
 
 @Module({
   imports: [TypeOrmModule.forFeature([Notification]), WebsocketsModule],
   controllers: [NotificationsController],
-  providers: [NotificationsService],
-  exports: [NotificationsService], // Required so FollowersService can use it
+  providers: [NotificationsService, NotificationsRepository], // Added Repository here
+  exports: [NotificationsService],
 })
 export class NotificationsModule {}
