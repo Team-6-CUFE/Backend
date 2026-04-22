@@ -157,7 +157,7 @@
       ]
     },
     "transformIgnorePatterns": [
-      "node_modules/(?!(bloomfilter)/)"
+      "node_modules/(?!(bloomfilter|meilisearch)/)"
     ],
     "collectCoverageFrom": [
       "**/*.ts",
