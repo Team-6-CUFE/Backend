@@ -345,7 +345,7 @@ export class TrackRepository {
 
     const track = (await this.trackRepository.findOne({
       where: { trackId },
-      relations: ['genre', 'tags'],
+      relations: ['genre', 'tags', 'user'],
     })) as Track;
 
     if (genreName !== undefined && genreName !== 'None') {
