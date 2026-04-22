@@ -6,6 +6,11 @@ import {
   ApiGetTrackStation,
   ApiGetUserRecentActivities,
   ApiGetArtistStation,
+  ApiGetUserPopularTracks,
+  ApiGetMoreOfWhatYouLike,
+  ApiSearch,
+  ApiSearchAutocomplete,
+  ApiGetRecommendedStations,
 } from './discovery.swagger';
 import { CurrentUser } from '../authentication/decorators/current-user.decorator';
 import { EntityType } from '../search/types';
@@ -60,7 +65,7 @@ export class DiscoveryController {
     return this.discoveryService.getArtistStation(username, userId, ip);
   }
 
-  @ApiGetTrackStation()
+  @ApiGetUserPopularTracks()
   @Get('/profile/:username/popular-tracks')
   async getUserPopularTracks(
     @CurrentUser('sub') userId: string,
@@ -70,13 +75,13 @@ export class DiscoveryController {
     return this.discoveryService.getUserPopularTracks(username, userId, ip);
   }
 
-  @ApiGetTrackStation()
+  @ApiGetMoreOfWhatYouLike()
   @Get('/more-of-what-you-like')
   async getMoreOfWhatYouLike(@CurrentUser('sub') userId: string, @Ip() ip: string) {
     return this.discoveryService.getMoreOfWhatYouLike(userId, ip);
   }
 
-  @ApiGetArtistStation()
+  @ApiSearch()
   @Get('/search')
   async search(
     @CurrentUser('sub') userId: string,
@@ -104,11 +109,13 @@ export class DiscoveryController {
     );
   }
 
+  @ApiSearchAutocomplete()
   @Get('/autocomplete')
   async searchAutocomplete(@Query('q') q: string) {
     return this.discoveryService.searchAutocomplete(q);
   }
 
+  @ApiGetRecommendedStations()
   @Get('/recommended-stations')
   async getRecommendedStations(@CurrentUser('sub') userId: string, @Ip() ip: string) {
     return this.discoveryService.getRecommendedStations(userId, ip);
