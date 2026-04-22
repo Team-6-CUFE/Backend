@@ -11,6 +11,7 @@ import { Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 
 @WebSocketGateway({
+  path: '/ws',
   cors: {
     origin: process.env.ALLOWED_ORIGINS?.split(',') ?? '*',
     credentials: true,

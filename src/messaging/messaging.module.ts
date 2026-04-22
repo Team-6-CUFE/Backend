@@ -8,9 +8,10 @@ import { MessagingService } from './messaging.service';
 import { MessagingGateway } from './messaging.gateway';
 import { MessagingController } from './messaging.controller';
 import { WebsocketsModule } from '../websockets/websockets.module';
+import { UserBlock } from '../followers/entities/user-blocks.entity';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([Chat, Message, ChatStatus]), WebsocketsModule],
+  imports: [TypeOrmModule.forFeature([Chat, Message, ChatStatus, UserBlock]), WebsocketsModule],
   providers: [MessagingRepository, MessagingService, MessagingGateway],
   controllers: [MessagingController],
   exports: [MessagingService],

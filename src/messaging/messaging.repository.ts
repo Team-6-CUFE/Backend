@@ -158,7 +158,7 @@ export class MessagingRepository {
     return this.messageRepo.count({
       where: {
         chatId,
-        createdAt: LessThan(lastRead.createdAt) ? undefined : LessThan(lastRead.createdAt),
+        createdAt: LessThan(lastRead.createdAt),
       },
     });
   }

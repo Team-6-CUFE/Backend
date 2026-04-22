@@ -17,6 +17,7 @@ import { LegalModule } from './legal/legal.module';
 import { SettingsModule } from './settings/settings.module';
 import { DiscoveryModule } from './discovery/discovery.module';
 import { ActivityModule } from './activity/activity.module';
+import { MessagingModule } from './messaging/messaging.module';
 
 @Module({
   imports: [
@@ -51,6 +52,7 @@ import { ActivityModule } from './activity/activity.module';
     SettingsModule,
     DiscoveryModule,
     ActivityModule,
+    MessagingModule,
   ],
 })
 export class AppModule {}

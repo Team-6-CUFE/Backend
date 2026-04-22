@@ -55,6 +55,7 @@
     "@nestjs/swagger": "^11.2.6",
     "@nestjs/typeorm": "^11.0.0",
     "@nestjs/websockets": "^11.1.19",
+    "@socket.io/redis-adapter": "^8.3.0",
     "aws-sdk": "^2.1693.0",
     "axios": "^1.13.6",
     "bcrypt": "^6.0.0",
