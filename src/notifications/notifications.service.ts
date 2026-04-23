@@ -37,7 +37,6 @@ export class NotificationsService {
   }
 
   async getNotifications(userId: string, limit: number, offset: number, type?: string) {
-    // Note: If you updated the Enum to match the API spec, 'type' can be passed directly!
     const [notifications, total] = await this.notificationsRepository.getNotifications(
       userId,
       limit,
@@ -48,30 +47,51 @@ export class NotificationsService {
     const formattedNotifications = notifications.map((notif) => {
       let target = null;
 
-      // Logic for types that target a track or playlist (like, repost, comment, new_post)
-      if (notif.track) {
-        target = {
-          type: 'track',
-          trackId: notif.track.trackId,
-          title: notif.track.title,
-          coverImageUrl: notif.track.coverImageUrl,
-        };
-      } else if (notif.playlist) {
-        target = {
-          type: 'playlist',
-          playlistId: notif.playlist.playlistId,
-          title: notif.playlist.title,
-          coverImageUrl: notif.playlist.coverImageUrl,
-        };
-      } else if (notif.type === NotificationType.MESSAGE && notif.message) {
-        // Logic for message target (Adjust fields based on your actual Message entity)
-        target = {
-          type: 'message',
-          messageId: notif.message.messageId,
-          contentPreview: notif.message.content.substring(0, 50), // Send a short preview
-        };
+      // Explicitly cover every notification type
+      switch (notif.type) {
+        case NotificationType.LIKE:
+        case NotificationType.REPOST:
+        case NotificationType.COMMENT:
+        case NotificationType.NEW_POST:
+          // These types can target either a track or a playlist
+          if (notif.track) {
+            target = {
+              type: 'track',
+              trackId: notif.track.trackId,
+              title: notif.track.title,
+              coverImageUrl: notif.track.coverImageUrl,
+            };
+          } else if (notif.playlist) {
+            target = {
+              type: 'playlist',
+              playlistId: notif.playlist.playlistId,
+              title: notif.playlist.title,
+              coverImageUrl: notif.playlist.coverImageUrl,
+            };
+          }
+          break;
+
+        case NotificationType.MESSAGE:
+          // Messages target a specific message entity
+          if (notif.message) {
+            target = {
+              type: 'message',
+              messageId: notif.message.messageId,
+              contentPreview: notif.message.content.substring(0, 50),
+            };
+          }
+          break;
+
+        case NotificationType.FOLLOW:
+          // Follows have no specific target resource as per the spec
+          target = null;
+          break;
+
+        default:
+          // Fallback just in case
+          target = null;
+          break;
       }
-      // Follows will naturally fall through and leave target as null, matching the spec.
 
       return {
         notificationId: notif.notificationId,

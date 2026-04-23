@@ -30,7 +30,6 @@ export class NotificationsRepository {
     });
   }
 
-  // --- ADD THIS METHOD ---
   async getNotifications(
     userId: string,
     limit: number,
@@ -40,9 +39,10 @@ export class NotificationsRepository {
     const query = this.repo
       .createQueryBuilder('notification')
       .leftJoinAndSelect('notification.actor', 'actor')
-      // UNCOMMENT THESE when Tracks and Playlists are added to the Notification Entity:
-      // .leftJoinAndSelect('notification.track', 'track')
-      // .leftJoinAndSelect('notification.playlist', 'playlist')
+      // These are now active so the service can format the targets correctly
+      .leftJoinAndSelect('notification.track', 'track')
+      .leftJoinAndSelect('notification.playlist', 'playlist')
+      .leftJoinAndSelect('notification.message', 'message')
       .where('notification.recipientId = :userId', { userId })
       .orderBy('notification.createdAt', 'DESC')
       .take(limit)
@@ -55,14 +55,11 @@ export class NotificationsRepository {
     return query.getManyAndCount();
   }
 
-  // Add this inside notifications.repository.ts
   async deleteNotification(
     recipientId: string,
     actorId: string,
     type: NotificationType
   ): Promise<void> {
-    // Note: If your entity uses relation objects instead of raw IDs,
-    // you might need to use `recipient: { userId: recipientId }` instead.
     await this.repo.delete({
       recipientId,
       actorId,

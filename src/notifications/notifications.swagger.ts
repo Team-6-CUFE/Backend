@@ -5,21 +5,6 @@ const errorSchema = (statusCode: number, message: string) => ({
   schema: { example: { statusCode, message } },
 });
 
-// const invalidUuidResponse = ApiResponse({
-//   status: HttpStatus.BAD_REQUEST,
-//   description: 'Invalid UUID format',
-//   content: {
-//     'application/json': {
-//       examples: {
-//         invalidUuid: {
-//           summary: 'Invalid UUID',
-//           value: { statusCode: 400, message: 'notification_id must be a valid UUID' },
-//         },
-//       },
-//     },
-//   },
-// });
-
 const commonErrorResponses = [
   ApiResponse({
     status: HttpStatus.UNAUTHORIZED,
@@ -59,7 +44,7 @@ export function ApiGetNotifications() {
       name: 'type',
       required: false,
       type: String,
-      description: 'Filter by notification type (e.g., NEW_FOLLOWER, TRACK_LIKE)',
+      description: 'Filter by notification type (e.g., follow, like, repost, comment)',
     }),
     ApiResponse({
       status: HttpStatus.OK,
@@ -75,19 +60,19 @@ export function ApiGetNotifications() {
                   notifications: [
                     {
                       notification_id: '550e8400-e29b-41d4-a716-446655440001',
-                      is_read: false,
-                      created_at: '2026-04-23T10:00:00Z',
+                      isRead: false,
+                      createdAt: '2026-04-23T10:00:00Z',
                       activity: {
-                        activity_id: 'act_550e8400-e29b',
-                        activity_type: 'NEW_FOLLOWER',
+                        activityId: 'act_550e8400-e29b',
+                        activityType: 'follow',
                         actor: {
-                          user_id: '123e4567-e89b-12d3-a456-426614174000',
+                          userId: '123e4567-e89b-12d3-a456-426614174000',
                           username: 'john_doe',
-                          display_name: 'John Doe',
-                          avatar_url: 'https://example.com/avatar.jpg',
+                          displayName: 'John Doe',
+                          avatarUrl: 'https://example.com/avatar.jpg',
                         },
                         target: null,
-                        created_at: '2026-04-23T10:00:00Z',
+                        createdAt: '2026-04-23T10:00:00Z',
                       },
                     },
                   ],
@@ -95,7 +80,7 @@ export function ApiGetNotifications() {
                     limit: 20,
                     offset: 0,
                     total: 1,
-                    has_more: false,
+                    hasMore: false,
                   },
                 },
               },
@@ -106,7 +91,7 @@ export function ApiGetNotifications() {
                 status: 'success',
                 data: {
                   notifications: [],
-                  pagination: { limit: 20, offset: 0, total: 0, has_more: false },
+                  pagination: { limit: 20, offset: 0, total: 0, hasMore: false },
                 },
               },
             },
