@@ -1,4 +1,5 @@
 import { Test, TestingModule } from '@nestjs/testing';
+import { NotFoundException } from '@nestjs/common';
 import { NotificationsService } from './notifications.service';
 import { NotificationsRepository } from './notifications.repository';
 import { WebsocketsService } from '../websockets/websockets.service';
@@ -16,6 +17,7 @@ describe('NotificationsService', () => {
     getUnreadCount: jest.fn(),
     getNotifications: jest.fn(),
     deleteNotification: jest.fn(),
+    markAsRead: jest.fn(),
   };
 
   const mockWebsocketsService = {
@@ -133,6 +135,32 @@ describe('NotificationsService', () => {
         'actor-1',
         NotificationType.NEW_FOLLOWER
       );
+    });
+  });
+
+  describe('markAsRead', () => {
+    it('should successfully mark a notification as read without throwing an error', async () => {
+      // Arrange: mock the repo to return true (meaning row was updated)
+      mockNotificationsRepository.markAsRead.mockResolvedValue(true);
+
+      // Act & Assert
+      await expect(service.markAsRead('notif-uuid', 'user-uuid')).resolves.not.toThrow();
+
+      // Verify repo was called with exact IDs
+      expect(repo.markAsRead).toHaveBeenCalledWith('notif-uuid', 'user-uuid');
+    });
+
+    it('should throw a NotFoundException if the repo returns false', async () => {
+      // Arrange: mock the repo to return false (not found or not owned by user)
+      mockNotificationsRepository.markAsRead.mockResolvedValue(false);
+
+      // Act & Assert
+      await expect(service.markAsRead('notif-uuid', 'user-uuid')).rejects.toThrow(
+        NotFoundException
+      );
+
+      // Verify it still attempted the call
+      expect(repo.markAsRead).toHaveBeenCalledWith('notif-uuid', 'user-uuid');
     });
   });
 });

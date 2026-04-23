@@ -9,6 +9,7 @@ describe('NotificationsController', () => {
   // 1. Create a fake version of the service
   const mockNotificationsService = {
     getNotifications: jest.fn(),
+    markAsRead: jest.fn(),
   };
 
   beforeEach(async () => {
@@ -75,6 +76,26 @@ describe('NotificationsController', () => {
 
       // Assert: The service should only be called with 50
       expect(service.getNotifications).toHaveBeenCalledWith('user-123', 50, 0, undefined);
+    });
+  });
+
+  describe('markAsRead', () => {
+    it('should call the service and return a success payload', async () => {
+      // Arrange: service just resolves successfully without returning data
+      mockNotificationsService.markAsRead.mockResolvedValue(undefined);
+
+      const notificationId = '123e4567-e89b-12d3-a456-426614174000';
+      const userId = 'user-123';
+
+      // Act
+      const response = await controller.markAsRead(notificationId, userId);
+
+      // Assert
+      expect(service.markAsRead).toHaveBeenCalledWith(notificationId, userId);
+      expect(response).toEqual({
+        status: 'success',
+        message: 'Notification marked as read',
+      });
     });
   });
 });
