@@ -86,7 +86,7 @@ export class NotificationsController {
 
   // NOTE: Place this ABOVE dynamic routes like @Patch(':notification_id/read')
   @Get('settings')
-  // @ApiGetNotificationSettings()
+  @ApiGetNotificationSettings()
   async getSettings(@CurrentUser('sub') userId: string) {
     return this.settingsService.getNotificationSettings(userId);
   }

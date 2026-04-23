@@ -154,3 +154,46 @@ export function ApiMarkAllNotificationsRead() {
     ...commonErrorResponses
   );
 }
+
+export function ApiGetNotificationSettings() {
+  return applyDecorators(
+    ApiCookieAuth('access_token'),
+    ApiOperation({
+      summary: 'Get notification settings',
+      description:
+        'Returns the full notification preferences object (email and device toggles) for the authenticated user.',
+    }),
+    ApiResponse({
+      status: HttpStatus.OK,
+      description: 'Successfully retrieved notification settings',
+      content: {
+        'application/json': {
+          example: {
+            status: 'success',
+            data: {
+              email: {
+                newFollower: true,
+                repost: true,
+                newPost: false,
+                likesPlays: true,
+                comment: true,
+                recommended: false,
+                newMessage: true,
+              },
+              device: {
+                newFollower: true,
+                repost: false,
+                newPost: true,
+                likesPlays: true,
+                comment: true,
+                recommended: false,
+                newMessage: 'everyone',
+              },
+            },
+          },
+        },
+      },
+    }),
+    ...commonErrorResponses
+  );
+}
