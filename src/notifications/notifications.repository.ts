@@ -72,4 +72,8 @@ export class NotificationsRepository {
     // Returns true if a row was actually updated, false if it wasn't found
     return (result.affected ?? 0) > 0;
   }
+
+  async markAllAsRead(recipientId: string): Promise<void> {
+    await this.repo.update({ recipientId, isRead: false }, { isRead: true });
+  }
 }

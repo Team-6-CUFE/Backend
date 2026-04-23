@@ -131,4 +131,8 @@ export class NotificationsService {
       throw new NotFoundException('Notification not found');
     }
   }
+
+  async markAllAsRead(userId: string): Promise<void> {
+    await this.notificationsRepository.markAllAsRead(userId);
+  }
 }
