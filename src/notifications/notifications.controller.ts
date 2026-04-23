@@ -2,12 +2,15 @@ import { Controller, Get, Query, ParseIntPipe, DefaultValuePipe } from '@nestjs/
 import { ApiTags } from '@nestjs/swagger';
 import { NotificationsService } from './notifications.service';
 import { CurrentUser } from '../authentication/decorators/current-user.decorator';
+// 1. Import your custom decorators
+import { ApiGetNotifications } from './notifications.swagger'; // Adjust this path if you saved it elsewhere
 
 @ApiTags('Notifications')
 @Controller('notifications')
 export class NotificationsController {
   constructor(private readonly notificationsService: NotificationsService) {}
 
+  @ApiGetNotifications()
   @Get()
   async getNotifications(
     @CurrentUser('sub') userId: string,
