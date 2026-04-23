@@ -98,4 +98,36 @@ export class SettingsService {
     await this.settingsRepository.delete(userId);
     return this.createDefaultSettings(userId);
   }
+
+  async getNotificationSettings(userId: string) {
+    const settings = await this.settingsRepository.getPrivacySettings(userId);
+
+    if (!settings) {
+      throw new NotFoundException(`Notification settings for user ${userId} not found`);
+    }
+
+    return {
+      status: 'success',
+      data: {
+        email: {
+          newFollower: settings.emailNewFollower,
+          repost: settings.emailRepost,
+          newPost: settings.emailNewPost,
+          likesPlays: settings.emailLikesPlays,
+          comment: settings.emailComment,
+          recommended: settings.emailRecommended,
+          newMessage: settings.emailNewMessage,
+        },
+        device: {
+          newFollower: settings.deviceNewFollower,
+          repost: settings.deviceRepost,
+          newPost: settings.deviceNewPost,
+          likes_plays: settings.deviceLikesPlays,
+          comment: settings.deviceComment,
+          recommended: settings.deviceRecommended,
+          newMessage: settings.deviceNewMessage,
+        },
+      },
+    };
+  }
 }

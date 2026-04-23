@@ -17,11 +17,15 @@ import {
   ApiMarkNotificationRead,
   ApiMarkAllNotificationsRead,
 } from './notifications.swagger'; // Adjust this path if you saved it elsewhere
+import { SettingsService } from '../settings/settings.service';
 
 @ApiTags('Notifications')
 @Controller('notifications')
 export class NotificationsController {
-  constructor(private readonly notificationsService: NotificationsService) {}
+  constructor(
+    private readonly notificationsService: NotificationsService,
+    private readonly settingsService: SettingsService
+  ) {}
 
   @ApiGetNotifications()
   @Get()
@@ -78,5 +82,12 @@ export class NotificationsController {
       status: 'success',
       message: 'All notifications marked as read',
     };
+  }
+
+  // NOTE: Place this ABOVE dynamic routes like @Patch(':notification_id/read')
+  @Get('settings')
+  // @ApiGetNotificationSettings()
+  async getSettings(@CurrentUser('sub') userId: string) {
+    return this.settingsService.getNotificationSettings(userId);
   }
 }
