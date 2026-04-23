@@ -29,6 +29,19 @@ jest.mock('meilisearch', () => ({
   })),
 }));
 
+// at the top of playlist.service.spec.ts, add this:
+jest.mock('../search/indexing', () => ({
+  addDocuments: jest.fn().mockResolvedValue(undefined),
+  updateDocument: jest.fn().mockResolvedValue(undefined),
+  deleteDocument: jest.fn().mockResolvedValue(undefined),
+  mapPlaylist: jest.fn().mockReturnValue({}),
+  mapAlbum: jest.fn().mockReturnValue({}),
+}));
+
+jest.mock('../search/search', () => ({
+  search: jest.fn().mockResolvedValue([]),
+  autocomplete: jest.fn().mockResolvedValue([]),
+}));
 const mockPlaylistId = '550e8400-e29b-41d4-a716-446655440000';
 const mockUserId = '550e8400-e29b-41d4-a716-446655440001';
 const mockOwnerId = '550e8400-e29b-41d4-a716-446655440002';
