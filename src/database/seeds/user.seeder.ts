@@ -164,6 +164,9 @@ export class UserSeeder implements Seeder {
 
     // For each random user, create associated data
     for (const user of randomUsers) {
+      if (user.isPublic && !user.isSuspended) {
+        await addDocuments([mapUser(user)]);
+      }
       await this.createSettingsForUser(user.userId, settingsRepository);
       // Create primary email
       const primaryEmail = await emailFactory.make({
