@@ -36,4 +36,19 @@ export class SettingsRepository {
   async delete(userId: string): Promise<void> {
     await this.settingsRepository.delete({ userId });
   }
+
+  async updateNotificationSettings(
+    userId: string,
+    updateDto: Partial<Settings>
+  ): Promise<Settings | null> {
+    const settings = await this.getPrivacySettings(userId);
+
+    if (!settings) {
+      return null;
+    }
+
+    await this.settingsRepository.update({ userId }, updateDto);
+
+    return this.getPrivacySettings(userId);
+  }
 }

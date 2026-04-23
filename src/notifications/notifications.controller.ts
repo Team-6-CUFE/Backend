@@ -7,6 +7,8 @@ import {
   Patch,
   Param,
   ParseUUIDPipe,
+  Body,
+  Put,
 } from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
 import { NotificationsService } from './notifications.service';
@@ -19,6 +21,7 @@ import {
   ApiGetNotificationSettings,
 } from './notifications.swagger'; // Adjust this path if you saved it elsewhere
 import { SettingsService } from '../settings/settings.service';
+import { UpdateNotificationsDto } from '../settings/dtos/update-notifications.dto';
 
 @ApiTags('Notifications')
 @Controller('notifications')
@@ -85,10 +88,18 @@ export class NotificationsController {
     };
   }
 
-  // NOTE: Place this ABOVE dynamic routes like @Patch(':notification_id/read')
   @Get('settings')
   @ApiGetNotificationSettings()
   async getSettings(@CurrentUser('sub') userId: string) {
     return this.settingsService.getNotificationSettings(userId);
+  }
+
+  @Put('settings')
+  // @ApiUpdateNotificationSettings()
+  async updateSettings(
+    @CurrentUser('sub') userId: string,
+    @Body() updateDto: UpdateNotificationsDto
+  ) {
+    return this.settingsService.updateNotificationSettings(userId, updateDto);
   }
 }
