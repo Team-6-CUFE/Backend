@@ -49,9 +49,9 @@ export class NotificationsService {
 
       // Explicitly cover every notification type
       switch (notif.type) {
-        case NotificationType.LIKE:
-        case NotificationType.REPOST:
-        case NotificationType.COMMENT:
+        case NotificationType.NEW_LIKE:
+        case NotificationType.NEW_REPOST:
+        case NotificationType.NEW_COMMENT:
         case NotificationType.NEW_POST:
           // These types can target either a track or a playlist
           if (notif.track) {
@@ -82,7 +82,7 @@ export class NotificationsService {
           }
           break;
 
-        case NotificationType.FOLLOW:
+        case NotificationType.NEW_FOLLOWER:
           // Follows have no specific target resource as per the spec
           target = null;
           break;
