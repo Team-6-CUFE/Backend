@@ -1,5 +1,5 @@
 // notifications.service.ts
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { NotificationsRepository } from './notifications.repository';
 import { WebsocketsService } from '../websockets/websockets.service';
 import { User } from '../user/entities/user.entity';
@@ -122,5 +122,13 @@ export class NotificationsService {
     type: NotificationType // Make sure NotificationType is imported at the top!
   ): Promise<void> {
     await this.notificationsRepository.deleteNotification(recipientId, actorId, type);
+  }
+
+  async markAsRead(notificationId: string, userId: string): Promise<void> {
+    const updated = await this.notificationsRepository.markAsRead(notificationId, userId);
+
+    if (!updated) {
+      throw new NotFoundException('Notification not found');
+    }
   }
 }

@@ -40,9 +40,9 @@ export class NotificationsRepository {
       .createQueryBuilder('notification')
       .leftJoinAndSelect('notification.actor', 'actor')
       // These are now active so the service can format the targets correctly
-      .leftJoinAndSelect('notification.track', 'track')
-      .leftJoinAndSelect('notification.playlist', 'playlist')
-      .leftJoinAndSelect('notification.message', 'message')
+      // .leftJoinAndSelect('notification.track', 'track')
+      // .leftJoinAndSelect('notification.playlist', 'playlist')
+      // .leftJoinAndSelect('notification.message', 'message')
       .where('notification.recipientId = :userId', { userId })
       .orderBy('notification.createdAt', 'DESC')
       .take(limit)
@@ -65,5 +65,11 @@ export class NotificationsRepository {
       actorId,
       type,
     });
+  }
+
+  async markAsRead(notificationId: string, recipientId: string): Promise<boolean> {
+    const result = await this.repo.update({ notificationId, recipientId }, { isRead: true });
+    // Returns true if a row was actually updated, false if it wasn't found
+    return (result.affected ?? 0) > 0;
   }
 }

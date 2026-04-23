@@ -1,4 +1,13 @@
-import { Controller, Get, Query, ParseIntPipe, DefaultValuePipe } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Query,
+  ParseIntPipe,
+  DefaultValuePipe,
+  Patch,
+  Param,
+  ParseUUIDPipe,
+} from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
 import { NotificationsService } from './notifications.service';
 import { CurrentUser } from '../authentication/decorators/current-user.decorator';
@@ -39,6 +48,20 @@ export class NotificationsController {
           hasMore: offset + safeLimit < result.total, // Returns true if there are more items
         },
       },
+    };
+  }
+
+  @Patch(':notification_id/read')
+  // @ApiMarkNotificationRead()
+  async markAsRead(
+    @Param('notification_id', ParseUUIDPipe) notificationId: string,
+    @CurrentUser('sub') userId: string
+  ) {
+    await this.notificationsService.markAsRead(notificationId, userId);
+
+    return {
+      status: 'success',
+      message: 'Notification marked as read',
     };
   }
 }
