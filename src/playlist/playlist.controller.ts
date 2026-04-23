@@ -38,7 +38,6 @@ import {
   ApiDeletePlaylist,
   ApiGetUserCreatedPlaylists,
   ApiReorderTracks,
-  ApiChangePlaylistPrivacy,
   ApiGetPublicPlaylist,
   ApiGetSecretPlaylist,
   ApiResetPlaylistSecretToken,
@@ -55,6 +54,17 @@ import { AddTrackDto } from './dto/add-track.dto';
 @Controller('playlist')
 export class PlaylistController {
   constructor(private readonly playlistService: PlaylistService) {}
+
+  @ApiGetMyPlaylists()
+  @Get('/me')
+  async getMyPlaylists(
+    @CurrentUser('sub') userId: string,
+    @Query('page') page: number = 1,
+    @Query('limit') limit: number = 20
+  ) {
+    console.log('getting my playlist', userId);
+    return this.playlistService.getMyPlaylists(userId, page, limit);
+  }
 
   @ApiRepostPlaylist()
   @Post(':playlistId/repost')
@@ -171,7 +181,7 @@ export class PlaylistController {
       new ParseFilePipe({
         fileIsRequired: false,
         validators: [
-          new MaxFileSizeValidator({ maxSize: 5 * 1024 * 1024 }), // 5MB limit
+          new MaxFileSizeValidator({ maxSize: 5 * 1024 * 1024 }),
           new FileTypeValidator({ fileType: '.(png|jpeg|jpg|webp)' }),
         ],
       })
@@ -233,15 +243,15 @@ export class PlaylistController {
     return this.playlistService.reorder(playlistId, trackIds, userId);
   }
 
-  @ApiChangePlaylistPrivacy()
-  @Patch('/:playlistId/privacy')
-  changePlaylistPrivacy(
-    @Param('playlistId') playlistId: string,
-    @Body('isPublic') isPublic: boolean,
-    @CurrentUser('sub') userId: string
-  ) {
-    return this.playlistService.changePlaylistPrivacy(playlistId, isPublic, userId);
-  }
+  // @ApiChangePlaylistPrivacy()
+  // @Patch('/:playlistId/privacy')
+  // changePlaylistPrivacy(
+  //   @Param('playlistId') playlistId: string,
+  //   @Body('isPublic') isPublic: boolean,
+  //   @CurrentUser('sub') userId: string
+  // ) {
+  //   return this.playlistService.changePlaylistPrivacy(playlistId, isPublic, userId);
+  // }
 
   @ApiGetPublicPlaylist()
   @Get('/:playlistId')
@@ -265,16 +275,6 @@ export class PlaylistController {
     return this.playlistService.resetSecretToken(playlistId, userId);
   }
 
-  @ApiGetMyPlaylists()
-  @Get('me')
-  async getMyPlaylists(
-    @CurrentUser('sub') userId: string,
-    @Query('page') page: number = 1,
-    @Query('limit') limit: number = 20
-  ) {
-    return this.playlistService.getMyPlaylists(userId, page, limit);
-  }
-
   @ApiGetUserPlaylists()
   @CheckBlock()
   @Get('users/:user_id/playlists')
@@ -284,6 +284,7 @@ export class PlaylistController {
     @Query('page') page: number = 1,
     @Query('limit') limit: number = 20
   ) {
+    console.log("getting a user's playlist", userId);
     return this.playlistService.getUserPlaylists(userId, myUserId, page, limit);
   }
 }

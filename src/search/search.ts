@@ -24,9 +24,7 @@ export async function search(params: SearchParams): Promise<SearchResponse> {
   const filters: string[] = [];
 
   if (type && type !== 'all') filters.push(`type = "${type}"`);
-  if (genre) filters.push(`genre = "${genre}"`);
   if (city) filters.push(`city = "${city}"`);
-  if (tag) filters.push(`tag = "${tag}"`);
 
   if (durationRange) {
     const [min, max] = [durationRange.min, durationRange.max].map(Number);
@@ -35,11 +33,23 @@ export async function search(params: SearchParams): Promise<SearchResponse> {
   }
   if (createdAtLimit) {
     const createdAtLimitString = new Date(createdAtLimit).toISOString();
-    filters.push(`created_at >= ${createdAtLimitString}`);
+    filters.push(`created_at >= "${createdAtLimitString}"`);
+  }
+
+  let genreAndTagFilters;
+  if (genre && tag) {
+    genreAndTagFilters = `genre = "${genre}" OR tags = "${tag}"`;
+  }
+
+  let filterString = filters.length ? filters.join(' AND ') : undefined;
+  if (genreAndTagFilters) {
+    filterString = filterString
+      ? `(${filterString}) AND (${genreAndTagFilters})`
+      : genreAndTagFilters;
   }
 
   const results = await index.search(query, {
-    filter: filters.length ? filters.join(' AND ') : undefined,
+    filter: filterString,
     limit,
     offset,
     attributesToRetrieve: ['id', 'type'],
@@ -57,13 +67,23 @@ export async function autocomplete(query: string): Promise<string[]> {
   const results = await index.search(query, {
     limit: 10,
     attributesToRetrieve: ['title', 'username', 'display_name'],
+    attributesToSearchOn: ['title', 'username', 'display_name'],
   });
+
   const hits = results.hits as AutocompleteHit[];
+  const q = query.toLowerCase();
+
   const suggestions = hits
-    .flatMap((hit) => [hit.title, hit.username, hit.display_name])
-    .filter((s): s is string => !!s)
+    .flatMap((hit) => {
+      const matches: string[] = [];
+      if (hit.title?.toLowerCase().includes(q)) matches.push(hit.title);
+      if (hit.username?.toLowerCase().includes(q)) matches.push(hit.username);
+      if (hit.display_name?.toLowerCase().includes(q)) matches.push(hit.display_name);
+      return matches;
+    })
     .map((s) => s.toLowerCase().trim())
     .filter((s, i, arr) => arr.indexOf(s) === i)
     .slice(0, 8);
+
   return suggestions;
 }

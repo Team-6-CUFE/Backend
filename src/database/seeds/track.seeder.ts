@@ -7,6 +7,7 @@ import { TrackRepost } from '../../track/entities/track-reposts.entity';
 import { TrackComment } from '../../track/entities/track-comments.entity';
 import { Activity, ActivityType } from '../../activity/entities/activity.entity';
 import { getIndex } from '../../search/client';
+import { TrackVisibility } from '../../track/enums/track-visibility.enum';
 
 export class TrackSeeder implements Seeder {
   public async run(dataSource: DataSource, factoryManager: SeederFactoryManager): Promise<void> {
@@ -48,6 +49,7 @@ export class TrackSeeder implements Seeder {
     let totalTracksCreated = 0;
     let totalCommentsCreated = 0;
     let totalActivitiesCreated = 0;
+    const index = getIndex();
 
     // 5. Generate tracks for each artist
     for (const artist of artists) {
@@ -61,19 +63,20 @@ export class TrackSeeder implements Seeder {
         user: artist,
       });
 
-      const index = getIndex();
       await index.addDocuments(
-        tracks.map((t) => ({
-          id: `track_${t.trackId}`,
-          type: 'track',
-          title: t.title,
-          artist_name: artist.displayName,
-          description: t.description,
-          tags: t.tags?.map((t) => t.name),
-          genre: t.genre?.name,
-          duration: t.durationSeconds,
-          created_at: t.createdAt,
-        }))
+        tracks
+          .filter((t) => !t.hidden && t.visibility === TrackVisibility.PUBLIC)
+          .map((t) => ({
+            id: `track_${t.trackId}`,
+            type: 'track',
+            title: t.title,
+            artist_name: artist.displayName,
+            description: t.description,
+            tags: t.tags?.map((t) => t.name),
+            genre: t.genre?.name,
+            duration: t.durationSeconds,
+            created_at: t.createdAt,
+          }))
       );
 
       totalTracksCreated += tracks.length;

@@ -329,7 +329,10 @@ export class TrackRepository {
       await this.trackRepository.save(savedTrack);
     }
     const completeTrack = await this.findByIdWithRelations(savedTrack.trackId);
-    await addDocuments([mapTrack(completeTrack!)]);
+    if (dto.visibility === TrackVisibility.PUBLIC) {
+      await addDocuments([mapTrack(completeTrack!)]);
+    }
+
     return savedTrack;
   }
 
@@ -345,7 +348,7 @@ export class TrackRepository {
 
     const track = (await this.trackRepository.findOne({
       where: { trackId },
-      relations: ['genre', 'tags'],
+      relations: ['genre', 'tags', 'user'],
     })) as Track;
 
     if (genreName !== undefined && genreName !== 'None') {
@@ -365,8 +368,14 @@ export class TrackRepository {
     if (genreName !== undefined || tagNames !== undefined) {
       await this.trackRepository.save(track);
     }
+    if (dto.visibility !== undefined) {
+      if (updates.visibility === TrackVisibility.PUBLIC) {
+        await updateDocument(mapTrack(track));
+      } else if (updates.visibility === TrackVisibility.PRIVATE) {
+        await deleteDocument(`track_${trackId}`);
+      }
+    }
 
-    await updateDocument(mapTrack(track));
     return track;
   }
 

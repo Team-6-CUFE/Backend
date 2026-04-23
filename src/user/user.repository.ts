@@ -61,7 +61,11 @@ export class UserRepository {
     await this.repository.update(id, userData);
     const user = await this.findById(id);
     if (user) {
-      await updateDocument(mapUser(user));
+      if (user.isPublic) {
+        await updateDocument(mapUser(user));
+      } else if (!user.isPublic) {
+        await deleteDocument(`user_${id}`);
+      }
     }
     return user;
   }
@@ -117,8 +121,9 @@ export class UserRepository {
 
     // Step 3 - create user settings record with defaults
     await this.settingsService.createDefaultSettings(savedUser.userId);
-
-    await addDocuments([mapUser(savedUser)]);
+    if (savedUser.isPublic) {
+      await addDocuments([mapUser(savedUser)]);
+    }
     return savedUser;
   }
 
