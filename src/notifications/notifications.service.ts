@@ -37,6 +37,7 @@ export class NotificationsService {
   }
 
   async getNotifications(userId: string, limit: number, offset: number, type?: string) {
+    // Note: If you updated the Enum to match the API spec, 'type' can be passed directly!
     const [notifications, total] = await this.notificationsRepository.getNotifications(
       userId,
       limit,
@@ -45,11 +46,9 @@ export class NotificationsService {
     );
 
     const formattedNotifications = notifications.map((notif) => {
-      // Logic to populate the target based on what is attached to the notification
       let target = null;
 
-      // NOTE: This assumes your Notification entity has a `track` or `playlist` relation.
-      // Adjust the property names (e.g., track.trackId, track.coverImageUrl) to match your actual entities.
+      // Logic for types that target a track or playlist (like, repost, comment, new_post)
       if (notif.track) {
         target = {
           type: 'track',
@@ -64,7 +63,15 @@ export class NotificationsService {
           title: notif.playlist.title,
           coverImageUrl: notif.playlist.coverImageUrl,
         };
+      } else if (notif.type === NotificationType.MESSAGE && notif.message) {
+        // Logic for message target (Adjust fields based on your actual Message entity)
+        target = {
+          type: 'message',
+          messageId: notif.message.messageId,
+          contentPreview: notif.message.content.substring(0, 50), // Send a short preview
+        };
       }
+      // Follows will naturally fall through and leave target as null, matching the spec.
 
       return {
         notificationId: notif.notificationId,
@@ -76,7 +83,7 @@ export class NotificationsService {
           actor: {
             userId: notif.actor?.userId,
             username: notif.actor?.username,
-            displayName: notif.actor?.username, // Falls back to username if display name isn't on the entity yet
+            displayName: notif.actor?.username,
             avatarUrl: notif.actor?.avatarUrl,
           },
           target,
