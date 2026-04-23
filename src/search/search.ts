@@ -51,19 +51,48 @@ export async function search(params: SearchParams): Promise<SearchResponse> {
   };
 }
 
+// export async function autocomplete(query: string): Promise<string[]> {
+//   const index = getIndex();
+
+//   const results = await index.search(query, {
+//     limit: 10,
+//     attributesToRetrieve: ['title', 'username', 'display_name'],
+//     attributesToSearchOn: ['title', 'username', 'display_name'],
+//   });
+//   console.log('Autocomplete results:', results);
+//   const hits = results.hits as AutocompleteHit[];
+//   const suggestions = hits
+//     .flatMap((hit) => [hit.title, hit.username, hit.display_name])
+//     .filter((s): s is string => !!s)
+//     .map((s) => s.toLowerCase().trim())
+//     .filter((s, i, arr) => arr.indexOf(s) === i)
+//     .slice(0, 8);
+//   return suggestions;
+// }
+
 export async function autocomplete(query: string): Promise<string[]> {
   const index = getIndex();
 
   const results = await index.search(query, {
     limit: 10,
     attributesToRetrieve: ['title', 'username', 'display_name'],
+    attributesToSearchOn: ['title', 'username', 'display_name'],
   });
+
   const hits = results.hits as AutocompleteHit[];
+  const q = query.toLowerCase();
+
   const suggestions = hits
-    .flatMap((hit) => [hit.title, hit.username, hit.display_name])
-    .filter((s): s is string => !!s)
+    .flatMap((hit) => {
+      const matches: string[] = [];
+      if (hit.title?.toLowerCase().includes(q)) matches.push(hit.title);
+      if (hit.username?.toLowerCase().includes(q)) matches.push(hit.username);
+      if (hit.display_name?.toLowerCase().includes(q)) matches.push(hit.display_name);
+      return matches;
+    })
     .map((s) => s.toLowerCase().trim())
     .filter((s, i, arr) => arr.indexOf(s) === i)
     .slice(0, 8);
+
   return suggestions;
 }
