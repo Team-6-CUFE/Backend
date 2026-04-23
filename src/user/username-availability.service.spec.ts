@@ -4,6 +4,15 @@ import { UsernameAvailabilityService } from './username-availability.service';
 import { UserRepository } from './user.repository';
 import { mockUserRepository } from './test/user.mock';
 
+jest.mock('meilisearch', () => ({
+  Meilisearch: jest.fn().mockImplementation(() => ({
+    index: jest.fn().mockReturnValue({
+      addDocuments: jest.fn(),
+      search: jest.fn(),
+    }),
+  })),
+}));
+
 describe('UsernameAvailabilityService', () => {
   let service: UsernameAvailabilityService;
   let userRepo: ReturnType<typeof mockUserRepository>;

@@ -11,6 +11,7 @@ import { UserCounts } from './types/user-counts.type';
 import { SocialAccount } from './entities/social-account.entity';
 import { OAuthUser } from '../authentication/types/oauth-user.type';
 import { SettingsService } from '../settings/settings.service';
+import { mapUser, addDocuments, updateDocument, deleteDocument } from '../search/indexing';
 
 @Injectable()
 export class UserRepository {
@@ -58,11 +59,20 @@ export class UserRepository {
 
   async update(id: string, userData: Partial<User>): Promise<User | null> {
     await this.repository.update(id, userData);
-    return this.findById(id);
+    const user = await this.findById(id);
+    if (user) {
+      if (user.isPublic) {
+        await updateDocument(mapUser(user));
+      } else if (!user.isPublic) {
+        await deleteDocument(`user_${id}`);
+      }
+    }
+    return user;
   }
 
   async delete(id: string): Promise<void> {
     await this.repository.delete(id);
+    await deleteDocument(`user_${id}`);
   }
 
   async updateFavoriteGenres(userId: string, genres: Genre[]): Promise<void> {
@@ -111,6 +121,9 @@ export class UserRepository {
 
     // Step 3 - create user settings record with defaults
     await this.settingsService.createDefaultSettings(savedUser.userId);
+    if (savedUser.isPublic) {
+      await addDocuments([mapUser(savedUser)]);
+    }
     return savedUser;
   }
 
@@ -249,5 +262,12 @@ export class UserRepository {
 
   async getSocialAccounts(userId: string) {
     return this.socialAccountRepo.find({ where: { userId } });
+  }
+
+  async findbyIds(ids: string[]): Promise<User[]> {
+    return this.repository
+      .createQueryBuilder('user')
+      .where('user.userId IN (:...ids)', { ids })
+      .getMany();
   }
 }

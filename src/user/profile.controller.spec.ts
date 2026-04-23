@@ -3,6 +3,15 @@ import { ProfileController } from './profile.controller';
 import { ProfileService } from './profile.service';
 import { mockProfileService, mockUserId, mockUsername, mockFile } from './test/user.mock';
 
+jest.mock('meilisearch', () => ({
+  Meilisearch: jest.fn().mockImplementation(() => ({
+    index: jest.fn().mockReturnValue({
+      addDocuments: jest.fn(),
+      search: jest.fn(),
+    }),
+  })),
+}));
+
 describe('ProfileController', () => {
   let controller: ProfileController;
   let service: ReturnType<typeof mockProfileService>;

@@ -845,54 +845,54 @@ export function ApiReorderTracks() {
   );
 }
 
-export function ApiChangePlaylistPrivacy() {
-  return applyDecorators(
-    ApiCookieAuth('access_token'),
-    ApiOperation({
-      summary: 'Update playlist privacy (Public/Private)',
-      description: 'Toggles visibility. Making a playlist private generates a new secret token.',
-    }),
-    ApiParam({ name: 'playlistId', format: 'uuid' }),
-    ApiBody({
-      schema: {
-        type: 'object',
-        properties: {
-          isPublic: { type: 'boolean', example: true, description: 'New privacy state' },
-        },
-      },
-    }),
-    ApiResponse({
-      status: 200,
-      description: 'Privacy updated. When making private, response includes secretToken.',
-      schema: {
-        examples: {
-          'Made Public': {
-            value: {
-              status: 'success',
-              data: {
-                playlistId: 'uuid-123',
-                isPublic: true,
-              },
-            },
-          },
-          'Made Private': {
-            value: {
-              status: 'success',
-              data: {
-                playlistId: 'uuid-123',
-                isPublic: false,
-                secretToken: 'abc9xyz',
-              },
-            },
-          },
-        },
-      },
-    }),
-    ApiResponse({ status: 400, description: 'Playlist is already in the requested state' }),
-    ApiResponse({ status: 403, description: 'Not the owner' }),
-    ApiResponse({ status: 404, description: 'Playlist not found' })
-  );
-}
+// export function ApiChangePlaylistPrivacy() {
+//   return applyDecorators(
+//     ApiCookieAuth('access_token'),
+//     ApiOperation({
+//       summary: 'Update playlist privacy (Public/Private)',
+//       description: 'Toggles visibility. Making a playlist private generates a new secret token.',
+//     }),
+//     ApiParam({ name: 'playlistId', format: 'uuid' }),
+//     ApiBody({
+//       schema: {
+//         type: 'object',
+//         properties: {
+//           isPublic: { type: 'boolean', example: true, description: 'New privacy state' },
+//         },
+//       },
+//     }),
+//     ApiResponse({
+//       status: 200,
+//       description: 'Privacy updated. When making private, response includes secretToken.',
+//       schema: {
+//         examples: {
+//           'Made Public': {
+//             value: {
+//               status: 'success',
+//               data: {
+//                 playlistId: 'uuid-123',
+//                 isPublic: true,
+//               },
+//             },
+//           },
+//           'Made Private': {
+//             value: {
+//               status: 'success',
+//               data: {
+//                 playlistId: 'uuid-123',
+//                 isPublic: false,
+//                 secretToken: 'abc9xyz',
+//               },
+//             },
+//           },
+//         },
+//       },
+//     }),
+//     ApiResponse({ status: 400, description: 'Playlist is already in the requested state' }),
+//     ApiResponse({ status: 403, description: 'Not the owner' }),
+//     ApiResponse({ status: 404, description: 'Playlist not found' })
+//   );
+// }
 
 export function ApiGetPublicPlaylist() {
   return applyDecorators(

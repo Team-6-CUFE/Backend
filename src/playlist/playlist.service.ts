@@ -16,6 +16,8 @@ import { StorageService } from '../common/storage_service';
 import { ActivityService } from '../activity/activity.service';
 import { ActivityType } from '../activity/entities/activity.entity';
 import { getLocationFromIp } from '../common/utilities/geolocation.util';
+import { addDocuments, deleteDocument, mapAlbum, mapPlaylist } from '../search/indexing';
+import { generateVerificationToken } from '../common/utilities/tokens.util';
 
 @Injectable()
 export class PlaylistService {
@@ -353,6 +355,100 @@ export class PlaylistService {
     };
   }
 
+  // async updatePlaylist(
+  //   userId: string,
+  //   playlistId: string,
+  //   updateDto: UpdatePlaylistDto,
+  //   file?: Express.Multer.File
+  // ) {
+  //   const playlist = await this.playlistRepository.findPlaylistById(playlistId);
+  //   if (!playlist) {
+  //     throw new NotFoundException('Playlist not found');
+  //   }
+  //   if (playlist.userId !== userId) {
+  //     throw new ForbiddenException('You can only edit your own playlists');
+  //   }
+
+  //   const updateData: Partial<Playlist> = {};
+
+  //   if (updateDto.title !== undefined) {
+  //     updateData.title = updateDto.title;
+  //   }
+  //   if (updateDto.description !== undefined) {
+  //     updateData.description = updateDto.description;
+  //   }
+  //   if (updateDto.buyLink !== undefined) updateData.buyLink = updateDto.buyLink;
+  //   if (updateDto.recordLabel !== undefined) updateData.recordLabel = updateDto.recordLabel;
+  //   if (updateDto.type !== undefined) updateData.type = updateDto.type;
+  //   if (updateDto.releaseDate !== undefined)
+  //     updateData.releaseDate = new Date(updateDto.releaseDate);
+  //   if (updateDto.permalink !== undefined) updateData.permalink = updateDto.permalink;
+  //   if (file) {
+  //     const oldCoverUrl = playlist.coverImage;
+
+  //     const processedBuffer = await sharp(file.buffer)
+  //       .resize(500, 500, { fit: 'cover' })
+  //       .webp({ quality: 80 })
+  //       .toBuffer();
+
+  //     const processedFile: Express.Multer.File = {
+  //       ...file,
+  //       buffer: processedBuffer,
+  //       originalname: `playlists/${playlistId}/cover_${Date.now()}.webp`,
+  //       mimetype: 'image/webp',
+  //       size: processedBuffer.length,
+  //     };
+
+  //     const uploaded = await this.storageService.uploadFile(processedFile);
+  //     updateData.coverImage = uploaded.Location;
+
+  //     if (oldCoverUrl) {
+  //       this.storageService
+  //         .deleteFile(oldCoverUrl)
+  //         .catch((err) => console.warn(`Failed to delete old cover ${oldCoverUrl}`, err));
+  //     }
+  //   }
+  //   if (updateDto.tags !== undefined) {
+  //     const tags =
+  //       updateDto.tags.length > 0
+  //         ? await Promise.all(
+  //             updateDto.tags.map((tag) => this.playlistRepository.findOrCreateGenre(tag))
+  //           )
+  //         : [];
+
+  //     await this.playlistRepository.updatePlaylistTags(playlistId, tags);
+  //   }
+  //   if (updateDto.genre !== undefined) {
+  //     if (updateDto.genre.length > 0) {
+  //       // Find or create a single genre
+  //       const genre = await this.playlistRepository.findOrCreateGenre(updateDto.genre);
+  //       await this.playlistRepository.updatePlaylistGenre(playlistId, genre);
+  //     } else {
+  //       // If genre is empty string, set to null
+  //       await this.playlistRepository.updatePlaylistGenre(playlistId, null);
+  //     }
+  //   }
+  //   await this.playlistRepository.updatePlaylist(playlistId, updateData);
+  //   const updatedWithTags = await this.playlistRepository.getPlaylistWithTagsandGenre(playlistId);
+  //   return {
+  //     status: 'Success',
+  //     message: 'Playlist updated successfully',
+  //     data: {
+  //       playlistId: updatedWithTags!.playlistId,
+  //       title: updatedWithTags!.title,
+  //       description: updatedWithTags!.description,
+  //       coverImage: updatedWithTags!.coverImage,
+  //       updatedAt: updatedWithTags!.updatedAt,
+  //       buyLink: updatedWithTags!.buyLink,
+  //       recordLabel: updatedWithTags!.recordLabel,
+  //       type: updatedWithTags!.type,
+  //       releaseDate: updatedWithTags!.releaseDate,
+  //       permalink: updatedWithTags!.permalink,
+  //       tags: updatedWithTags!.tags.map((t) => ({ tagId: t.genreId, name: t.name })),
+  //       genre: updatedWithTags!.genre?.name,
+  //     },
+  //   };
+  // }
   async updatePlaylist(
     userId: string,
     playlistId: string,
@@ -360,30 +456,43 @@ export class PlaylistService {
     file?: Express.Multer.File
   ) {
     const playlist = await this.playlistRepository.findPlaylistById(playlistId);
-    if (!playlist) {
-      throw new NotFoundException('Playlist not found');
-    }
-    if (playlist.userId !== userId) {
+    if (!playlist) throw new NotFoundException('Playlist not found');
+    if (playlist.userId !== userId)
       throw new ForbiddenException('You can only edit your own playlists');
-    }
 
     const updateData: Partial<Playlist> = {};
 
-    if (updateDto.title !== undefined) {
-      updateData.title = updateDto.title;
-    }
-    if (updateDto.description !== undefined) {
-      updateData.description = updateDto.description;
-    }
+    // --- existing fields ---
+    if (updateDto.title !== undefined) updateData.title = updateDto.title;
+    if (updateDto.description !== undefined) updateData.description = updateDto.description;
     if (updateDto.buyLink !== undefined) updateData.buyLink = updateDto.buyLink;
     if (updateDto.recordLabel !== undefined) updateData.recordLabel = updateDto.recordLabel;
     if (updateDto.type !== undefined) updateData.type = updateDto.type;
     if (updateDto.releaseDate !== undefined)
       updateData.releaseDate = new Date(updateDto.releaseDate);
     if (updateDto.permalink !== undefined) updateData.permalink = updateDto.permalink;
+
+    // --- privacy ---
+    let newSecretToken: string | null = null;
+    if (updateDto.isPublic !== undefined) {
+      if (updateDto.isPublic && playlist.isPublic === true)
+        throw new BadRequestException('Playlist is already public');
+      if (!updateDto.isPublic && playlist.isPublic === false)
+        throw new BadRequestException('Playlist is already private');
+
+      if (!updateDto.isPublic) {
+        newSecretToken = generateVerificationToken();
+        updateData.secretToken = newSecretToken;
+        updateData.isPublic = false;
+      } else {
+        updateData.secretToken = null;
+        updateData.isPublic = true;
+      }
+    }
+
+    // --- cover image ---
     if (file) {
       const oldCoverUrl = playlist.coverImage;
-
       const processedBuffer = await sharp(file.buffer)
         .resize(500, 500, { fit: 'cover' })
         .webp({ quality: 80 })
@@ -406,6 +515,8 @@ export class PlaylistService {
           .catch((err) => console.warn(`Failed to delete old cover ${oldCoverUrl}`, err));
       }
     }
+
+    // --- tags & genre ---
     if (updateDto.tags !== undefined) {
       const tags =
         updateDto.tags.length > 0
@@ -413,20 +524,36 @@ export class PlaylistService {
               updateDto.tags.map((tag) => this.playlistRepository.findOrCreateGenre(tag))
             )
           : [];
-
       await this.playlistRepository.updatePlaylistTags(playlistId, tags);
     }
+
     if (updateDto.genre !== undefined) {
       if (updateDto.genre.length > 0) {
-        // Find or create a single genre
         const genre = await this.playlistRepository.findOrCreateGenre(updateDto.genre);
         await this.playlistRepository.updatePlaylistGenre(playlistId, genre);
       } else {
-        // If genre is empty string, set to null
         await this.playlistRepository.updatePlaylistGenre(playlistId, null);
       }
     }
+
+    // --- persist ---
     await this.playlistRepository.updatePlaylist(playlistId, updateData);
+
+    // --- sync search index ---
+    if (updateDto.isPublic === false) {
+      await deleteDocument(`playlist_${playlistId}`);
+      await deleteDocument(`album_${playlistId}`);
+    } else {
+      const updated = await this.playlistRepository.getPlaylistWithTagsandGenre(playlistId);
+      if (updated) {
+        const isAlbum = updated.type === PlaylistType.ALBUM;
+        await deleteDocument(`playlist_${playlistId}`);
+        await deleteDocument(`album_${playlistId}`);
+        await addDocuments([isAlbum ? mapAlbum(updated) : mapPlaylist(updated)]);
+      }
+    }
+
+    // --- response ---
     const updatedWithTags = await this.playlistRepository.getPlaylistWithTagsandGenre(playlistId);
     return {
       status: 'Success',
@@ -442,6 +569,8 @@ export class PlaylistService {
         type: updatedWithTags!.type,
         releaseDate: updatedWithTags!.releaseDate,
         permalink: updatedWithTags!.permalink,
+        isPublic: updatedWithTags!.isPublic,
+        ...(newSecretToken && { secretToken: newSecretToken }),
         tags: updatedWithTags!.tags.map((t) => ({ tagId: t.genreId, name: t.name })),
         genre: updatedWithTags!.genre?.name,
       },

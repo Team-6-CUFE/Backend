@@ -16,6 +16,15 @@ jest.mock('./decorators/user-exists.decorator', () => ({
   CheckUserExists: (..._args: string[]) => jest.fn(),
 }));
 
+jest.mock('meilisearch', () => ({
+  Meilisearch: jest.fn().mockImplementation(() => ({
+    index: jest.fn().mockReturnValue({
+      addDocuments: jest.fn(),
+      search: jest.fn(),
+    }),
+  })),
+}));
+
 describe('FollowersController', () => {
   let controller: FollowersController;
 

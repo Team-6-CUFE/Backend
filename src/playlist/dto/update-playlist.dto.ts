@@ -6,6 +6,7 @@ import {
   IsEnum,
   IsDateString,
   IsUrl,
+  IsBoolean,
 } from 'class-validator';
 import { ApiPropertyOptional } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
@@ -60,4 +61,9 @@ export class UpdatePlaylistDto {
   @IsOptional()
   @MaxLength(255)
   permalink?: string;
+
+  @ApiPropertyOptional({ example: true })
+  @IsBoolean()
+  @IsOptional()
+  isPublic?: boolean;
 }

@@ -1,0 +1,89 @@
+import { getIndex } from './client';
+import { AutocompleteHit, SearchParams, SearchResult } from './types';
+
+export interface SearchResponse {
+  hits: SearchResult[];
+  total: number;
+}
+
+// Returns ordered IDs and total count — caller fetches live data from DB
+export async function search(params: SearchParams): Promise<SearchResponse> {
+  const {
+    query,
+    type,
+    genre,
+    tag,
+    city,
+    durationRange,
+    createdAtLimit,
+    limit = 20,
+    offset = 0,
+  } = params;
+  const index = getIndex();
+
+  const filters: string[] = [];
+
+  if (type && type !== 'all') filters.push(`type = "${type}"`);
+  if (city) filters.push(`city = "${city}"`);
+
+  if (durationRange) {
+    const [min, max] = [durationRange.min, durationRange.max].map(Number);
+    if (!Number.isNaN(min)) filters.push(`duration >= ${min}`);
+    if (!Number.isNaN(max)) filters.push(`duration <= ${max}`);
+  }
+  if (createdAtLimit) {
+    const createdAtLimitString = new Date(createdAtLimit).toISOString();
+    filters.push(`created_at >= "${createdAtLimitString}"`);
+  }
+
+  let genreAndTagFilters;
+  if (genre && tag) {
+    genreAndTagFilters = `genre = "${genre}" OR tags = "${tag}"`;
+  }
+
+  let filterString = filters.length ? filters.join(' AND ') : undefined;
+  if (genreAndTagFilters) {
+    filterString = filterString
+      ? `(${filterString}) AND (${genreAndTagFilters})`
+      : genreAndTagFilters;
+  }
+
+  const results = await index.search(query, {
+    filter: filterString,
+    limit,
+    offset,
+    attributesToRetrieve: ['id', 'type'],
+  });
+
+  return {
+    hits: results.hits as SearchResult[],
+    total: (results as any).estimatedTotalHits ?? (results as any).nbHits ?? results.hits.length,
+  };
+}
+
+export async function autocomplete(query: string): Promise<string[]> {
+  const index = getIndex();
+
+  const results = await index.search(query, {
+    limit: 10,
+    attributesToRetrieve: ['title', 'username', 'display_name'],
+    attributesToSearchOn: ['title', 'username', 'display_name'],
+  });
+
+  const hits = results.hits as AutocompleteHit[];
+  const q = query.toLowerCase();
+
+  const suggestions = hits
+    .flatMap((hit) => {
+      const matches: string[] = [];
+      if (hit.title?.toLowerCase().includes(q)) matches.push(hit.title);
+      if (hit.username?.toLowerCase().includes(q)) matches.push(hit.username);
+      if (hit.display_name?.toLowerCase().includes(q)) matches.push(hit.display_name);
+      return matches;
+    })
+    .map((s) => s.toLowerCase().trim())
+    .filter((s, i, arr) => arr.indexOf(s) === i)
+    .slice(0, 8);
+
+  return suggestions;
+}

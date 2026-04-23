@@ -20,6 +20,15 @@ import {
   mockUserTrackRepository,
 } from './test/user.mock';
 
+jest.mock('meilisearch', () => ({
+  Meilisearch: jest.fn().mockImplementation(() => ({
+    index: jest.fn().mockReturnValue({
+      addDocuments: jest.fn(),
+      search: jest.fn(),
+    }),
+  })),
+}));
+
 describe('ProfileService', () => {
   let service: ProfileService;
   let userRepo: ReturnType<typeof mockUserRepository>;
