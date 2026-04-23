@@ -18,6 +18,7 @@ describe('NotificationsService', () => {
     getNotifications: jest.fn(),
     deleteNotification: jest.fn(),
     markAsRead: jest.fn(),
+    markAllAsRead: jest.fn(),
   };
 
   const mockWebsocketsService = {
@@ -161,6 +162,19 @@ describe('NotificationsService', () => {
 
       // Verify it still attempted the call
       expect(repo.markAsRead).toHaveBeenCalledWith('notif-uuid', 'user-uuid');
+    });
+  });
+
+  describe('markAllAsRead', () => {
+    it('should call the repository to mark all notifications as read', async () => {
+      // Arrange
+      mockNotificationsRepository.markAllAsRead.mockResolvedValue(undefined);
+
+      // Act
+      await service.markAllAsRead('user-123');
+
+      // Assert
+      expect(repo.markAllAsRead).toHaveBeenCalledWith('user-123');
     });
   });
 });

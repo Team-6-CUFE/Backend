@@ -10,6 +10,7 @@ describe('NotificationsController', () => {
   const mockNotificationsService = {
     getNotifications: jest.fn(),
     markAsRead: jest.fn(),
+    markAllAsRead: jest.fn(),
   };
 
   beforeEach(async () => {
@@ -95,6 +96,24 @@ describe('NotificationsController', () => {
       expect(response).toEqual({
         status: 'success',
         message: 'Notification marked as read',
+      });
+    });
+  });
+
+  describe('markAllAsRead', () => {
+    it('should call the service and return a success payload', async () => {
+      // Arrange
+      mockNotificationsService.markAllAsRead.mockResolvedValue(undefined);
+      const userId = 'user-123';
+
+      // Act
+      const response = await controller.markAllAsRead(userId);
+
+      // Assert
+      expect(service.markAllAsRead).toHaveBeenCalledWith(userId);
+      expect(response).toEqual({
+        status: 'success',
+        message: 'All notifications marked as read',
       });
     });
   });
