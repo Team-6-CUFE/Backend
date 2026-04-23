@@ -4,14 +4,34 @@ import cookieParser from 'cookie-parser';
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 import session from 'express-session';
 import { ConfigService } from '@nestjs/config';
-import { AppModule } from './app.module';
+import { createClient } from 'redis';
+import { createAdapter } from '@socket.io/redis-adapter';
+import { IoAdapter } from '@nestjs/platform-socket.io';
 import { createRedisSessionStore } from './redis/redis-session.store';
+import { AppModule } from './app.module';
 import { configureMeilisearch } from './search/configure';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
   const configService = app.get(ConfigService);
   app.getHttpAdapter().getInstance().set('trust proxy', 1);
+  const redisUrl = configService.get<string>('REDIS_URL')!;
+
+  const pubClient = createClient({ url: redisUrl });
+  const subClient = pubClient.duplicate();
+  await Promise.all([pubClient.connect(), subClient.connect()]);
+
+  const redisAdapter = createAdapter(pubClient, subClient);
+
+  class RedisIoAdapter extends IoAdapter {
+    createIOServer(port: number, options?: any) {
+      const server = super.createIOServer(port, options);
+      server.adapter(redisAdapter);
+      return server;
+    }
+  }
+
+  app.useWebSocketAdapter(new RedisIoAdapter(app));
 
   app.use(cookieParser());
 

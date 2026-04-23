@@ -103,4 +103,11 @@ export const mockFollowersService = {
 
 export const mockActivitiesService = {
   createActivity: jest.fn(),
+  deleteActivity: jest.fn(),
+};
+
+// ADD 'export' HERE
+export const mockNotificationsService = {
+  deleteNotification: jest.fn(),
+  notifyNewFollower: jest.fn(),
 };
