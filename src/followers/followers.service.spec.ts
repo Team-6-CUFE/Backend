@@ -19,8 +19,10 @@ import {
   mockUserBlock,
   mockSuggestedUsersData,
   mockActivitiesService,
+  mockNotificationsService,
 } from './test/followers.mock';
 import { ActivityService } from '../activity/activity.service';
+import { NotificationsService } from '../notifications/notifications.service';
 
 describe('FollowersService', () => {
   let service: FollowersService;
@@ -34,6 +36,7 @@ describe('FollowersService', () => {
         { provide: FollowersRepository, useValue: mockFollowersRepository },
         { provide: UserRepository, useValue: mockUserRepository },
         { provide: ActivityService, useValue: mockActivitiesService },
+        { provide: NotificationsService, useValue: mockNotificationsService },
       ],
     }).compile();
 
@@ -86,15 +89,31 @@ describe('FollowersService', () => {
   });
 
   describe('unfollowUser', () => {
-    it('should delete the follow and return success', async () => {
+    it('should delete the follow, clean up activity/notification, and return success', async () => {
+      // Arrange
       mockFollowersRepository.deleteFollow.mockResolvedValue(true);
 
+      // Act
       const result = await service.unfollowUser(mockFollowerId, mockFollowedId);
 
+      // Assert Response
       expect(result).toEqual({ status: 'success', message: 'Successfully unfollowed user' });
       expect(mockFollowersRepository.deleteFollow).toHaveBeenCalledWith(
         mockFollowerId,
         mockFollowedId
+      );
+
+      // Assert Side Effects (Cleanup)
+      expect(mockActivitiesService.deleteActivity).toHaveBeenCalledWith(
+        expect.any(String), // Matches ActivityType.USER_FOLLOW
+        mockFollowedId,
+        mockFollowerId
+      );
+
+      expect(mockNotificationsService.deleteNotification).toHaveBeenCalledWith(
+        mockFollowedId,
+        mockFollowerId,
+        expect.any(String) // Matches NotificationType.NEW_FOLLOWER
       );
     });
 
