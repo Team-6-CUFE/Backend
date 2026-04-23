@@ -10,9 +10,15 @@ import { NoBlockGuard } from './guards/no-block.guard';
 import { UserExistsGuard } from './guards/user-exists.guard';
 import { User } from '../user/entities/user.entity';
 import { ActivityModule } from '../activity/activity.module';
+import { NotificationsModule } from '../notifications/notifications.module';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([UserFollow, UserBlock, User]), UserModule, ActivityModule],
+  imports: [
+    TypeOrmModule.forFeature([UserFollow, UserBlock, User]),
+    UserModule,
+    ActivityModule,
+    NotificationsModule,
+  ],
   controllers: [FollowersController],
   providers: [FollowersService, FollowersRepository, NoBlockGuard, UserExistsGuard],
   exports: [FollowersRepository, NoBlockGuard],

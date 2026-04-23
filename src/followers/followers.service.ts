@@ -9,13 +9,16 @@ import { FollowersRepository } from './followers.repository';
 import { UserRepository } from '../user/user.repository';
 import { ActivityService } from '../activity/activity.service';
 import { ActivityType } from '../activity/entities/activity.entity';
+import { NotificationsService } from '../notifications/notifications.service';
+import { NotificationType } from '../notifications/entities/notification.entity';
 
 @Injectable()
 export class FollowersService {
   constructor(
     private readonly followersRepository: FollowersRepository,
     private readonly userRepository: UserRepository,
-    private readonly activityService: ActivityService
+    private readonly activityService: ActivityService,
+    private readonly notificationsService: NotificationsService
   ) {}
 
   async getFollowing(userId: string, page: number, limit: number) {
@@ -124,14 +127,34 @@ export class FollowersService {
     };
   }
 
+  // inside followers.service.ts
+
   async unfollowUser(followerId: string, followedId: string) {
     if (followerId === followedId) {
       throw new BadRequestException('You cannot unfollow yourself');
     }
+
     const deleted = await this.followersRepository.deleteFollow(followerId, followedId);
     if (!deleted) {
       throw new NotFoundException('You are not following this user');
     }
+
+    // --- ADD THIS CLEANUP ---
+    // 1. Remove from Activity Feed
+    await this.activityService.deleteActivity(
+      ActivityType.USER_FOLLOW,
+      followedId, // targetId
+      followerId // userId (actor)
+    );
+
+    // 2. Remove the Notification
+    await this.notificationsService.deleteNotification(
+      followedId, // recipient
+      followerId, // actor
+      NotificationType.NEW_FOLLOWER // type
+    );
+    // ------------------------
+
     return {
       status: 'success',
       message: 'Successfully unfollowed user',
@@ -142,17 +165,30 @@ export class FollowersService {
     if (followerId === followedId) {
       throw new BadRequestException('You cannot follow yourself');
     }
+
     const alreadyFollowing = await this.followersRepository.isFollowing(followerId, followedId);
     if (alreadyFollowing) {
       throw new ConflictException('You are already following this user');
     }
+
     const follow = await this.followersRepository.createFollow(followerId, followedId);
+
+    // This creates the "Feed" item
     await this.activityService.createActivity(
       ActivityType.USER_FOLLOW,
       followedId,
       followerId,
       followedId
     );
+
+    // 2. TRIGGER THE REAL-TIME NOTIFICATION
+    // Fetch the actor details so the notification has the username/avatar
+    const actor = await this.userRepository.findById(followerId);
+    if (actor) {
+      // This handles the DB save AND the WebSocket emit
+      await this.notificationsService.notifyNewFollower(followedId, actor as any);
+    }
+
     return {
       status: 'success',
       data: {

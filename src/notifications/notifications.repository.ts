@@ -1,3 +1,4 @@
+// notifications.repository.ts
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
@@ -26,6 +27,46 @@ export class NotificationsRepository {
   async getUnreadCount(recipientId: string): Promise<number> {
     return this.repo.count({
       where: { recipientId, isRead: false },
+    });
+  }
+
+  // --- ADD THIS METHOD ---
+  async getNotifications(
+    userId: string,
+    limit: number,
+    offset: number,
+    type?: string
+  ): Promise<[Notification[], number]> {
+    const query = this.repo
+      .createQueryBuilder('notification')
+      .leftJoinAndSelect('notification.actor', 'actor')
+      // If your entity has these relations, join them:
+      // .leftJoinAndSelect('notification.track', 'track')
+      // .leftJoinAndSelect('notification.playlist', 'playlist')
+      .where('notification.recipientId = :userId', { userId })
+      .orderBy('notification.createdAt', 'DESC')
+      .take(limit)
+      .skip(offset);
+
+    if (type) {
+      query.andWhere('notification.type = :type', { type });
+    }
+
+    return query.getManyAndCount();
+  }
+
+  // Add this inside notifications.repository.ts
+  async deleteNotification(
+    recipientId: string,
+    actorId: string,
+    type: NotificationType
+  ): Promise<void> {
+    // Note: If your entity uses relation objects instead of raw IDs,
+    // you might need to use `recipient: { userId: recipientId }` instead.
+    await this.repo.delete({
+      recipientId,
+      actorId,
+      type,
     });
   }
 }
