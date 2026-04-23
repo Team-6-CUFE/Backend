@@ -13,6 +13,8 @@ export enum NotificationType {
   NEW_LIKE = 'new_like',
   NEW_REPOST = 'new_repost',
   NEW_COMMENT = 'new_comment',
+  NEW_POST = 'new_post',
+  MESSAGE = 'message',
 }
 
 @Entity('notifications')
@@ -50,4 +52,6 @@ export class Notification {
   track: any;
 
   playlist: any;
+
+  message: any;
 }
