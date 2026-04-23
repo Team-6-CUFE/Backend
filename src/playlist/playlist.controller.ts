@@ -55,6 +55,17 @@ import { AddTrackDto } from './dto/add-track.dto';
 export class PlaylistController {
   constructor(private readonly playlistService: PlaylistService) {}
 
+  @ApiGetMyPlaylists()
+  @Get('/me')
+  async getMyPlaylists(
+    @CurrentUser('sub') userId: string,
+    @Query('page') page: number = 1,
+    @Query('limit') limit: number = 20
+  ) {
+    console.log('getting my playlist', userId);
+    return this.playlistService.getMyPlaylists(userId, page, limit);
+  }
+
   @ApiRepostPlaylist()
   @Post(':playlistId/repost')
   repostPlaylist(
@@ -264,16 +275,6 @@ export class PlaylistController {
     return this.playlistService.resetSecretToken(playlistId, userId);
   }
 
-  @ApiGetMyPlaylists()
-  @Get('me')
-  async getMyPlaylists(
-    @CurrentUser('sub') userId: string,
-    @Query('page') page: number = 1,
-    @Query('limit') limit: number = 20
-  ) {
-    return this.playlistService.getMyPlaylists(userId, page, limit);
-  }
-
   @ApiGetUserPlaylists()
   @CheckBlock()
   @Get('users/:user_id/playlists')
@@ -283,6 +284,7 @@ export class PlaylistController {
     @Query('page') page: number = 1,
     @Query('limit') limit: number = 20
   ) {
+    console.log("getting a user's playlist", userId);
     return this.playlistService.getUserPlaylists(userId, myUserId, page, limit);
   }
 }
