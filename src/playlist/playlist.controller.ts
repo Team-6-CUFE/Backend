@@ -38,7 +38,6 @@ import {
   ApiDeletePlaylist,
   ApiGetUserCreatedPlaylists,
   ApiReorderTracks,
-  ApiChangePlaylistPrivacy,
   ApiGetPublicPlaylist,
   ApiGetSecretPlaylist,
   ApiResetPlaylistSecretToken,
@@ -233,15 +232,15 @@ export class PlaylistController {
     return this.playlistService.reorder(playlistId, trackIds, userId);
   }
 
-  @ApiChangePlaylistPrivacy()
-  @Patch('/:playlistId/privacy')
-  changePlaylistPrivacy(
-    @Param('playlistId') playlistId: string,
-    @Body('isPublic') isPublic: boolean,
-    @CurrentUser('sub') userId: string
-  ) {
-    return this.playlistService.changePlaylistPrivacy(playlistId, isPublic, userId);
-  }
+  // @ApiChangePlaylistPrivacy()
+  // @Patch('/:playlistId/privacy')
+  // changePlaylistPrivacy(
+  //   @Param('playlistId') playlistId: string,
+  //   @Body('isPublic') isPublic: boolean,
+  //   @CurrentUser('sub') userId: string
+  // ) {
+  //   return this.playlistService.changePlaylistPrivacy(playlistId, isPublic, userId);
+  // }
 
   @ApiGetPublicPlaylist()
   @Get('/:playlistId')

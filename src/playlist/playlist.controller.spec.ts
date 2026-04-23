@@ -806,37 +806,6 @@ describe('PlaylistController', () => {
     });
   });
 
-  // ─── changePlaylistPrivacy ────────────────────────────────────────────────
-
-  describe('changePlaylistPrivacy', () => {
-    it('should delegate to service with playlistId, isPublic, and userId', async () => {
-      const mockResponse = {
-        status: 'success',
-        data: { playlistId: mockPlaylistId, isPublic: false, secretToken: 'tok' },
-      };
-      service.changePlaylistPrivacy.mockResolvedValue(mockResponse);
-
-      const result = await controller.changePlaylistPrivacy(mockPlaylistId, false, mockUserId);
-
-      expect(service.changePlaylistPrivacy).toHaveBeenCalledWith(mockPlaylistId, false, mockUserId);
-      expect(result).toBe(mockResponse);
-    });
-
-    it('should propagate NotFoundException from service', async () => {
-      service.changePlaylistPrivacy.mockRejectedValue(new NotFoundException());
-      await expect(
-        controller.changePlaylistPrivacy(mockPlaylistId, true, mockUserId)
-      ).rejects.toThrow(NotFoundException);
-    });
-
-    it('should propagate ForbiddenException from service', async () => {
-      service.changePlaylistPrivacy.mockRejectedValue(new ForbiddenException());
-      await expect(
-        controller.changePlaylistPrivacy(mockPlaylistId, true, mockUserId)
-      ).rejects.toThrow(ForbiddenException);
-    });
-  });
-
   // ─── getPublicPlaylist ────────────────────────────────────────────────────
 
   describe('getPublicPlaylist', () => {
