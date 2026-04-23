@@ -46,4 +46,8 @@ export class Notification {
     name: 'created_at',
   })
   createdAt!: Date;
+
+  track: any;
+
+  playlist: any;
 }

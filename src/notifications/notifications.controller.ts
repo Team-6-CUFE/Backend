@@ -33,7 +33,7 @@ export class NotificationsController {
           limit: safeLimit,
           offset,
           total: result.total,
-          has_more: offset + safeLimit < result.total, // Returns true if there are more items
+          hasMore: offset + safeLimit < result.total, // Returns true if there are more items
         },
       },
     };

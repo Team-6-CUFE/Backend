@@ -40,7 +40,7 @@ export class NotificationsRepository {
     const query = this.repo
       .createQueryBuilder('notification')
       .leftJoinAndSelect('notification.actor', 'actor')
-      // If your entity has these relations, join them:
+      // UNCOMMENT THESE when Tracks and Playlists are added to the Notification Entity:
       // .leftJoinAndSelect('notification.track', 'track')
       // .leftJoinAndSelect('notification.playlist', 'playlist')
       .where('notification.recipientId = :userId', { userId })

@@ -36,7 +36,6 @@ export class NotificationsService {
     });
   }
 
-  // --- ADD THIS METHOD ---
   async getNotifications(userId: string, limit: number, offset: number, type?: string) {
     const [notifications, total] = await this.notificationsRepository.getNotifications(
       userId,
@@ -45,34 +44,56 @@ export class NotificationsService {
       type
     );
 
-    const formattedNotifications = notifications.map((notif) => ({
-      notification_id: notif.notificationId,
-      is_read: notif.isRead,
-      created_at: notif.createdAt,
-      activity: {
-        activity_id: `act_${notif.notificationId}`,
-        activity_type: notif.type,
-        actor: {
-          user_id: notif.actor?.userId,
-          username: notif.actor?.username,
-          display_name: notif.actor?.username, // Add display_name if available
-          avatar_url: notif.actor?.avatarUrl,
+    const formattedNotifications = notifications.map((notif) => {
+      // Logic to populate the target based on what is attached to the notification
+      let target = null;
+
+      // NOTE: This assumes your Notification entity has a `track` or `playlist` relation.
+      // Adjust the property names (e.g., track.trackId, track.coverImageUrl) to match your actual entities.
+      if (notif.track) {
+        target = {
+          type: 'track',
+          trackId: notif.track.trackId,
+          title: notif.track.title,
+          coverImageUrl: notif.track.coverImageUrl,
+        };
+      } else if (notif.playlist) {
+        target = {
+          type: 'playlist',
+          playlistId: notif.playlist.playlistId,
+          title: notif.playlist.title,
+          coverImageUrl: notif.playlist.coverImageUrl,
+        };
+      }
+
+      return {
+        notificationId: notif.notificationId,
+        isRead: notif.isRead,
+        createdAt: notif.createdAt,
+        activity: {
+          activityId: `act_${notif.notificationId}`,
+          activityType: notif.type,
+          actor: {
+            userId: notif.actor?.userId,
+            username: notif.actor?.username,
+            displayName: notif.actor?.username, // Falls back to username if display name isn't on the entity yet
+            avatarUrl: notif.actor?.avatarUrl,
+          },
+          target,
+          createdAt: notif.createdAt,
         },
-        target: null, // Logic for track/playlist targets goes here
-        created_at: notif.createdAt,
-      },
-    }));
+      };
+    });
 
     return { notifications: formattedNotifications, total };
   }
 
-  // Add this inside notifications.service.ts
+  // 2. The DELETE method (MAKE SURE THIS IS HERE AND INSIDE THE CLASS)
   async deleteNotification(
     recipientId: string,
     actorId: string,
-    type: NotificationType
+    type: NotificationType // Make sure NotificationType is imported at the top!
   ): Promise<void> {
-    // We pass this down to your custom repository to handle the DB deletion
     await this.notificationsRepository.deleteNotification(recipientId, actorId, type);
   }
 }
