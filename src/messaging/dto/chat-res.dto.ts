@@ -1,6 +1,7 @@
 import { Expose, Exclude, Type } from 'class-transformer';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { MessageResDto } from './message-res.dto';
+import { OtherUserDto } from './other-user.dto';
 
 @Exclude()
 export class ChatResDto {
@@ -31,6 +32,11 @@ export class ChatResDto {
   @ApiProperty({ description: 'Unread message count for the current user', example: 3 })
   @Expose()
   unreadCount!: number;
+
+  @ApiProperty({ type: () => OtherUserDto })
+  @Expose()
+  @Type(() => OtherUserDto)
+  otherUser!: OtherUserDto;
 
   @ApiPropertyOptional({ type: () => MessageResDto })
   @Expose()
