@@ -131,3 +131,26 @@ export function ApiMarkNotificationRead() {
     ...commonErrorResponses
   );
 }
+
+export function ApiMarkAllNotificationsRead() {
+  return applyDecorators(
+    ApiCookieAuth('access_token'),
+    ApiOperation({
+      summary: 'Mark all notifications as read',
+      description: 'Marks all unread notifications as read for the authenticated user.',
+    }),
+    ApiResponse({
+      status: HttpStatus.OK,
+      description: 'All notifications successfully marked as read',
+      content: {
+        'application/json': {
+          example: {
+            status: 'success',
+            message: 'All notifications marked as read',
+          },
+        },
+      },
+    }),
+    ...commonErrorResponses
+  );
+}
