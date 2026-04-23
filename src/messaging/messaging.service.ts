@@ -49,15 +49,20 @@ export class MessagingService {
     }
 
     const chat = await this.messagingRepository.createChat(currentUserId, dto.participantTwoId);
-
+    const chatWithRelations = await this.messagingRepository.findChatByIdWithParticipants(
+      chat.chatId
+    );
+    // emit new chat to other user
+    const formattedForOther = await this.formatChat(chatWithRelations, dto.participantTwoId);
+    this.websocketsService.emitToUser(dto.participantTwoId, 'chat:new', formattedForOther);
     return {
       status: 'success',
-      data: await this.formatChat(chat, currentUserId),
+      data: await this.formatChat(chatWithRelations, currentUserId),
     };
   }
 
-  async getInbox(currentUserId: string, page: number, limit: number) {
-    const { chats, total } = await this.messagingRepository.getInbox(currentUserId, page, limit);
+  async getChats(currentUserId: string, page: number, limit: number) {
+    const { chats, total } = await this.messagingRepository.getChats(currentUserId, page, limit);
 
     const formatted = await Promise.all(chats.map((chat) => this.formatChat(chat, currentUserId)));
 
@@ -117,6 +122,12 @@ export class MessagingService {
     this.assertMessagePayload(dto);
 
     const message = await this.messagingRepository.createMessage(currentUserId, dto);
+
+    const otherId = await this.getOtherParticipantId(dto.chatId, currentUserId);
+    await Promise.all([
+      this.messagingRepository.setChatArchived(dto.chatId, currentUserId, false),
+      this.messagingRepository.setChatArchived(dto.chatId, otherId, false),
+    ]);
 
     const formatted = plainToInstance(MessageResDto, message);
 
@@ -201,11 +212,22 @@ export class MessagingService {
       status?.lastReadMessageId ?? null
     );
 
+    const otherParticipant =
+      chat.participantOne?.userId === currentUserId ? chat.participantTwo : chat.participantOne;
+
     return plainToInstance(ChatResDto, {
       ...chat,
       isArchived: status?.isArchived ?? false,
       unreadCount,
       lastMessage: chat.lastMessage ?? null,
+      otherUser: otherParticipant
+        ? {
+            userId: otherParticipant.userId,
+            username: otherParticipant.username,
+            displayName: otherParticipant.displayName,
+            avatarUrl: otherParticipant.avatarUrl ?? null,
+          }
+        : null,
     });
   }
 }

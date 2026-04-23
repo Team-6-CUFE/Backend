@@ -24,6 +24,13 @@ export class MessagingRepository {
     return this.chatRepo.findOne({ where: { chatId } });
   }
 
+  async findChatByIdWithParticipants(chatId: string): Promise<Chat | null> {
+    return this.chatRepo.findOne({
+      where: { chatId },
+      relations: ['participantOne', 'participantTwo', 'lastMessage'],
+    });
+  }
+
   async findChatByParticipants(userOneId: string, userTwoId: string): Promise<Chat | null> {
     return this.chatRepo
       .createQueryBuilder('chat')
@@ -32,6 +39,8 @@ export class MessagingRepository {
         { a: userOneId, b: userTwoId }
       )
       .leftJoinAndSelect('chat.lastMessage', 'lastMessage')
+      .leftJoinAndSelect('chat.participantOne', 'participantOne')
+      .leftJoinAndSelect('chat.participantTwo', 'participantTwo')
       .getOne();
   }
 
@@ -40,7 +49,7 @@ export class MessagingRepository {
     return this.chatRepo.save(chat);
   }
 
-  async getInbox(
+  async getChats(
     userId: string,
     page: number,
     limit: number

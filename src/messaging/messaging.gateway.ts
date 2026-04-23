@@ -16,7 +16,14 @@ import { MarkReadDto } from './dto/ws/mark-read.dto';
 import { TypingDto } from './dto/ws/typing.dto';
 import { MessageResDto } from './dto/message-res.dto';
 
-@WebSocketGateway()
+@WebSocketGateway({
+  path: '/ws',
+  cors: {
+    origin: process.env.ALLOWED_ORIGINS?.split(',') ?? '*',
+    credentials: true,
+  },
+  transports: ['websocket'],
+})
 @UseFilters(WsExceptionFilter)
 @UsePipes(new ValidationPipe({ whitelist: true, forbidNonWhitelisted: true }))
 export class MessagingGateway {
@@ -58,7 +65,7 @@ export class MessagingGateway {
     if (!userId) throw new WsException('Unauthorized');
 
     try {
-      // Service handles persistence, block check, and emitting to the roomz
+      // Service handles persistence, block check, and emitting to the room
       const result = await this.messagingService.sendMessage(userId, dto);
       return { event: 'message:sent', data: result.data };
     } catch (err: any) {
