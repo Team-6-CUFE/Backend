@@ -12,7 +12,7 @@ import { ApiTags } from '@nestjs/swagger';
 import { NotificationsService } from './notifications.service';
 import { CurrentUser } from '../authentication/decorators/current-user.decorator';
 // 1. Import your custom decorators
-import { ApiGetNotifications } from './notifications.swagger'; // Adjust this path if you saved it elsewhere
+import { ApiGetNotifications, ApiMarkNotificationRead } from './notifications.swagger'; // Adjust this path if you saved it elsewhere
 
 @ApiTags('Notifications')
 @Controller('notifications')
@@ -52,7 +52,7 @@ export class NotificationsController {
   }
 
   @Patch(':notification_id/read')
-  // @ApiMarkNotificationRead()
+  @ApiMarkNotificationRead()
   async markAsRead(
     @Param('notification_id', ParseUUIDPipe) notificationId: string,
     @CurrentUser('sub') userId: string

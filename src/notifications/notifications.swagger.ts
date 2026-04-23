@@ -1,5 +1,5 @@
 import { applyDecorators, HttpStatus } from '@nestjs/common';
-import { ApiOperation, ApiQuery, ApiResponse, ApiCookieAuth } from '@nestjs/swagger';
+import { ApiOperation, ApiQuery, ApiResponse, ApiCookieAuth, ApiParam } from '@nestjs/swagger';
 
 const errorSchema = (statusCode: number, message: string) => ({
   schema: { example: { statusCode, message } },
@@ -95,6 +95,35 @@ export function ApiGetNotifications() {
                 },
               },
             },
+          },
+        },
+      },
+    }),
+    ...commonErrorResponses
+  );
+}
+
+export function ApiMarkNotificationRead() {
+  return applyDecorators(
+    ApiCookieAuth('access_token'),
+    ApiOperation({
+      summary: 'Mark notification as read',
+      description: 'Marks a specific notification as read for the authenticated user.',
+    }),
+    ApiParam({
+      name: 'notification_id',
+      type: String,
+      format: 'uuid',
+      description: 'The UUID of the notification to mark as read',
+    }),
+    ApiResponse({
+      status: HttpStatus.OK,
+      description: 'Notification successfully marked as read',
+      content: {
+        'application/json': {
+          example: {
+            status: 'success',
+            message: 'Notification marked as read',
           },
         },
       },
