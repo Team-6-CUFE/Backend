@@ -51,4 +51,17 @@ export class ActivityService {
       .take(limit)
       .getMany();
   }
+
+  // Add this inside activity.service.ts
+  async deleteActivity(
+    activityType: ActivityType,
+    targetId: string,
+    userId: string
+  ): Promise<void> {
+    await this.activityRepository.delete({
+      activityType,
+      targetId,
+      userId,
+    });
+  }
 }

@@ -1,0 +1,19 @@
+import { Module } from '@nestjs/common';
+import { TypeOrmModule } from '@nestjs/typeorm';
+import { Chat } from './entities/chat.entity';
+import { Message } from './entities/message.entity';
+import { ChatStatus } from './entities/chat-status.entity';
+import { MessagingRepository } from './messaging.repository';
+import { MessagingService } from './messaging.service';
+import { MessagingGateway } from './messaging.gateway';
+import { MessagingController } from './messaging.controller';
+import { WebsocketsModule } from '../websockets/websockets.module';
+import { UserBlock } from '../followers/entities/user-blocks.entity';
+
+@Module({
+  imports: [TypeOrmModule.forFeature([Chat, Message, ChatStatus, UserBlock]), WebsocketsModule],
+  providers: [MessagingRepository, MessagingService, MessagingGateway],
+  controllers: [MessagingController],
+  exports: [MessagingService],
+})
+export class MessagingModule {}
