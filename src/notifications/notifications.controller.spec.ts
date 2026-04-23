@@ -1,6 +1,7 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { NotificationsController } from './notifications.controller';
 import { NotificationsService } from './notifications.service';
+import { SettingsService } from '../settings/settings.service';
 
 describe('NotificationsController', () => {
   let controller: NotificationsController;
@@ -13,6 +14,10 @@ describe('NotificationsController', () => {
     markAllAsRead: jest.fn(),
   };
 
+  const mockSettingsService = {
+    getUserSettings: jest.fn(),
+  };
+
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       controllers: [NotificationsController],
@@ -20,6 +25,10 @@ describe('NotificationsController', () => {
         {
           provide: NotificationsService,
           useValue: mockNotificationsService, // Inject the fake service
+        },
+        {
+          provide: SettingsService,
+          useValue: mockSettingsService, // Inject the fake settings service
         },
       ],
     }).compile();
