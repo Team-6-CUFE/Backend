@@ -16,6 +16,7 @@ import {
   ApiGetNotifications,
   ApiMarkNotificationRead,
   ApiMarkAllNotificationsRead,
+  ApiGetNotificationSettings,
 } from './notifications.swagger'; // Adjust this path if you saved it elsewhere
 import { SettingsService } from '../settings/settings.service';
 
