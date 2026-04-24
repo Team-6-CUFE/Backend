@@ -132,4 +132,15 @@ export class DiscoveryController {
   async getLikedbyUsers(@CurrentUser('sub') userId: string) {
     return this.discoveryService.getLikedByUsers(userId);
   }
+
+  @Get('/liked-by/users/:userId')
+  async getLikedByUsersForUser(
+    @Param('userId') userId: string,
+    @CurrentUser('sub') currentUserId: string,
+    @Ip() ip: string,
+    @Query('page') page: number = 1,
+    @Query('limit') limit: number = 20
+  ) {
+    return this.discoveryService.getUserLikedby(currentUserId, userId, ip, page, limit);
+  }
 }
