@@ -120,4 +120,9 @@ export class DiscoveryController {
   async getRecommendedStations(@CurrentUser('sub') userId: string, @Ip() ip: string) {
     return this.discoveryService.getRecommendedStations(userId, ip);
   }
+
+  @Get('/trending/genres')
+  async getTrendingMusicPlaylists(@CurrentUser('sub') userId: string) {
+    return this.discoveryService.getTrendingMusicPlaylists(userId);
+  }
 }

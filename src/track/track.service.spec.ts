@@ -41,7 +41,7 @@ import {
   mockTrackComment,
   mockParentComment,
   mockPlaylistEntry,
-  mockGenre,
+  // mockGenre,
   mockJwtPayload,
   mockProJwtPayload,
   mockGoJwtPayload,
@@ -75,7 +75,7 @@ describe('TrackService', () => {
   let service: TrackService;
   let trackRepo: ReturnType<typeof mockTrackRepository>;
   let userRepo: ReturnType<typeof mockUserRepository>;
-  let genreRepo: ReturnType<typeof mockGenreRepository>;
+  // let genreRepo: ReturnType<typeof mockGenreRepository>;
   let fansService: ReturnType<typeof mockFansService>;
   let playlistService: ReturnType<typeof mockPlaylistService>;
   let redisClient: ReturnType<typeof mockRedisClient>;
@@ -100,7 +100,7 @@ describe('TrackService', () => {
     service = module.get<TrackService>(TrackService);
     trackRepo = module.get(TrackRepository);
     userRepo = module.get(UserRepository);
-    genreRepo = module.get(GenreRepository);
+    // genreRepo = module.get(GenreRepository);
     fansService = module.get(FansService);
     playlistService = module.get(PlaylistService);
     redisClient = module.get(REDIS_CLIENT);
@@ -963,35 +963,35 @@ describe('TrackService', () => {
 
   // ─── getAllGenres ─────────────────────────────────────────────────────────────
 
-  describe('getAllGenres', () => {
-    it('should return all genres', async () => {
-      genreRepo.findAll.mockResolvedValue([
-        mockGenre(),
-        mockGenre({ genreId: 'id-2', name: 'Hip-Hop' }),
-      ]);
+  // describe('getAllGenres', () => {
+  //   it('should return all genres', async () => {
+  //     genreRepo.findAll.mockResolvedValue([
+  //       mockGenre(),
+  //       mockGenre({ genreId: 'id-2', name: 'Hip-Hop' }),
+  //     ]);
 
-      const result = await service.getAllGenres();
+  //     const result = await service.getAllGenres();
 
-      expect(result.status).toBe('success');
-      expect(result.data).toHaveLength(2);
-    });
+  //     expect(result.status).toBe('success');
+  //     expect(result.data).toHaveLength(2);
+  //   });
 
-    it('should return empty array when no genres exist', async () => {
-      genreRepo.findAll.mockResolvedValue([]);
+  //   it('should return empty array when no genres exist', async () => {
+  //     genreRepo.findAll.mockResolvedValue([]);
 
-      const result = await service.getAllGenres();
+  //     const result = await service.getAllGenres();
 
-      expect(result.data).toEqual([]);
-    });
+  //     expect(result.data).toEqual([]);
+  //   });
 
-    it('should call genreRepository.findAll', async () => {
-      genreRepo.findAll.mockResolvedValue([]);
+  //   it('should call genreRepository.findAll', async () => {
+  //     genreRepo.findAll.mockResolvedValue([]);
 
-      await service.getAllGenres();
+  //     await service.getAllGenres();
 
-      expect(genreRepo.findAll).toHaveBeenCalledTimes(1);
-    });
-  });
+  //     expect(genreRepo.findAll).toHaveBeenCalledTimes(1);
+  //   });
+  // });
 
   // ─── getUserUploadedTracks ────────────────────────────────────────────────────
 

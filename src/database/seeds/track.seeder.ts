@@ -8,6 +8,7 @@ import { TrackComment } from '../../track/entities/track-comments.entity';
 import { Activity, ActivityType } from '../../activity/entities/activity.entity';
 import { getIndex } from '../../search/client';
 import { TrackVisibility } from '../../track/enums/track-visibility.enum';
+import { Genre } from '../../genre/entities/genre.entity';
 
 export class TrackSeeder implements Seeder {
   public async run(dataSource: DataSource, factoryManager: SeederFactoryManager): Promise<void> {
@@ -17,6 +18,9 @@ export class TrackSeeder implements Seeder {
     const repostRepository = dataSource.getRepository(TrackRepost);
     const commentRepository = dataSource.getRepository(TrackComment);
     const activityRepository = dataSource.getRepository(Activity);
+    const genreRepository = dataSource.getRepository(Genre);
+
+    const genres = await genreRepository.find();
 
     // 1. Check if tracks already exist
     const existingTracks = await trackRepository.count();
@@ -61,6 +65,7 @@ export class TrackSeeder implements Seeder {
       const tracks = await trackFactory.saveMany(trackCount, {
         userId: artist.userId,
         user: artist,
+        genre: genres[Math.floor(Math.random() * genres.length)],
       });
 
       await index.addDocuments(
