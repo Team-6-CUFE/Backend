@@ -122,6 +122,14 @@ export class TrackService {
       userId,
       userId
     );
+
+    const artist = await this.userRepository.findById(userId);
+    if (artist) {
+      // We don't 'await' this so the artist's upload response isn't delayed
+      // while we loop through thousands of followers
+      this.notificationsService.notifyNewPost(artist, savedTrack.trackId);
+    }
+
     return {
       status: 'success',
       message: 'Track upload started. Processing in background.',

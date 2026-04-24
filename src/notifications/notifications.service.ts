@@ -1,3 +1,4 @@
+/* eslint-disable no-restricted-syntax */
 // notifications.service.ts
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { NotificationsRepository } from './notifications.repository';
@@ -230,5 +231,42 @@ export class NotificationsService {
       },
       unreadCount,
     });
+  }
+
+  async notifyNewPost(artist: any, trackId: string) {
+    // 1. Find all followers
+    const followers = await this.notificationsRepository.getFollowers(artist.userId);
+
+    // 2. Prepare the notification data
+    // In a real production app, you'd use a "Bulk Insert" here for the DB
+    for (const followerId of followers) {
+      // Save to DB
+      // eslint-disable-next-line no-await-in-loop
+      const notification = await this.notificationsRepository.createNotification(
+        NotificationType.NEW_POST,
+        followerId,
+        artist.userId,
+        { trackId }
+      );
+
+      // eslint-disable-next-line no-await-in-loop
+      const unreadCount = await this.notificationsRepository.getUnreadCount(followerId);
+
+      // Emit via WebSocket
+      this.websocketsService.emitToUser(followerId, 'new_notification', {
+        notification: {
+          notificationId: notification.notificationId,
+          type: NotificationType.NEW_POST,
+          actor: {
+            userId: artist.userId,
+            username: artist.username,
+            avatarUrl: artist.avatarUrl,
+          },
+          target: { trackId },
+          createdAt: notification.createdAt,
+        },
+        unreadCount,
+      });
+    }
   }
 }

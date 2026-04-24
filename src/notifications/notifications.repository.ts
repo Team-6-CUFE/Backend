@@ -3,6 +3,7 @@ import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Notification, NotificationType } from './entities/notification.entity';
+import { UserFollow } from '../followers/entities/user-follows.entity';
 
 @Injectable()
 export class NotificationsRepository {
@@ -76,5 +77,14 @@ export class NotificationsRepository {
 
   async markAllAsRead(recipientId: string): Promise<void> {
     await this.repo.update({ recipientId, isRead: false }, { isRead: true });
+  }
+
+  async getFollowers(artistId: string): Promise<string[]> {
+    // This assumes you're injecting the UserFollow repository or using the manager
+    const follows = await this.repo.manager.find(UserFollow, {
+      where: { followed: artistId },
+      select: ['follower'],
+    });
+    return follows.map((f) => f.follower);
   }
 }
