@@ -14,6 +14,7 @@ import { Track } from '../track/entities/track.entity';
 import { GenreModule } from '../genre/genre.module';
 import { Genre } from '../genre/entities/genre.entity';
 import { ActivityModule } from '../activity/activity.module';
+import { NotificationsModule } from '../notifications/notifications.module';
 
 @Module({
   imports: [
@@ -22,6 +23,7 @@ import { ActivityModule } from '../activity/activity.module';
     FollowersModule,
     GenreModule,
     ActivityModule,
+    NotificationsModule,
   ],
   controllers: [PlaylistController],
   providers: [PlaylistService, PlaylistRepository, StorageService],

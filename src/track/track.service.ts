@@ -263,6 +263,12 @@ export class TrackService {
       userId,
       track.userId
     );
+
+    const actor = await this.userRepository.findById(userId);
+    if (actor) {
+      await this.notificationsService.notifyNewRepost(track.userId, actor, { trackId });
+    }
+
     return {
       status: 'success',
       data: await this.trackRepository.repostTrack(trackId, userId, caption),

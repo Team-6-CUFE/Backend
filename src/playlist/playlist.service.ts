@@ -68,6 +68,11 @@ export class PlaylistService {
       userId,
       playlist.userId
     );
+
+    const actor = await this.userRepository.findById(userId);
+    if (actor) {
+      await this.notificationsService.notifyNewRepost(playlist.userId, actor, { playlistId });
+    }
     return {
       status: 'success',
       data: { userId, playlistId, repostedAt: new Date() },

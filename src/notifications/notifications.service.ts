@@ -162,4 +162,37 @@ export class NotificationsService {
       unreadCount,
     });
   }
+
+  async notifyNewRepost(
+    recipientId: string,
+    actor: any,
+    target: { trackId?: string; playlistId?: string }
+  ) {
+    // 1. Save to DB
+    const notification = await this.notificationsRepository.createNotification(
+      NotificationType.NEW_REPOST,
+      recipientId,
+      actor.userId,
+      target
+    );
+
+    // 2. Get unread count
+    const unreadCount = await this.notificationsRepository.getUnreadCount(recipientId);
+
+    // 3. Emit real-time
+    this.websocketsService.emitToUser(recipientId, 'new_notification', {
+      notification: {
+        notificationId: notification.notificationId,
+        type: NotificationType.NEW_REPOST,
+        actor: {
+          userId: actor.userId,
+          username: actor.username,
+          avatarUrl: actor.avatarUrl,
+        },
+        target,
+        createdAt: notification.createdAt,
+      },
+      unreadCount,
+    });
+  }
 }
