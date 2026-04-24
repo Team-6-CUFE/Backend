@@ -714,4 +714,10 @@ export class PlaylistRepository {
       where: { userId, title },
     });
   }
+
+  async getPlaylistByUserAndTitles(userId: string, titles: string[]): Promise<Playlist[]> {
+    return this.playlistRepository.find({
+      where: { userId, title: In(titles) },
+    });
+  }
 }

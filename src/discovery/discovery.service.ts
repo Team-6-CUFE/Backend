@@ -974,4 +974,76 @@ export class DiscoveryService {
     await Promise.all(addTrackPromises);
     return playlistId;
   }
+
+  async getTrendingMusicPlaylists(userId: string) {
+    const trendingMusicUser = await this.userService.findByUsername(TRENDING_MUSIC_USER.username);
+    if (!trendingMusicUser) throw new Error('Trending Music user not found');
+
+    // get genres of tracks the user has interacted with
+    const interactedTrackTags = await this.trackService.getUserInteractedTrackTags(userId);
+    // determine top 5 most interacted genres
+    const tagFrequency = interactedTrackTags.reduce<
+      Record<string, { count: number; name: string }>
+    >((acc, tag) => {
+      acc[tag.genreId] = acc[tag.genreId]
+        ? { ...acc[tag.genreId], count: acc[tag.genreId].count + 1 }
+        : { count: 1, name: tag.name };
+      return acc;
+    }, {});
+    const topTagNames = Object.entries(tagFrequency)
+      .sort((a, b) => b[1].count - a[1].count)
+      .slice(0, 5)
+      .map(([_, value]) => value.name);
+
+    console.log('Top tags for user:', topTagNames);
+
+    if (topTagNames.length === 0) {
+      return { status: 'success', data: [] };
+    }
+
+    const playlists = await this.playlistRepository.getPlaylistByUserAndTitles(
+      trendingMusicUser.userId,
+      topTagNames
+    );
+
+    console.log(
+      'Found playlists:',
+      playlists.map((p) => p.title)
+    );
+
+    const isFollowedByCurrentUser = await this.followersRepository.isFollowing(
+      userId,
+      trendingMusicUser.userId
+    );
+
+    const mappedPlaylistsPromises = playlists.map(async (playlist) => ({
+      playlistId: playlist.playlistId,
+      title: playlist.title,
+      description: playlist.description,
+      coverImage: playlist.coverImage,
+      isPublic: playlist.isPublic,
+      tracksCount: playlist.tracksCount,
+      likesCount: playlist.likesCount,
+      repostsCount: playlist.repostsCount,
+      durationSeconds: playlist.totalDurationSeconds,
+      createdAt: playlist.createdAt,
+      user: {
+        userId: trendingMusicUser.userId,
+        username: trendingMusicUser.username,
+        displayName: trendingMusicUser.displayName,
+        avatarUrl: trendingMusicUser.avatarUrl,
+        isFollowedByCurrentUser,
+      },
+      isLiked:
+        (await this.playlistRepository.findLikeByUserAndPlaylist(userId, playlist.playlistId)) !==
+        null,
+    }));
+
+    const mappedPlaylists = await Promise.all(mappedPlaylistsPromises);
+
+    return {
+      status: 'success',
+      data: mappedPlaylists,
+    };
+  }
 }
