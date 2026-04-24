@@ -195,4 +195,40 @@ export class NotificationsService {
       unreadCount,
     });
   }
+
+  async notifyNewComment(
+    recipientId: string,
+    actor: any,
+    target: { trackId: string; commentId: string; content: string },
+    isReply: boolean = false // <--- This default handles both cases
+  ) {
+    // 1. Save to DB
+    const notification = await this.notificationsRepository.createNotification(
+      NotificationType.NEW_COMMENT,
+      recipientId,
+      actor.userId,
+      { trackId: target.trackId }
+    );
+
+    const unreadCount = await this.notificationsRepository.getUnreadCount(recipientId);
+
+    // 2. Emit real-time
+    this.websocketsService.emitToUser(recipientId, 'new_notification', {
+      notification: {
+        notificationId: notification.notificationId,
+        type: NotificationType.NEW_COMMENT,
+        actor: {
+          userId: actor.userId,
+          username: actor.username,
+          avatarUrl: actor.avatarUrl,
+        },
+        target: {
+          ...target,
+          isReply,
+        },
+        createdAt: notification.createdAt,
+      },
+      unreadCount,
+    });
+  }
 }

@@ -511,19 +511,56 @@ export class TrackService {
       throw new ForbiddenException('This track is private');
     }
 
+    let parentComment = null;
     if (commentDto.parentId) {
-      const parentComment = await this.trackRepository.findCommentById(commentDto.parentId);
+      parentComment = await this.trackRepository.findCommentById(commentDto.parentId);
       if (!parentComment) {
         throw new NotFoundException('Parent comment not found');
       }
     }
+
     const comment = await this.trackRepository.addComment(trackId, userId, commentDto);
+
     await this.activitiesService.createActivity(
       ActivityType.TRACK_COMMENT,
       trackId,
       userId,
       track.userId
     );
+
+    const actor = await this.userRepository.findById(userId);
+
+    if (actor) {
+      const targetData = {
+        trackId,
+        commentId: comment.commentId,
+        content: comment.content,
+      };
+
+      // 2. Notify the Track Owner
+      if (track.userId !== userId) {
+        await this.notificationsService.notifyNewComment(track.userId, actor, targetData, false);
+      }
+
+      // 3. Notify the Parent Commenter (the "Reply" notification)
+      // We only notify if:
+      // - It's actually a reply (parentComment exists)
+      // - The reply isn't from the same person who wrote the parent comment
+      // - The parent commenter isn't the track owner (to avoid double notifications)
+      if (
+        parentComment &&
+        parentComment.userId !== userId &&
+        parentComment.userId !== track.userId
+      ) {
+        await this.notificationsService.notifyNewComment(
+          parentComment.userId,
+          actor,
+          targetData,
+          true
+        );
+      }
+    }
+
     return { status: 'success', data: comment };
   }
 
