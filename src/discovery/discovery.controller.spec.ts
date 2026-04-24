@@ -22,6 +22,7 @@ describe('DiscoveryController', () => {
     getSearchResults: jest.fn(),
     searchAutocomplete: jest.fn(),
     getRecommendedStations: jest.fn(),
+    getTrendingMusicByGenre: jest.fn(),
   };
 
   const mockUserId = 'user-123';
@@ -1144,6 +1145,59 @@ describe('DiscoveryController', () => {
 
       await expect(controller.getRecommendedStations(mockUserId, mockIp)).rejects.toThrow(
         'Stations unavailable'
+      );
+    });
+  });
+
+  // ─── getTrendingMusicByGenre ──────────────────────────────────────────────
+
+  describe('getTrendingMusicByGenre', () => {
+    it('should call service with the current user id', async () => {
+      const mockResult = { status: 'success', data: [] };
+      mockDiscoveryService.getTrendingMusicByGenre.mockResolvedValue(mockResult);
+
+      await controller.getTrendingMusicByGenre(mockUserId);
+
+      expect(discoveryService.getTrendingMusicByGenre).toHaveBeenCalledWith(mockUserId);
+      expect(discoveryService.getTrendingMusicByGenre).toHaveBeenCalledTimes(1);
+    });
+
+    it('should return the service response as-is', async () => {
+      const mockResult = {
+        status: 'success',
+        data: [
+          {
+            playlistId: 'playlist-uuid-1',
+            title: 'Electronic',
+            tracksCount: 20,
+            isLiked: false,
+            user: { username: 'trending_music' },
+          },
+        ],
+      };
+      mockDiscoveryService.getTrendingMusicByGenre.mockResolvedValue(mockResult);
+
+      const result = await controller.getTrendingMusicByGenre(mockUserId);
+
+      expect(result).toBe(mockResult);
+    });
+
+    it('should return empty data array when user has no interaction history', async () => {
+      const mockResult = { status: 'success', data: [] };
+      mockDiscoveryService.getTrendingMusicByGenre.mockResolvedValue(mockResult);
+
+      const result = await controller.getTrendingMusicByGenre(mockUserId);
+
+      expect((result as any).data).toHaveLength(0);
+    });
+
+    it('should propagate errors from service', async () => {
+      mockDiscoveryService.getTrendingMusicByGenre.mockRejectedValue(
+        new Error('Trending Music user not found')
+      );
+
+      await expect(controller.getTrendingMusicByGenre(mockUserId)).rejects.toThrow(
+        'Trending Music user not found'
       );
     });
   });

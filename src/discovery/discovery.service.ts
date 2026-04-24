@@ -995,8 +995,6 @@ export class DiscoveryService {
       .slice(0, 5)
       .map(([_, value]) => value.name);
 
-    console.log('Top tags for user:', topTagNames);
-
     if (topTagNames.length === 0) {
       return { status: 'success', data: [] };
     }
@@ -1004,11 +1002,6 @@ export class DiscoveryService {
     const playlists = await this.playlistRepository.getPlaylistByUserAndTitles(
       trendingMusicUser.userId,
       topTagNames
-    );
-
-    console.log(
-      'Found playlists:',
-      playlists.map((p) => p.title)
     );
 
     const isFollowedByCurrentUser = await this.followersRepository.isFollowing(
