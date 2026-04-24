@@ -1073,7 +1073,13 @@ export class DiscoveryService {
       },
       playlists: {
         data: playlistLikes
-          .map((like) => this.formatPlaylist(like.playlist, country))
+          .map((like) => {
+            const playlist = {
+              ...like.playlist,
+              playlistTracks: like.playlist.playlistTracks?.slice(0, 5) ?? [],
+            };
+            return this.formatPlaylist(playlist, country);
+          })
           .filter(Boolean),
         total: totalPlaylists,
       },
