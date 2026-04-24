@@ -6,7 +6,6 @@ import {
   BadRequestException,
   Inject,
 } from '@nestjs/common';
-// import { DiscoveryRepository } from './discovery.repository';
 import { createClient } from 'redis';
 import { FollowersRepository } from '../followers/followers.repository';
 import { ActivityService } from '../activity/activity.service';
@@ -24,6 +23,10 @@ import { EntityType } from '../search/types';
 import { Genre } from '../genre/entities/genre.entity';
 import { User } from '../user/entities/user.entity';
 import { REDIS_CLIENT } from '../redis/redis.module';
+import { DEFAULT_GENRE_NAMES } from '../genre/genre.constants';
+import { TRENDING_MUSIC_USER } from '../user/trending-music-user.constants';
+import { CreatePlaylistDto } from '../playlist/dto/create-playlist.dto';
+import { GenreRepository } from '../genre/genre.repository';
 
 const logger = new Logger('DiscoveryService');
 
@@ -45,7 +48,8 @@ export class DiscoveryService {
     private readonly playlistRepository: PlaylistRepository,
     private readonly userService: UserService,
     @Inject(REDIS_CLIENT)
-    private readonly redis: ReturnType<typeof createClient>
+    private readonly redis: ReturnType<typeof createClient>,
+    private readonly genreRepository: GenreRepository
   ) {}
 
   // ─── Private helpers ────────────────────────────────────────────────────────
@@ -923,5 +927,51 @@ export class DiscoveryService {
       status: 'success',
       data: stations.filter((s): s is NonNullable<typeof s> => s !== null),
     };
+  }
+
+  async createTrendingMusicPlaylists() {
+    const trendingMusicUser = await this.userService.findByUsername(TRENDING_MUSIC_USER.username);
+    if (!trendingMusicUser) throw new Error('Trending Music user not found');
+    const defaultGenres = await this.genreRepository.findByNames([...DEFAULT_GENRE_NAMES]);
+    const createPlaylistPromises = defaultGenres.map((genre) =>
+      this.createTrendingMusicPlaylistByGenre(genre, trendingMusicUser.userId)
+    );
+    await Promise.all(createPlaylistPromises);
+  }
+
+  async createTrendingMusicPlaylistByGenre(genre: Genre, userId: string) {
+    const topTracks = await this.trackRepository.findPopularTracksByGenreOrTags(
+      genre.genreId,
+      [genre],
+      1,
+      50
+    );
+    if (topTracks.length === 0) return null;
+
+    const existingPlaylist = await this.playlistRepository.getPlaylistByUserAndTitle(
+      userId,
+      genre.name
+    );
+    let playlistId = existingPlaylist ? existingPlaylist.playlistId : null;
+    if (!playlistId) {
+      const createPlaylistDto: CreatePlaylistDto = {
+        title: genre.name,
+        description: `Trending in ${genre.name}.`,
+        coverImage: topTracks[0].coverImage,
+        isPublic: true,
+      };
+
+      const playlist = await this.playlistRepository.createPlaylist(createPlaylistDto, userId);
+      playlistId = playlist.playlistId;
+      await this.playlistRepository.updatePlaylistGenre(playlistId, genre);
+    } else {
+      // If playlist already exists, clear existing tracks before adding new ones
+      await this.playlistRepository.clearPlaylistTracks(playlistId);
+    }
+    const addTrackPromises = topTracks.map((track, index) =>
+      this.playlistRepository.addTrackToPlaylist(playlistId!, track.trackId, index + 1)
+    );
+    await Promise.all(addTrackPromises);
+    return playlistId;
   }
 }

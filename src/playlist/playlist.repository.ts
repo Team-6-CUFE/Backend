@@ -700,4 +700,18 @@ export class PlaylistRepository {
     });
     return new Set(reposts.map((r) => r.playlistId));
   }
+
+  async clearPlaylistTracks(playlistId: string): Promise<void> {
+    await this.playlistTrackRepository.delete({ playlistId });
+    await this.playlistRepository.update(
+      { playlistId },
+      { tracksCount: 0, totalDurationSeconds: 0 }
+    );
+  }
+
+  async getPlaylistByUserAndTitle(userId: string, title: string): Promise<Playlist | null> {
+    return this.playlistRepository.findOne({
+      where: { userId, title },
+    });
+  }
 }
