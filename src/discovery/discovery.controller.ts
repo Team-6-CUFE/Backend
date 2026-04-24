@@ -127,4 +127,9 @@ export class DiscoveryController {
   async getTrendingMusicByGenre(@CurrentUser('sub') userId: string) {
     return this.discoveryService.getTrendingMusicByGenre(userId);
   }
+
+  @Get('/liked-by-users')
+  async getLikedbyUsers(@CurrentUser('sub') userId: string) {
+    return this.discoveryService.getLikedByUsers(userId);
+  }
 }

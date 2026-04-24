@@ -1039,4 +1039,12 @@ export class DiscoveryService {
       data: mappedPlaylists,
     };
   }
+
+  async getLikedByUsers(userId: string) {
+    const users = await this.activityService.getLikedByUsers(userId);
+    return {
+      status: 'success',
+      data: users,
+    };
+  }
 }
