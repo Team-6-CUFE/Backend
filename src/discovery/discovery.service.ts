@@ -138,6 +138,7 @@ export class DiscoveryService {
         : null,
       isLiked: track.isLiked ?? false,
       isReposted: track.isReposted ?? false,
+      comments: track.comments,
     };
   }
 
