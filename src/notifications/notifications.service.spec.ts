@@ -177,4 +177,20 @@ describe('NotificationsService', () => {
       expect(repo.markAllAsRead).toHaveBeenCalledWith('user-123');
     });
   });
+
+  describe('getUnreadCount', () => {
+    it('should return the unread count from the repository', async () => {
+      // Arrange
+      const userId = 'user-123';
+      const expectedCount = 5;
+      mockNotificationsRepository.getUnreadCount.mockResolvedValue(expectedCount);
+
+      // Act
+      const result = await service.getUnreadCount(userId);
+
+      // Assert
+      expect(repo.getUnreadCount).toHaveBeenCalledWith(userId);
+      expect(result).toEqual(expectedCount);
+    });
+  });
 });

@@ -12,6 +12,7 @@ describe('NotificationsController', () => {
     getNotifications: jest.fn(),
     markAsRead: jest.fn(),
     markAllAsRead: jest.fn(),
+    getUnreadCount: jest.fn(),
   };
 
   const mockSettingsService = {
@@ -123,6 +124,27 @@ describe('NotificationsController', () => {
       expect(response).toEqual({
         status: 'success',
         message: 'All notifications marked as read',
+      });
+    });
+  });
+
+  describe('getUnreadCount', () => {
+    it('should call the service and return the unread count payload', async () => {
+      // Arrange
+      const userId = 'user-123';
+      const mockCount = 12;
+      mockNotificationsService.getUnreadCount.mockResolvedValue(mockCount);
+
+      // Act
+      const response = await controller.getUnreadCount(userId);
+
+      // Assert
+      expect(service.getUnreadCount).toHaveBeenCalledWith(userId);
+      expect(response).toEqual({
+        status: 'success',
+        data: {
+          unreadCount: mockCount,
+        },
       });
     });
   });
