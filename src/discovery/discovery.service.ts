@@ -1037,6 +1037,49 @@ export class DiscoveryService {
     };
   }
 
+  async getLikedByUsers(userId: string) {
+    const users = await this.activityService.getLikedByUsers(userId);
+    return {
+      status: 'success',
+      data: users,
+    };
+  }
+
+  async getUserLikedby(
+    userId: string,
+    myUserId: string,
+    ip: string | null,
+    page: number = 1,
+    limit: number = 20
+  ) {
+    const { country } = ip ? getLocationFromIp(ip) : { country: null };
+    const user = await this.userService.findById(userId);
+    if (!user) throw new NotFoundException('User not found');
+    if (!user.isPublic && user.userId !== myUserId)
+      throw new ForbiddenException('This account is private');
+
+    const cappedLimit = Math.min(limit, 100);
+
+    const [[trackLikes, totalTracks], [playlistLikes, totalPlaylists]] = await Promise.all([
+      this.trackRepository.getUserTrackLikes(userId, page, cappedLimit),
+      this.playlistRepository.getUserPlaylistLikes(userId, page, cappedLimit),
+    ]);
+
+    return {
+      status: 'success',
+      tracks: {
+        data: trackLikes.map((like) => this.formatTrack(like.track, country)).filter(Boolean),
+        total: totalTracks,
+      },
+      playlists: {
+        data: playlistLikes
+          .map((like) => this.formatPlaylist(like.playlist, country))
+          .filter(Boolean),
+        total: totalPlaylists,
+      },
+    };
+  }
+
   async getTracksByTag(
     userId: string,
     tagName: string,
