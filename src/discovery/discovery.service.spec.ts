@@ -12,6 +12,7 @@ import { TrackVisibility } from '../track/enums/track-visibility.enum';
 import * as geolocationUtil from '../common/utilities/geolocation.util';
 import * as searchModule from '../search/search';
 import { REDIS_CLIENT } from '../redis/redis.module';
+import { GenreRepository } from '../genre/genre.repository';
 
 // ─── UUIDs ────────────────────────────────────────────────────────────────────
 
@@ -137,6 +138,11 @@ const mockUserService = () => ({
   findByIds: jest.fn(),
 });
 
+const mockGenreRepository = () => ({
+  findByIds: jest.fn(),
+  findPopularGenres: jest.fn(),
+});
+
 // ─── Suite ────────────────────────────────────────────────────────────────────
 
 describe('DiscoveryService', () => {
@@ -164,6 +170,7 @@ describe('DiscoveryService', () => {
         { provide: PlaylistRepository, useFactory: mockPlaylistRepository },
         { provide: UserService, useFactory: mockUserService },
         { provide: REDIS_CLIENT, useValue: redis },
+        { provide: GenreRepository, useFactory: mockGenreRepository },
       ],
     }).compile();
 
