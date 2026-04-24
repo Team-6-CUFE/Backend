@@ -50,6 +50,7 @@ import { ActivityType } from '../activity/entities/activity.entity';
 import { REDIS_CLIENT } from '../redis/redis.module';
 import { Genre } from '../genre/entities/genre.entity';
 import { DEFAULT_GENRE_NAMES } from '../genre/genre.constants';
+import { NotificationsService } from '../notifications/notifications.service';
 
 const RELATED_TRACKS_TTL_SECS = 3 * 24 * 60 * 60; // 3 days
 const ALL_TIME_STATS_TTL_SECS = 24 * 60 * 60; // 1 day
@@ -64,6 +65,7 @@ export class TrackService {
     private readonly playlistService: PlaylistService,
     private readonly fansService: FansService,
     private readonly activitiesService: ActivityService,
+    private readonly notificationsService: NotificationsService,
     @InjectQueue('audioQueue')
     private readonly audioQueue: Queue,
 
@@ -397,6 +399,11 @@ export class TrackService {
       userId,
       track.userId
     );
+
+    const actor = await this.userRepository.findById(userId);
+    if (actor) {
+      await this.notificationsService.notifyNewLike(track.userId, actor, { trackId });
+    }
     return {
       status: 'success',
       data: await this.trackRepository.likeTrack(trackId, userId),

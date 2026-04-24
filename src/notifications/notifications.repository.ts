@@ -14,12 +14,15 @@ export class NotificationsRepository {
   async createNotification(
     type: NotificationType,
     recipientId: string,
-    actorId: string
+    actorId: string,
+    target?: { trackId?: string; playlistId?: string } // <-- 1. Add target parameter
   ): Promise<Notification> {
     const notification = this.repo.create({
       type,
       recipientId,
       actorId,
+      trackId: target?.trackId, // <-- 2. Save trackId
+      playlistId: target?.playlistId, // <-- 3. Save playlistId
     });
     return this.repo.save(notification);
   }
@@ -39,10 +42,8 @@ export class NotificationsRepository {
     const query = this.repo
       .createQueryBuilder('notification')
       .leftJoinAndSelect('notification.actor', 'actor')
-      // These are now active so the service can format the targets correctly
-      // .leftJoinAndSelect('notification.track', 'track')
-      // .leftJoinAndSelect('notification.playlist', 'playlist')
-      // .leftJoinAndSelect('notification.message', 'message')
+      .leftJoinAndSelect('notification.track', 'track') // <-- 4. Uncomment track join
+      .leftJoinAndSelect('notification.playlist', 'playlist') // <-- 5. Uncomment playlist join
       .where('notification.recipientId = :userId', { userId })
       .orderBy('notification.createdAt', 'DESC')
       .take(limit)

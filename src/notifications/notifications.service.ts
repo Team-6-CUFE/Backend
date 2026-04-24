@@ -129,4 +129,37 @@ export class NotificationsService {
   async getUnreadCount(userId: string): Promise<number> {
     return this.notificationsRepository.getUnreadCount(userId);
   }
+
+  async notifyNewLike(
+    recipientId: string,
+    actor: any, // Accepts the user object
+    target: { trackId?: string; playlistId?: string }
+  ) {
+    // 1. Save to database
+    const notification = await this.notificationsRepository.createNotification(
+      NotificationType.NEW_LIKE,
+      recipientId,
+      actor.userId,
+      target
+    );
+
+    // 2. Get fresh unread count
+    const unreadCount = await this.notificationsRepository.getUnreadCount(recipientId);
+
+    // 3. Emit the real-time event
+    this.websocketsService.emitToUser(recipientId, 'new_notification', {
+      notification: {
+        notificationId: notification.notificationId,
+        type: NotificationType.NEW_LIKE,
+        actor: {
+          userId: actor.userId,
+          username: actor.username,
+          avatarUrl: actor.avatarUrl,
+        },
+        target, // Passes the trackId or playlistId to the frontend
+        createdAt: notification.createdAt,
+      },
+      unreadCount,
+    });
+  }
 }
