@@ -102,4 +102,17 @@ export class NotificationsController {
   ) {
     return this.settingsService.updateNotificationSettings(userId, updateDto);
   }
+
+  @Get('unread-count')
+  // @ApiGetUnreadCount() // Uncomment this later if you add Swagger for it!
+  async getUnreadCount(@CurrentUser('sub') userId: string) {
+    const count = await this.notificationsService.getUnreadCount(userId);
+
+    return {
+      status: 'success',
+      data: {
+        unreadCount: count,
+      },
+    };
+  }
 }
