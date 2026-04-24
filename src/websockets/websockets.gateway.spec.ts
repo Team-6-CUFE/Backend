@@ -40,7 +40,6 @@ describe('WebsocketsGateway', () => {
 
     gateway = module.get<WebsocketsGateway>(WebsocketsGateway);
     jwtService = module.get(JwtService);
-    configService = module.get(ConfigService);
   });
 
   afterEach(() => jest.clearAllMocks());

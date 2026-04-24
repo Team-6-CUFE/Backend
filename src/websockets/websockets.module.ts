@@ -14,7 +14,7 @@ import { WebsocketsService } from './websockets.service';
       inject: [ConfigService],
     }),
   ],
-  providers: [WebsocketsGateway, WebsocketsService, ConfigService],
+  providers: [WebsocketsGateway, WebsocketsService],
   exports: [WebsocketsService],
 })
 export class WebsocketsModule {}
