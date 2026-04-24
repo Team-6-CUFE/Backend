@@ -19,6 +19,8 @@ import {
   ApiMarkNotificationRead,
   ApiMarkAllNotificationsRead,
   ApiGetNotificationSettings,
+  ApiUpdateNotificationSettings,
+  ApiGetUnreadCount,
 } from './notifications.swagger'; // Adjust this path if you saved it elsewhere
 import { SettingsService } from '../settings/settings.service';
 import { UpdateNotificationsDto } from '../settings/dtos/update-notifications.dto';
@@ -95,7 +97,7 @@ export class NotificationsController {
   }
 
   @Put('settings')
-  // @ApiUpdateNotificationSettings()
+  @ApiUpdateNotificationSettings()
   async updateSettings(
     @CurrentUser('sub') userId: string,
     @Body() updateDto: UpdateNotificationsDto
@@ -104,7 +106,7 @@ export class NotificationsController {
   }
 
   @Get('unread-count')
-  // @ApiGetUnreadCount() // Uncomment this later if you add Swagger for it!
+  @ApiGetUnreadCount()
   async getUnreadCount(@CurrentUser('sub') userId: string) {
     const count = await this.notificationsService.getUnreadCount(userId);
 
