@@ -771,4 +771,207 @@ export class PlaylistRepository {
 
     return query.orderBy('playlist.likesCount', 'DESC').skip(skip).take(limit).getManyAndCount();
   }
+
+  async getUserInteractedAlbumTags(userId: string): Promise<Genre[]> {
+    // ── Track interaction subquery ──────────────────────────────────────────
+    const trackSubQuery = (qb: any) => {
+      const liked = qb
+        .subQuery()
+        .select('tl.track_id')
+        .from('track_likes', 'tl')
+        .where('tl.user_id = :userId')
+        .getQuery();
+      const reposted = qb
+        .subQuery()
+        .select('tr.track_id')
+        .from('track_reposts', 'tr')
+        .where('tr.user_id = :userId')
+        .getQuery();
+      const played = qb
+        .subQuery()
+        .select('tp.track_id')
+        .from('track_plays', 'tp')
+        .where('tp.user_id = :userId')
+        .getQuery();
+      return `track.track_id IN ${liked} OR track.track_id IN ${reposted} OR track.track_id IN ${played}`;
+    };
+
+    // ── Album/playlist interaction subquery ─────────────────────────────────
+    const playlistSubQuery = (qb: any) => {
+      const liked = qb
+        .subQuery()
+        .select('pl.playlist_id')
+        .from('playlist_likes', 'pl')
+        .where('pl.user_id = :userId')
+        .getQuery();
+      const reposted = qb
+        .subQuery()
+        .select('pr.playlist_id')
+        .from('playlist_reposts', 'pr')
+        .where('pr.user_id = :userId')
+        .getQuery();
+      return `playlist.playlist_id IN ${liked} OR playlist.playlist_id IN ${reposted}`;
+    };
+
+    // ── Fetch all 4 genre signal sources in parallel ────────────────────────
+    const [trackMainGenres, trackTagGenres, albumMainGenres, albumTagGenres] = await Promise.all([
+      // genres via track.genre (ManyToOne)
+      this.genreRepository
+        .createQueryBuilder('genre')
+        .innerJoin('genre.tracks', 'track')
+        .where(trackSubQuery)
+        .setParameter('userId', userId)
+        .getMany(),
+
+      // genres via track.tags (ManyToMany)
+      this.genreRepository
+        .createQueryBuilder('genre')
+        .innerJoin('genre.trackTags', 'track')
+        .where(trackSubQuery)
+        .setParameter('userId', userId)
+        .getMany(),
+
+      // genres via playlist.genre (ManyToOne), albums only
+      this.genreRepository
+        .createQueryBuilder('genre')
+        .innerJoin('genre.playlists', 'playlist')
+        .where('playlist.type = :type', { type: PlaylistType.ALBUM })
+        .andWhere(playlistSubQuery)
+        .setParameter('userId', userId)
+        .getMany(),
+
+      // genres via playlist.tags (ManyToMany), albums only
+      this.genreRepository
+        .createQueryBuilder('genre')
+        .innerJoin('genre.playlistTags', 'playlist')
+        .where('playlist.type = :type', { type: PlaylistType.ALBUM })
+        .andWhere(playlistSubQuery)
+        .setParameter('userId', userId)
+        .getMany(),
+    ]);
+
+    // ── Deduplicate across all sources ──────────────────────────────────────
+    const allGenres = [
+      ...trackMainGenres,
+      ...trackTagGenres,
+      ...albumMainGenres,
+      ...albumTagGenres,
+    ];
+    return allGenres.filter(
+      (genre, index, self) => index === self.findIndex((g) => g.genreId === genre.genreId)
+    );
+  }
+
+  // async getTopAlbumsByTagIds(tagIds: string[], userId: string) {
+  //   const albums = await this.playlistRepository
+  //     .createQueryBuilder('playlist')
+  //     .leftJoin('playlist.tags', 'genre')
+  //     .leftJoin('playlist.user', 'user')
+  //     .leftJoinAndSelect('playlist.likes', 'like', 'like.userId = :userId')
+  //     .leftJoinAndSelect('playlist.reposts', 'repost', 'repost.userId = :userId')
+  //     .leftJoinAndSelect('playlist.playlistTracks', 'pt')
+  //     .leftJoinAndSelect('pt.track', 'track')
+  //     .leftJoin('track.user', 'trackUser')
+  //     .leftJoinAndSelect('track.likes', 'trackLike', 'trackLike.userId = :userId')
+  //     .leftJoinAndSelect('track.reposts', 'trackRepost', 'trackRepost.userId = :userId')
+  //     .addSelect([
+  //       'user.userId',
+  //       'user.username',
+  //       'user.displayName',
+  //       'user.avatarUrl',
+  //       'user.city',
+  //       'user.country',
+  //       'user.followersCount',
+  //       'trackUser.userId',
+  //       'trackUser.username',
+  //       'trackUser.displayName',
+  //       'trackUser.avatarUrl',
+  //       'trackUser.city',
+  //       'trackUser.country',
+  //       'trackUser.followersCount',
+  //     ])
+  //     .where('(genre.genreId IN (:...tagIds) OR playlist.genreId IN (:...tagIds))')
+  //     .andWhere('playlist.type = :type', { type: PlaylistType.ALBUM })
+  //     .andWhere('playlist.isPublic = true')
+  //     .setParameter('tagIds', tagIds)
+  //     .setParameter('userId', userId)
+  //     .orderBy('playlist.likesCount', 'DESC')
+  //     .take(20)
+  //     .getMany();
+  //   console.log("tags",tagIds);
+  //   console.log("albums",albums);
+  //   return albums.map((album) => ({
+  //     ...album,
+  //     isLiked: album.likes.length > 0,
+  //     isReposted: album.reposts.length > 0,
+  //     playlistTracks: album.playlistTracks.map((pt) => ({
+  //       ...pt,
+  //       track: {
+  //         ...pt.track,
+  //         isLiked: pt.track?.likes?.length > 0,
+  //         isReposted: pt.track?.reposts?.length > 0,
+  //       },
+  //     })),
+  //   }));
+  // }
+  async getTopAlbumsByTagIds(tagIds: string[], userId: string) {
+    // If tagIds is empty, TypeORM will throw an error on IN (:...tagIds)
+    if (!tagIds || tagIds.length === 0) return [];
+
+    const albums = await this.playlistRepository
+      .createQueryBuilder('playlist')
+      // 1. Join tags (ManyToMany) to filter by them
+      .leftJoin('playlist.tags', 'genre')
+      // 2. Join the playlist owner
+      .leftJoin('playlist.user', 'user')
+      // 3. Select likes/reposts filtered by the current user
+      .leftJoinAndSelect('playlist.likes', 'like', 'like.userId = :userId', { userId })
+      .leftJoinAndSelect('playlist.reposts', 'repost', 'repost.userId = :userId', { userId })
+      // 4. Join Tracks through the Join Entity
+      .leftJoinAndSelect('playlist.playlistTracks', 'pt')
+      .leftJoinAndSelect('pt.track', 'track')
+      .leftJoin('track.user', 'trackUser')
+      .leftJoinAndSelect('track.likes', 'trackLike', 'trackLike.userId = :userId', { userId })
+      .leftJoinAndSelect('track.reposts', 'trackRepost', 'trackRepost.userId = :userId', { userId })
+      .addSelect([
+        'user.userId',
+        'user.username',
+        'user.displayName',
+        'user.avatarUrl',
+        'user.city',
+        'user.country',
+        'user.followersCount',
+        'trackUser.userId',
+        'trackUser.username',
+        'trackUser.displayName',
+        'trackUser.avatarUrl',
+        'trackUser.city',
+        'trackUser.country',
+        'trackUser.followersCount',
+      ])
+      // Use the correct property names from your Entities
+      .where('(genre.genreId IN (:...tagIds) OR playlist.genreId IN (:...tagIds))', { tagIds })
+      .andWhere('playlist.type = :type', { type: PlaylistType.ALBUM })
+      .andWhere('playlist.isPublic = true')
+      .orderBy('playlist.likesCount', 'DESC')
+      // Use limit for many-to-many/one-to-many joins to avoid row duplication issues
+      .take(20)
+      .getMany();
+    return albums.map((album) => ({
+      ...album,
+      isLiked: (album.likes?.length ?? 0) > 0,
+      isReposted: (album.reposts?.length ?? 0) > 0,
+      playlistTracks:
+        album.playlistTracks?.map((pt) => ({
+          ...pt,
+          track: pt.track
+            ? {
+                ...pt.track,
+                isLiked: (pt.track.likes?.length ?? 0) > 0,
+                isReposted: (pt.track.reposts?.length ?? 0) > 0,
+              }
+            : null,
+        })) || [],
+    }));
+  }
 }
