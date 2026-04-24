@@ -730,6 +730,78 @@ export function ApiGetRecommendedStations() {
   );
 }
 
+// ─── Get Trending Music By Genre ─────────────────────────────────────────────
+
+export function ApiGetTrendingMusicByGenre() {
+  return applyDecorators(
+    ApiCookieAuth('access_token'),
+    ApiOperation({
+      summary: 'Get trending music by genre',
+      description:
+        "Returns a list of genre-based playlists curated by the platform's Trending Music account, " +
+        "personalised to the authenticated user's top 5 most interacted genres (from likes, reposts and plays). " +
+        'Returns an empty array when the user has no interaction history.',
+    }),
+    ApiResponse({
+      status: 200,
+      description: 'Trending playlists by genre retrieved successfully.',
+      schema: {
+        example: {
+          status: 'success',
+          data: [
+            {
+              playlistId: 'playlist-uuid-1',
+              title: 'Electronic',
+              description: 'Top trending Electronic tracks',
+              coverImage: 'https://cdn.harmonica.com/covers/electronic.jpg',
+              isPublic: true,
+              tracksCount: 20,
+              likesCount: 340,
+              repostsCount: 22,
+              durationSeconds: 4800,
+              createdAt: '2026-04-17T10:00:00.000Z',
+              isLiked: false,
+              user: {
+                userId: 'user-uuid',
+                username: 'trending_music',
+                displayName: 'Trending Music',
+                avatarUrl: null,
+                isFollowedByCurrentUser: false,
+              },
+            },
+            {
+              playlistId: 'playlist-uuid-2',
+              title: 'Hip Hop',
+              description: 'Top trending Hip Hop tracks',
+              coverImage: 'https://cdn.harmonica.com/covers/hiphop.jpg',
+              isPublic: true,
+              tracksCount: 20,
+              likesCount: 210,
+              repostsCount: 15,
+              durationSeconds: 4200,
+              createdAt: '2026-04-17T10:00:00.000Z',
+              isLiked: true,
+              user: {
+                userId: 'user-uuid',
+                username: 'trending_music',
+                displayName: 'Trending Music',
+                avatarUrl: null,
+                isFollowedByCurrentUser: false,
+              },
+            },
+          ],
+        },
+      },
+    }),
+    ApiResponse({
+      status: 200,
+      description: 'No interaction history — returns empty array.',
+      schema: { example: { status: 'success', data: [] } },
+    }),
+    ApiResponse({ status: 401, description: 'Unauthorized' })
+  );
+}
+
 // ─── Get Artist Station ───────────────────────────────────────────────────────
 
 export function ApiGetArtistStation() {

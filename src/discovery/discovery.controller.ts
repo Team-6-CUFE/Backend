@@ -11,6 +11,7 @@ import {
   ApiSearch,
   ApiSearchAutocomplete,
   ApiGetRecommendedStations,
+  ApiGetTrendingMusicByGenre,
 } from './discovery.swagger';
 import { CurrentUser } from '../authentication/decorators/current-user.decorator';
 import { EntityType } from '../search/types';
@@ -121,9 +122,10 @@ export class DiscoveryController {
     return this.discoveryService.getRecommendedStations(userId, ip);
   }
 
+  @ApiGetTrendingMusicByGenre()
   @Get('/trending/genres')
-  async getTrendingMusicPlaylists(@CurrentUser('sub') userId: string) {
-    return this.discoveryService.getTrendingMusicPlaylists(userId);
+  async getTrendingMusicByGenre(@CurrentUser('sub') userId: string) {
+    return this.discoveryService.getTrendingMusicByGenre(userId);
   }
 
   @Get('/liked-by-users')
