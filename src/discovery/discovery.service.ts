@@ -138,6 +138,7 @@ export class DiscoveryService {
         : null,
       isLiked: track.isLiked ?? false,
       isReposted: track.isReposted ?? false,
+      comments: track.comments,
     };
   }
 
@@ -1164,6 +1165,40 @@ export class DiscoveryService {
     return {
       status: 'success',
       ...buildPaginationResponse(results, total, page, limit),
+    };
+  }
+
+  async getMoreAlbumsOfWhatYouLike(userId: string, ip: string) {
+    // Get genres from albums the user has interacted with
+    const interactedAlbumTags = await this.playlistRepository.getUserInteractedAlbumTags(userId);
+
+    // Determine top 5 most interacted genres
+    const tagFrequency = interactedAlbumTags.reduce<
+      Record<string, { count: number; name: string }>
+    >((acc, tag) => {
+      acc[tag.genreId] = acc[tag.genreId]
+        ? { ...acc[tag.genreId], count: acc[tag.genreId].count + 1 }
+        : { count: 1, name: tag.name };
+      return acc;
+    }, {});
+
+    const topTagIds = Object.entries(tagFrequency)
+      .sort((a, b) => b[1].count - a[1].count)
+      .slice(0, 5)
+      .map(([genreId]) => genreId);
+    console.log('top tags', topTagIds);
+    if (topTagIds.length === 0) {
+      return { status: 'success', data: [] };
+    }
+
+    const albums = await this.playlistRepository.getTopAlbumsByTagIds(topTagIds, userId);
+    const { country } = getLocationFromIp(ip);
+
+    return {
+      status: 'success',
+      data: albums
+        .map((album) => this.formatPlaylist(album as any, country))
+        .filter((a): a is NonNullable<typeof a> => a !== null),
     };
   }
 }

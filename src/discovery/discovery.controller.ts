@@ -157,4 +157,9 @@ export class DiscoveryController {
   ) {
     return this.discoveryService.getTracksByTag(userId, tagName, ip, type, page, limit);
   }
+
+  @Get('/albums/more-albums-of-what-you-like')
+  async getMoreAlbumsOfWhatYouLike(@CurrentUser('sub') userId: string, @Ip() ip: string) {
+    return this.discoveryService.getMoreAlbumsOfWhatYouLike(userId, ip);
+  }
 }
