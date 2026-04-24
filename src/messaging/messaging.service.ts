@@ -10,10 +10,11 @@ import { WebsocketsService } from '../websockets/websockets.service';
 import { CreateChatDto } from './dto/api/create-chat.dto';
 import { SendMessageDto, MessageType } from './dto/ws/send-message.dto';
 import { MarkReadDto } from './dto/ws/mark-read.dto';
-import { GetMessagesDto } from './dto/api/get-messages.dto';
+import { GetMessagesReqDto } from './dto/api/get-messages-req.dto';
 import { ChatResDto } from './dto/chat-res.dto';
 import { MessageResDto } from './dto/message-res.dto';
 import { buildPaginationResponse } from '../common/utilities/pagination.util';
+import { ChatFilter } from './enums/chat-filter.enum';
 
 @Injectable()
 export class MessagingService {
@@ -61,22 +62,23 @@ export class MessagingService {
     };
   }
 
-  async getChats(currentUserId: string, page: number, limit: number) {
-    const { chats, total } = await this.messagingRepository.getChats(currentUserId, page, limit);
+  async getChats(
+    currentUserId: string,
+    page: number,
+    limit: number,
+    filter: ChatFilter = ChatFilter.ALL
+  ) {
+    const { chats, total } = await this.messagingRepository.getChats(
+      currentUserId,
+      page,
+      limit,
+      filter
+    );
 
     const formatted = await Promise.all(chats.map((chat) => this.formatChat(chat, currentUserId)));
-
     return {
       status: 'success',
-      data: {
-        chats: formatted,
-        pagination: {
-          currentPage: page,
-          totalPages: Math.ceil(total / limit),
-          totalCount: total,
-          limit,
-        },
-      },
+      ...buildPaginationResponse(formatted, total, page, limit),
     };
   }
 
@@ -86,13 +88,7 @@ export class MessagingService {
     return { status: 'success', message: 'Chat archived' };
   }
 
-  async unarchiveChat(currentUserId: string, chatId: string) {
-    await this.assertParticipant(chatId, currentUserId);
-    await this.messagingRepository.setChatArchived(chatId, currentUserId, false);
-    return { status: 'success', message: 'Chat unarchived' };
-  }
-
-  async getMessages(currentUserId: string, chatId: string, dto: GetMessagesDto) {
+  async getMessages(currentUserId: string, chatId: string, dto: GetMessagesReqDto) {
     await this.assertParticipant(chatId, currentUserId);
 
     const page = dto.page ?? 1;
@@ -153,6 +149,12 @@ export class MessagingService {
     return { status: 'success', message: 'Marked as read' };
   }
 
+  async markUnread(currentUserId: string, chatId: string) {
+    await this.assertParticipant(chatId, currentUserId);
+    await this.messagingRepository.markUnread(chatId, currentUserId);
+    return { status: 'success', message: 'Chat marked as unread' };
+  }
+
   async getUnreadCount(currentUserId: string) {
     const count = await this.messagingRepository.getTotalUnreadCount(currentUserId);
     return {
@@ -208,7 +210,6 @@ export class MessagingService {
     const status = await this.messagingRepository.getChatStatus(chat.chatId, currentUserId);
     const unreadCount = await this.messagingRepository.getUnreadCount(
       chat.chatId,
-      currentUserId,
       status?.lastReadMessageId ?? null
     );
 
