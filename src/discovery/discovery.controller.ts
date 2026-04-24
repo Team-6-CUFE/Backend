@@ -12,6 +12,7 @@ import {
   ApiSearchAutocomplete,
   ApiGetRecommendedStations,
   ApiGetTrendingMusicByGenre,
+  ApiGetTracksByTag,
 } from './discovery.swagger';
 import { CurrentUser } from '../authentication/decorators/current-user.decorator';
 import { EntityType } from '../search/types';
@@ -142,5 +143,18 @@ export class DiscoveryController {
     @Query('limit') limit: number = 20
   ) {
     return this.discoveryService.getUserLikedby(currentUserId, userId, ip, page, limit);
+  }
+
+  @ApiGetTracksByTag()
+  @Get('/tags/:tag_name')
+  async getTracksByTag(
+    @CurrentUser('sub') userId: string,
+    @Param('tag_name') tagName: string,
+    @Ip() ip: string,
+    @Query('type') type: string = 'recent',
+    @Query('page') page: number = 1,
+    @Query('limit') limit: number = 20
+  ) {
+    return this.discoveryService.getTracksByTag(userId, tagName, ip, type, page, limit);
   }
 }

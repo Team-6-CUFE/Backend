@@ -58,14 +58,15 @@ export class TrackRepository {
       .getOne();
   }
 
-  async findPopularTracksByGenreOrTags(
+  async findTracksByGenreOrTags(
     genreId: string | null,
     tags: Genre[],
     page: number,
-    limit: number
-  ): Promise<Track[]> {
+    limit: number,
+    orderBy: 'popular' | 'recent' = 'popular'
+  ): Promise<[Track[], number]> {
     if (!genreId && (!tags || tags.length === 0)) {
-      return [];
+      return [[], 0];
     }
 
     const skip = (page - 1) * limit;
@@ -96,7 +97,13 @@ export class TrackRepository {
       })
     );
 
-    return query.orderBy('track.playCount', 'DESC').skip(skip).take(limit).getMany();
+    query.andWhere('track.visibility = :visibility', { visibility: TrackVisibility.PUBLIC });
+    query.andWhere('track.hidden = false');
+    query.leftJoinAndSelect('track.user', 'user');
+    if (orderBy === 'popular') {
+      return query.orderBy('track.playCount', 'DESC').skip(skip).take(limit).getManyAndCount();
+    }
+    return query.orderBy('track.createdAt', 'DESC').skip(skip).take(limit).getManyAndCount();
   }
 
   async repostTrack(trackId: string, userId: string, caption?: string): Promise<TrackRepost> {

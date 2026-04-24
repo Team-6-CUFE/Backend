@@ -27,6 +27,7 @@ import { DEFAULT_GENRE_NAMES } from '../genre/genre.constants';
 import { TRENDING_MUSIC_USER } from '../user/trending-music-user.constants';
 import { CreatePlaylistDto } from '../playlist/dto/create-playlist.dto';
 import { GenreRepository } from '../genre/genre.repository';
+import { buildPaginationResponse } from '../common/utilities/pagination.util';
 
 const logger = new Logger('DiscoveryService');
 
@@ -384,12 +385,9 @@ export class DiscoveryService {
       this.updateScore(candidateMap, c, 8); // Base 8 points for being a shared listener track
     });
 
-    const metadataCandidates = await this.trackRepository.findPopularTracksByGenreOrTags(
-      track.genreId,
-      track.tags,
-      1,
-      40
-    );
+    const metadataCandidates = (
+      await this.trackRepository.findTracksByGenreOrTags(track.genreId, track.tags, 1, 40)
+    )[0];
     metadataCandidates.forEach((c) => {
       // Add 5 points if genre matches
       const matchesGenre = c.genreId === track.genreId;
@@ -514,12 +512,14 @@ export class DiscoveryService {
 
     const artistGenres = [...new Set(popularTracks.map((t) => t.genreId))];
     const artistTags = popularTracks.flatMap((t) => t.tags);
-    const metadataCandidates = await this.trackRepository.findPopularTracksByGenreOrTags(
-      artistGenres.length > 0 ? artistGenres[0] : null, // Use the most common genre if available
-      artistTags,
-      1,
-      40
-    );
+    const metadataCandidates = (
+      await this.trackRepository.findTracksByGenreOrTags(
+        artistGenres.length > 0 ? artistGenres[0] : null, // Use the most common genre if available
+        artistTags,
+        1,
+        40
+      )
+    )[0];
     logger.debug(
       `Metadata candidates count for ${username}: ${metadataCandidates.map((c) => c.title).join(', ')}`
     );
@@ -940,12 +940,9 @@ export class DiscoveryService {
   }
 
   async createTrendingMusicPlaylistByGenre(genre: Genre, userId: string) {
-    const topTracks = await this.trackRepository.findPopularTracksByGenreOrTags(
-      genre.genreId,
-      [genre],
-      1,
-      50
-    );
+    const topTracks = (
+      await this.trackRepository.findTracksByGenreOrTags(genre.genreId, [genre], 1, 50)
+    )[0];
     if (topTracks.length === 0) return null;
 
     const existingPlaylist = await this.playlistRepository.getPlaylistByUserAndTitle(
@@ -1080,6 +1077,87 @@ export class DiscoveryService {
           .filter(Boolean),
         total: totalPlaylists,
       },
+    };
+  }
+
+  async getTracksByTag(
+    userId: string,
+    tagName: string,
+    ip: string,
+    type: string,
+    page: number,
+    limit: number
+  ) {
+    const tag = await this.genreRepository.findByName(tagName);
+    if (!tag) {
+      throw new NotFoundException('Tag not found');
+    }
+
+    const { country } = getLocationFromIp(ip);
+    let results: (Record<string, any> | null)[];
+    let total: number;
+
+    if (type === 'popular' || type === 'recent') {
+      console.log(`Searching for ${type} tracks with tag ${tagName} in genre ${tag.genreId}`);
+      const [tracks, trackTotal] = await this.trackRepository.findTracksByGenreOrTags(
+        tag.genreId,
+        [tag],
+        page,
+        limit,
+        type
+      );
+
+      const trackIds = tracks.map((t) => t.trackId);
+      console.log(
+        `Found ${trackIds.length} tracks, fetching like/repost status for user ${userId}`
+      );
+      const [likedIds, repostedIds] = await Promise.all([
+        this.trackRepository.getUserLikedTrackIds(userId, trackIds),
+        this.trackRepository.getUserRepostedTrackIds(userId, trackIds),
+      ]);
+
+      results = tracks.map((track) =>
+        this.formatTrack(
+          {
+            ...track,
+            isLiked: likedIds.has(track.trackId),
+            isReposted: repostedIds.has(track.trackId),
+          },
+          country
+        )
+      );
+      total = trackTotal;
+    } else {
+      const [playlists, playlistTotal] =
+        await this.playlistRepository.findPopularPlaylistsByGenreOrTags(
+          tag.genreId,
+          [tag],
+          page,
+          limit
+        );
+
+      const playlistIds = playlists.map((p) => p.playlistId);
+      const [likedIds, repostedIds] = await Promise.all([
+        this.playlistRepository.getUserLikedPlaylistIds(userId, playlistIds),
+        this.playlistRepository.getUserRepostedPlaylistIds(userId, playlistIds),
+      ]);
+
+      results = playlists.map((playlist) =>
+        this.formatPlaylist(
+          {
+            ...playlist,
+            isLiked: likedIds.has(playlist.playlistId),
+            isReposted: repostedIds.has(playlist.playlistId),
+          },
+          country
+        )
+      );
+      total = playlistTotal;
+    }
+
+    return {
+      status: 'success',
+      ...buildPaginationResponse(results, total, page, limit),
     };
   }
 }

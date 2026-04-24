@@ -1,5 +1,5 @@
 import { ConflictException, Injectable } from '@nestjs/common';
-import { In, IsNull, Repository } from 'typeorm';
+import { Brackets, In, IsNull, Repository } from 'typeorm';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Playlist, PlaylistType } from './entities/playlist.entity';
 import { PlaylistRepost } from './entities/playlist-reposts.entity';
@@ -723,5 +723,52 @@ export class PlaylistRepository {
     return this.playlistRepository.find({
       where: { userId, title: In(titles) },
     });
+  }
+
+  async findPopularPlaylistsByGenreOrTags(
+    genreId: string | null,
+    tags: Genre[],
+    page: number,
+    limit: number
+  ): Promise<[Playlist[], number]> {
+    if (!genreId && (!tags || tags.length === 0)) {
+      return [[], 0];
+    }
+
+    const skip = (page - 1) * limit;
+    const query = this.playlistRepository
+      .createQueryBuilder('playlist')
+      .leftJoinAndSelect('playlist.tags', 'tag')
+      .leftJoinAndSelect('playlist.genre', 'genre');
+
+    query.andWhere(
+      new Brackets((qb) => {
+        let hasCondition = false;
+
+        if (genreId) {
+          qb.where('playlist.genreId = :genreId', { genreId });
+          hasCondition = true;
+        }
+
+        if (tags && tags.length > 0) {
+          const tagIds = tags.filter((t) => t && t.genreId).map((t) => t.genreId);
+          if (tagIds.length > 0) {
+            if (hasCondition) {
+              qb.orWhere('tag.genreId IN (:...tagIds)', { tagIds });
+            } else {
+              qb.where('tag.genreId IN (:...tagIds)', { tagIds });
+            }
+          }
+        }
+      })
+    );
+
+    query.andWhere('playlist.isPublic = true');
+    query.leftJoinAndSelect('playlist.user', 'playlistUser');
+    query.leftJoinAndSelect('playlist.playlistTracks', 'playlistTrack');
+    query.leftJoinAndSelect('playlistTrack.track', 'track');
+    query.leftJoinAndSelect('track.user', 'trackUser');
+
+    return query.orderBy('playlist.likesCount', 'DESC').skip(skip).take(limit).getManyAndCount();
   }
 }
