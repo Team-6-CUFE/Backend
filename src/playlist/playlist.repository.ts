@@ -133,8 +133,12 @@ export class PlaylistRepository {
       .createQueryBuilder('like')
       .innerJoinAndSelect('like.playlist', 'playlist')
       .innerJoinAndSelect('playlist.user', 'user')
+      .leftJoinAndSelect('playlist.playlistTracks', 'playlistTrack')
+      .leftJoinAndSelect('playlistTrack.track', 'track')
+      .leftJoinAndSelect('track.user', 'trackUser')
       .where('like.userId = :userId', { userId })
       .orderBy('like.createdAt', 'DESC')
+      .addOrderBy('playlistTrack.position', 'ASC')
       .skip(skip)
       .take(limit)
       .getManyAndCount();
