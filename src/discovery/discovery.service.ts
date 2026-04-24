@@ -975,7 +975,7 @@ export class DiscoveryService {
     return playlistId;
   }
 
-  async getTrendingMusicPlaylists(userId: string) {
+  async getTrendingMusicByGenre(userId: string) {
     const trendingMusicUser = await this.userService.findByUsername(TRENDING_MUSIC_USER.username);
     if (!trendingMusicUser) throw new Error('Trending Music user not found');
 

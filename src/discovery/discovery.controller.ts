@@ -122,7 +122,7 @@ export class DiscoveryController {
   }
 
   @Get('/trending/genres')
-  async getTrendingMusicPlaylists(@CurrentUser('sub') userId: string) {
-    return this.discoveryService.getTrendingMusicPlaylists(userId);
+  async getTrendingMusicByGenre(@CurrentUser('sub') userId: string) {
+    return this.discoveryService.getTrendingMusicByGenre(userId);
   }
 }
