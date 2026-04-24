@@ -1,6 +1,10 @@
-export const trendingMusicUser = {
+export const TRENDING_MUSIC_USER = {
   email: 'trending@example.com',
-  password: 'Password123',
   displayName: 'Trending Music',
   username: 'trending_music',
+  firstName: 'Trending',
+  lastName: 'Music',
+  role: 'artist',
+  plan: 'go+',
+  isPublic: true,
 };

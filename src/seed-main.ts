@@ -17,8 +17,8 @@ async function bootstrap() {
     const dataSource = app.get(DataSource);
 
     console.log('Starting database seeding...');
-    await runSeeder(dataSource, TrendingMusicUserSeeder);
     await runSeeder(dataSource, UserSeeder);
+    await runSeeder(dataSource, TrendingMusicUserSeeder);
     await runSeeder(dataSource, TrackSeeder);
     await runSeeder(dataSource, PlaylistSeeder);
     await runSeeder(dataSource, TrackPlaysSeeder);
