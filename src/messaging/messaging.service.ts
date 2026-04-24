@@ -210,7 +210,6 @@ export class MessagingService {
     const status = await this.messagingRepository.getChatStatus(chat.chatId, currentUserId);
     const unreadCount = await this.messagingRepository.getUnreadCount(
       chat.chatId,
-      currentUserId,
       status?.lastReadMessageId ?? null
     );
 

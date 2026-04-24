@@ -199,11 +199,7 @@ export class MessagingRepository {
     );
   }
 
-  async getUnreadCount(
-    chatId: string,
-    userId: string,
-    lastReadMessageId: string | null
-  ): Promise<number> {
+  async getUnreadCount(chatId: string, lastReadMessageId: string | null): Promise<number> {
     if (!lastReadMessageId) {
       return this.messageRepo.count({
         where: { chatId },
