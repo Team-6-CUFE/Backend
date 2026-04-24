@@ -4,6 +4,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Notification, NotificationType } from './entities/notification.entity';
 import { UserFollow } from '../followers/entities/user-follows.entity';
+import { DeviceToken } from './entities/device-token-entity';
 
 @Injectable()
 export class NotificationsRepository {
@@ -86,5 +87,30 @@ export class NotificationsRepository {
       select: ['follower'],
     });
     return follows.map((f) => f.follower);
+  }
+
+  // Inside NotificationsRepository
+  async saveDeviceToken(userId: string, token: string, platform: string): Promise<void> {
+    // Check if this specific token already exists for this user to avoid spamming the DB
+    const existing = await this.repo.manager.findOne(DeviceToken, {
+      where: { token, userId },
+    });
+
+    if (!existing) {
+      const newToken = this.repo.manager.create(DeviceToken, {
+        userId,
+        token,
+        platform,
+      });
+      await this.repo.manager.save(newToken);
+    }
+  }
+
+  async getUserDeviceTokens(userId: string): Promise<string[]> {
+    const devices = await this.repo.manager.find(DeviceToken, {
+      where: { userId },
+      select: ['token'],
+    });
+    return devices.map((d) => d.token);
   }
 }
