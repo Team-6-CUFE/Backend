@@ -23,6 +23,7 @@ describe('DiscoveryController', () => {
     searchAutocomplete: jest.fn(),
     getRecommendedStations: jest.fn(),
     getTrendingMusicByGenre: jest.fn(),
+    getTracksByTag: jest.fn(),
   };
 
   const mockUserId = 'user-123';
@@ -1199,6 +1200,113 @@ describe('DiscoveryController', () => {
       await expect(controller.getTrendingMusicByGenre(mockUserId)).rejects.toThrow(
         'Trending Music user not found'
       );
+    });
+  });
+
+  // ─── getTracksByTag ───────────────────────────────────────────────────────
+
+  describe('getTracksByTag', () => {
+    const mockTagName = 'Electronic';
+
+    it('should call service with all parameters', async () => {
+      const mockResult = { status: 'success', data: [], pagination: {} };
+      mockDiscoveryService.getTracksByTag.mockResolvedValue(mockResult);
+
+      await controller.getTracksByTag(mockUserId, mockTagName, mockIp, 'recent', 1, 20);
+
+      expect(discoveryService.getTracksByTag).toHaveBeenCalledWith(
+        mockUserId,
+        mockTagName,
+        mockIp,
+        'recent',
+        1,
+        20
+      );
+      expect(discoveryService.getTracksByTag).toHaveBeenCalledTimes(1);
+    });
+
+    it('should return the service response as-is', async () => {
+      const mockResult = {
+        status: 'success',
+        data: [
+          {
+            trackId: 'track-uuid-1',
+            title: 'Midnight Drive',
+            audioUrl: 'https://cdn.harmonica.com/audio/midnight.mp3',
+            isLiked: false,
+            isReposted: false,
+          },
+        ],
+        pagination: { currentPage: 1, totalPages: 1, totalCount: 1, limit: 20 },
+      };
+      mockDiscoveryService.getTracksByTag.mockResolvedValue(mockResult);
+
+      const result = await controller.getTracksByTag(
+        mockUserId,
+        mockTagName,
+        mockIp,
+        'recent',
+        1,
+        20
+      );
+
+      expect(result).toBe(mockResult);
+    });
+
+    it('should return playlists response for type=playlists', async () => {
+      const mockResult = {
+        status: 'success',
+        data: [{ playlistId: 'pl-1', title: 'Electronic Mix' }],
+        pagination: { currentPage: 1, totalPages: 1, totalCount: 1, limit: 20 },
+      };
+      mockDiscoveryService.getTracksByTag.mockResolvedValue(mockResult);
+
+      const result = await controller.getTracksByTag(
+        mockUserId,
+        mockTagName,
+        mockIp,
+        'playlists',
+        1,
+        20
+      );
+
+      expect(discoveryService.getTracksByTag).toHaveBeenCalledWith(
+        mockUserId,
+        mockTagName,
+        mockIp,
+        'playlists',
+        1,
+        20
+      );
+      expect(result).toBe(mockResult);
+    });
+
+    it('should propagate NotFoundException when tag does not exist', async () => {
+      mockDiscoveryService.getTracksByTag.mockRejectedValue(new NotFoundException('Tag not found'));
+
+      await expect(
+        controller.getTracksByTag(mockUserId, mockTagName, mockIp, 'recent', 1, 20)
+      ).rejects.toThrow(NotFoundException);
+    });
+
+    it('should return empty data with pagination when no results', async () => {
+      const mockResult = {
+        status: 'success',
+        data: [],
+        pagination: { currentPage: 1, totalPages: 0, totalCount: 0, limit: 20 },
+      };
+      mockDiscoveryService.getTracksByTag.mockResolvedValue(mockResult);
+
+      const result = await controller.getTracksByTag(
+        mockUserId,
+        mockTagName,
+        mockIp,
+        'recent',
+        1,
+        20
+      );
+
+      expect((result as any).data).toHaveLength(0);
     });
   });
 });
