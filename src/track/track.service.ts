@@ -49,6 +49,7 @@ import { ActivityService } from '../activity/activity.service';
 import { ActivityType } from '../activity/entities/activity.entity';
 import { REDIS_CLIENT } from '../redis/redis.module';
 import { Genre } from '../genre/entities/genre.entity';
+import { DEFAULT_GENRE_NAMES } from '../genre/genre.constants';
 
 const RELATED_TRACKS_TTL_SECS = 3 * 24 * 60 * 60; // 3 days
 const ALL_TIME_STATS_TTL_SECS = 24 * 60 * 60; // 1 day
@@ -815,7 +816,7 @@ export class TrackService {
   }
 
   async getAllGenres() {
-    const genres = await this.genreRepository.findAll();
+    const genres = await this.genreRepository.findByNames([...DEFAULT_GENRE_NAMES]);
     const data: GenresResDto[] = plainToInstance(GenresResDto, genres, {
       excludeExtraneousValues: true,
     });
