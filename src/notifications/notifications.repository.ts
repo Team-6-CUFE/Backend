@@ -4,13 +4,16 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Notification, NotificationType } from './entities/notification.entity';
 import { UserFollow } from '../followers/entities/user-follows.entity';
-import { DeviceToken } from './entities/device-token-entity';
+import { DeviceToken } from './entities/device-token.entity';
 
 @Injectable()
 export class NotificationsRepository {
   constructor(
     @InjectRepository(Notification)
-    private readonly repo: Repository<Notification>
+    private readonly repo: Repository<Notification>,
+
+    @InjectRepository(DeviceToken)
+    private readonly deviceTokenRepo: Repository<DeviceToken>
   ) {}
 
   async createNotification(
@@ -92,12 +95,12 @@ export class NotificationsRepository {
   // Inside NotificationsRepository
   async saveDeviceToken(userId: string, token: string, platform: string): Promise<void> {
     // Check if this specific token already exists for this user to avoid spamming the DB
-    const existing = await this.repo.manager.findOne(DeviceToken, {
+    const existing = await this.deviceTokenRepo.findOne({
       where: { token, userId },
     });
 
     if (!existing) {
-      const newToken = this.repo.manager.create(DeviceToken, {
+      const newToken = this.deviceTokenRepo.create({
         userId,
         token,
         platform,
@@ -107,7 +110,7 @@ export class NotificationsRepository {
   }
 
   async getUserDeviceTokens(userId: string): Promise<string[]> {
-    const devices = await this.repo.manager.find(DeviceToken, {
+    const devices = await this.deviceTokenRepo.find({
       where: { userId },
       select: ['token'],
     });

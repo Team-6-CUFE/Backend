@@ -1,16 +1,20 @@
 /* eslint-disable no-restricted-syntax */
 // notifications.service.ts
 import { Injectable, NotFoundException } from '@nestjs/common';
+import { getMessaging } from 'firebase-admin/messaging';
 import { NotificationsRepository } from './notifications.repository';
 import { WebsocketsService } from '../websockets/websockets.service';
 import { User } from '../user/entities/user.entity';
 import { NotificationType } from './entities/notification.entity';
+import { getFirebaseApp } from '../common/utilities/captcha.util'; // Double check this path
+import { SettingsService } from '../settings/settings.service';
 
 @Injectable()
 export class NotificationsService {
   constructor(
     private readonly notificationsRepository: NotificationsRepository,
-    private readonly websocketsService: WebsocketsService
+    private readonly websocketsService: WebsocketsService,
+    private readonly settingsService: SettingsService
   ) {}
 
   // Existing method
@@ -35,6 +39,13 @@ export class NotificationsService {
       },
       unreadCount,
     });
+
+    await this.sendPushNotification(
+      recipientId,
+      'New Follower',
+      `${actor.username} started following you!`,
+      'newFollower' // Matches data.device.newFollower
+    );
   }
 
   async getNotifications(userId: string, limit: number, offset: number, type?: string) {
@@ -162,6 +173,14 @@ export class NotificationsService {
       },
       unreadCount,
     });
+
+    await this.sendPushNotification(
+      recipientId,
+      'New Like',
+      `${actor.username} liked your ${target.trackId ? 'track' : 'playlist'}.`,
+      'likes_plays', // Matches data.device.likes_plays in your SettingsService
+      target
+    );
   }
 
   async notifyNewRepost(
@@ -195,6 +214,14 @@ export class NotificationsService {
       },
       unreadCount,
     });
+
+    await this.sendPushNotification(
+      recipientId,
+      'New Repost',
+      `${actor.username} reposted your ${target.trackId ? 'track' : 'playlist'}.`,
+      'repost', // Matches data.device.repost
+      target
+    );
   }
 
   async notifyNewComment(
@@ -231,6 +258,14 @@ export class NotificationsService {
       },
       unreadCount,
     });
+
+    await this.sendPushNotification(
+      recipientId,
+      isReply ? 'New Reply' : 'New Comment',
+      `${actor.username} ${isReply ? 'replied to your comment' : 'commented on your track'}: "${target.content}"`,
+      'comment', // Matches data.device.comment
+      { trackId: target.trackId, commentId: target.commentId }
+    );
   }
 
   async notifyNewPost(artist: any, trackId: string) {
@@ -267,6 +302,67 @@ export class NotificationsService {
         },
         unreadCount,
       });
+
+      // eslint-disable-next-line no-await-in-loop
+      await this.sendPushNotification(
+        followerId,
+        'New Track',
+        `${artist.username} just uploaded a new track!`,
+        'newPost', // Matches data.device.newPost
+        { trackId }
+      );
     }
+  }
+
+  private async sendPushNotification(
+    userId: string,
+    title: string,
+    body: string,
+    settingKey: string,
+    data?: any
+  ) {
+    try {
+      // 1. Permission Check
+      const settings = await this.settingsService.getNotificationSettings(userId);
+      const deviceSettings = settings?.data?.device as Record<string, any>;
+
+      if (
+        !deviceSettings ||
+        deviceSettings[settingKey] === false ||
+        deviceSettings[settingKey] === 'off'
+      )
+        return;
+
+      // 2. Token Retrieval & Formatting
+      const rawTokens = await this.notificationsRepository.getUserDeviceTokens(userId);
+      const tokens: string[] = (rawTokens || [])
+        .map((t: any) => (typeof t === 'string' ? t : t?.token)?.trim())
+        .filter((t): t is string => !!t && t.length > 0);
+
+      if (tokens.length === 0) return;
+
+      // 3. Data Flattening (FCM requires strings)
+      const fcmData: Record<string, string> = { click_action: 'FLUTTER_NOTIFICATION_CLICK' };
+      if (data) {
+        Object.entries(data).forEach(([k, v]) => {
+          if (v != null) fcmData[k] = typeof v === 'object' ? JSON.stringify(v) : String(v);
+        });
+      }
+
+      // 4. Dispatch
+      await getMessaging(getFirebaseApp()).sendEachForMulticast({
+        notification: { title, body },
+        data: fcmData,
+        tokens,
+      });
+    } catch (error: any) {
+      console.error(`Push error: ${error?.message}`);
+    }
+  }
+
+  // notifications.service.ts
+
+  async registerDevice(userId: string, token: string, platform: string) {
+    return this.notificationsRepository.saveDeviceToken(userId, token, platform);
   }
 }

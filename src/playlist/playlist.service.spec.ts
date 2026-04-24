@@ -11,6 +11,7 @@ import { UserRepository } from '../user/user.repository';
 import { StorageService } from '../common/storage_service';
 import { PlaylistService } from './playlist.service';
 import { ActivityService } from '../activity/activity.service';
+import { NotificationsService } from '../notifications/notifications.service';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -199,6 +200,12 @@ const mockLikeWithPlaylist = () => ({
   },
 });
 
+const mockNotificationsService = () => ({
+  // Add the methods your PlaylistService uses. For example:
+  sendNotification: jest.fn(),
+  createNotification: jest.fn(),
+});
+
 // ─── Suite ────────────────────────────────────────────────────────────────────
 
 describe('PlaylistService', () => {
@@ -215,6 +222,7 @@ describe('PlaylistService', () => {
         { provide: UserRepository, useFactory: mockUserRepository },
         { provide: StorageService, useFactory: mockStorageService },
         { provide: ActivityService, useFactory: mockActivitiesService },
+        { provide: NotificationsService, useFactory: mockNotificationsService },
       ],
     }).compile();
 

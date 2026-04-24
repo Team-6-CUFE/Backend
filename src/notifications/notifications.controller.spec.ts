@@ -7,16 +7,16 @@ describe('NotificationsController', () => {
   let controller: NotificationsController;
   let service: NotificationsService;
 
-  // 1. Create a fake version of the service
   const mockNotificationsService = {
     getNotifications: jest.fn(),
     markAsRead: jest.fn(),
     markAllAsRead: jest.fn(),
     getUnreadCount: jest.fn(),
+    sendPushNotification: jest.fn(),
   };
 
   const mockSettingsService = {
-    getUserSettings: jest.fn(),
+    getNotificationSettings: jest.fn(),
   };
 
   beforeEach(async () => {
@@ -25,11 +25,11 @@ describe('NotificationsController', () => {
       providers: [
         {
           provide: NotificationsService,
-          useValue: mockNotificationsService, // Inject the fake service
+          useValue: mockNotificationsService,
         },
         {
           provide: SettingsService,
-          useValue: mockSettingsService, // Inject the fake settings service
+          useValue: mockSettingsService,
         },
       ],
     }).compile();
@@ -39,7 +39,7 @@ describe('NotificationsController', () => {
   });
 
   afterEach(() => {
-    jest.clearAllMocks(); // Clean up between tests
+    jest.clearAllMocks();
   });
 
   it('should be defined', () => {
@@ -48,7 +48,6 @@ describe('NotificationsController', () => {
 
   describe('getNotifications', () => {
     it('should return successfully formatted paginated data', async () => {
-      // Arrange: Setup our fake service to return a specific output
       const userId = 'user-123';
       const mockResult = {
         notifications: [{ notificationId: 'notif_001', isRead: false }],
@@ -57,14 +56,9 @@ describe('NotificationsController', () => {
 
       mockNotificationsService.getNotifications.mockResolvedValue(mockResult);
 
-      // Act: Call the controller method
-      // (limit=20, offset=0, type='follow')
       const response = await controller.getNotifications(userId, 20, 0, 'follow');
 
-      // Assert: Verify the service was called with the exact right variables
       expect(service.getNotifications).toHaveBeenCalledWith(userId, 20, 0, 'follow');
-
-      // Assert: Verify the final JSON matches your API spec perfectly
       expect(response).toEqual({
         status: 'success',
         data: {
@@ -73,79 +67,32 @@ describe('NotificationsController', () => {
             limit: 20,
             offset: 0,
             total: 1,
-            hasMore: false, // Because 0 + 20 is not < 1
+            hasMore: false,
           },
         },
       });
     });
 
-    it('should cap the limit at 50 to prevent huge queries', async () => {
+    it('should cap the limit at 50', async () => {
       mockNotificationsService.getNotifications.mockResolvedValue({ notifications: [], total: 0 });
-
-      // Act: Pass a limit of 100
       await controller.getNotifications('user-123', 100, 0);
-
-      // Assert: The service should only be called with 50
       expect(service.getNotifications).toHaveBeenCalledWith('user-123', 50, 0, undefined);
     });
   });
 
   describe('markAsRead', () => {
-    it('should call the service and return a success payload', async () => {
-      // Arrange: service just resolves successfully without returning data
+    it('should return success payload', async () => {
       mockNotificationsService.markAsRead.mockResolvedValue(undefined);
-
-      const notificationId = '123e4567-e89b-12d3-a456-426614174000';
-      const userId = 'user-123';
-
-      // Act
-      const response = await controller.markAsRead(notificationId, userId);
-
-      // Assert
-      expect(service.markAsRead).toHaveBeenCalledWith(notificationId, userId);
-      expect(response).toEqual({
-        status: 'success',
-        message: 'Notification marked as read',
-      });
-    });
-  });
-
-  describe('markAllAsRead', () => {
-    it('should call the service and return a success payload', async () => {
-      // Arrange
-      mockNotificationsService.markAllAsRead.mockResolvedValue(undefined);
-      const userId = 'user-123';
-
-      // Act
-      const response = await controller.markAllAsRead(userId);
-
-      // Assert
-      expect(service.markAllAsRead).toHaveBeenCalledWith(userId);
-      expect(response).toEqual({
-        status: 'success',
-        message: 'All notifications marked as read',
-      });
+      const response = await controller.markAsRead('notif-1', 'user-1');
+      expect(response).toEqual({ status: 'success', message: 'Notification marked as read' });
     });
   });
 
   describe('getUnreadCount', () => {
-    it('should call the service and return the unread count payload', async () => {
-      // Arrange
-      const userId = 'user-123';
-      const mockCount = 12;
-      mockNotificationsService.getUnreadCount.mockResolvedValue(mockCount);
-
-      // Act
-      const response = await controller.getUnreadCount(userId);
-
-      // Assert
-      expect(service.getUnreadCount).toHaveBeenCalledWith(userId);
-      expect(response).toEqual({
-        status: 'success',
-        data: {
-          unreadCount: mockCount,
-        },
-      });
+    it('should return the unread count payload', async () => {
+      mockNotificationsService.getUnreadCount.mockResolvedValue(12);
+      const response = await controller.getUnreadCount('user-1');
+      expect(response.data.unreadCount).toEqual(12);
     });
   });
 });

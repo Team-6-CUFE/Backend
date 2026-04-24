@@ -1,5 +1,12 @@
 import { applyDecorators, HttpStatus } from '@nestjs/common';
-import { ApiOperation, ApiQuery, ApiResponse, ApiCookieAuth, ApiParam } from '@nestjs/swagger';
+import {
+  ApiOperation,
+  ApiQuery,
+  ApiResponse,
+  ApiCookieAuth,
+  ApiParam,
+  ApiBody,
+} from '@nestjs/swagger';
 
 const errorSchema = (statusCode: number, message: string) => ({
   schema: { example: { statusCode, message } },
@@ -206,6 +213,37 @@ export function ApiUpdateNotificationSettings() {
       description:
         'Updates the email and device notification preferences for the authenticated user.',
     }),
+    ApiBody({
+      schema: {
+        type: 'object',
+        properties: {
+          email: {
+            type: 'object',
+            properties: {
+              newFollower: { type: 'boolean' },
+              repost: { type: 'boolean' },
+              newPost: { type: 'boolean' },
+              likesPlays: { type: 'boolean' },
+              comment: { type: 'boolean' },
+              newMessage: { type: 'boolean' },
+            },
+          },
+          device: {
+            type: 'object',
+            properties: {
+              newFollower: { type: 'boolean' },
+              likesPlays: { type: 'boolean' },
+              comment: { type: 'boolean' },
+              newMessage: { type: 'string', enum: ['everyone', 'following', 'off'] },
+            },
+          },
+        },
+        example: {
+          email: { newFollower: true, likesPlays: false },
+          device: { newFollower: true, newMessage: 'everyone' },
+        },
+      },
+    }),
     ApiResponse({
       status: HttpStatus.OK,
       description: 'Successfully updated notification settings',
@@ -261,6 +299,53 @@ export function ApiGetUnreadCount() {
           },
         },
       },
+    }),
+    ...commonErrorResponses
+  );
+}
+
+export function ApiRegisterDevice() {
+  return applyDecorators(
+    ApiCookieAuth('access_token'),
+    ApiOperation({
+      summary: 'Register mobile device',
+      description:
+        'Links a Firebase Cloud Messaging (FCM) token to the authenticated user for push notifications.',
+    }),
+    ApiBody({
+      schema: {
+        type: 'object',
+        required: ['token', 'platform'],
+        properties: {
+          token: {
+            type: 'string',
+            description: 'The FCM registration token from the mobile device',
+            example: 'fcm_token_a1b2c3d4e5',
+          },
+          platform: {
+            type: 'string',
+            enum: ['android', 'ios'],
+            example: 'android',
+          },
+        },
+      },
+    }),
+    ApiResponse({
+      status: HttpStatus.OK,
+      description: 'Device successfully registered',
+      content: {
+        'application/json': {
+          example: {
+            status: 'success',
+            message: 'Device token registered successfully',
+          },
+        },
+      },
+    }),
+    ApiResponse({
+      status: HttpStatus.BAD_REQUEST,
+      description: 'Invalid token or platform provided',
+      ...errorSchema(400, 'Bad Request'),
     }),
     ...commonErrorResponses
   );

@@ -9,6 +9,7 @@ import {
   ParseUUIDPipe,
   Body,
   Put,
+  Post,
 } from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
 import { NotificationsService } from './notifications.service';
@@ -21,6 +22,7 @@ import {
   ApiGetNotificationSettings,
   ApiUpdateNotificationSettings,
   ApiGetUnreadCount,
+  ApiRegisterDevice,
 } from './notifications.swagger'; // Adjust this path if you saved it elsewhere
 import { SettingsService } from '../settings/settings.service';
 import { UpdateNotificationsDto } from '../settings/dtos/update-notifications.dto';
@@ -115,6 +117,20 @@ export class NotificationsController {
       data: {
         unreadCount: count,
       },
+    };
+  }
+
+  @ApiRegisterDevice() // Apply the new Swagger decorator
+  @Post('register-device') // Make sure this line is here!
+  async registerDevice(
+    @CurrentUser('sub') userId: string,
+    @Body('token') token: string,
+    @Body('platform') platform: string
+  ) {
+    await this.notificationsService.registerDevice(userId, token, platform);
+    return {
+      status: 'success',
+      message: 'Device token registered successfully',
     };
   }
 }
