@@ -14,7 +14,6 @@ import {
 import { ApiTags } from '@nestjs/swagger';
 import { NotificationsService } from './notifications.service';
 import { CurrentUser } from '../authentication/decorators/current-user.decorator';
-// 1. Import your custom decorators
 import {
   ApiGetNotifications,
   ApiMarkNotificationRead,
@@ -23,7 +22,7 @@ import {
   ApiUpdateNotificationSettings,
   ApiGetUnreadCount,
   ApiRegisterDevice,
-} from './notifications.swagger'; // Adjust this path if you saved it elsewhere
+} from './notifications.swagger';
 import { SettingsService } from '../settings/settings.service';
 import { UpdateNotificationsDto } from '../settings/dtos/update-notifications.dto';
 
@@ -61,7 +60,7 @@ export class NotificationsController {
           limit: safeLimit,
           offset,
           total: result.total,
-          hasMore: offset + safeLimit < result.total, // Returns true if there are more items
+          hasMore: offset + safeLimit < result.total,
         },
       },
     };
@@ -120,8 +119,8 @@ export class NotificationsController {
     };
   }
 
-  @ApiRegisterDevice() // Apply the new Swagger decorator
-  @Post('register-device') // Make sure this line is here!
+  @ApiRegisterDevice()
+  @Post('register-device')
   async registerDevice(
     @CurrentUser('sub') userId: string,
     @Body('token') token: string,

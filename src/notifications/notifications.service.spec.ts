@@ -73,7 +73,6 @@ describe('NotificationsService', () => {
 
       mockNotificationsRepository.createNotification.mockResolvedValue(mockNotif);
       mockNotificationsRepository.getUnreadCount.mockResolvedValue(5);
-      // Mock settings to skip push in this specific test or mock push behavior
       mockSettingsService.getNotificationSettings.mockResolvedValue({
         data: { device: { newFollower: false } },
       });

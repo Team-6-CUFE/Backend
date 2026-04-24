@@ -15,7 +15,7 @@ import { DeviceToken } from './entities/device-token.entity';
     SettingsModule,
   ],
   controllers: [NotificationsController],
-  providers: [NotificationsService, NotificationsRepository], // Added Repository here
+  providers: [NotificationsService, NotificationsRepository],
   exports: [NotificationsService],
 })
 export class NotificationsModule {}

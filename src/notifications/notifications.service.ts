@@ -1,12 +1,11 @@
 /* eslint-disable no-restricted-syntax */
-// notifications.service.ts
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { getMessaging } from 'firebase-admin/messaging';
 import { NotificationsRepository } from './notifications.repository';
 import { WebsocketsService } from '../websockets/websockets.service';
 import { User } from '../user/entities/user.entity';
 import { NotificationType } from './entities/notification.entity';
-import { getFirebaseApp } from '../common/utilities/captcha.util'; // Double check this path
+import { getFirebaseApp } from '../common/utilities/captcha.util';
 import { SettingsService } from '../settings/settings.service';
 
 @Injectable()
@@ -17,7 +16,6 @@ export class NotificationsService {
     private readonly settingsService: SettingsService
   ) {}
 
-  // Existing method
   async notifyNewFollower(recipientId: string, actor: User) {
     const notification = await this.notificationsRepository.createNotification(
       NotificationType.NEW_FOLLOWER,
@@ -44,7 +42,7 @@ export class NotificationsService {
       recipientId,
       'New Follower',
       `${actor.username} started following you!`,
-      'newFollower' // Matches data.device.newFollower
+      'newFollower'
     );
   }
 
@@ -59,13 +57,11 @@ export class NotificationsService {
     const formattedNotifications = notifications.map((notif) => {
       let target = null;
 
-      // Explicitly cover every notification type
       switch (notif.type) {
         case NotificationType.NEW_LIKE:
         case NotificationType.NEW_REPOST:
         case NotificationType.NEW_COMMENT:
         case NotificationType.NEW_POST:
-          // These types can target either a track or a playlist
           if (notif.track) {
             target = {
               type: 'track',
@@ -85,12 +81,10 @@ export class NotificationsService {
 
         case NotificationType.MESSAGE:
         case NotificationType.NEW_FOLLOWER:
-          // Follows have no specific target resource as per the spec
           target = null;
           break;
 
         default:
-          // Fallback just in case
           target = null;
           break;
       }
@@ -117,11 +111,10 @@ export class NotificationsService {
     return { notifications: formattedNotifications, total };
   }
 
-  // 2. The DELETE method (MAKE SURE THIS IS HERE AND INSIDE THE CLASS)
   async deleteNotification(
     recipientId: string,
     actorId: string,
-    type: NotificationType // Make sure NotificationType is imported at the top!
+    type: NotificationType
   ): Promise<void> {
     await this.notificationsRepository.deleteNotification(recipientId, actorId, type);
   }
@@ -144,10 +137,9 @@ export class NotificationsService {
 
   async notifyNewLike(
     recipientId: string,
-    actor: any, // Accepts the user object
+    actor: any,
     target: { trackId?: string; playlistId?: string }
   ) {
-    // 1. Save to database
     const notification = await this.notificationsRepository.createNotification(
       NotificationType.NEW_LIKE,
       recipientId,
@@ -155,10 +147,8 @@ export class NotificationsService {
       target
     );
 
-    // 2. Get fresh unread count
     const unreadCount = await this.notificationsRepository.getUnreadCount(recipientId);
 
-    // 3. Emit the real-time event
     this.websocketsService.emitToUser(recipientId, 'new_notification', {
       notification: {
         notificationId: notification.notificationId,
@@ -168,7 +158,7 @@ export class NotificationsService {
           username: actor.username,
           avatarUrl: actor.avatarUrl,
         },
-        target, // Passes the trackId or playlistId to the frontend
+        target,
         createdAt: notification.createdAt,
       },
       unreadCount,
@@ -178,7 +168,7 @@ export class NotificationsService {
       recipientId,
       'New Like',
       `${actor.username} liked your ${target.trackId ? 'track' : 'playlist'}.`,
-      'likes_plays', // Matches data.device.likes_plays in your SettingsService
+      'likes_plays',
       target
     );
   }
@@ -188,7 +178,6 @@ export class NotificationsService {
     actor: any,
     target: { trackId?: string; playlistId?: string }
   ) {
-    // 1. Save to DB
     const notification = await this.notificationsRepository.createNotification(
       NotificationType.NEW_REPOST,
       recipientId,
@@ -196,10 +185,8 @@ export class NotificationsService {
       target
     );
 
-    // 2. Get unread count
     const unreadCount = await this.notificationsRepository.getUnreadCount(recipientId);
 
-    // 3. Emit real-time
     this.websocketsService.emitToUser(recipientId, 'new_notification', {
       notification: {
         notificationId: notification.notificationId,
@@ -219,7 +206,7 @@ export class NotificationsService {
       recipientId,
       'New Repost',
       `${actor.username} reposted your ${target.trackId ? 'track' : 'playlist'}.`,
-      'repost', // Matches data.device.repost
+      'repost',
       target
     );
   }
@@ -228,9 +215,8 @@ export class NotificationsService {
     recipientId: string,
     actor: any,
     target: { trackId: string; commentId: string; content: string },
-    isReply: boolean = false // <--- This default handles both cases
+    isReply: boolean = false
   ) {
-    // 1. Save to DB
     const notification = await this.notificationsRepository.createNotification(
       NotificationType.NEW_COMMENT,
       recipientId,
@@ -240,7 +226,6 @@ export class NotificationsService {
 
     const unreadCount = await this.notificationsRepository.getUnreadCount(recipientId);
 
-    // 2. Emit real-time
     this.websocketsService.emitToUser(recipientId, 'new_notification', {
       notification: {
         notificationId: notification.notificationId,
@@ -263,19 +248,15 @@ export class NotificationsService {
       recipientId,
       isReply ? 'New Reply' : 'New Comment',
       `${actor.username} ${isReply ? 'replied to your comment' : 'commented on your track'}: "${target.content}"`,
-      'comment', // Matches data.device.comment
+      'comment',
       { trackId: target.trackId, commentId: target.commentId }
     );
   }
 
   async notifyNewPost(artist: any, trackId: string) {
-    // 1. Find all followers
     const followers = await this.notificationsRepository.getFollowers(artist.userId);
 
-    // 2. Prepare the notification data
-    // In a real production app, you'd use a "Bulk Insert" here for the DB
     for (const followerId of followers) {
-      // Save to DB
       // eslint-disable-next-line no-await-in-loop
       const notification = await this.notificationsRepository.createNotification(
         NotificationType.NEW_POST,
@@ -287,7 +268,6 @@ export class NotificationsService {
       // eslint-disable-next-line no-await-in-loop
       const unreadCount = await this.notificationsRepository.getUnreadCount(followerId);
 
-      // Emit via WebSocket
       this.websocketsService.emitToUser(followerId, 'new_notification', {
         notification: {
           notificationId: notification.notificationId,
@@ -308,7 +288,7 @@ export class NotificationsService {
         followerId,
         'New Track',
         `${artist.username} just uploaded a new track!`,
-        'newPost', // Matches data.device.newPost
+        'newPost',
         { trackId }
       );
     }
@@ -333,7 +313,6 @@ export class NotificationsService {
       )
         return;
 
-      // 2. Token Retrieval & Formatting
       const rawTokens = await this.notificationsRepository.getUserDeviceTokens(userId);
       const tokens: string[] = (rawTokens || [])
         .map((t: any) => (typeof t === 'string' ? t : t?.token)?.trim())
@@ -341,7 +320,6 @@ export class NotificationsService {
 
       if (tokens.length === 0) return;
 
-      // 3. Data Flattening (FCM requires strings)
       const fcmData: Record<string, string> = { click_action: 'FLUTTER_NOTIFICATION_CLICK' };
       if (data) {
         Object.entries(data).forEach(([k, v]) => {
@@ -349,7 +327,6 @@ export class NotificationsService {
         });
       }
 
-      // 4. Dispatch
       await getMessaging(getFirebaseApp()).sendEachForMulticast({
         notification: { title, body },
         data: fcmData,
@@ -359,8 +336,6 @@ export class NotificationsService {
       console.error(`Push error: ${error?.message}`);
     }
   }
-
-  // notifications.service.ts
 
   async registerDevice(userId: string, token: string, platform: string) {
     return this.notificationsRepository.saveDeviceToken(userId, token, platform);
