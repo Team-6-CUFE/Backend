@@ -24,6 +24,10 @@ describe('DiscoveryController', () => {
     getRecommendedStations: jest.fn(),
     getTrendingMusicByGenre: jest.fn(),
     getTracksByTag: jest.fn(),
+    getLikedByUsers: jest.fn(),
+    getUserLikedby: jest.fn(),
+    getMoreAlbumsOfWhatYouLike: jest.fn(),
+    getDiscoverFeed: jest.fn(),
   };
 
   const mockUserId = 'user-123';
@@ -1305,6 +1309,166 @@ describe('DiscoveryController', () => {
         1,
         20
       );
+
+      expect((result as any).data).toHaveLength(0);
+    });
+  });
+
+  // ─── getLikedbyUsers ────────────────────────────────────────────────────────
+
+  describe('getLikedbyUsers', () => {
+    it('should call getLikedByUsers with current user id', async () => {
+      const expected = { status: 'success', data: [{ userId: 'u1' }] };
+      mockDiscoveryService.getLikedByUsers.mockResolvedValue(expected);
+
+      const result = await controller.getLikedbyUsers(mockUserId);
+
+      expect(mockDiscoveryService.getLikedByUsers).toHaveBeenCalledWith(mockUserId);
+      expect(result).toEqual(expected);
+    });
+
+    it('should return empty data list when no one liked', async () => {
+      const expected = { status: 'success', data: [] };
+      mockDiscoveryService.getLikedByUsers.mockResolvedValue(expected);
+
+      const result = await controller.getLikedbyUsers(mockUserId);
+
+      expect(result).toEqual(expected);
+    });
+  });
+
+  // ─── getLikedByUsersForUser ────────────────────────────────────────────────
+
+  describe('getLikedByUsersForUser', () => {
+    const targetUserId = 'target-user-456';
+
+    it('should call getUserLikedby with currentUserId first then targetUserId', async () => {
+      const expected = {
+        status: 'success',
+        tracks: { data: [], total: 0 },
+        playlists: { data: [], total: 0 },
+      };
+      mockDiscoveryService.getUserLikedby.mockResolvedValue(expected);
+
+      const result = await controller.getLikedByUsersForUser(
+        targetUserId,
+        mockUserId,
+        mockIp,
+        1,
+        20
+      );
+
+      // controller calls service.getUserLikedby(currentUserId, userId, ip, page, limit)
+      expect(mockDiscoveryService.getUserLikedby).toHaveBeenCalledWith(
+        mockUserId,
+        targetUserId,
+        mockIp,
+        1,
+        20
+      );
+      expect(result).toEqual(expected);
+    });
+
+    it('should use default page=1 and limit=20', async () => {
+      const expected = {
+        status: 'success',
+        tracks: { data: [], total: 0 },
+        playlists: { data: [], total: 0 },
+      };
+      mockDiscoveryService.getUserLikedby.mockResolvedValue(expected);
+
+      await controller.getLikedByUsersForUser(targetUserId, mockUserId, mockIp);
+
+      expect(mockDiscoveryService.getUserLikedby).toHaveBeenCalledWith(
+        mockUserId,
+        targetUserId,
+        mockIp,
+        1,
+        20
+      );
+    });
+
+    it('should propagate NotFoundException from service', async () => {
+      mockDiscoveryService.getUserLikedby.mockRejectedValue(
+        new NotFoundException('User not found')
+      );
+
+      await expect(
+        controller.getLikedByUsersForUser(targetUserId, mockUserId, mockIp)
+      ).rejects.toThrow('User not found');
+    });
+
+    it('should propagate ForbiddenException from service', async () => {
+      mockDiscoveryService.getUserLikedby.mockRejectedValue(
+        new ForbiddenException('This account is private')
+      );
+
+      await expect(
+        controller.getLikedByUsersForUser(targetUserId, mockUserId, mockIp)
+      ).rejects.toThrow('This account is private');
+    });
+  });
+
+  // ─── getMoreAlbumsOfWhatYouLike ─────────────────────────────────────────────
+
+  describe('getMoreAlbumsOfWhatYouLike', () => {
+    it('should call getMoreAlbumsOfWhatYouLike with userId and ip', async () => {
+      const expected = { status: 'success', data: [{ playlistId: 'album-1' }] };
+      mockDiscoveryService.getMoreAlbumsOfWhatYouLike.mockResolvedValue(expected);
+
+      const result = await controller.getMoreAlbumsOfWhatYouLike(mockUserId, mockIp);
+
+      expect(mockDiscoveryService.getMoreAlbumsOfWhatYouLike).toHaveBeenCalledWith(
+        mockUserId,
+        mockIp
+      );
+      expect(result).toEqual(expected);
+    });
+
+    it('should return empty data when user has no album interactions', async () => {
+      const expected = { status: 'success', data: [] };
+      mockDiscoveryService.getMoreAlbumsOfWhatYouLike.mockResolvedValue(expected);
+
+      const result = await controller.getMoreAlbumsOfWhatYouLike(mockUserId, mockIp);
+
+      expect(result).toEqual(expected);
+    });
+  });
+
+  // ─── getDiscoverFeed ────────────────────────────────────────────────────────
+
+  describe('getDiscoverFeed', () => {
+    it('should call getDiscoverFeed with userId and ip', async () => {
+      const expected = {
+        status: 'success',
+        data: [{ trackId: 'track-1', title: 'Midnight Drive', reason: 'New release by DJ Nour' }],
+      };
+      mockDiscoveryService.getDiscoverFeed.mockResolvedValue(expected);
+
+      const result = await controller.getDiscoverFeed(mockUserId, mockIp);
+
+      expect(mockDiscoveryService.getDiscoverFeed).toHaveBeenCalledWith(mockUserId, mockIp);
+      expect(result).toEqual(expected);
+    });
+
+    it('should return up to 15 tracks', async () => {
+      const tracks = Array.from({ length: 15 }, (_, i) => ({
+        trackId: `track-${i}`,
+        title: `Track ${i}`,
+        reason: 'New release',
+      }));
+      const expected = { status: 'success', data: tracks };
+      mockDiscoveryService.getDiscoverFeed.mockResolvedValue(expected);
+
+      const result = await controller.getDiscoverFeed(mockUserId, mockIp);
+
+      expect((result as any).data).toHaveLength(15);
+    });
+
+    it('should return empty data when pool is empty', async () => {
+      mockDiscoveryService.getDiscoverFeed.mockResolvedValue({ status: 'success', data: [] });
+
+      const result = await controller.getDiscoverFeed(mockUserId, mockIp);
 
       expect((result as any).data).toHaveLength(0);
     });
