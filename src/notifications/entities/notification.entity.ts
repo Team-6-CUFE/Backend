@@ -64,7 +64,4 @@ export class Notification {
   @ManyToOne(() => Playlist, { onDelete: 'CASCADE', nullable: true })
   @JoinColumn({ name: 'playlist_id' })
   playlist!: Playlist;
-
-  @Column({ name: 'message_id', type: 'uuid', nullable: true })
-  messageId!: string | null;
 }

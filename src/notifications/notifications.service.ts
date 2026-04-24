@@ -59,29 +59,19 @@ export class NotificationsService {
               type: 'track',
               trackId: notif.track.trackId,
               title: notif.track.title,
-              coverImageUrl: notif.track.coverImageUrl,
+              coverImageUrl: notif.track.coverImage,
             };
           } else if (notif.playlist) {
             target = {
               type: 'playlist',
               playlistId: notif.playlist.playlistId,
               title: notif.playlist.title,
-              coverImageUrl: notif.playlist.coverImageUrl,
+              coverImageUrl: notif.playlist.coverImage,
             };
           }
           break;
 
         case NotificationType.MESSAGE:
-          // Messages target a specific message entity
-          if (notif.message) {
-            target = {
-              type: 'message',
-              messageId: notif.message.messageId,
-              contentPreview: notif.message.content.substring(0, 50),
-            };
-          }
-          break;
-
         case NotificationType.NEW_FOLLOWER:
           // Follows have no specific target resource as per the spec
           target = null;
