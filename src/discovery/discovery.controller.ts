@@ -12,6 +12,7 @@ import {
   ApiSearchAutocomplete,
   ApiGetRecommendedStations,
   ApiGetTrendingMusicByGenre,
+  ApiGetTracksByTag,
 } from './discovery.swagger';
 import { CurrentUser } from '../authentication/decorators/current-user.decorator';
 import { EntityType } from '../search/types';
@@ -128,6 +129,7 @@ export class DiscoveryController {
     return this.discoveryService.getTrendingMusicByGenre(userId);
   }
 
+  @ApiGetTracksByTag()
   @Get('/tags/:tag_name')
   async getTracksByTag(
     @CurrentUser('sub') userId: string,

@@ -931,3 +931,160 @@ export function ApiGetArtistStation() {
     ApiResponse({ status: 401, description: 'Unauthorized' })
   );
 }
+
+// ─── Get Tracks By Tag ────────────────────────────────────────────────────────
+
+export function ApiGetTracksByTag() {
+  return applyDecorators(
+    ApiCookieAuth('access_token'),
+    ApiOperation({
+      summary: 'Get tracks or playlists by tag',
+      description:
+        'Returns a paginated list of tracks or playlists that match the given tag (genre) name. ' +
+        'Use the `type` query parameter to switch between results: ' +
+        '`recent` (default) and `popular` return tracks; `playlists` returns playlists. ' +
+        "Audio URLs are nulled out for tracks blocked in the requester's region.",
+    }),
+    ApiParam({
+      name: 'tag_name',
+      description: 'The tag (genre) name to filter by',
+      example: 'Electronic',
+    }),
+    ApiQuery({
+      name: 'type',
+      required: false,
+      enum: ['recent', 'popular', 'playlists'],
+      description: 'Result type: tracks by date (recent), by plays (popular), or playlists',
+      example: 'recent',
+    }),
+    ApiQuery({
+      name: 'page',
+      required: false,
+      type: Number,
+      description: 'Page number (default: 1)',
+      example: 1,
+    }),
+    ApiQuery({
+      name: 'limit',
+      required: false,
+      type: Number,
+      description: 'Items per page (default: 20)',
+      example: 20,
+    }),
+    ApiResponse({
+      status: 200,
+      description: 'Paginated tracks or playlists for the tag',
+      schema: {
+        oneOf: [
+          {
+            title: 'Tracks response (type=recent or type=popular)',
+            example: {
+              status: 'success',
+              data: [
+                {
+                  trackId: 'track-uuid-1',
+                  title: 'Midnight Drive',
+                  audioUrl: 'https://cdn.harmonica.com/audio/midnight.mp3',
+                  waveformUrl: 'https://cdn.harmonica.com/waveforms/midnight.json',
+                  coverImage: 'https://cdn.harmonica.com/covers/midnight.jpg',
+                  durationSeconds: 213,
+                  playCount: 1200,
+                  likesCount: 87,
+                  repostsCount: 13,
+                  commentsCount: 5,
+                  isLiked: false,
+                  isReposted: false,
+                  createdAt: '2026-04-17T10:00:00.000Z',
+                  mainArtists: ['dj_nour'],
+                  genre: { genreId: 'genre-uuid-1', name: 'Electronic' },
+                  user: {
+                    userId: 'user-uuid',
+                    username: 'dj_nour',
+                    displayName: 'DJ Nour',
+                    avatarUrl: 'https://cdn.harmonica.com/avatars/dj_nour.jpg',
+                    city: null,
+                    country: null,
+                    followersCount: 500,
+                  },
+                },
+              ],
+              pagination: {
+                currentPage: 1,
+                totalPages: 5,
+                totalCount: 100,
+                limit: 20,
+              },
+            },
+          },
+          {
+            title: 'Playlists response (type=playlists)',
+            example: {
+              status: 'success',
+              data: {
+                playlistId: 'e77da41d-8152-4043-91cf-60179ad36a6b',
+                title: 'Weak',
+                description: 'Based on Weak',
+                coverImage: 'https://picsum.photos/seed/YBdRS/500/500',
+                tracksCount: 5,
+                durationSeconds: 1433,
+                likesCount: 0,
+                isLiked: false,
+                isReposted: false,
+                createdAt: '2026-04-24T15:14:48.292Z',
+                user: {
+                  userId: 'b6fc3946-ee96-4721-9118-5ca776a874f8',
+                  username: 'artist1',
+                  displayName: 'John Doe',
+                  avatarUrl: null,
+                  city: 'Cairo',
+                  country: 'EG',
+                  followersCount: 0,
+                },
+                tracks: [
+                  {
+                    position: 1,
+                    trackId: '5ec4ad0d-9c02-44ff-b66e-0a3fb396a0f7',
+                    title: 'Weak',
+                    durationSeconds: 324,
+                    coverImage: 'https://picsum.photos/seed/YBdRS/500/500',
+                    audioUrl:
+                      'https://cdn.soundcloud-clone.com/audio/44f172c3-7c58-47a9-aa0a-c38794254c77.mp3',
+                    waveformUrl:
+                      'https://cdn.soundcloud-clone.com/waveforms/44f172c3-7c58-47a9-aa0a-c38794254c77.json',
+                    playCount: 51337,
+                    likesCount: 14,
+                    repostsCount: 7,
+                    commentsCount: 8,
+                    isLiked: false,
+                    isReposted: false,
+                    artist: {
+                      userId: 'b6fc3946-ee96-4721-9118-5ca776a874f8',
+                      username: 'artist1',
+                      displayName: 'John Doe',
+                      avatarUrl: null,
+                      city: null,
+                      country: null,
+                      followersCount: 0,
+                    },
+                  },
+                ],
+              },
+              pagination: {
+                currentPage: 1,
+                totalPages: 5,
+                totalCount: 100,
+                limit: 20,
+              },
+            },
+          },
+        ],
+      },
+    }),
+    ApiResponse({
+      status: 404,
+      description: 'Tag not found',
+      schema: { example: { statusCode: 404, message: 'Tag not found' } },
+    }),
+    ApiResponse({ status: 401, description: 'Unauthorized' })
+  );
+}
