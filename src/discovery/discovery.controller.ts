@@ -127,4 +127,16 @@ export class DiscoveryController {
   async getTrendingMusicByGenre(@CurrentUser('sub') userId: string) {
     return this.discoveryService.getTrendingMusicByGenre(userId);
   }
+
+  @Get('/tags/:tag_name')
+  async getTracksByTag(
+    @CurrentUser('sub') userId: string,
+    @Param('tag_name') tagName: string,
+    @Ip() ip: string,
+    @Query('type') type: string = 'recent',
+    @Query('page') page: number = 1,
+    @Query('limit') limit: number = 20
+  ) {
+    return this.discoveryService.getTracksByTag(userId, tagName, ip, type, page, limit);
+  }
 }
