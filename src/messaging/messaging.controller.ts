@@ -24,7 +24,7 @@ import {
   ApiGetUnreadCount,
 } from './messaging.swagger';
 import { ChatResDto } from './dto/chat-res.dto';
-import { PaginationDto } from './dto/api/pagination-dto';
+import { PaginationDto } from './dto/api/pagination.dto';
 import { MessageResDto } from './dto/message-res.dto';
 
 @Controller('messages')

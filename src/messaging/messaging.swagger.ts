@@ -12,7 +12,7 @@ import {
 import { CreateChatDto } from './dto/api/create-chat.dto';
 import { ChatResDto } from './dto/chat-res.dto';
 import { MessageResDto } from './dto/message-res.dto';
-import { PaginationDto } from './dto/api/pagination-dto';
+import { PaginationDto } from './dto/api/pagination.dto';
 
 export const ApiCreateChat = () =>
   applyDecorators(
