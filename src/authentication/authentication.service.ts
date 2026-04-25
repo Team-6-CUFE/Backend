@@ -611,9 +611,11 @@ export class AuthenticationService {
       throw new BadRequestException('Invalid or expired password reset token.');
     }
     const user = await this.userService.findById(record.userId);
-    const isSamePassword = await this.userService.verifyPassword(newPassword, user!.passwordHash);
-    if (isSamePassword) {
-      throw new BadRequestException('New password must be different from current password.');
+    if (user!.passwordHash) {
+      const isSamePassword = await this.userService.verifyPassword(newPassword, user!.passwordHash);
+      if (isSamePassword) {
+        throw new BadRequestException('New password must be different from current password.');
+      }
     }
     await this.userService.updatePassword(record.userId, newPassword);
     await this.authRepository.deleteVerificationToken(record.id);
