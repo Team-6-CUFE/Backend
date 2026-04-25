@@ -633,6 +633,7 @@ export class PlaylistRepository {
       .where('playlist.playlistId IN (:...ids)', { ids })
       .andWhere('playlist.type != :type', { type: PlaylistType.PLAYLIST })
       .andWhere('playlist.type != :stationType', { stationType: PlaylistType.STATION })
+      .andWhere('playlist.isPublic = :isPublic', { isPublic: true })
       .leftJoin('playlist.genre', 'genre')
       .leftJoin('playlist.user', 'playlistUser')
       .leftJoinAndSelect('playlist.playlistTracks', 'playlistTrack')

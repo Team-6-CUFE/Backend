@@ -232,6 +232,7 @@ export class TrackRepository {
       .innerJoinAndSelect('like.track', 'track')
       .innerJoinAndSelect('track.user', 'artist')
       .where('like.userId = :userId', { userId })
+      .andWhere('track.visibility != :trackType', { trackType: TrackVisibility.PRIVATE })
       .orderBy('like.createdAt', 'DESC')
       .skip(skip)
       .take(limit)
