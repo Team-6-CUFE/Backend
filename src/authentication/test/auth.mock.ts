@@ -231,6 +231,7 @@ export const mockAuthenticationService = () => ({
   linkSocialAccount: jest.fn(),
   unlinkSocialAccount: jest.fn(),
   getSocialAccounts: jest.fn(),
+  generateLinkToken: jest.fn(),
 });
 
 export const mockVerificationCode = '123456';
