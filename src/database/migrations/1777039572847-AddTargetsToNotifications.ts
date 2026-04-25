@@ -1,6 +1,6 @@
 import { MigrationInterface, QueryRunner, TableColumn, TableForeignKey } from 'typeorm';
 
-export class UpdateNotificationsTargets1775000000000 implements MigrationInterface {
+export class UpdateNotificationsTargets1777039572847 implements MigrationInterface {
   public async up(queryRunner: QueryRunner): Promise<void> {
     // 1. Update the Enum to include the missing types
     // PostgreSQL requires raw SQL to append values to an existing ENUM
@@ -30,13 +30,13 @@ export class UpdateNotificationsTargets1775000000000 implements MigrationInterfa
     await queryRunner.createForeignKeys('notifications', [
       new TableForeignKey({
         columnNames: ['track_id'],
-        referencedColumnNames: ['track_id'], // Adjust to just 'id' if your tracks table uses 'id' instead of 'track_id'
+        referencedColumnNames: ['track_id'],
         referencedTableName: 'tracks',
         onDelete: 'CASCADE',
       }),
       new TableForeignKey({
         columnNames: ['playlist_id'],
-        referencedColumnNames: ['playlist_id'], // Adjust to just 'id' if your playlists table uses 'id' instead of 'playlist_id'
+        referencedColumnNames: ['playlist_id'],
         referencedTableName: 'playlists',
         onDelete: 'CASCADE',
       }),
@@ -58,8 +58,5 @@ export class UpdateNotificationsTargets1775000000000 implements MigrationInterfa
       // 2. Drop columns
       await queryRunner.dropColumns('notifications', ['track_id', 'playlist_id', 'message_id']);
     }
-
-    // Note: PostgreSQL does not easily support dropping values from an ENUM type.
-    // Therefore, 'new_post' and 'message' remain in the 'notification_type' enum on down().
   }
 }
