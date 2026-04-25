@@ -221,7 +221,11 @@ export class AuthenticationService {
     };
   }
 
-  async issueTokens(user: User, response: Response, email: string) {
+  async issueTokens(
+    user: User,
+    response: Response,
+    email: string
+  ): Promise<{ accessToken: string; refreshToken: string }> {
     // Build payload and sign access token
     const payload: JwtPayload = {
       sub: user.userId,
@@ -264,6 +268,8 @@ export class AuthenticationService {
       sameSite: isProduction ? 'none' : 'lax',
       maxAge: REFRESH_COOKIE_MAX_AGE_MS,
     });
+
+    return { accessToken, refreshToken };
   }
 
   async refreshTokens(
@@ -669,7 +675,9 @@ export class AuthenticationService {
     };
   }
 
-  async handleOAuthCallback(profile: OAuthProfile, response: Response) {
+  async handleOAuthCallback(profile: OAuthProfile, response: Response, redirectUri?: string) {
+    const isMobile = !!redirectUri;
+
     // Already linked social account
     const existingSocialAccount = await this.userService.findSocialAccount(
       profile.provider,
@@ -682,7 +690,13 @@ export class AuthenticationService {
         throw new NotFoundException('User not found for the social account.');
       }
 
-      await this.issueTokens(user, response, profile.email);
+      const { accessToken, refreshToken } = await this.issueTokens(user, response, profile.email);
+      if (isMobile) {
+        return {
+          url: `${redirectUri}?access_token=${encodeURIComponent(accessToken)}&refresh_token=${encodeURIComponent(refreshToken)}`,
+          statusCode: 302,
+        };
+      }
       return {
         url: `${FRONTEND_URL}/home`,
         statusCode: 302,
@@ -699,7 +713,17 @@ export class AuthenticationService {
         profile.providerId,
         profile.email
       );
-      await this.issueTokens(existingUser, response, profile.email);
+      const { accessToken, refreshToken } = await this.issueTokens(
+        existingUser,
+        response,
+        profile.email
+      );
+      if (isMobile) {
+        return {
+          url: `${redirectUri}?access_token=${encodeURIComponent(accessToken)}&refresh_token=${encodeURIComponent(refreshToken)}`,
+          statusCode: 302,
+        };
+      }
       return {
         url: `${FRONTEND_URL}/home`,
         statusCode: 302,
@@ -709,10 +733,11 @@ export class AuthenticationService {
     // Brand new user
     const pendingToken = await this.createPendingOAuthSession(profile);
     const displayName = `${profile.firstName} ${profile.lastName}`;
+    const pendingParams = `pendingToken=${pendingToken}&displayName=${encodeURIComponent(displayName)}`;
     return {
-      url: `${FRONTEND_URL}/auth/callback?pendingToken=${
-        pendingToken
-      }&displayName=${encodeURIComponent(displayName)}`,
+      url: isMobile
+        ? `${redirectUri}?${pendingParams}`
+        : `${FRONTEND_URL}/auth/callback?${pendingParams}`,
       statusCode: 302,
     };
   }
@@ -730,6 +755,23 @@ export class AuthenticationService {
       expiryDate
     );
     return token;
+  }
+
+  /**
+   * Issues a short-lived, single-purpose JWT for mobile account linking.
+   * Flutter calls this endpoint (authenticated), then opens the system browser
+   * with the returned token as ?link_token=... so the link guard can identify
+   * the user without a shared cookie context.
+   */
+  generateLinkToken(userId: string): { token: string } {
+    const token = this.jwtService.sign(
+      { sub: userId, type: 'oauth-link' },
+      {
+        secret: this.configService.get<string>('JWT_SECRET'),
+        expiresIn: '5m',
+      }
+    );
+    return { token };
   }
 
   private buildUserResponse(user: User) {
