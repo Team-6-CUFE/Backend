@@ -25,6 +25,7 @@ import { FanRepository } from './fan.repository';
 import { FansService } from './services/fans.service';
 import { FansJobProcessor } from './listeners/fans-job.processor';
 import { ActivityModule } from '../activity/activity.module';
+import { NotificationsModule } from '../notifications/notifications.module';
 
 @Module({
   imports: [
@@ -40,6 +41,7 @@ import { ActivityModule } from '../activity/activity.module';
       Settings,
     ]),
     PlaylistModule,
+    NotificationsModule,
     BullModule.forRootAsync({
       imports: [ConfigModule],
       useFactory: (configService: ConfigService) => {

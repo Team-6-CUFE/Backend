@@ -6,11 +6,16 @@ import { Notification } from './entities/notification.entity';
 import { WebsocketsModule } from '../websockets/websockets.module';
 import { NotificationsRepository } from './notifications.repository';
 import { SettingsModule } from '../settings/settings.module';
+import { DeviceToken } from './entities/device-token.entity';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([Notification]), WebsocketsModule, SettingsModule],
+  imports: [
+    TypeOrmModule.forFeature([Notification, DeviceToken]),
+    WebsocketsModule,
+    SettingsModule,
+  ],
   controllers: [NotificationsController],
-  providers: [NotificationsService, NotificationsRepository], // Added Repository here
+  providers: [NotificationsService, NotificationsRepository],
   exports: [NotificationsService],
 })
 export class NotificationsModule {}

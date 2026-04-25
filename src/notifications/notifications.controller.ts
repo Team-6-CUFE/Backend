@@ -9,17 +9,20 @@ import {
   ParseUUIDPipe,
   Body,
   Put,
+  Post,
 } from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
 import { NotificationsService } from './notifications.service';
 import { CurrentUser } from '../authentication/decorators/current-user.decorator';
-// 1. Import your custom decorators
 import {
   ApiGetNotifications,
   ApiMarkNotificationRead,
   ApiMarkAllNotificationsRead,
   ApiGetNotificationSettings,
-} from './notifications.swagger'; // Adjust this path if you saved it elsewhere
+  ApiUpdateNotificationSettings,
+  ApiGetUnreadCount,
+  ApiRegisterDevice,
+} from './notifications.swagger';
 import { SettingsService } from '../settings/settings.service';
 import { UpdateNotificationsDto } from '../settings/dtos/update-notifications.dto';
 
@@ -57,7 +60,7 @@ export class NotificationsController {
           limit: safeLimit,
           offset,
           total: result.total,
-          hasMore: offset + safeLimit < result.total, // Returns true if there are more items
+          hasMore: offset + safeLimit < result.total,
         },
       },
     };
@@ -95,11 +98,38 @@ export class NotificationsController {
   }
 
   @Put('settings')
-  // @ApiUpdateNotificationSettings()
+  @ApiUpdateNotificationSettings()
   async updateSettings(
     @CurrentUser('sub') userId: string,
     @Body() updateDto: UpdateNotificationsDto
   ) {
     return this.settingsService.updateNotificationSettings(userId, updateDto);
+  }
+
+  @Get('unread-count')
+  @ApiGetUnreadCount()
+  async getUnreadCount(@CurrentUser('sub') userId: string) {
+    const count = await this.notificationsService.getUnreadCount(userId);
+
+    return {
+      status: 'success',
+      data: {
+        unreadCount: count,
+      },
+    };
+  }
+
+  @ApiRegisterDevice()
+  @Post('register-device')
+  async registerDevice(
+    @CurrentUser('sub') userId: string,
+    @Body('token') token: string,
+    @Body('platform') platform: string
+  ) {
+    await this.notificationsService.registerDevice(userId, token, platform);
+    return {
+      status: 'success',
+      message: 'Device token registered successfully',
+    };
   }
 }

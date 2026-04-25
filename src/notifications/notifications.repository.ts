@@ -1,25 +1,32 @@
-// notifications.repository.ts
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Notification, NotificationType } from './entities/notification.entity';
+import { UserFollow } from '../followers/entities/user-follows.entity';
+import { DeviceToken } from './entities/device-token.entity';
 
 @Injectable()
 export class NotificationsRepository {
   constructor(
     @InjectRepository(Notification)
-    private readonly repo: Repository<Notification>
+    private readonly repo: Repository<Notification>,
+
+    @InjectRepository(DeviceToken)
+    private readonly deviceTokenRepo: Repository<DeviceToken>
   ) {}
 
   async createNotification(
     type: NotificationType,
     recipientId: string,
-    actorId: string
+    actorId: string,
+    target?: { trackId?: string; playlistId?: string }
   ): Promise<Notification> {
     const notification = this.repo.create({
       type,
       recipientId,
       actorId,
+      trackId: target?.trackId,
+      playlistId: target?.playlistId,
     });
     return this.repo.save(notification);
   }
@@ -39,10 +46,8 @@ export class NotificationsRepository {
     const query = this.repo
       .createQueryBuilder('notification')
       .leftJoinAndSelect('notification.actor', 'actor')
-      // These are now active so the service can format the targets correctly
-      // .leftJoinAndSelect('notification.track', 'track')
-      // .leftJoinAndSelect('notification.playlist', 'playlist')
-      // .leftJoinAndSelect('notification.message', 'message')
+      .leftJoinAndSelect('notification.track', 'track')
+      .leftJoinAndSelect('notification.playlist', 'playlist')
       .where('notification.recipientId = :userId', { userId })
       .orderBy('notification.createdAt', 'DESC')
       .take(limit)
@@ -69,11 +74,41 @@ export class NotificationsRepository {
 
   async markAsRead(notificationId: string, recipientId: string): Promise<boolean> {
     const result = await this.repo.update({ notificationId, recipientId }, { isRead: true });
-    // Returns true if a row was actually updated, false if it wasn't found
     return (result.affected ?? 0) > 0;
   }
 
   async markAllAsRead(recipientId: string): Promise<void> {
     await this.repo.update({ recipientId, isRead: false }, { isRead: true });
+  }
+
+  async getFollowers(artistId: string): Promise<string[]> {
+    const follows = await this.repo.manager.find(UserFollow, {
+      where: { followed: artistId },
+      select: ['follower'],
+    });
+    return follows.map((f) => f.follower);
+  }
+
+  async saveDeviceToken(userId: string, token: string, platform: string): Promise<void> {
+    const existing = await this.deviceTokenRepo.findOne({
+      where: { token, userId },
+    });
+
+    if (!existing) {
+      const newToken = this.deviceTokenRepo.create({
+        userId,
+        token,
+        platform,
+      });
+      await this.repo.manager.save(newToken);
+    }
+  }
+
+  async getUserDeviceTokens(userId: string): Promise<string[]> {
+    const devices = await this.deviceTokenRepo.find({
+      where: { userId },
+      select: ['token'],
+    });
+    return devices.map((d) => d.token);
   }
 }
