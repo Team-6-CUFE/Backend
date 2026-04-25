@@ -99,6 +99,7 @@ const mockFollowersRepository = () => ({
 
 const mockActivityService = () => ({
   getActivitiesByUserIds: jest.fn(),
+  getLikedByUsers: jest.fn(),
 });
 
 const mockTrackRepository = () => ({
@@ -110,6 +111,10 @@ const mockTrackRepository = () => ({
   getUserRepostedTrackIds: jest.fn(),
   getUserLastListenedArtistUsernames: jest.fn(),
   findTracksByGenreOrTags: jest.fn(),
+  getUserTrackLikes: jest.fn(),
+  getUserRecentlyPlayed: jest.fn(),
+  findNewReleasedTracks: jest.fn(),
+  getTopTrack: jest.fn(),
 });
 
 const mockTrackService = () => ({
@@ -136,11 +141,15 @@ const mockPlaylistRepository = () => ({
   getPlaylistByUserAndTitles: jest.fn(),
   findLikeByUserAndPlaylist: jest.fn(),
   findPopularPlaylistsByGenreOrTags: jest.fn(),
+  getUserPlaylistLikes: jest.fn(),
+  getUserInteractedAlbumTags: jest.fn(),
+  getTopAlbumsByTagIds: jest.fn(),
 });
 
 const mockUserService = () => ({
   findByUsername: jest.fn(),
   findByIds: jest.fn(),
+  findById: jest.fn(),
 });
 
 const mockGenreRepository = () => ({
@@ -759,7 +768,7 @@ describe('DiscoveryService', () => {
 
       // Should fetch metadata candidates with correct parameters
       expect(trackRepo.findTracksByGenreOrTags).toHaveBeenCalledWith(
-        'genre-1',
+        ['genre-1'],
         expect.any(Array),
         1,
         40
@@ -1410,7 +1419,7 @@ describe('DiscoveryService', () => {
       );
 
       expect(trackRepo.findTracksByGenreOrTags).toHaveBeenCalledWith(
-        mockTag.genreId,
+        [mockTag.genreId],
         [mockTag],
         1,
         20,
@@ -1441,7 +1450,7 @@ describe('DiscoveryService', () => {
       );
 
       expect(trackRepo.findTracksByGenreOrTags).toHaveBeenCalledWith(
-        mockTag.genreId,
+        [mockTag.genreId],
         [mockTag],
         1,
         20,
@@ -1569,7 +1578,7 @@ describe('DiscoveryService', () => {
       await service.getTracksByTag(MOCK_USER_ID, TAG_NAME, '1.2.3.4', 'recent', 3, 10);
 
       expect(trackRepo.findTracksByGenreOrTags).toHaveBeenCalledWith(
-        mockTag.genreId,
+        [mockTag.genreId],
         [mockTag],
         3,
         10,

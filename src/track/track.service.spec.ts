@@ -59,6 +59,7 @@ import {
 } from './tests/track.mock';
 import { REDIS_CLIENT } from '../redis/redis.module';
 import { ActivityService } from '../activity/activity.service';
+import { NotificationsService } from '../notifications/notifications.service';
 import { DEFAULT_GENRE_NAMES } from '../genre/genre.constants';
 
 const MOCK_CAPTION = 'Great track!';
@@ -80,6 +81,8 @@ describe('TrackService', () => {
   let fansService: ReturnType<typeof mockFansService>;
   let playlistService: ReturnType<typeof mockPlaylistService>;
   let redisClient: ReturnType<typeof mockRedisClient>;
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  let notificationsService: NotificationsService;
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
@@ -95,6 +98,13 @@ describe('TrackService', () => {
         { provide: PlaylistService, useFactory: mockPlaylistService },
         { provide: REDIS_CLIENT, useFactory: mockRedisClient },
         { provide: ActivityService, useFactory: mockActivitiesService },
+        {
+          provide: NotificationsService,
+          useValue: {
+            sendPushNotification: jest.fn(),
+            // Add other methods if TrackService calls them
+          },
+        },
       ],
     }).compile();
 
@@ -105,6 +115,7 @@ describe('TrackService', () => {
     fansService = module.get(FansService);
     playlistService = module.get(PlaylistService);
     redisClient = module.get(REDIS_CLIENT);
+    notificationsService = module.get(NotificationsService);
   });
 
   afterEach(() => jest.clearAllMocks());

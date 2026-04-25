@@ -18,6 +18,7 @@ import { ActivityType } from '../activity/entities/activity.entity';
 import { getLocationFromIp } from '../common/utilities/geolocation.util';
 import { addDocuments, deleteDocument, mapAlbum, mapPlaylist } from '../search/indexing';
 import { generateVerificationToken } from '../common/utilities/tokens.util';
+import { NotificationsService } from '../notifications/notifications.service';
 
 @Injectable()
 export class PlaylistService {
@@ -25,7 +26,8 @@ export class PlaylistService {
     private readonly playlistRepository: PlaylistRepository,
     private readonly userRepository: UserRepository,
     private readonly storageService: StorageService,
-    private readonly activitiesService: ActivityService
+    private readonly activitiesService: ActivityService,
+    private readonly notificationsService: NotificationsService
   ) {}
 
   async getPlaylistById(playlistId: string): Promise<Playlist | null> {
@@ -66,6 +68,11 @@ export class PlaylistService {
       userId,
       playlist.userId
     );
+
+    const actor = await this.userRepository.findById(userId);
+    if (actor) {
+      await this.notificationsService.notifyNewRepost(playlist.userId, actor, { playlistId });
+    }
     return {
       status: 'success',
       data: { userId, playlistId, repostedAt: new Date() },
@@ -216,6 +223,13 @@ export class PlaylistService {
       userId,
       playlist.userId
     );
+
+    const actor = await this.userRepository.findById(userId);
+    if (actor && playlist.userId !== userId) {
+      // Prevent notifying yourself if liking your own public playlist
+      await this.notificationsService.notifyNewLike(playlist.userId, actor, { playlistId });
+    }
+
     return {
       status: 'success',
       data: { userId, playlistId, likedAt: new Date() },

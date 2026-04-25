@@ -2,7 +2,7 @@ import axios from 'axios';
 import { getApps, initializeApp, cert } from 'firebase-admin/app';
 import { getAppCheck } from 'firebase-admin/app-check';
 
-function getFirebaseApp() {
+export function getFirebaseApp() {
   if (getApps().length) return getApps()[0];
 
   const projectId = process.env.FIREBASE_PROJECT_ID;

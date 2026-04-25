@@ -20,9 +20,9 @@ export class LoginDto {
   })
   @IsString()
   @IsNotEmpty({ message: 'Password is required' })
-  @MinLength(8, { message: 'Invalid password.' })
+  @MinLength(8, { message: 'Minimum 8 characters.' })
   @Matches(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d).+$/, {
-    message: 'Invalid password.',
+    message: 'At least one uppercase letter, one lowercase letter, and one number.',
   })
   password!: string;
 }
