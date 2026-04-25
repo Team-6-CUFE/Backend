@@ -1042,7 +1042,12 @@ export class DiscoveryService {
     const users = await this.activityService.getLikedByUsers(userId);
     return {
       status: 'success',
-      data: users,
+      data: users.map(({ user_user_id, user_username, user_display_name, user_avatar_url }) => ({
+        userId: user_user_id,
+        username: user_username,
+        displayName: user_display_name,
+        avatarUrl: user_avatar_url,
+      })),
     };
   }
 
@@ -1065,7 +1070,6 @@ export class DiscoveryService {
       this.trackRepository.getUserTrackLikes(userId, page, cappedLimit),
       this.playlistRepository.getUserPlaylistLikes(userId, page, cappedLimit),
     ]);
-
     return {
       status: 'success',
       tracks: {
@@ -1186,7 +1190,6 @@ export class DiscoveryService {
       .sort((a, b) => b[1].count - a[1].count)
       .slice(0, 5)
       .map(([genreId]) => genreId);
-    console.log('top tags', topTagIds);
     if (topTagIds.length === 0) {
       return { status: 'success', data: [] };
     }
