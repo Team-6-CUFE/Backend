@@ -13,6 +13,10 @@ import {
   ApiGetRecommendedStations,
   ApiGetTrendingMusicByGenre,
   ApiGetTracksByTag,
+  ApiGetLikedByUsers,
+  ApiGetLikedByUsersForUser,
+  ApiGetMoreAlbumsOfWhatYouLike,
+  ApiGetDiscoverFeed,
 } from './discovery.swagger';
 import { CurrentUser } from '../authentication/decorators/current-user.decorator';
 import { EntityType } from '../search/types';
@@ -129,11 +133,13 @@ export class DiscoveryController {
     return this.discoveryService.getTrendingMusicByGenre(userId);
   }
 
+  @ApiGetLikedByUsers()
   @Get('/liked-by-users')
   async getLikedbyUsers(@CurrentUser('sub') userId: string) {
     return this.discoveryService.getLikedByUsers(userId);
   }
 
+  @ApiGetLikedByUsersForUser()
   @Get('/liked-by/users/:userId')
   async getLikedByUsersForUser(
     @Param('userId') userId: string,
@@ -158,8 +164,15 @@ export class DiscoveryController {
     return this.discoveryService.getTracksByTag(userId, tagName, ip, type, page, limit);
   }
 
+  @ApiGetMoreAlbumsOfWhatYouLike()
   @Get('/albums/more-albums-of-what-you-like')
   async getMoreAlbumsOfWhatYouLike(@CurrentUser('sub') userId: string, @Ip() ip: string) {
     return this.discoveryService.getMoreAlbumsOfWhatYouLike(userId, ip);
+  }
+
+  @ApiGetDiscoverFeed()
+  @Get('feed/discover')
+  async getDiscoverFeed(@CurrentUser('sub') userId: string, @Ip() ip: string) {
+    return this.discoveryService.getDiscoverFeed(userId, ip);
   }
 }
