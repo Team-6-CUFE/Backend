@@ -6,6 +6,7 @@ import { UserSeeder } from './database/seeds/user.seeder';
 import { PlaylistSeeder } from './database/seeds/playlist.seeder';
 import { TrackSeeder } from './database/seeds/track.seeder';
 import { TrackPlaysSeeder } from './database/seeds/track-plays.seeder';
+import { TrendingMusicUserSeeder } from './database/seeds/trending-music-user.seeder';
 
 async function bootstrap() {
   // Create an application context (no web server started)
@@ -17,6 +18,7 @@ async function bootstrap() {
 
     console.log('Starting database seeding...');
     await runSeeder(dataSource, UserSeeder);
+    await runSeeder(dataSource, TrendingMusicUserSeeder);
     await runSeeder(dataSource, TrackSeeder);
     await runSeeder(dataSource, PlaylistSeeder);
     await runSeeder(dataSource, TrackPlaysSeeder);

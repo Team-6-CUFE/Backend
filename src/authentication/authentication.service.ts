@@ -159,6 +159,12 @@ export class AuthenticationService {
       throw new UnauthorizedException('Invalid identifier or password');
     }
 
+    if (user.passwordHash === null) {
+      throw new BadRequestException(
+        'Password login is not enabled for this account. Sign in with your linked social account.'
+      );
+    }
+
     // If login with email check that the email is verified
     const usedEmail = user.emails.find((e) => e.email === identifier);
     if (usedEmail && !usedEmail.isVerified) {

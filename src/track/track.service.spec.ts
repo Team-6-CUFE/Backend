@@ -41,7 +41,7 @@ import {
   mockTrackComment,
   mockParentComment,
   mockPlaylistEntry,
-  mockGenre,
+  // mockGenre,
   mockJwtPayload,
   mockProJwtPayload,
   mockGoJwtPayload,
@@ -59,6 +59,8 @@ import {
 } from './tests/track.mock';
 import { REDIS_CLIENT } from '../redis/redis.module';
 import { ActivityService } from '../activity/activity.service';
+import { NotificationsService } from '../notifications/notifications.service';
+import { DEFAULT_GENRE_NAMES } from '../genre/genre.constants';
 
 const MOCK_CAPTION = 'Great track!';
 
@@ -79,6 +81,8 @@ describe('TrackService', () => {
   let fansService: ReturnType<typeof mockFansService>;
   let playlistService: ReturnType<typeof mockPlaylistService>;
   let redisClient: ReturnType<typeof mockRedisClient>;
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  let notificationsService: NotificationsService;
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
@@ -94,6 +98,13 @@ describe('TrackService', () => {
         { provide: PlaylistService, useFactory: mockPlaylistService },
         { provide: REDIS_CLIENT, useFactory: mockRedisClient },
         { provide: ActivityService, useFactory: mockActivitiesService },
+        {
+          provide: NotificationsService,
+          useValue: {
+            sendPushNotification: jest.fn(),
+            // Add other methods if TrackService calls them
+          },
+        },
       ],
     }).compile();
 
@@ -104,6 +115,7 @@ describe('TrackService', () => {
     fansService = module.get(FansService);
     playlistService = module.get(PlaylistService);
     redisClient = module.get(REDIS_CLIENT);
+    notificationsService = module.get(NotificationsService);
   });
 
   afterEach(() => jest.clearAllMocks());
@@ -964,32 +976,44 @@ describe('TrackService', () => {
   // ─── getAllGenres ─────────────────────────────────────────────────────────────
 
   describe('getAllGenres', () => {
-    it('should return all genres', async () => {
-      genreRepo.findAll.mockResolvedValue([
-        mockGenre(),
-        mockGenre({ genreId: 'id-2', name: 'Hip-Hop' }),
-      ]);
+    const mockGenreEntity = (overrides?: object) => ({
+      genreId: 'genre-uuid-1',
+      name: 'Electronic',
+      description: 'Electronic music',
+      ...overrides,
+    });
+
+    it('should call findByNames with all DEFAULT_GENRE_NAMES', async () => {
+      genreRepo.findByNames.mockResolvedValue([]);
+
+      await service.getAllGenres();
+
+      expect(genreRepo.findByNames).toHaveBeenCalledWith([...DEFAULT_GENRE_NAMES]);
+      expect(genreRepo.findByNames).toHaveBeenCalledTimes(1);
+    });
+
+    it('should return transformed genre list on success', async () => {
+      const genres = [
+        mockGenreEntity(),
+        mockGenreEntity({ genreId: 'genre-uuid-2', name: 'Hip-Hop' }),
+      ];
+      genreRepo.findByNames.mockResolvedValue(genres);
 
       const result = await service.getAllGenres();
 
       expect(result.status).toBe('success');
       expect(result.data).toHaveLength(2);
+      expect(result.data[0]).toMatchObject({ genreId: 'genre-uuid-1', name: 'Electronic' });
+      expect(result.data[1]).toMatchObject({ genreId: 'genre-uuid-2', name: 'Hip-Hop' });
     });
 
-    it('should return empty array when no genres exist', async () => {
-      genreRepo.findAll.mockResolvedValue([]);
+    it('should return empty data array when no genres exist in DB', async () => {
+      genreRepo.findByNames.mockResolvedValue([]);
 
       const result = await service.getAllGenres();
 
+      expect(result.status).toBe('success');
       expect(result.data).toEqual([]);
-    });
-
-    it('should call genreRepository.findAll', async () => {
-      genreRepo.findAll.mockResolvedValue([]);
-
-      await service.getAllGenres();
-
-      expect(genreRepo.findAll).toHaveBeenCalledTimes(1);
     });
   });
 

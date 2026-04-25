@@ -64,4 +64,21 @@ export class ActivityService {
       userId,
     });
   }
+
+  async getLikedByUsers(currentUserId: string, limit: number = 8) {
+    return this.activityRepository
+      .createQueryBuilder('activity')
+      .innerJoin('activity.user', 'user')
+      .innerJoin('user_follows', 'uf', 'uf.followed = activity.user_id')
+      .where('activity.activityType IN (:...types)', {
+        types: [ActivityType.TRACK_LIKE, ActivityType.PLAYLIST_LIKE],
+      })
+      .andWhere('uf.follower = :currentUserId', { currentUserId })
+      .andWhere('user.isPublic = true')
+      .select(['user.userId', 'user.username', 'user.displayName', 'user.avatarUrl'])
+      .groupBy('user.userId')
+      .orderBy('COUNT(activity.activityId) * RANDOM()', 'DESC')
+      .limit(limit)
+      .getRawMany();
+  }
 }

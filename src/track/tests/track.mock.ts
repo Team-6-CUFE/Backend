@@ -295,6 +295,8 @@ export const mockUserRepository = () => ({
 
 export const mockGenreRepository = () => ({
   findAll: jest.fn(),
+  findById: jest.fn(),
+  findByNames: jest.fn(),
 });
 
 export const mockPlaylistRepository = () => ({

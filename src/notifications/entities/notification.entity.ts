@@ -7,6 +7,8 @@ import {
   JoinColumn,
 } from 'typeorm';
 import { User } from '../../user/entities/user.entity';
+import { Track } from '../../track/entities/track.entity';
+import { Playlist } from '../../playlist/entities/playlist.entity';
 
 export enum NotificationType {
   NEW_FOLLOWER = 'new_follower',
@@ -49,9 +51,17 @@ export class Notification {
   })
   createdAt!: Date;
 
-  track: any;
+  @Column({ name: 'track_id', type: 'uuid', nullable: true })
+  trackId!: string | null;
 
-  playlist: any;
+  @ManyToOne(() => Track, { onDelete: 'CASCADE', nullable: true })
+  @JoinColumn({ name: 'track_id' })
+  track!: Track;
 
-  message: any;
+  @Column({ name: 'playlist_id', type: 'uuid', nullable: true })
+  playlistId!: string | null;
+
+  @ManyToOne(() => Playlist, { onDelete: 'CASCADE', nullable: true })
+  @JoinColumn({ name: 'playlist_id' })
+  playlist!: Playlist;
 }

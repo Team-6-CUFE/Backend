@@ -1,6 +1,6 @@
 import { MigrationInterface, QueryRunner } from 'typeorm';
 
-export class CreateNotificationsTable1713830000000 implements MigrationInterface {
+export class CreateNotificationsTable1776997786444 implements MigrationInterface {
   public async up(queryRunner: QueryRunner): Promise<void> {
     // 0. CLEANUP: Drop the existing table and enum if they are already stuck in the DB
     await queryRunner.query(`DROP TABLE IF EXISTS notifications CASCADE;`);

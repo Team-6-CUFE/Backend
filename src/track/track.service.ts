@@ -49,6 +49,8 @@ import { ActivityService } from '../activity/activity.service';
 import { ActivityType } from '../activity/entities/activity.entity';
 import { REDIS_CLIENT } from '../redis/redis.module';
 import { Genre } from '../genre/entities/genre.entity';
+import { DEFAULT_GENRE_NAMES } from '../genre/genre.constants';
+import { NotificationsService } from '../notifications/notifications.service';
 
 const RELATED_TRACKS_TTL_SECS = 3 * 24 * 60 * 60; // 3 days
 const ALL_TIME_STATS_TTL_SECS = 24 * 60 * 60; // 1 day
@@ -63,6 +65,7 @@ export class TrackService {
     private readonly playlistService: PlaylistService,
     private readonly fansService: FansService,
     private readonly activitiesService: ActivityService,
+    private readonly notificationsService: NotificationsService,
     @InjectQueue('audioQueue')
     private readonly audioQueue: Queue,
 
@@ -119,6 +122,14 @@ export class TrackService {
       userId,
       userId
     );
+
+    const artist = await this.userRepository.findById(userId);
+    if (artist) {
+      // We don't 'await' this so the artist's upload response isn't delayed
+      // while we loop through thousands of followers
+      this.notificationsService.notifyNewPost(artist, savedTrack.trackId);
+    }
+
     return {
       status: 'success',
       message: 'Track upload started. Processing in background.',
@@ -260,6 +271,12 @@ export class TrackService {
       userId,
       track.userId
     );
+
+    const actor = await this.userRepository.findById(userId);
+    if (actor) {
+      await this.notificationsService.notifyNewRepost(track.userId, actor, { trackId });
+    }
+
     return {
       status: 'success',
       data: await this.trackRepository.repostTrack(trackId, userId, caption),
@@ -396,6 +413,11 @@ export class TrackService {
       userId,
       track.userId
     );
+
+    const actor = await this.userRepository.findById(userId);
+    if (actor) {
+      await this.notificationsService.notifyNewLike(track.userId, actor, { trackId });
+    }
     return {
       status: 'success',
       data: await this.trackRepository.likeTrack(trackId, userId),
@@ -497,19 +519,56 @@ export class TrackService {
       throw new ForbiddenException('This track is private');
     }
 
+    let parentComment = null;
     if (commentDto.parentId) {
-      const parentComment = await this.trackRepository.findCommentById(commentDto.parentId);
+      parentComment = await this.trackRepository.findCommentById(commentDto.parentId);
       if (!parentComment) {
         throw new NotFoundException('Parent comment not found');
       }
     }
+
     const comment = await this.trackRepository.addComment(trackId, userId, commentDto);
+
     await this.activitiesService.createActivity(
       ActivityType.TRACK_COMMENT,
       trackId,
       userId,
       track.userId
     );
+
+    const actor = await this.userRepository.findById(userId);
+
+    if (actor) {
+      const targetData = {
+        trackId,
+        commentId: comment.commentId,
+        content: comment.content,
+      };
+
+      // 2. Notify the Track Owner
+      if (track.userId !== userId) {
+        await this.notificationsService.notifyNewComment(track.userId, actor, targetData, false);
+      }
+
+      // 3. Notify the Parent Commenter (the "Reply" notification)
+      // We only notify if:
+      // - It's actually a reply (parentComment exists)
+      // - The reply isn't from the same person who wrote the parent comment
+      // - The parent commenter isn't the track owner (to avoid double notifications)
+      if (
+        parentComment &&
+        parentComment.userId !== userId &&
+        parentComment.userId !== track.userId
+      ) {
+        await this.notificationsService.notifyNewComment(
+          parentComment.userId,
+          actor,
+          targetData,
+          true
+        );
+      }
+    }
+
     return { status: 'success', data: comment };
   }
 
@@ -815,7 +874,7 @@ export class TrackService {
   }
 
   async getAllGenres() {
-    const genres = await this.genreRepository.findAll();
+    const genres = await this.genreRepository.findByNames([...DEFAULT_GENRE_NAMES]);
     const data: GenresResDto[] = plainToInstance(GenresResDto, genres, {
       excludeExtraneousValues: true,
     });
@@ -885,7 +944,6 @@ export class TrackService {
 
     const data = relatedTracks.map((t) => {
       const dto = plainToInstance(UserTrackResponseDto, t, { excludeExtraneousValues: true });
-      console.log(`Track ${t.title} blocked regions:`, t.blockedRegions);
       if (country && t.blockedRegions?.includes(country)) {
         dto.audioUrl = null;
         dto.waveformUrl = null;

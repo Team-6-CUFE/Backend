@@ -11,6 +11,12 @@ import {
   ApiSearch,
   ApiSearchAutocomplete,
   ApiGetRecommendedStations,
+  ApiGetTrendingMusicByGenre,
+  ApiGetTracksByTag,
+  ApiGetLikedByUsers,
+  ApiGetLikedByUsersForUser,
+  ApiGetMoreAlbumsOfWhatYouLike,
+  ApiGetDiscoverFeed,
 } from './discovery.swagger';
 import { CurrentUser } from '../authentication/decorators/current-user.decorator';
 import { EntityType } from '../search/types';
@@ -119,5 +125,54 @@ export class DiscoveryController {
   @Get('/recommended-stations')
   async getRecommendedStations(@CurrentUser('sub') userId: string, @Ip() ip: string) {
     return this.discoveryService.getRecommendedStations(userId, ip);
+  }
+
+  @ApiGetTrendingMusicByGenre()
+  @Get('/trending/genres')
+  async getTrendingMusicByGenre(@CurrentUser('sub') userId: string) {
+    return this.discoveryService.getTrendingMusicByGenre(userId);
+  }
+
+  @ApiGetLikedByUsers()
+  @Get('/liked-by-users')
+  async getLikedbyUsers(@CurrentUser('sub') userId: string) {
+    return this.discoveryService.getLikedByUsers(userId);
+  }
+
+  @ApiGetLikedByUsersForUser()
+  @Get('/liked-by/users/:userId')
+  async getLikedByUsersForUser(
+    @Param('userId') userId: string,
+    @CurrentUser('sub') currentUserId: string,
+    @Ip() ip: string,
+    @Query('page') page: number = 1,
+    @Query('limit') limit: number = 20
+  ) {
+    return this.discoveryService.getUserLikedby(currentUserId, userId, ip, page, limit);
+  }
+
+  @ApiGetTracksByTag()
+  @Get('/tags/:tag_name')
+  async getTracksByTag(
+    @CurrentUser('sub') userId: string,
+    @Param('tag_name') tagName: string,
+    @Ip() ip: string,
+    @Query('type') type: string = 'recent',
+    @Query('page') page: number = 1,
+    @Query('limit') limit: number = 20
+  ) {
+    return this.discoveryService.getTracksByTag(userId, tagName, ip, type, page, limit);
+  }
+
+  @ApiGetMoreAlbumsOfWhatYouLike()
+  @Get('/albums/more-albums-of-what-you-like')
+  async getMoreAlbumsOfWhatYouLike(@CurrentUser('sub') userId: string, @Ip() ip: string) {
+    return this.discoveryService.getMoreAlbumsOfWhatYouLike(userId, ip);
+  }
+
+  @ApiGetDiscoverFeed()
+  @Get('feed/discover')
+  async getDiscoverFeed(@CurrentUser('sub') userId: string, @Ip() ip: string) {
+    return this.discoveryService.getDiscoverFeed(userId, ip);
   }
 }

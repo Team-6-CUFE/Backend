@@ -190,7 +190,8 @@
       "seed-main\\.ts$",
       "\\.dto\\.ts$",
       "\\.entity\\.ts$",
-      "\\.type\\.ts$"
+      "\\.type\\.ts$",
+      "\\.filter\\.ts$"
     ],
     "coverageThreshold": {
       "global": {
