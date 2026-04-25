@@ -107,6 +107,34 @@ export function ApiLogin() {
       },
     }),
     ApiResponse({
+      status: 400,
+      description: 'Validation error or OAuth user must log in with social provider',
+      content: {
+        'application/json': {
+          examples: {
+            invalidPassword: {
+              summary: 'Invalid password format',
+              value: {
+                statusCode: 400,
+                message: [
+                  'At least one uppercase letter, one lowercase letter, and one number.',
+                  'Minimum 8 characters.',
+                ],
+              },
+            },
+            OAuthUser: {
+              summary: 'OAuth user must log in with social provider',
+              value: {
+                statusCode: 400,
+                message:
+                  'Password login is not enabled for this account. Sign in with your linked social account.',
+              },
+            },
+          },
+        },
+      },
+    }),
+    ApiResponse({
       status: 404,
       description: 'User not found: need to sign up first',
       schema: {

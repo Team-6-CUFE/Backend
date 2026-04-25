@@ -18,6 +18,10 @@ export class GenreRepository {
     return this.repository.findOne({ where: { genreId: id } });
   }
 
+  async findByName(name: string): Promise<Genre | null> {
+    return this.repository.findOne({ where: { name } });
+  }
+
   async findByNames(names: string[]): Promise<Genre[]> {
     return this.repository.findBy({ name: In(names) });
   }

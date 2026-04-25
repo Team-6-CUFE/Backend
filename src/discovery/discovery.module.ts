@@ -4,8 +4,8 @@ import { BullModule } from '@nestjs/bullmq';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { DiscoveryService } from './discovery.service';
 import { DiscoveryController } from './discovery.controller';
-import { ActivitiesService } from './activities.service';
-import { Activity } from './entities/activity.entity';
+import { ActivityService } from '../activity/activity.service';
+import { Activity } from '../activity/entities/activity.entity';
 import { FollowersModule } from '../followers/followers.module';
 import { ActivityModule } from '../activity/activity.module';
 import { PlaylistModule } from '../playlist/playlist.module';
@@ -42,7 +42,7 @@ import { TrendingMusicProcessor } from './listeners/trending-music.processor';
     BullModule.registerQueue({ name: 'trendingMusicQueue' }),
   ],
   controllers: [DiscoveryController],
-  providers: [DiscoveryService, ActivitiesService, TrendingMusicProcessor],
-  exports: [DiscoveryService, ActivitiesService],
+  providers: [DiscoveryService, ActivityService, TrendingMusicProcessor],
+  exports: [DiscoveryService, ActivityService],
 })
 export class DiscoveryModule {}

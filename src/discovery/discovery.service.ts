@@ -27,6 +27,7 @@ import { DEFAULT_GENRE_NAMES } from '../genre/genre.constants';
 import { TRENDING_MUSIC_USER } from '../user/trending-music-user.constants';
 import { CreatePlaylistDto } from '../playlist/dto/create-playlist.dto';
 import { GenreRepository } from '../genre/genre.repository';
+import { buildPaginationResponse } from '../common/utilities/pagination.util';
 
 const logger = new Logger('DiscoveryService');
 
@@ -137,6 +138,7 @@ export class DiscoveryService {
         : null,
       isLiked: track.isLiked ?? false,
       isReposted: track.isReposted ?? false,
+      comments: track.comments,
     };
   }
 
@@ -384,12 +386,9 @@ export class DiscoveryService {
       this.updateScore(candidateMap, c, 8); // Base 8 points for being a shared listener track
     });
 
-    const metadataCandidates = await this.trackRepository.findPopularTracksByGenreOrTags(
-      track.genreId,
-      track.tags,
-      1,
-      40
-    );
+    const metadataCandidates = (
+      await this.trackRepository.findTracksByGenreOrTags([track.genreId], track.tags, 1, 40)
+    )[0];
     metadataCandidates.forEach((c) => {
       // Add 5 points if genre matches
       const matchesGenre = c.genreId === track.genreId;
@@ -514,12 +513,14 @@ export class DiscoveryService {
 
     const artistGenres = [...new Set(popularTracks.map((t) => t.genreId))];
     const artistTags = popularTracks.flatMap((t) => t.tags);
-    const metadataCandidates = await this.trackRepository.findPopularTracksByGenreOrTags(
-      artistGenres.length > 0 ? artistGenres[0] : null, // Use the most common genre if available
-      artistTags,
-      1,
-      40
-    );
+    const metadataCandidates = (
+      await this.trackRepository.findTracksByGenreOrTags(
+        artistGenres.length > 0 ? [artistGenres[0]] : [null], // Use the most common genre if available
+        artistTags,
+        1,
+        40
+      )
+    )[0];
     logger.debug(
       `Metadata candidates count for ${username}: ${metadataCandidates.map((c) => c.title).join(', ')}`
     );
@@ -940,12 +941,9 @@ export class DiscoveryService {
   }
 
   async createTrendingMusicPlaylistByGenre(genre: Genre, userId: string) {
-    const topTracks = await this.trackRepository.findPopularTracksByGenreOrTags(
-      genre.genreId,
-      [genre],
-      1,
-      50
-    );
+    const topTracks = (
+      await this.trackRepository.findTracksByGenreOrTags([genre.genreId], [genre], 1, 50)
+    )[0];
     if (topTracks.length === 0) return null;
 
     const existingPlaylist = await this.playlistRepository.getPlaylistByUserAndTitle(
@@ -975,7 +973,7 @@ export class DiscoveryService {
     return playlistId;
   }
 
-  async getTrendingMusicPlaylists(userId: string) {
+  async getTrendingMusicByGenre(userId: string) {
     const trendingMusicUser = await this.userService.findByUsername(TRENDING_MUSIC_USER.username);
     if (!trendingMusicUser) throw new Error('Trending Music user not found');
 
@@ -995,8 +993,6 @@ export class DiscoveryService {
       .slice(0, 5)
       .map(([_, value]) => value.name);
 
-    console.log('Top tags for user:', topTagNames);
-
     if (topTagNames.length === 0) {
       return { status: 'success', data: [] };
     }
@@ -1004,11 +1000,6 @@ export class DiscoveryService {
     const playlists = await this.playlistRepository.getPlaylistByUserAndTitles(
       trendingMusicUser.userId,
       topTagNames
-    );
-
-    console.log(
-      'Found playlists:',
-      playlists.map((p) => p.title)
     );
 
     const isFollowedByCurrentUser = await this.followersRepository.isFollowing(
@@ -1044,6 +1035,289 @@ export class DiscoveryService {
     return {
       status: 'success',
       data: mappedPlaylists,
+    };
+  }
+
+  async getLikedByUsers(userId: string) {
+    const users = await this.activityService.getLikedByUsers(userId);
+    return {
+      status: 'success',
+      data: users,
+    };
+  }
+
+  async getUserLikedby(
+    userId: string,
+    myUserId: string,
+    ip: string | null,
+    page: number = 1,
+    limit: number = 20
+  ) {
+    const { country } = ip ? getLocationFromIp(ip) : { country: null };
+    const user = await this.userService.findById(userId);
+    if (!user) throw new NotFoundException('User not found');
+    if (!user.isPublic && user.userId !== myUserId)
+      throw new ForbiddenException('This account is private');
+
+    const cappedLimit = Math.min(limit, 100);
+
+    const [[trackLikes, totalTracks], [playlistLikes, totalPlaylists]] = await Promise.all([
+      this.trackRepository.getUserTrackLikes(userId, page, cappedLimit),
+      this.playlistRepository.getUserPlaylistLikes(userId, page, cappedLimit),
+    ]);
+
+    return {
+      status: 'success',
+      tracks: {
+        data: trackLikes.map((like) => this.formatTrack(like.track, country)).filter(Boolean),
+        total: totalTracks,
+      },
+      playlists: {
+        data: playlistLikes
+          .map((like) => {
+            const playlist = {
+              ...like.playlist,
+              playlistTracks: like.playlist.playlistTracks?.slice(0, 5) ?? [],
+            };
+            return this.formatPlaylist(playlist, country);
+          })
+          .filter(Boolean),
+        total: totalPlaylists,
+      },
+    };
+  }
+
+  async getTracksByTag(
+    userId: string,
+    tagName: string,
+    ip: string,
+    type: string,
+    page: number,
+    limit: number
+  ) {
+    const tag = await this.genreRepository.findByName(tagName);
+    if (!tag) {
+      throw new NotFoundException('Tag not found');
+    }
+
+    const { country } = getLocationFromIp(ip);
+    let results: (Record<string, any> | null)[];
+    let total: number;
+
+    if (type === 'popular' || type === 'recent') {
+      const [tracks, trackTotal] = await this.trackRepository.findTracksByGenreOrTags(
+        [tag.genreId],
+        [tag],
+        page,
+        limit,
+        type
+      );
+
+      const trackIds = tracks.map((t) => t.trackId);
+      const [likedIds, repostedIds] = await Promise.all([
+        this.trackRepository.getUserLikedTrackIds(userId, trackIds),
+        this.trackRepository.getUserRepostedTrackIds(userId, trackIds),
+      ]);
+
+      results = tracks.map((track) =>
+        this.formatTrack(
+          {
+            ...track,
+            isLiked: likedIds.has(track.trackId),
+            isReposted: repostedIds.has(track.trackId),
+          },
+          country
+        )
+      );
+      total = trackTotal;
+    } else {
+      const [playlists, playlistTotal] =
+        await this.playlistRepository.findPopularPlaylistsByGenreOrTags(
+          tag.genreId,
+          [tag],
+          page,
+          limit
+        );
+
+      const playlistIds = playlists.map((p) => p.playlistId);
+      const [likedIds, repostedIds] = await Promise.all([
+        this.playlistRepository.getUserLikedPlaylistIds(userId, playlistIds),
+        this.playlistRepository.getUserRepostedPlaylistIds(userId, playlistIds),
+      ]);
+
+      results = playlists.map((playlist) =>
+        this.formatPlaylist(
+          {
+            ...playlist,
+            isLiked: likedIds.has(playlist.playlistId),
+            isReposted: repostedIds.has(playlist.playlistId),
+          },
+          country
+        )
+      );
+      total = playlistTotal;
+    }
+
+    return {
+      status: 'success',
+      ...buildPaginationResponse(results, total, page, limit),
+    };
+  }
+
+  async getMoreAlbumsOfWhatYouLike(userId: string, ip: string) {
+    // Get genres from albums the user has interacted with
+    const interactedAlbumTags = await this.playlistRepository.getUserInteractedAlbumTags(userId);
+
+    // Determine top 5 most interacted genres
+    const tagFrequency = interactedAlbumTags.reduce<
+      Record<string, { count: number; name: string }>
+    >((acc, tag) => {
+      acc[tag.genreId] = acc[tag.genreId]
+        ? { ...acc[tag.genreId], count: acc[tag.genreId].count + 1 }
+        : { count: 1, name: tag.name };
+      return acc;
+    }, {});
+
+    const topTagIds = Object.entries(tagFrequency)
+      .sort((a, b) => b[1].count - a[1].count)
+      .slice(0, 5)
+      .map(([genreId]) => genreId);
+    if (topTagIds.length === 0) {
+      return { status: 'success', data: [] };
+    }
+
+    const albums = await this.playlistRepository.getTopAlbumsByTagIds(topTagIds, userId);
+    const { country } = getLocationFromIp(ip);
+
+    return {
+      status: 'success',
+      data: albums
+        .map((album) => this.formatPlaylist(album as any, country))
+        .filter((a): a is NonNullable<typeof a> => a !== null),
+    };
+  }
+
+  async getDiscoverFeed(userId: string, ip: string) {
+    const { country } = getLocationFromIp(ip);
+    // check cache
+    const cached = await this.redis.get(`discover_feed_pool:${userId}`);
+    let trackPoolArray = [];
+
+    if (cached) {
+      trackPoolArray = JSON.parse(cached) as { track: Track; reason: string }[];
+    } else {
+      // get new released tracks by favourite genres
+      // Get genres from albums the user has interacted with
+      const interactedAlbumTags = await this.playlistRepository.getUserInteractedAlbumTags(userId);
+
+      // 1. Group by genreId and store the full object + count
+      const tagFrequency = interactedAlbumTags.reduce<
+        Record<string, { count: number; tag: Genre }>
+      >((acc, tag) => {
+        if (!acc[tag.genreId]) {
+          acc[tag.genreId] = { count: 0, tag };
+        }
+        acc[tag.genreId].count += 1;
+        return acc;
+      }, {});
+
+      // 2. Sort by count and map back to the original tag objects
+      const topTags = Object.values(tagFrequency)
+        .sort((a, b) => b.count - a.count)
+        .slice(0, 5)
+        .map((item) => item.tag); // Returns the original objects
+
+      // 3. Extract IDs for the repository call if needed
+      const topTagIds = topTags.map((tag) => tag.genreId);
+
+      // 4. Now topTags is an array of your original tag objects
+      let newTracks;
+      if (topTagIds.length === 0) {
+        newTracks = await this.trackRepository.findNewReleasedTracks(1, 50);
+      } else {
+        newTracks = await this.trackRepository.findTracksByGenreOrTags(
+          topTagIds,
+          topTags,
+          1,
+          50,
+          'recent'
+        );
+      }
+
+      // get related tracks based on recent plays
+      const recentTracks = await this.trackRepository.getUserRecentlyPlayed(userId, 10);
+      const relatedTracksResults = await Promise.all(
+        recentTracks.map(async (recentTrack) => {
+          const related = (
+            await this.trackService.getRelatedTracksByTrackId(recentTrack.trackId)
+          ).slice(0, 10);
+
+          return related.map((relatedTrack) => ({
+            track: relatedTrack,
+            reason: `Because you played ${recentTrack.title}`,
+          }));
+        })
+      );
+      const relatedTracks = relatedTracksResults.flat();
+
+      // get related tracks based on followed artists
+      // get top 5 popular artists user follows
+      const topFollowedArtistUsernames =
+        await this.followersRepository.getTopFollowedArtistUsernames(userId, 5);
+      const topTracksOfFollowedArtistsResults = await Promise.all(
+        topFollowedArtistUsernames.map(async (username) =>
+          this.trackRepository.getTopTrack(username)
+        )
+      ).then((results) => results.filter((track) => track !== null) as Track[]);
+      const followedArtistsResults = await Promise.all(
+        topTracksOfFollowedArtistsResults.map(async (track) => {
+          const related = (await this.trackService.getRelatedTracksByTrackId(track.trackId)).slice(
+            0,
+            10
+          );
+
+          return related.map((relatedTrack) => ({
+            track: relatedTrack,
+            reason: `Because you followed ${track.user.displayName}`,
+          }));
+        })
+      );
+      const isFollowedByCurrentUserTracks = followedArtistsResults.flat();
+
+      const trackPool = new Set<{ track: Track; reason: string }>();
+      relatedTracks.forEach(({ track, reason }) => trackPool.add({ track, reason }));
+      isFollowedByCurrentUserTracks.forEach(({ track, reason }) =>
+        trackPool.add({ track, reason })
+      );
+      newTracks[0].forEach((track) =>
+        trackPool.add({ track, reason: `New release by ${track.user.displayName}` })
+      );
+
+      trackPoolArray = Array.from(trackPool);
+      // add to cache
+      await this.redis.set(`discover_feed_pool:${userId}`, JSON.stringify(trackPoolArray), {
+        EX: 60 * 60, // 1 hour
+      });
+    }
+
+    // choose 15 random tracks from the pool
+    const shuffled = trackPoolArray.sort(() => 0.5 - Math.random());
+    const selected = shuffled.slice(0, 15);
+
+    const formattedTracks = selected
+      .map(({ track, reason }) => {
+        const formatted = this.formatTrack(track, country);
+        if (!formatted) return null;
+        return {
+          ...formatted,
+          reason,
+        };
+      })
+      .filter((t): t is NonNullable<typeof t> => t !== null);
+
+    return {
+      status: 'success',
+      data: formattedTracks,
     };
   }
 }

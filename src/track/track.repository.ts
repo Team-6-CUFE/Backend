@@ -58,14 +58,15 @@ export class TrackRepository {
       .getOne();
   }
 
-  async findPopularTracksByGenreOrTags(
-    genreId: string | null,
+  async findTracksByGenreOrTags(
+    genreIds: (string | null)[],
     tags: Genre[],
     page: number,
-    limit: number
-  ): Promise<Track[]> {
-    if (!genreId && (!tags || tags.length === 0)) {
-      return [];
+    limit: number,
+    orderBy: 'popular' | 'recent' = 'popular'
+  ): Promise<[Track[], number]> {
+    if ((!genreIds || genreIds.length === 0) && (!tags || tags.length === 0)) {
+      return [[], 0];
     }
 
     const skip = (page - 1) * limit;
@@ -78,8 +79,8 @@ export class TrackRepository {
       new Brackets((qb) => {
         let hasCondition = false;
 
-        if (genreId) {
-          qb.where('track.genreId = :genreId', { genreId });
+        if (genreIds && genreIds.length > 0) {
+          qb.where('track.genreId IN (:...genreIds)', { genreIds });
           hasCondition = true;
         }
 
@@ -96,7 +97,13 @@ export class TrackRepository {
       })
     );
 
-    return query.orderBy('track.playCount', 'DESC').skip(skip).take(limit).getMany();
+    query.andWhere('track.visibility = :visibility', { visibility: TrackVisibility.PUBLIC });
+    query.andWhere('track.hidden = false');
+    query.leftJoinAndSelect('track.user', 'user');
+    if (orderBy === 'popular') {
+      return query.orderBy('track.playCount', 'DESC').skip(skip).take(limit).getManyAndCount();
+    }
+    return query.orderBy('track.createdAt', 'DESC').skip(skip).take(limit).getManyAndCount();
   }
 
   async repostTrack(trackId: string, userId: string, caption?: string): Promise<TrackRepost> {
@@ -626,6 +633,18 @@ export class TrackRepository {
       .getMany();
   }
 
+  async getTopTrack(username: string): Promise<Track | null> {
+    return this.trackRepository
+      .createQueryBuilder('track')
+      .innerJoin('track.user', 'user')
+      .leftJoinAndSelect('track.user', 'trackUser')
+      .where('user.username = :username', { username })
+      .andWhere('track.visibility = :visibility', { visibility: TrackVisibility.PUBLIC })
+      .andWhere('track.hidden = false')
+      .orderBy('track.playCount', 'DESC')
+      .getOne();
+  }
+
   async calculatePopularityScore(trackId: string): Promise<number> {
     const track = await this.trackRepository.findOne({
       where: { trackId },
@@ -774,5 +793,30 @@ export class TrackRepository {
       .getRawMany();
 
     return rows.map((row) => row.username);
+  }
+
+  async getUserRecentlyPlayed(userId: string, limit: number): Promise<Track[]> {
+    const recentPlays = await this.trackPlayRepository.find({
+      where: { userId },
+      order: { playedAt: 'DESC' },
+      take: limit,
+      relations: ['track', 'track.user', 'track.genre'],
+    });
+    return recentPlays.map((play) => play.track);
+  }
+
+  async findNewReleasedTracks(page: number, limit: number): Promise<[Track[], number]> {
+    const skip = (page - 1) * limit;
+    const query = this.trackRepository
+      .createQueryBuilder('track')
+      .leftJoinAndSelect('track.user', 'user')
+      .leftJoinAndSelect('track.genre', 'genre')
+      .where('track.visibility = :visibility', { visibility: TrackVisibility.PUBLIC })
+      .andWhere('track.hidden = false')
+      .andWhere('track.releaseDate <= :now', { now: new Date() })
+      .orderBy('track.createdAt', 'DESC')
+      .skip(skip)
+      .take(limit);
+    return query.getManyAndCount();
   }
 }

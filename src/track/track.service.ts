@@ -944,7 +944,6 @@ export class TrackService {
 
     const data = relatedTracks.map((t) => {
       const dto = plainToInstance(UserTrackResponseDto, t, { excludeExtraneousValues: true });
-      console.log(`Track ${t.title} blocked regions:`, t.blockedRegions);
       if (country && t.blockedRegions?.includes(country)) {
         dto.audioUrl = null;
         dto.waveformUrl = null;

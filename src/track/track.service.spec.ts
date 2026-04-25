@@ -60,6 +60,7 @@ import {
 import { REDIS_CLIENT } from '../redis/redis.module';
 import { ActivityService } from '../activity/activity.service';
 import { NotificationsService } from '../notifications/notifications.service';
+import { DEFAULT_GENRE_NAMES } from '../genre/genre.constants';
 
 const MOCK_CAPTION = 'Great track!';
 
@@ -76,7 +77,7 @@ describe('TrackService', () => {
   let service: TrackService;
   let trackRepo: ReturnType<typeof mockTrackRepository>;
   let userRepo: ReturnType<typeof mockUserRepository>;
-  // let genreRepo: ReturnType<typeof mockGenreRepository>;
+  let genreRepo: ReturnType<typeof mockGenreRepository>;
   let fansService: ReturnType<typeof mockFansService>;
   let playlistService: ReturnType<typeof mockPlaylistService>;
   let redisClient: ReturnType<typeof mockRedisClient>;
@@ -110,7 +111,7 @@ describe('TrackService', () => {
     service = module.get<TrackService>(TrackService);
     trackRepo = module.get(TrackRepository);
     userRepo = module.get(UserRepository);
-    // genreRepo = module.get(GenreRepository);
+    genreRepo = module.get(GenreRepository);
     fansService = module.get(FansService);
     playlistService = module.get(PlaylistService);
     redisClient = module.get(REDIS_CLIENT);
@@ -974,35 +975,47 @@ describe('TrackService', () => {
 
   // ─── getAllGenres ─────────────────────────────────────────────────────────────
 
-  // describe('getAllGenres', () => {
-  //   it('should return all genres', async () => {
-  //     genreRepo.findAll.mockResolvedValue([
-  //       mockGenre(),
-  //       mockGenre({ genreId: 'id-2', name: 'Hip-Hop' }),
-  //     ]);
+  describe('getAllGenres', () => {
+    const mockGenreEntity = (overrides?: object) => ({
+      genreId: 'genre-uuid-1',
+      name: 'Electronic',
+      description: 'Electronic music',
+      ...overrides,
+    });
 
-  //     const result = await service.getAllGenres();
+    it('should call findByNames with all DEFAULT_GENRE_NAMES', async () => {
+      genreRepo.findByNames.mockResolvedValue([]);
 
-  //     expect(result.status).toBe('success');
-  //     expect(result.data).toHaveLength(2);
-  //   });
+      await service.getAllGenres();
 
-  //   it('should return empty array when no genres exist', async () => {
-  //     genreRepo.findAll.mockResolvedValue([]);
+      expect(genreRepo.findByNames).toHaveBeenCalledWith([...DEFAULT_GENRE_NAMES]);
+      expect(genreRepo.findByNames).toHaveBeenCalledTimes(1);
+    });
 
-  //     const result = await service.getAllGenres();
+    it('should return transformed genre list on success', async () => {
+      const genres = [
+        mockGenreEntity(),
+        mockGenreEntity({ genreId: 'genre-uuid-2', name: 'Hip-Hop' }),
+      ];
+      genreRepo.findByNames.mockResolvedValue(genres);
 
-  //     expect(result.data).toEqual([]);
-  //   });
+      const result = await service.getAllGenres();
 
-  //   it('should call genreRepository.findAll', async () => {
-  //     genreRepo.findAll.mockResolvedValue([]);
+      expect(result.status).toBe('success');
+      expect(result.data).toHaveLength(2);
+      expect(result.data[0]).toMatchObject({ genreId: 'genre-uuid-1', name: 'Electronic' });
+      expect(result.data[1]).toMatchObject({ genreId: 'genre-uuid-2', name: 'Hip-Hop' });
+    });
 
-  //     await service.getAllGenres();
+    it('should return empty data array when no genres exist in DB', async () => {
+      genreRepo.findByNames.mockResolvedValue([]);
 
-  //     expect(genreRepo.findAll).toHaveBeenCalledTimes(1);
-  //   });
-  // });
+      const result = await service.getAllGenres();
+
+      expect(result.status).toBe('success');
+      expect(result.data).toEqual([]);
+    });
+  });
 
   // ─── getUserUploadedTracks ────────────────────────────────────────────────────
 

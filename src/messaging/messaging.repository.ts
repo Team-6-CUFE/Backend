@@ -6,6 +6,7 @@ import { Message } from './entities/message.entity';
 import { ChatStatus } from './entities/chat-status.entity';
 import { SendMessageDto } from './dto/ws/send-message.dto';
 import { UserBlock } from '../followers/entities/user-blocks.entity';
+import { ChatFilter } from './enums/chat-filter.enum';
 
 @Injectable()
 export class MessagingRepository {
@@ -52,9 +53,10 @@ export class MessagingRepository {
   async getChats(
     userId: string,
     page: number,
-    limit: number
+    limit: number,
+    filter: ChatFilter = ChatFilter.ALL
   ): Promise<{ chats: Chat[]; total: number }> {
-    const [chats, total] = await this.chatRepo
+    const qb = this.chatRepo
       .createQueryBuilder('chat')
       .where('(chat.participantOneId = :userId OR chat.participantTwoId = :userId)', { userId })
       .andWhere('chat.deletedAt IS NULL')
@@ -63,9 +65,41 @@ export class MessagingRepository {
       .leftJoinAndSelect('chat.participantTwo', 'participantTwo')
       .orderBy('chat.updatedAt', 'DESC')
       .skip((page - 1) * limit)
-      .take(limit)
-      .getManyAndCount();
+      .take(limit);
 
+    if (filter === ChatFilter.ARCHIVED) {
+      qb.innerJoin(
+        'chat_status',
+        'cs',
+        'cs.chat_id = chat.chatId AND cs.user_id = :userId AND cs.is_archived = true',
+        { userId }
+      );
+    } else if (filter === ChatFilter.UNREAD) {
+      qb.innerJoin(
+        'chat_status',
+        'cs',
+        'cs.chat_id = chat.chatId AND cs.user_id = :userId'
+      ).andWhere(
+        `EXISTS (
+        SELECT 1 FROM messages m
+        WHERE m.chat_id = chat.chat_id
+        AND m.sender_id <> :userId
+        AND (cs.last_read_message_id IS NULL
+          OR m.created_at > (
+            SELECT created_at FROM messages WHERE message_id = cs.last_read_message_id
+          ))
+      )`
+      );
+    } else {
+      // ALL — exclude archived
+      qb.leftJoin(
+        'chat_status',
+        'cs',
+        'cs.chat_id = chat.chatId AND cs.user_id = :userId'
+      ).andWhere('(cs.is_archived IS NULL OR cs.is_archived = false)');
+    }
+
+    const [chats, total] = await qb.getManyAndCount();
     return { chats, total };
   }
 
@@ -89,8 +123,13 @@ export class MessagingRepository {
     chatId: string,
     page: number,
     limit: number,
-    before?: string // message UUID
+    before?: string
   ): Promise<{ messages: Message[]; total: number }> {
+    // Total is always the full message count for the chat, regardless of cursor
+    const total = await this.messageRepo.count({
+      where: { chatId },
+    });
+
     const qb = this.messageRepo
       .createQueryBuilder('message')
       .where('message.chatId = :chatId', { chatId })
@@ -106,7 +145,7 @@ export class MessagingRepository {
       }
     }
 
-    const [messages, total] = await qb.getManyAndCount();
+    const messages = await qb.getMany();
     return { messages, total };
   }
 
@@ -148,11 +187,19 @@ export class MessagingRepository {
     );
   }
 
-  async getUnreadCount(
-    chatId: string,
-    userId: string,
-    lastReadMessageId: string | null
-  ): Promise<number> {
+  async markUnread(chatId: string, userId: string): Promise<void> {
+    await this.chatStatusRepo.upsert(
+      {
+        chatId,
+        userId,
+        lastReadMessageId: null,
+        lastReadAt: null,
+      },
+      { conflictPaths: ['chatId', 'userId'] }
+    );
+  }
+
+  async getUnreadCount(chatId: string, lastReadMessageId: string | null): Promise<number> {
     if (!lastReadMessageId) {
       return this.messageRepo.count({
         where: { chatId },
@@ -173,21 +220,25 @@ export class MessagingRepository {
   }
 
   async getTotalUnreadCount(userId: string): Promise<number> {
-    // Sum unread across all chats by joining chat_status
-    const result = await this.chatStatusRepo
-      .createQueryBuilder('cs')
+    const result = await this.chatRepo
+      .createQueryBuilder('chat')
       .select('COUNT(m.message_id)', 'count')
+      .where('(chat.participantOneId = :userId OR chat.participantTwoId = :userId)', { userId })
+      .andWhere('chat.deletedAt IS NULL')
+      .leftJoin('chat_status', 'cs', 'cs.chat_id = chat.chat_id AND cs.user_id = :userId', {
+        userId,
+      })
       .leftJoin(
         'messages',
         'm',
-        `m.chat_id = cs.chat_id 
-         AND m.sender_id <> :userId 
-         AND (cs.last_read_message_id IS NULL OR m.created_at > (
+        `m.chat_id = chat.chat_id
+       AND m.sender_id <> :userId
+       AND (cs.last_read_message_id IS NULL
+         OR m.created_at > (
            SELECT created_at FROM messages WHERE message_id = cs.last_read_message_id
          ))`,
         { userId }
       )
-      .where('cs.userId = :userId', { userId })
       .getRawOne<{ count: string }>();
 
     return parseInt(result?.count ?? '0', 10);
