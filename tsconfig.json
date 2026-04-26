@@ -15,5 +15,6 @@
     "emitDecoratorMetadata": true
   },
   "include": ["src/**/*"],
+  "files": ["src/authentication/types/session.d.ts"],
   "exclude": ["node_modules", "dist", "**/*.config.js"]
 }
