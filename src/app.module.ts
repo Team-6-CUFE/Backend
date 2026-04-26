@@ -19,6 +19,7 @@ import { DiscoveryModule } from './discovery/discovery.module';
 import { ActivityModule } from './activity/activity.module';
 import { MessagingModule } from './messaging/messaging.module';
 import { NotificationsModule } from './notifications/notifications.module';
+import { SubscriptionModule } from './subscription/subscription.module';
 
 @Module({
   imports: [
@@ -55,6 +56,7 @@ import { NotificationsModule } from './notifications/notifications.module';
     ActivityModule,
     MessagingModule,
     NotificationsModule,
+    SubscriptionModule,
   ],
 })
 export class AppModule {}
