@@ -12,6 +12,7 @@ import { Track } from '../../track/entities/track.entity';
 import { TrackComment } from '../../track/entities/track-comments.entity';
 import { TrackRepost } from '../../track/entities/track-reposts.entity';
 import { Settings } from '../../settings/entities/settings.entity';
+import { Subscription } from '../../subscription/entities/subscription.entity';
 
 @Entity('users')
 export class User extends BaseEntity {
@@ -126,4 +127,7 @@ export class User extends BaseEntity {
 
   @OneToOne(() => Settings, (settings) => settings.user)
   settings!: Settings;
+
+  @OneToOne(() => Subscription, (subscription) => subscription.user)
+  subscription!: Subscription;
 }
