@@ -973,28 +973,34 @@ export class DiscoveryService {
     return playlistId;
   }
 
-  async getTrendingMusicByGenre(userId: string) {
+  async getTrendingMusicByGenre(userId?: string) {
     const trendingMusicUser = await this.userService.findByUsername(TRENDING_MUSIC_USER.username);
     if (!trendingMusicUser) throw new Error('Trending Music user not found');
+    let topTagNames: string[] = [];
+    if (userId) {
+      // if a user is logged in, show them personalized trending music based on their interactions
+      // get genres of tracks the user has interacted with
+      const interactedTrackTags = await this.trackService.getUserInteractedTrackTags(userId);
+      // determine top 5 most interacted genres
+      const tagFrequency = interactedTrackTags.reduce<
+        Record<string, { count: number; name: string }>
+      >((acc, tag) => {
+        acc[tag.genreId] = acc[tag.genreId]
+          ? { ...acc[tag.genreId], count: acc[tag.genreId].count + 1 }
+          : { count: 1, name: tag.name };
+        return acc;
+      }, {});
+      topTagNames = Object.entries(tagFrequency)
+        .sort((a, b) => b[1].count - a[1].count)
+        .slice(0, 5)
+        .map(([_, value]) => value.name);
+    }
 
-    // get genres of tracks the user has interacted with
-    const interactedTrackTags = await this.trackService.getUserInteractedTrackTags(userId);
-    // determine top 5 most interacted genres
-    const tagFrequency = interactedTrackTags.reduce<
-      Record<string, { count: number; name: string }>
-    >((acc, tag) => {
-      acc[tag.genreId] = acc[tag.genreId]
-        ? { ...acc[tag.genreId], count: acc[tag.genreId].count + 1 }
-        : { count: 1, name: tag.name };
-      return acc;
-    }, {});
-    const topTagNames = Object.entries(tagFrequency)
-      .sort((a, b) => b[1].count - a[1].count)
-      .slice(0, 5)
-      .map(([_, value]) => value.name);
-
-    if (topTagNames.length === 0) {
-      return { status: 'success', data: [] };
+    if (!userId || topTagNames.length === 0) {
+      // get random genres for non-logged in users or users with no interactions
+      const randomGenres = DEFAULT_GENRE_NAMES.sort(() => 0.5 - Math.random()).slice(0, 5);
+      const defaultGenres = await this.genreRepository.findByNames([...randomGenres]);
+      topTagNames = defaultGenres.map((g) => g.name);
     }
 
     const playlists = await this.playlistRepository.getPlaylistByUserAndTitles(
@@ -1002,10 +1008,13 @@ export class DiscoveryService {
       topTagNames
     );
 
-    const isFollowedByCurrentUser = await this.followersRepository.isFollowing(
-      userId,
-      trendingMusicUser.userId
-    );
+    let isFollowedByCurrentUser = false;
+    if (userId) {
+      isFollowedByCurrentUser = await this.followersRepository.isFollowing(
+        userId,
+        trendingMusicUser.userId
+      );
+    }
 
     const mappedPlaylistsPromises = playlists.map(async (playlist) => ({
       playlistId: playlist.playlistId,
@@ -1025,9 +1034,10 @@ export class DiscoveryService {
         avatarUrl: trendingMusicUser.avatarUrl,
         isFollowedByCurrentUser,
       },
-      isLiked:
-        (await this.playlistRepository.findLikeByUserAndPlaylist(userId, playlist.playlistId)) !==
-        null,
+      isLiked: userId
+        ? (await this.playlistRepository.findLikeByUserAndPlaylist(userId, playlist.playlistId)) !==
+          null
+        : false,
     }));
 
     const mappedPlaylists = await Promise.all(mappedPlaylistsPromises);

@@ -17,9 +17,11 @@ import {
   ApiGetLikedByUsersForUser,
   ApiGetMoreAlbumsOfWhatYouLike,
   ApiGetDiscoverFeed,
+  ApiGetPublicTrendingMusicByGenre,
 } from './discovery.swagger';
 import { CurrentUser } from '../authentication/decorators/current-user.decorator';
 import { EntityType } from '../search/types';
+import { Public } from '../authentication/decorators/public.decorator';
 
 @ApiTags('Discovery')
 @Controller('discovery')
@@ -131,6 +133,13 @@ export class DiscoveryController {
   @Get('/trending/genres')
   async getTrendingMusicByGenre(@CurrentUser('sub') userId: string) {
     return this.discoveryService.getTrendingMusicByGenre(userId);
+  }
+
+  @ApiGetPublicTrendingMusicByGenre()
+  @Public()
+  @Get('/trending/genres/random')
+  async getTrendingMusicByGenreRandom() {
+    return this.discoveryService.getTrendingMusicByGenre();
   }
 
   @ApiGetLikedByUsers()
