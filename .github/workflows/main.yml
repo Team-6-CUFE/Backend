@@ -2,7 +2,7 @@ name: Deploy to AWS
 
 on:
   push:
-    branches: [main]
+    branches: [main, staging]
 
 jobs:
   build-and-deploy:
@@ -17,14 +17,28 @@ jobs:
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
-          
+
+      - name: Set environment variables
+        run: |
+          if [ "${{ github.ref }}" = "refs/heads/main" ]; then
+            echo "TAG=latest" >> $GITHUB_ENV
+            echo "COMPOSE_FILE=docker-compose.prod.yml" >> $GITHUB_ENV
+            echo "ENV_FILE=.env.prod" >> $GITHUB_ENV
+            echo "PROJECT=prod" >> $GITHUB_ENV
+          else
+            echo "TAG=staging" >> $GITHUB_ENV
+            echo "COMPOSE_FILE=docker-compose.staging.yml" >> $GITHUB_ENV
+            echo "ENV_FILE=.env.staging" >> $GITHUB_ENV
+            echo "PROJECT=staging" >> $GITHUB_ENV
+          fi
+
       - name: Build and push backend image
         uses: docker/build-push-action@v5
         with:
           context: .
           file: Docker/Dockerfile.prod
           push: true
-          tags: ${{ secrets.DOCKERHUB_USERNAME }}/harmonica-backend:latest
+          tags: ${{ secrets.DOCKERHUB_USERNAME }}/harmonica-backend:${{ env.TAG }}
 
       - name: Deploy on EC2
         uses: appleboy/ssh-action@v1.0.3
@@ -34,7 +48,7 @@ jobs:
           key: ${{ secrets.EC2_SSH_KEY }}
           script: |
             cd ~/app
-            docker compose -f docker-compose.prod.yml --env-file .env.prod down --remove-orphans
-            docker network prune -f
-            docker pull ${{ secrets.DOCKERHUB_USERNAME }}/harmonica-backend:latest
-            docker compose -f docker-compose.prod.yml --env-file .env.prod up -d
+            docker pull ${{ secrets.DOCKERHUB_USERNAME }}/harmonica-backend:${{ env.TAG }}
+            docker compose -p ${{ env.PROJECT }} -f ${{ env.COMPOSE_FILE }} --env-file ${{ env.ENV_FILE }} \
+              up -d --no-deps --force-recreate backend
+            docker image prune -f
