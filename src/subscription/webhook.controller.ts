@@ -1,4 +1,12 @@
-import { Controller, Post, Req, Headers, BadRequestException } from '@nestjs/common';
+import {
+  Controller,
+  Post,
+  Headers,
+  BadRequestException,
+  RawBodyRequest,
+  Req,
+} from '@nestjs/common';
+
 import { Request } from 'express';
 import { SubscriptionService } from './subscription.service';
 import { StripeService } from './stripe.service';
@@ -12,18 +20,22 @@ export class WebhookController {
 
   @Post('stripe')
   async handleStripeWebhook(
-    @Req() req: Request,
+    @Req() req: RawBodyRequest<Request>,
     @Headers('stripe-signature') signature: string
   ): Promise<{ received: boolean }> {
     if (!signature) {
       throw new BadRequestException('Missing stripe signature');
     }
 
+    if (!req.rawBody) {
+      throw new BadRequestException('Missing raw body');
+    }
+
     let event;
     try {
-      event = this.stripeService.constructWebhookEvent(req.body, signature);
+      event = this.stripeService.constructWebhookEvent(req.rawBody, signature);
     } catch (err) {
-      throw new BadRequestException(`Webhook signature verification failed`);
+      throw new BadRequestException('Webhook signature verification failed');
     }
 
     await this.subscriptionService.handleWebhookEvent(event);
