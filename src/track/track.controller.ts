@@ -441,6 +441,7 @@ export class TrackController {
   }
 
   @ApiUpdateBlockedRegions()
+  @Plans('pro')
   @Post(':trackId/blocked-regions')
   updateBlockedRegions(
     @Param('trackId', ParseUUIDPipe) trackId: string,
