@@ -468,6 +468,12 @@ export function ApiGetUserPlaylistLikes() {
       example: 20,
       description: 'Items per page, capped at 100 (default: 20)',
     }),
+    ApiQuery({
+      name: 'filter',
+      required: false,
+      enum: ['playlist', 'station', 'album'],
+      description: 'Filter by type: playlist, station, or album (includes EP, Single, Compilation)',
+    }),
     ApiResponse({
       status: 200,
       description: 'User liked playlists retrieved successfully',
@@ -1140,6 +1146,12 @@ export function ApiGetMyPlaylists() {
       example: 20,
       description: 'Items per page, capped at 100 (default: 20)',
     }),
+    ApiQuery({
+      name: 'filter',
+      required: false,
+      enum: ['playlist', 'station', 'album'],
+      description: 'Filter by type: playlist, station, or album (includes EP, Single, Compilation)',
+    }),
     ApiResponse({
       status: 200,
       description: 'Playlists retrieved successfully',
@@ -1200,6 +1212,12 @@ export function ApiGetUserPlaylists() {
       type: Number,
       example: 20,
       description: 'Items per page, capped at 100 (default: 20)',
+    }),
+    ApiQuery({
+      name: 'filter',
+      required: false,
+      enum: ['playlist', 'station', 'album'],
+      description: 'Filter by type: playlist, station, or album (includes EP, Single, Compilation)',
     }),
     ApiResponse({
       status: 200,
