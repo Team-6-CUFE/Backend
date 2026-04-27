@@ -542,22 +542,7 @@ export class PlaylistRepository {
       .createQueryBuilder('playlist')
       .leftJoinAndSelect('playlist.user', 'user')
       .where('playlist.isPublic = :isPublic', { isPublic: true })
-      .andWhere(
-        new Brackets((bqb: WhereExpressionBuilder) => {
-          bqb
-            .where('playlist.userId = :userId', { userId })
-            .orWhere((subQb: SelectQueryBuilder<any>) => {
-              const subQuery = subQb
-                .subQuery()
-                .select('like.playlistId')
-                .from(PlaylistLike, 'like')
-                .where('like.userId = :userId')
-                .getQuery();
-              return `playlist.playlistId IN ${subQuery}`;
-            });
-        })
-      )
-      .setParameter('userId', userId);
+      .andWhere('playlist.userId = :userId', { userId });
 
     if (filter === 'playlist') {
       qb.andWhere('playlist.type = :type', { type: PlaylistType.PLAYLIST });
