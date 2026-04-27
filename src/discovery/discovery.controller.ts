@@ -18,6 +18,7 @@ import {
   ApiGetMoreAlbumsOfWhatYouLike,
   ApiGetDiscoverFeed,
   ApiGetPublicTrendingMusicByGenre,
+  ApiGetArtistsToWatchOutFor,
 } from './discovery.swagger';
 import { CurrentUser } from '../authentication/decorators/current-user.decorator';
 import { EntityType } from '../search/types';
@@ -183,5 +184,12 @@ export class DiscoveryController {
   @Get('feed/discover')
   async getDiscoverFeed(@CurrentUser('sub') userId: string, @Ip() ip: string) {
     return this.discoveryService.getDiscoverFeed(userId, ip);
+  }
+
+  @ApiGetArtistsToWatchOutFor()
+  @Get('artists-to-watch-out-for')
+  @Public()
+  async getArtistsToWatchOutFor() {
+    return this.discoveryService.getArtistsToWatchOutFor();
   }
 }

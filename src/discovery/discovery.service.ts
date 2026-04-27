@@ -1334,4 +1334,13 @@ export class DiscoveryService {
       data: formattedTracks,
     };
   }
+
+  async getArtistsToWatchOutFor() {
+    // return a list of up and coming artists based on how many unique plays their tracks got in the last 7 days
+    const artists = await this.trackRepository.findUpAndComingArtists();
+    return {
+      status: 'success',
+      data: artists,
+    };
+  }
 }

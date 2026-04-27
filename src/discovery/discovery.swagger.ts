@@ -1491,3 +1491,36 @@ export function ApiGetDiscoverFeed() {
     ApiResponse({ status: 401, description: 'Unauthorized' })
   );
 }
+
+export function ApiGetArtistsToWatchOutFor() {
+  return applyDecorators(
+    ApiOperation({
+      summary: 'Get artists to watch out for',
+      description:
+        'Returns a list of artists that the user should watch out for based on their track plays.',
+    }),
+    ApiResponse({
+      status: 200,
+      description: 'List of artists to watch out for',
+      schema: {
+        example: {
+          status: 'success',
+          data: [
+            {
+              username: 'artist1',
+              displayName: 'Artist One',
+              avatarUrl: 'https://cdn.harmonica.com/avatars/artist1.jpg',
+              followersCount: 1500,
+            },
+            {
+              username: 'artist2',
+              displayName: 'Artist Two',
+              avatarUrl: 'https://cdn.harmonica.com/avatars/artist2.jpg',
+              followersCount: 2000,
+            },
+          ],
+        },
+      },
+    })
+  );
+}
