@@ -1532,7 +1532,8 @@ export function ApiUpdateBlockedRegions() {
         'Pass an empty array to unblock all regions. ' +
         'Country names must match the format used by the geoip-lite lookup ' +
         '(e.g. "Egypt", "United States", "Germany"). ' +
-        'Only the track owner can call this endpoint.',
+        'Only the track owner can call this endpoint. ' +
+        'Only for Pro users.',
     }),
     ApiParam({ name: 'trackId', description: 'UUID of the track', type: 'string' }),
     ApiBody({
@@ -1574,8 +1575,27 @@ export function ApiUpdateBlockedRegions() {
     }),
     ApiResponse({
       status: 403,
-      description: 'You do not own this track',
-      schema: { example: { statusCode: 403, message: 'You do not own this track' } },
+      description: 'Not owner or not a Pro user',
+      content: {
+        'application/json': {
+          examples: {
+            accessDenied: {
+              summary: 'Access denied - Pro plan required',
+              value: {
+                statusCode: 403,
+                message: 'Access denied. Required plan(s): pro',
+              },
+            },
+            notOwner: {
+              summary: 'Access denied - not track owner',
+              value: {
+                statusCode: 403,
+                message: 'You do not own this track',
+              },
+            },
+          },
+        },
+      },
     }),
     ApiResponse({
       status: 404,
