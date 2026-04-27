@@ -28,6 +28,8 @@ describe('DiscoveryController', () => {
     getUserLikedby: jest.fn(),
     getMoreAlbumsOfWhatYouLike: jest.fn(),
     getDiscoverFeed: jest.fn(),
+    getArtistsToWatchOutFor: jest.fn(),
+    getCuratedPlaylists: jest.fn(),
   };
 
   const mockUserId = 'user-123';
@@ -1471,6 +1473,130 @@ describe('DiscoveryController', () => {
       const result = await controller.getDiscoverFeed(mockUserId, mockIp);
 
       expect((result as any).data).toHaveLength(0);
+    });
+  });
+
+  // ─── getArtistsToWatchOutFor ──────────────────────────────────────────────
+
+  describe('getArtistsToWatchOutFor', () => {
+    it('should call discoveryService.getArtistsToWatchOutFor and return the result', async () => {
+      const mockResult = {
+        status: 'success',
+        data: [
+          {
+            username: 'artist1',
+            displayName: 'Artist One',
+            avatarUrl: 'https://cdn.harmonica.com/avatars/artist1.jpg',
+            followersCount: 1500,
+          },
+        ],
+      };
+      mockDiscoveryService.getArtistsToWatchOutFor.mockResolvedValue(mockResult);
+
+      const result = await controller.getArtistsToWatchOutFor();
+
+      expect(discoveryService.getArtistsToWatchOutFor).toHaveBeenCalledTimes(1);
+      expect(result).toEqual(mockResult);
+    });
+
+    it('should return empty data array when no artists found', async () => {
+      const mockResult = { status: 'success', data: [] };
+      mockDiscoveryService.getArtistsToWatchOutFor.mockResolvedValue(mockResult);
+
+      const result = await controller.getArtistsToWatchOutFor();
+
+      expect((result as any).data).toHaveLength(0);
+    });
+
+    it('should propagate errors from service', async () => {
+      mockDiscoveryService.getArtistsToWatchOutFor.mockRejectedValue(new Error('DB error'));
+
+      await expect(controller.getArtistsToWatchOutFor()).rejects.toThrow('DB error');
+    });
+  });
+
+  // ─── getTrendingMusicByGenreRandom ────────────────────────────────────────
+
+  describe('getTrendingMusicByGenreRandom', () => {
+    it('should call discoveryService.getTrendingMusicByGenre without userId and return the result', async () => {
+      const mockResult = {
+        status: 'success',
+        data: [
+          {
+            playlistId: 'playlist-uuid-1',
+            title: 'Electronic',
+            isLiked: false,
+            user: { username: 'trending_music', isFollowedByCurrentUser: false },
+          },
+        ],
+      };
+      mockDiscoveryService.getTrendingMusicByGenre.mockResolvedValue(mockResult);
+
+      const result = await controller.getTrendingMusicByGenreRandom();
+
+      expect(discoveryService.getTrendingMusicByGenre).toHaveBeenCalledTimes(1);
+      expect(discoveryService.getTrendingMusicByGenre).toHaveBeenCalledWith();
+      expect(result).toEqual(mockResult);
+    });
+
+    it('should return empty data array when no genre playlists exist', async () => {
+      const mockResult = { status: 'success', data: [] };
+      mockDiscoveryService.getTrendingMusicByGenre.mockResolvedValue(mockResult);
+
+      const result = await controller.getTrendingMusicByGenreRandom();
+
+      expect((result as any).data).toHaveLength(0);
+    });
+
+    it('should propagate errors from service', async () => {
+      mockDiscoveryService.getTrendingMusicByGenre.mockRejectedValue(
+        new Error('Trending Music user not found')
+      );
+
+      await expect(controller.getTrendingMusicByGenreRandom()).rejects.toThrow(
+        'Trending Music user not found'
+      );
+    });
+  });
+
+  // ─── getCuratedPlaylists ──────────────────────────────────────────────────
+
+  describe('getCuratedPlaylists', () => {
+    it('should call discoveryService.getCuratedPlaylists and return the result', async () => {
+      const mockResult = {
+        status: 'success',
+        data: {
+          tracks: [
+            {
+              title: 'Midnight Drive',
+              artistUsername: 'dj_nour',
+              artistDisplayName: 'DJ Nour',
+              coverImage: 'https://cdn.harmonica.com/covers/midnight.jpg',
+            },
+          ],
+        },
+      };
+      mockDiscoveryService.getCuratedPlaylists.mockResolvedValue(mockResult);
+
+      const result = await controller.getCuratedPlaylists();
+
+      expect(discoveryService.getCuratedPlaylists).toHaveBeenCalledTimes(1);
+      expect(result).toEqual(mockResult);
+    });
+
+    it('should return empty tracks array when no trending tracks exist', async () => {
+      const mockResult = { status: 'success', data: { tracks: [] } };
+      mockDiscoveryService.getCuratedPlaylists.mockResolvedValue(mockResult);
+
+      const result = await controller.getCuratedPlaylists();
+
+      expect((result as any).data.tracks).toHaveLength(0);
+    });
+
+    it('should propagate errors from service', async () => {
+      mockDiscoveryService.getCuratedPlaylists.mockRejectedValue(new Error('DB error'));
+
+      await expect(controller.getCuratedPlaylists()).rejects.toThrow('DB error');
     });
   });
 });

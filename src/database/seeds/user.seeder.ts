@@ -89,7 +89,7 @@ export class UserSeeder implements Seeder {
         firstName: 'Jane',
         lastName: 'Smith',
         role: 'artist',
-        plan: 'go+',
+        plan: 'pro',
       },
       {
         username: 'listener1',
@@ -105,7 +105,7 @@ export class UserSeeder implements Seeder {
         firstName: 'Emily',
         lastName: 'Johnson',
         role: 'listener',
-        plan: 'free',
+        plan: 'go+',
         isSuspended: true,
       },
       {

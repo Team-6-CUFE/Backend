@@ -65,6 +65,7 @@ import { Public } from '../authentication/decorators/public.decorator';
 import { OptionalCurrentUser } from '../authentication/decorators/optional-current-user.decorator';
 import { JwtPayload } from '../authentication/strategies/jwt.strategy';
 import { BlockedRegionsDto } from './dto/blocked-regions.dto';
+import { Plans } from '../authentication/decorators/plans.decorator';
 
 const ALLOWED_AUDIO_MIME_TYPES = [
   'audio/mpeg',
@@ -331,6 +332,7 @@ export class TrackController {
   }
 
   @ApiReuploadTrackAudio()
+  @Plans('pro')
   @Patch(':trackId/audio')
   @UseInterceptors(
     FileInterceptor('audio', {

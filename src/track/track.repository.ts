@@ -820,4 +820,55 @@ export class TrackRepository {
       .take(limit);
     return query.getManyAndCount();
   }
+
+  async findUpAndComingArtists(): Promise<
+    { username: string; displayName: string; avatarUrl: string; followersCount: number }[]
+  > {
+    const oneWeekAgo = new Date();
+    oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
+
+    const rawResults = await this.trackPlayRepository
+      .createQueryBuilder('play')
+      .innerJoin('play.track', 'track')
+      .innerJoin('track.user', 'user')
+      .where('play.playedAt > :oneWeekAgo', { oneWeekAgo })
+      .select([
+        'user.username AS username',
+        'user.displayName AS display_name',
+        'user.avatarUrl AS avatar_url',
+        'user.followersCount AS followers_count',
+      ])
+      .addSelect('COUNT(play.trackPlayId)', 'play_count')
+      .groupBy('user.userId')
+      .addGroupBy('user.username')
+      .addGroupBy('user.displayName')
+      .addGroupBy('user.avatarUrl')
+      .addGroupBy('user.followersCount')
+      .orderBy('play_count', 'DESC')
+      .limit(10)
+      .getRawMany();
+
+    return rawResults.map((result) => ({
+      username: result.username,
+      displayName: result.display_name,
+      avatarUrl: result.avatar_url,
+      followersCount: Number(result.followers_count),
+    }));
+  }
+
+  async findTrendingTracks(): Promise<Track[]> {
+    // top 5 played tracks in the last month
+    const oneMonthAgo = new Date();
+    oneMonthAgo.setMonth(oneMonthAgo.getMonth() - 1);
+
+    const tracks = await this.trackRepository
+      .createQueryBuilder('track')
+      .leftJoinAndSelect('track.user', 'user')
+      .where('track.createdAt > :oneMonthAgo', { oneMonthAgo })
+      .orderBy('track.playCount', 'DESC')
+      .take(5)
+      .getMany();
+
+    return tracks;
+  }
 }

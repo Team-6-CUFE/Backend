@@ -115,6 +115,8 @@ const mockTrackRepository = () => ({
   getUserRecentlyPlayed: jest.fn(),
   findNewReleasedTracks: jest.fn(),
   getTopTrack: jest.fn(),
+  findUpAndComingArtists: jest.fn(),
+  findTrendingTracks: jest.fn(),
 });
 
 const mockTrackService = () => ({
@@ -156,6 +158,7 @@ const mockGenreRepository = () => ({
   findByIds: jest.fn(),
   findPopularGenres: jest.fn(),
   findByName: jest.fn(),
+  findByNames: jest.fn(),
 });
 
 // ─── Suite ────────────────────────────────────────────────────────────────────
@@ -1280,11 +1283,13 @@ describe('DiscoveryService', () => {
     it('should return empty data when user has no interaction history', async () => {
       userSvc.findByUsername.mockResolvedValue(trendingUser);
       trackSvc.getUserInteractedTrackTags.mockResolvedValue([]);
+      genreRepo.findByNames.mockResolvedValue([]);
+      playlistRepo.getPlaylistByUserAndTitles.mockResolvedValue([]);
 
       const result = await service.getTrendingMusicByGenre(MOCK_USER_ID);
 
       expect(result).toEqual({ status: 'success', data: [] });
-      expect(playlistRepo.getPlaylistByUserAndTitles).not.toHaveBeenCalled();
+      expect(playlistRepo.getPlaylistByUserAndTitles).toHaveBeenCalledWith(trendingUser.userId, []);
     });
 
     it('should return mapped playlists for top genres', async () => {
@@ -1584,6 +1589,158 @@ describe('DiscoveryService', () => {
         10,
         'recent'
       );
+    });
+  });
+
+  // ─── getArtistsToWatchOutFor ──────────────────────────────────────────────
+
+  describe('getArtistsToWatchOutFor', () => {
+    it('should return artists from trackRepository.findUpAndComingArtists', async () => {
+      const mockArtists = [
+        { username: 'artist1', displayName: 'Artist One', avatarUrl: null, followersCount: 100 },
+        { username: 'artist2', displayName: 'Artist Two', avatarUrl: null, followersCount: 200 },
+      ];
+      trackRepo.findUpAndComingArtists.mockResolvedValue(mockArtists);
+
+      const result = await service.getArtistsToWatchOutFor();
+
+      expect(trackRepo.findUpAndComingArtists).toHaveBeenCalledTimes(1);
+      expect(result).toEqual({ status: 'success', data: mockArtists });
+    });
+
+    it('should return empty array when no up-and-coming artists exist', async () => {
+      trackRepo.findUpAndComingArtists.mockResolvedValue([]);
+
+      const result = await service.getArtistsToWatchOutFor();
+
+      expect(result).toEqual({ status: 'success', data: [] });
+    });
+  });
+
+  // ─── getTrendingMusicByGenreRandom (no userId) ────────────────────────────
+
+  describe('getTrendingMusicByGenre (random / unauthenticated)', () => {
+    const TRENDING_USER_ID = '111e8400-e29b-41d4-a716-000000000001';
+    const trendingUser = {
+      userId: TRENDING_USER_ID,
+      username: TRENDING_MUSIC_USER.username,
+      displayName: 'Trending Music',
+      avatarUrl: null,
+    };
+
+    const mockPlaylist = (id: string, title: string) => ({
+      playlistId: id,
+      title,
+      description: null,
+      coverImage: null,
+      isPublic: true,
+      tracksCount: 10,
+      likesCount: 5,
+      repostsCount: 2,
+      totalDurationSeconds: 1800,
+      createdAt: new Date('2024-01-01'),
+    });
+
+    it('should throw if trending music user is not found', async () => {
+      userSvc.findByUsername.mockResolvedValue(null);
+
+      await expect(service.getTrendingMusicByGenre()).rejects.toThrow(
+        'Trending Music user not found'
+      );
+    });
+
+    it('should return genre playlists when called without userId', async () => {
+      userSvc.findByUsername.mockResolvedValue(trendingUser);
+      genreRepo.findByNames.mockResolvedValue([{ name: 'Electronic' }]);
+      const pl = mockPlaylist('pl-r1', 'Electronic');
+      playlistRepo.getPlaylistByUserAndTitles.mockResolvedValue([pl]);
+      followersRepo.isFollowing.mockResolvedValue(false);
+      playlistRepo.findLikeByUserAndPlaylist.mockResolvedValue(null);
+
+      const result = await service.getTrendingMusicByGenre();
+
+      expect(result.status).toBe('success');
+      expect(playlistRepo.getPlaylistByUserAndTitles).toHaveBeenCalledWith(
+        trendingUser.userId,
+        expect.any(Array)
+      );
+    });
+
+    it('should not call getUserInteractedTrackTags when no userId provided', async () => {
+      userSvc.findByUsername.mockResolvedValue(trendingUser);
+      genreRepo.findByNames.mockResolvedValue([]);
+      playlistRepo.getPlaylistByUserAndTitles.mockResolvedValue([]);
+
+      await service.getTrendingMusicByGenre();
+
+      expect(trackSvc.getUserInteractedTrackTags).not.toHaveBeenCalled();
+    });
+
+    it('should return isLiked false and isFollowedByCurrentUser false when no userId', async () => {
+      userSvc.findByUsername.mockResolvedValue(trendingUser);
+      genreRepo.findByNames.mockResolvedValue([{ name: 'Hip Hop' }]);
+      const pl = mockPlaylist('pl-r2', 'Hip Hop');
+      playlistRepo.getPlaylistByUserAndTitles.mockResolvedValue([pl]);
+      followersRepo.isFollowing.mockResolvedValue(false);
+      playlistRepo.findLikeByUserAndPlaylist.mockResolvedValue(null);
+
+      const result = await service.getTrendingMusicByGenre();
+
+      expect((result as any).data[0].isLiked).toBe(false);
+      expect((result as any).data[0].user.isFollowedByCurrentUser).toBe(false);
+    });
+  });
+
+  // ─── getCuratedPlaylists ──────────────────────────────────────────────────
+
+  describe('getCuratedPlaylists', () => {
+    it('should return mapped tracks from trackRepository.findTrendingTracks', async () => {
+      const tracks = [
+        mockTrack({
+          title: 'Track A',
+          user: mockUser({ username: 'artist_a', displayName: 'Artist A' }),
+        }),
+        mockTrack({
+          title: 'Track B',
+          user: mockUser({ username: 'artist_b', displayName: 'Artist B' }),
+        }),
+      ];
+      trackRepo.findTrendingTracks.mockResolvedValue(tracks);
+
+      const result = await service.getCuratedPlaylists();
+
+      expect(trackRepo.findTrendingTracks).toHaveBeenCalledTimes(1);
+      expect(result.status).toBe('success');
+      expect((result as any).data.tracks).toHaveLength(2);
+      expect((result as any).data.tracks[0]).toEqual({
+        title: 'Track A',
+        artistUsername: 'artist_a',
+        artistDisplayName: 'Artist A',
+        coverImage: tracks[0].coverImage,
+      });
+    });
+
+    it('should return empty tracks array when no trending tracks exist', async () => {
+      trackRepo.findTrendingTracks.mockResolvedValue([]);
+
+      const result = await service.getCuratedPlaylists();
+
+      expect(result).toEqual({ status: 'success', data: { tracks: [] } });
+    });
+
+    it('should only expose title, artistUsername, artistDisplayName, and coverImage per track', async () => {
+      const track = mockTrack({ title: 'Only Fields' });
+      trackRepo.findTrendingTracks.mockResolvedValue([track]);
+
+      const result = await service.getCuratedPlaylists();
+
+      const mapped = (result as any).data.tracks[0];
+      expect(Object.keys(mapped)).toEqual([
+        'title',
+        'artistUsername',
+        'artistDisplayName',
+        'coverImage',
+      ]);
     });
   });
 });

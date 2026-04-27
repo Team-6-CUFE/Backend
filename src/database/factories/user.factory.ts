@@ -17,15 +17,14 @@ export default setSeederFactory(User, async () => {
   user.birthdate = faker.date.birthdate({ min: 13, max: 65, mode: 'age' });
   user.gender = faker.helpers.arrayElement(['male', 'female', 'other', 'preferNotToSay']);
   user.bio = faker.lorem.sentence();
-  user.avatarUrl = faker.image.avatar();
   user.country = faker.location.country();
   user.city = faker.location.city();
-  user.role = faker.helpers.arrayElement(['listener', 'artist']);
   user.plan = faker.helpers.weightedArrayElement([
     { weight: 7, value: 'free' },
     { weight: 2, value: 'pro' },
     { weight: 1, value: 'go+' },
   ]);
+  user.role = user.plan === 'pro' ? 'artist' : 'listener'; // Pro users are artists, others are listeners
   user.isPublic = faker.helpers.arrayElement([true, true, true, false]); // 75% public
   user.isSuspended = false;
 

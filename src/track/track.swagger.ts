@@ -1021,7 +1021,8 @@ export function ApiReuploadTrackAudio() {
       summary: 'Replace track audio file',
       description: `Replaces the existing audio with a new file. Processing (transcoding, waveform, preview) restarts in the background.
 Subscribe to \`GET /tracks/:trackId/status/stream\` for live progress — the same SSE endpoint is reused.
-Returns immediately with \`trackStatus: "processing"\`. Rejected if the track is currently being processed.`,
+Returns immediately with \`trackStatus: "processing"\`. Rejected if the track is currently being processed.
+Only accessible to Pro users.`,
     }),
     ApiConsumes('multipart/form-data'),
     ApiParam({ name: 'trackId', description: 'UUID of the track', type: 'string' }),
@@ -1059,7 +1060,30 @@ Returns immediately with \`trackStatus: "processing"\`. Rejected if the track is
     }),
     ApiResponse({ status: 400, description: 'Missing audio file or invalid file type' }),
     ApiResponse({ status: 401, description: 'Unauthorized' }),
-    ApiResponse({ status: 403, description: 'You do not own this track' }),
+    ApiResponse({
+      status: 403,
+      description: 'Not owner or not a Pro user',
+      content: {
+        'application/json': {
+          examples: {
+            accessDenied: {
+              summary: 'Access denied - Pro plan required',
+              value: {
+                statusCode: 403,
+                message: 'Access denied. Required plan(s): pro',
+              },
+            },
+            notOwner: {
+              summary: 'Access denied - not track owner',
+              value: {
+                statusCode: 403,
+                message: 'You do not own this track',
+              },
+            },
+          },
+        },
+      },
+    }),
     ApiResponse({ status: 404, description: 'Track not found' }),
     ApiResponse({ status: 409, description: 'Track is currently being processed' })
   );

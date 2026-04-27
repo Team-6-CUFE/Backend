@@ -12,11 +12,16 @@ export default setSeederFactory(Track, async () => {
   track.description = faker.lorem.paragraph();
 
   // Media URLs
-  const trackId = faker.string.uuid();
-  track.audioUrl = `https://cdn.soundcloud-clone.com/audio/${trackId}.mp3`;
-  track.previewAudioUrl = `https://cdn.soundcloud-clone.com/previews/${trackId}.mp3`;
-  track.waveformUrl = `https://cdn.soundcloud-clone.com/waveforms/${trackId}.json`;
-  track.coverImage = faker.image.url({ width: 500, height: 500 });
+  track.audioUrl =
+    'https://harmonica-s3-storage-287109772507-us-east-1-an.s3.amazonaws.com/tracks/594929cf-87b3-4461-a80f-c2572fed8107/u_vld2chgq8f-magma-prod-2025-sample-142bpm-459102_standard.mp3';
+  track.previewAudioUrl =
+    'https://harmonica-s3-storage-287109772507-us-east-1-an.s3.amazonaws.com/tracks/594929cf-87b3-4461-a80f-c2572fed8107/u_vld2chgq8f-magma-prod-2025-sample-142bpm-459102_preview.mp3';
+  track.waveformUrl =
+    'https://harmonica-s3-storage-287109772507-us-east-1-an.s3.amazonaws.com/tracks/594929cf-87b3-4461-a80f-c2572fed8107/waveform.json';
+  track.coverImage =
+    'https://harmonica-s3-storage-287109772507-us-east-1-an.s3.amazonaws.com/transparent-cassete.png';
+  track.audioUrlHq =
+    'https://harmonica-s3-storage-287109772507-us-east-1-an.s3.amazonaws.com/tracks/594929cf-87b3-4461-a80f-c2572fed8107/u_vld2chgq8f-magma-prod-2025-sample-142bpm-459102_hq.mp3';
 
   // Metadata
   track.durationSeconds = faker.number.int({ min: 60, max: 600 });
