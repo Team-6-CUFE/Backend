@@ -192,4 +192,10 @@ export class DiscoveryController {
   async getArtistsToWatchOutFor() {
     return this.discoveryService.getArtistsToWatchOutFor();
   }
+
+  @Get('curated')
+  @Public()
+  async getCuratedPlaylists() {
+    return this.discoveryService.getCuratedPlaylists();
+  }
 }

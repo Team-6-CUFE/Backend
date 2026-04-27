@@ -1343,4 +1343,21 @@ export class DiscoveryService {
       data: artists,
     };
   }
+
+  async getCuratedPlaylists() {
+    // get top tracks based on track plays in the last month
+    // return the track's info to be able to later get its track station made by us
+    const tracks = await this.trackRepository.findTrendingTracks();
+    return {
+      status: 'success',
+      data: {
+        tracks: tracks.map((t) => ({
+          title: t.title,
+          artistUsername: t.user.username,
+          artistDisplayName: t.user.displayName,
+          coverImage: t.coverImage,
+        })),
+      },
+    };
+  }
 }

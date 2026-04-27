@@ -855,4 +855,20 @@ export class TrackRepository {
       followersCount: Number(result.followers_count),
     }));
   }
+
+  async findTrendingTracks(): Promise<Track[]> {
+    // top 5 played tracks in the last month
+    const oneMonthAgo = new Date();
+    oneMonthAgo.setMonth(oneMonthAgo.getMonth() - 1);
+
+    const tracks = await this.trackRepository
+      .createQueryBuilder('track')
+      .leftJoinAndSelect('track.user', 'user')
+      .where('track.createdAt > :oneMonthAgo', { oneMonthAgo })
+      .orderBy('track.playCount', 'DESC')
+      .take(5)
+      .getMany();
+
+    return tracks;
+  }
 }
