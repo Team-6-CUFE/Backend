@@ -14,6 +14,7 @@ import { TrackSseService } from './services/track-sse.service';
 import { StorageService } from '../common/storage_service';
 import { PlaylistService } from '../playlist/playlist.service';
 import { FansService } from './services/fans.service';
+import { FfmpegService } from '../audio/ffmpeg.service';
 import { TrackVisibility } from './enums/track-visibility.enum';
 import { TrackStatus } from './enums/track-status.enum';
 import * as geolocationUtil from '../common/utilities/geolocation.util';
@@ -41,7 +42,6 @@ import {
   mockTrackComment,
   mockParentComment,
   mockPlaylistEntry,
-  // mockGenre,
   mockJwtPayload,
   mockProJwtPayload,
   mockGoJwtPayload,
@@ -56,6 +56,7 @@ import {
   mockFanResult,
   mockRedisClient,
   mockActivitiesService,
+  mockFfmpegService,
 } from './tests/track.mock';
 import { REDIS_CLIENT } from '../redis/redis.module';
 import { ActivityService } from '../activity/activity.service';
@@ -81,8 +82,7 @@ describe('TrackService', () => {
   let fansService: ReturnType<typeof mockFansService>;
   let playlistService: ReturnType<typeof mockPlaylistService>;
   let redisClient: ReturnType<typeof mockRedisClient>;
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  let notificationsService: NotificationsService;
+  let ffmpegService: ReturnType<typeof mockFfmpegService>;
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
@@ -102,9 +102,10 @@ describe('TrackService', () => {
           provide: NotificationsService,
           useValue: {
             sendPushNotification: jest.fn(),
-            // Add other methods if TrackService calls them
+            notifyNewPost: jest.fn(),
           },
         },
+        { provide: FfmpegService, useFactory: mockFfmpegService },
       ],
     }).compile();
 
@@ -115,7 +116,7 @@ describe('TrackService', () => {
     fansService = module.get(FansService);
     playlistService = module.get(PlaylistService);
     redisClient = module.get(REDIS_CLIENT);
-    notificationsService = module.get(NotificationsService);
+    ffmpegService = module.get(FfmpegService);
   });
 
   afterEach(() => jest.clearAllMocks());
@@ -1191,13 +1192,61 @@ describe('TrackService', () => {
         MOCK_TRACK_ID,
         MOCK_USER_ID,
         1,
-        100
+        100,
+        undefined
+      );
+    });
+
+    it("should forward filter='playlist' to playlist service", async () => {
+      trackRepo.findById.mockResolvedValue(mockPublicTrack());
+      playlistService.getTrackPlaylists.mockResolvedValue([[], 0]);
+
+      await service.getTrackPlaylists(MOCK_TRACK_ID, MOCK_USER_ID, 1, 20, 'playlist');
+
+      expect(playlistService.getTrackPlaylists).toHaveBeenCalledWith(
+        MOCK_TRACK_ID,
+        MOCK_USER_ID,
+        1,
+        20,
+        'playlist'
+      );
+    });
+
+    it("should forward filter='station' to playlist service", async () => {
+      trackRepo.findById.mockResolvedValue(mockPublicTrack());
+      playlistService.getTrackPlaylists.mockResolvedValue([[], 0]);
+
+      await service.getTrackPlaylists(MOCK_TRACK_ID, MOCK_USER_ID, 1, 20, 'station');
+
+      expect(playlistService.getTrackPlaylists).toHaveBeenCalledWith(
+        MOCK_TRACK_ID,
+        MOCK_USER_ID,
+        1,
+        20,
+        'station'
+      );
+    });
+
+    it("should forward filter='album' to playlist service", async () => {
+      trackRepo.findById.mockResolvedValue(mockPublicTrack());
+      playlistService.getTrackPlaylists.mockResolvedValue([[], 0]);
+
+      await service.getTrackPlaylists(MOCK_TRACK_ID, MOCK_USER_ID, 1, 20, 'album');
+
+      expect(playlistService.getTrackPlaylists).toHaveBeenCalledWith(
+        MOCK_TRACK_ID,
+        MOCK_USER_ID,
+        1,
+        20,
+        'album'
       );
     });
 
     // Extra tests to cover upload/reupload behavior
     describe('uploadTrack and reuploadTrackAudio', () => {
       it('uploadTrack uploads cover, writes temp file and enqueues job', async () => {
+        userRepo.findById.mockResolvedValue(mockPublicUser());
+        ffmpegService.getDuration.mockResolvedValue(213);
         const savedTrack = mockPublicTrack();
         savedTrack.trackId = MOCK_TRACK_ID;
         trackRepo.createTrack.mockResolvedValue(savedTrack);
@@ -1273,6 +1322,8 @@ describe('TrackService', () => {
     const dto = { title: 'Midnight Drive' };
 
     it('should create track record and queue audio job', async () => {
+      userRepo.findById.mockResolvedValue(mockPublicUser());
+      ffmpegService.getDuration.mockResolvedValue(213);
       const savedTrack = {
         trackId: MOCK_TRACK_ID,
         title: 'Midnight Drive',
@@ -1296,6 +1347,8 @@ describe('TrackService', () => {
     });
 
     it('should upload cover and pass url to createTrack when cover file provided', async () => {
+      userRepo.findById.mockResolvedValue(mockPublicUser());
+      ffmpegService.getDuration.mockResolvedValue(213);
       const savedTrack = {
         trackId: MOCK_TRACK_ID,
         title: 'Midnight Drive',
@@ -1318,6 +1371,8 @@ describe('TrackService', () => {
     });
 
     it('should return message and processing trackStatus', async () => {
+      userRepo.findById.mockResolvedValue(mockPublicUser());
+      ffmpegService.getDuration.mockResolvedValue(213);
       const savedTrack = {
         trackId: MOCK_TRACK_ID,
         title: 'Midnight Drive',

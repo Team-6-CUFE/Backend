@@ -270,4 +270,11 @@ export class UserRepository {
       .where('user.userId IN (:...ids)', { ids })
       .getMany();
   }
+
+  async findUserWithEmails(userId: string) {
+    return this.repository.findOne({
+      where: { userId },
+      relations: ['emails'],
+    });
+  }
 }

@@ -10,7 +10,7 @@ import { PlaylistRepository } from './playlist.repository';
 import { buildPaginationResponse } from '../common/utilities/pagination.util';
 import { UserRepository } from '../user/user.repository';
 import { CreatePlaylistDto } from './dto/create-playlist.dto';
-import { Playlist, PlaylistType } from './entities/playlist.entity';
+import { Playlist, PlaylistType, PlaylistTypeFilter } from './entities/playlist.entity';
 import { UpdatePlaylistDto } from './dto/update-playlist.dto';
 import { StorageService } from '../common/storage_service';
 import { ActivityService } from '../activity/activity.service';
@@ -307,7 +307,8 @@ export class PlaylistService {
     userId: string,
     myUserId: string,
     page: number = 1,
-    limit: number = 20
+    limit: number = 20,
+    filter?: PlaylistTypeFilter
   ) {
     const user = await this.userRepository.findById(userId);
     if (!user) {
@@ -322,7 +323,8 @@ export class PlaylistService {
     const [likes, total] = await this.playlistRepository.getUserPlaylistLikes(
       userId,
       page,
-      cappedLimit
+      cappedLimit,
+      filter
     );
 
     const mappedLikes = likes.map((like) => ({
@@ -748,13 +750,15 @@ export class PlaylistService {
     trackId: string,
     currentUserId: string,
     page: number,
-    cappedLimit: number
+    cappedLimit: number,
+    filter?: PlaylistTypeFilter
   ): Promise<[any[], number]> {
     const [playlists, total] = await this.playlistRepository.getTrackPlaylists(
       trackId,
       currentUserId,
       page,
-      cappedLimit
+      cappedLimit,
+      filter
     );
     return [playlists, total];
   }
@@ -943,8 +947,18 @@ export class PlaylistService {
     };
   }
 
-  async getMyPlaylists(userId: string, page: number = 1, limit: number = 20) {
-    const [playlists, total] = await this.playlistRepository.getMyPlaylists(userId, page, limit);
+  async getMyPlaylists(
+    userId: string,
+    page: number = 1,
+    limit: number = 20,
+    filter?: PlaylistTypeFilter
+  ) {
+    const [playlists, total] = await this.playlistRepository.getMyPlaylists(
+      userId,
+      page,
+      limit,
+      filter
+    );
 
     const mappedPlaylists = playlists.map((playlist) => ({
       playlistId: playlist.playlistId,
@@ -976,7 +990,8 @@ export class PlaylistService {
     userId: string,
     myUserId: string | null,
     page: number = 1,
-    limit: number = 20
+    limit: number = 20,
+    filter?: PlaylistTypeFilter
   ) {
     const user = await this.userRepository.findById(userId);
     if (!user) {
@@ -987,7 +1002,12 @@ export class PlaylistService {
       throw new ForbiddenException('This account is private');
     }
 
-    const [playlists, total] = await this.playlistRepository.getUserPlaylists(userId, page, limit);
+    const [playlists, total] = await this.playlistRepository.getUserPlaylists(
+      userId,
+      page,
+      limit,
+      filter
+    );
 
     const mappedPlaylists = playlists.map((playlist) => ({
       playlistId: playlist.playlistId,

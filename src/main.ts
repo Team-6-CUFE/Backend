@@ -12,7 +12,7 @@ import { AppModule } from './app.module';
 import { configureMeilisearch } from './search/configure';
 
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule);
+  const app = await NestFactory.create(AppModule, { rawBody: true });
   const configService = app.get(ConfigService);
   app.getHttpAdapter().getInstance().set('trust proxy', 1);
   const redisUrl = configService.get<string>('REDIS_URL')!;

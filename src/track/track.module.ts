@@ -26,6 +26,7 @@ import { FansService } from './services/fans.service';
 import { FansJobProcessor } from './listeners/fans-job.processor';
 import { ActivityModule } from '../activity/activity.module';
 import { NotificationsModule } from '../notifications/notifications.module';
+import { FfmpegService } from '../audio/ffmpeg.service';
 
 @Module({
   imports: [
@@ -75,6 +76,7 @@ import { NotificationsModule } from '../notifications/notifications.module';
     FanRepository,
     FansService,
     FansJobProcessor,
+    FfmpegService,
   ],
   exports: [TrackService, TrackRepository],
 })
