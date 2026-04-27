@@ -25,6 +25,7 @@ import { GoogleLinkGuard } from './guards/google-link.guard';
 import { FacebookLinkGuard } from './guards/facebook-link.guard';
 import { GoogleLinkStrategy } from './strategies/google-link.strategy';
 import { FacebookLinkStrategy } from './strategies/facebook-link.strategy';
+import { PlansGuard } from './guards/plans.guard';
 
 @Module({
   imports: [
@@ -57,6 +58,10 @@ import { FacebookLinkStrategy } from './strategies/facebook-link.strategy';
     {
       provide: APP_GUARD,
       useClass: RolesGuard,
+    },
+    {
+      provide: APP_GUARD,
+      useClass: PlansGuard,
     },
     JwtStrategy,
     RefreshTokenStrategy,
