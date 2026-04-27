@@ -652,7 +652,7 @@ export function ApiUpdatePlaylist() {
           genre: { type: 'string', example: 'Rock & Roll' },
           type: {
             type: 'string',
-            enum: ['playlist', 'album', 'ep'],
+            enum: ['Playlist', 'Album', 'EP', 'Single', 'Compailation'],
             example: 'album',
             description: 'Playlist type (playlist, album, ep)',
           },
