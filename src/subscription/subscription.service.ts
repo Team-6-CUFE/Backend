@@ -58,6 +58,13 @@ export class SubscriptionService {
       plan === SubscriptionPlan.GO_PLUS_YEARLY
     );
   }
+
+  private resolveBillingCycle(plan: SubscriptionPlan): 'monthly' | 'yearly' | null {
+    if (plan === SubscriptionPlan.FREE) return null;
+
+    const yearlyPlans = [SubscriptionPlan.PRO_YEARLY, SubscriptionPlan.GO_PLUS_YEARLY];
+    return yearlyPlans.includes(plan) ? 'yearly' : 'monthly';
+  }
   // ─── Create Checkout ───────────────────────────────────────────────────────
 
   async createCheckout(
@@ -104,5 +111,164 @@ export class SubscriptionService {
       status: 'pending',
       message: 'Payment is being processed',
     };
+  }
+  // ─── Get My Subscription ───────────────────────────────────────────────────
+
+  async getMySubscription(userId: string): Promise<{
+    plan: SubscriptionPlan;
+    status: SubscriptionStatus;
+    billingCycle: 'monthly' | 'yearly' | null;
+    currentPeriodEnd: Date | null;
+    cancelAtPeriodEnd: boolean;
+    stripeSubscriptionId: string | null;
+  }> {
+    const subscription = await this.subscriptionRepository.findOne(userId);
+
+    if (!subscription) {
+      return {
+        plan: SubscriptionPlan.FREE,
+        status: SubscriptionStatus.ACTIVE,
+        billingCycle: null,
+        currentPeriodEnd: null,
+        cancelAtPeriodEnd: false,
+        stripeSubscriptionId: null,
+      };
+    }
+
+    return {
+      plan: subscription.plan,
+      status: subscription.status,
+      billingCycle: this.resolveBillingCycle(subscription.plan),
+      currentPeriodEnd: subscription.currentPeriodEnd ?? null,
+      cancelAtPeriodEnd: subscription.cancelAtPeriodEnd,
+      stripeSubscriptionId: subscription.stripeSubscriptionId ?? null,
+    };
+  }
+
+  // ─── Cancel Subscription ───────────────────────────────────────────────────
+
+  async cancelSubscription(userId: string): Promise<{ message: string }> {
+    const subscription = await this.getOrCreateSubscription(userId);
+
+    if (!this.isPaidPlan(subscription.plan) || subscription.status !== SubscriptionStatus.ACTIVE) {
+      throw new BadRequestException('No active subscription to cancel');
+    }
+
+    if (subscription.cancelAtPeriodEnd) {
+      throw new BadRequestException('Subscription is already scheduled for cancellation');
+    }
+
+    // Tell Stripe to cancel at period end
+    await this.stripeService.cancelSubscription(subscription.stripeSubscriptionId);
+
+    // Sync DB immediately — don't wait for webhook
+    await this.subscriptionRepository.updateSubscription(subscription.stripeCustomerId, {
+      cancelAtPeriodEnd: true,
+    });
+
+    return {
+      message: `Your subscription will remain active until ${subscription.currentPeriodEnd?.toDateString()}`,
+    };
+  }
+
+  // ─── Resume Subscription ──────────────────────────────────────────────────
+
+  async resumeSubscription(userId: string): Promise<{ message: string }> {
+    const subscription = await this.getOrCreateSubscription(userId);
+
+    if (!subscription.cancelAtPeriodEnd) {
+      throw new BadRequestException('Subscription is not scheduled for cancellation');
+    }
+
+    await this.stripeService.resumeSubscription(subscription.stripeSubscriptionId);
+
+    await this.subscriptionRepository.updateSubscription(subscription.stripeCustomerId, {
+      cancelAtPeriodEnd: false,
+    });
+
+    return { message: 'Subscription resumed successfully' };
+  }
+
+  // ─── Webhook Event Handler ─────────────────────────────────────────────────
+
+  async handleWebhookEvent(event: Stripe.Event): Promise<void> {
+    switch (event.type) {
+      case 'invoice.payment_succeeded': {
+        const invoice = event.data.object as Stripe.Invoice;
+        const stripeCustomerId = invoice.customer as string;
+        const priceId = invoice.lines.data[0]?.price?.id;
+
+        if (!priceId) break;
+
+        const plan = this.resolvePlanFromPriceId(priceId);
+        if (!plan) break;
+
+        await this.subscriptionRepository.updateSubscription(stripeCustomerId, {
+          plan,
+          status: SubscriptionStatus.ACTIVE,
+          stripeSubscriptionId: invoice.subscription as string,
+          currentPeriodStart: new Date(invoice.period_start * 1000),
+          currentPeriodEnd: new Date(invoice.period_end * 1000),
+          cancelAtPeriodEnd: false,
+        });
+        break;
+      }
+
+      case 'customer.subscription.updated': {
+        const stripeSub = event.data.object as Stripe.Subscription;
+        const stripeCustomerId = stripeSub.customer as string;
+
+        await this.subscriptionRepository.updateSubscription(stripeCustomerId, {
+          cancelAtPeriodEnd: stripeSub.cancel_at_period_end,
+          currentPeriodEnd: new Date(stripeSub.current_period_end * 1000),
+          currentPeriodStart: new Date(stripeSub.current_period_start * 1000),
+        });
+        break;
+      }
+
+      case 'customer.subscription.deleted': {
+        const stripeSub = event.data.object as Stripe.Subscription;
+        const stripeCustomerId = stripeSub.customer as string;
+
+        await this.subscriptionRepository.updateSubscription(stripeCustomerId, {
+          plan: SubscriptionPlan.FREE,
+          status: SubscriptionStatus.ACTIVE,
+          cancelAtPeriodEnd: false,
+          currentPeriodEnd: undefined,
+          currentPeriodStart: undefined,
+          stripeSubscriptionId: undefined,
+        });
+        break;
+      }
+
+      case 'invoice.payment_failed': {
+        const invoice = event.data.object as Stripe.Invoice;
+        const stripeCustomerId = invoice.customer as string;
+
+        await this.subscriptionRepository.updateSubscription(stripeCustomerId, {
+          status: SubscriptionStatus.PAST_DUE,
+        });
+        break;
+      }
+      default:
+        break;
+    }
+  }
+
+  // ─── Resolve Plan From Price ID ────────────────────────────────────────────
+
+  private resolvePlanFromPriceId(priceId: string): SubscriptionPlan | null {
+    const map: Record<string, SubscriptionPlan> = {
+      [this.configService.get<string>('STRIPE_ARTIST_PRO_PRICE_MONTHLY') as string]:
+        SubscriptionPlan.PRO_MONTHLY,
+      [this.configService.get<string>('STRIPE_ARTIST_PRO_PRICE_YEARLY') as string]:
+        SubscriptionPlan.PRO_YEARLY,
+      [this.configService.get<string>('STRIPE_GO_PLUS_PRICE_MONTHLY') as string]:
+        SubscriptionPlan.GO_PLUS_MONTHLY,
+      [this.configService.get<string>('STRIPE_GO_PLUS_PRICE_YEARLY') as string]:
+        SubscriptionPlan.GO_PLUS_YEARLY,
+    };
+
+    return map[priceId] ?? null;
   }
 }

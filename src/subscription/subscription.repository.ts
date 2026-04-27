@@ -26,4 +26,14 @@ export class SubscriptionRepository {
     });
     return this.subscriptionRepository.save(subscription);
   }
+
+  async updateSubscription(stripeCustomerId: string, data: Partial<Subscription>): Promise<void> {
+    await this.subscriptionRepository.update({ stripeCustomerId }, data);
+  }
+
+  async findByStripeCustomerId(stripeCustomerId: string): Promise<Subscription | null> {
+    return this.subscriptionRepository.findOne({
+      where: { stripeCustomerId },
+    });
+  }
 }
