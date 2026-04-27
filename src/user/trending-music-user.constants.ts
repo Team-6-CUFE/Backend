@@ -5,6 +5,6 @@ export const TRENDING_MUSIC_USER = {
   firstName: 'Trending',
   lastName: 'Music',
   role: 'artist',
-  plan: 'go+',
+  plan: 'pro',
   isPublic: true,
 };
