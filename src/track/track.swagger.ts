@@ -761,7 +761,8 @@ export function ApiUploadTrack() {
       summary: 'Upload a new track',
       description: `Upload an audio file along with a cover image and all track metadata in a single multipart request.
 Audio processing (transcoding HQ/standard, 20-second preview, waveform generation) runs in the background.
-Subscribe to \`GET /tracks/:trackId/status/stream\` (SSE) to receive live progress updates instead of polling.`,
+Subscribe to \`GET /tracks/:trackId/status/stream\` (SSE) to receive live progress updates instead of polling.
+Checks if the user quota allows the upload before accepting the request.`,
     }),
     ApiConsumes('multipart/form-data'),
     ApiBody({
@@ -840,6 +841,13 @@ Subscribe to \`GET /tracks/:trackId/status/stream\` (SSE) to receive live progre
             createdAt: '2026-04-02T22:00:00Z',
           },
         },
+      },
+    }),
+    ApiResponse({
+      status: 403,
+      description: 'User quota exceeded',
+      schema: {
+        example: { statusCode: 403, message: 'Insufficient quota' },
       },
     }),
     ApiResponse({
