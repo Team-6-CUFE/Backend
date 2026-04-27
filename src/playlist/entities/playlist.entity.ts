@@ -27,6 +27,15 @@ export enum PlaylistType {
   STATION = 'Station',
 }
 
+export type PlaylistTypeFilter = 'playlist' | 'station' | 'album';
+
+export const ALBUM_TYPES = [
+  PlaylistType.ALBUM,
+  PlaylistType.EP,
+  PlaylistType.SINGLE,
+  PlaylistType.COMPILATION,
+];
+
 @Entity('playlists')
 export class Playlist extends BaseEntity {
   @PrimaryGeneratedColumn('uuid', { name: 'playlist_id' })

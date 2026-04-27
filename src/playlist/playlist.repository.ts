@@ -1,7 +1,19 @@
 import { ConflictException, Injectable } from '@nestjs/common';
-import { Brackets, In, IsNull, Repository } from 'typeorm';
+import {
+  Brackets,
+  In,
+  IsNull,
+  Repository,
+  SelectQueryBuilder,
+  WhereExpressionBuilder,
+} from 'typeorm';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Playlist, PlaylistType } from './entities/playlist.entity';
+import {
+  ALBUM_TYPES,
+  Playlist,
+  PlaylistType,
+  PlaylistTypeFilter,
+} from './entities/playlist.entity';
 import { PlaylistRepost } from './entities/playlist-reposts.entity';
 import { PlaylistLike } from './entities/playlist-likes.entity';
 import { CreatePlaylistDto } from './dto/create-playlist.dto';
@@ -126,17 +138,29 @@ export class PlaylistRepository {
   async getUserPlaylistLikes(
     userId: string,
     page: number,
-    limit: number
+    limit: number,
+    filter?: PlaylistTypeFilter
   ): Promise<[any[], number]> {
     const skip = (page - 1) * limit;
-    return this.playlistLikesRepository
+
+    const qb = this.playlistLikesRepository
       .createQueryBuilder('like')
       .innerJoinAndSelect('like.playlist', 'playlist')
       .innerJoinAndSelect('playlist.user', 'user')
       .leftJoinAndSelect('playlist.playlistTracks', 'playlistTrack')
       .leftJoinAndSelect('playlistTrack.track', 'track')
       .leftJoinAndSelect('track.user', 'trackUser')
-      .where('like.userId = :userId', { userId })
+      .where('like.userId = :userId', { userId });
+
+    if (filter === 'playlist') {
+      qb.andWhere('playlist.type = :type', { type: PlaylistType.PLAYLIST });
+    } else if (filter === 'station') {
+      qb.andWhere('playlist.type = :type', { type: PlaylistType.STATION });
+    } else if (filter === 'album') {
+      qb.andWhere('playlist.type IN (:...albumTypes)', { albumTypes: ALBUM_TYPES });
+    }
+
+    return qb
       .orderBy('like.createdAt', 'DESC')
       .addOrderBy('playlistTrack.position', 'ASC')
       .skip(skip)
@@ -297,20 +321,27 @@ export class PlaylistRepository {
     trackId: string,
     requesterId: string,
     page: number,
-    limit: number
+    limit: number,
+    filter?: PlaylistTypeFilter
   ): Promise<[any[], number]> {
     const skip = (page - 1) * limit;
 
-    return this.playlistTrackRepository
+    const qb = this.playlistTrackRepository
       .createQueryBuilder('pt')
       .innerJoinAndSelect('pt.playlist', 'playlist')
       .innerJoinAndSelect('playlist.user', 'user')
       .where('pt.trackId = :trackId', { trackId })
-      .andWhere('(playlist.isPublic = true OR playlist.userId = :requesterId)', { requesterId })
-      .orderBy('pt.addedAt', 'DESC')
-      .skip(skip)
-      .take(limit)
-      .getManyAndCount();
+      .andWhere('(playlist.isPublic = true OR playlist.userId = :requesterId)', { requesterId });
+
+    if (filter === 'playlist') {
+      qb.andWhere('playlist.type = :type', { type: PlaylistType.PLAYLIST });
+    } else if (filter === 'station') {
+      qb.andWhere('playlist.type = :type', { type: PlaylistType.STATION });
+    } else if (filter === 'album') {
+      qb.andWhere('playlist.type IN (:...albumTypes)', { albumTypes: ALBUM_TYPES });
+    }
+
+    return qb.orderBy('pt.addedAt', 'DESC').skip(skip).take(limit).getManyAndCount();
   }
 
   async changePlaylistPrivacy(playlistId: string, isPublic: boolean): Promise<string | null> {
@@ -461,53 +492,82 @@ export class PlaylistRepository {
     await this.playlistRepository.update({ playlistId }, { genreId: genre ? genre.genreId : null });
   }
 
-  async getMyPlaylists(userId: string, page: number, limit: number): Promise<[Playlist[], number]> {
+  async getMyPlaylists(
+    userId: string,
+    page: number,
+    limit: number,
+    filter?: PlaylistTypeFilter
+  ): Promise<[Playlist[], number]> {
     const skip = (page - 1) * limit;
 
-    return this.playlistRepository
+    const qb = this.playlistRepository
       .createQueryBuilder('playlist')
       .leftJoinAndSelect('playlist.user', 'user')
-      .where('playlist.userId = :userId', { userId })
-      .orWhere((qb) => {
-        const subQuery = qb
-          .subQuery()
-          .select('like.playlistId')
-          .from(PlaylistLike, 'like')
-          .where('like.userId = :userId')
-          .getQuery();
-        return `playlist.playlistId IN ${subQuery}`;
-      })
-      .orderBy('playlist.createdAt', 'DESC')
-      .skip(skip)
-      .take(limit)
-      .getManyAndCount();
+      .where(
+        new Brackets((bqb: WhereExpressionBuilder) => {
+          bqb
+            .where('playlist.userId = :userId', { userId })
+            .orWhere((subQb: SelectQueryBuilder<any>) => {
+              const subQuery = subQb
+                .subQuery()
+                .select('like.playlistId')
+                .from(PlaylistLike, 'like')
+                .where('like.userId = :userId')
+                .getQuery();
+              return `playlist.playlistId IN ${subQuery}`;
+            });
+        })
+      );
+
+    if (filter === 'playlist') {
+      qb.andWhere('playlist.type = :type', { type: PlaylistType.PLAYLIST });
+    } else if (filter === 'station') {
+      qb.andWhere('playlist.type = :type', { type: PlaylistType.STATION });
+    } else if (filter === 'album') {
+      qb.andWhere('playlist.type IN (:...albumTypes)', { albumTypes: ALBUM_TYPES });
+    }
+
+    return qb.orderBy('playlist.createdAt', 'DESC').skip(skip).take(limit).getManyAndCount();
   }
 
   async getUserPlaylists(
     userId: string,
     page: number,
-    limit: number
+    limit: number,
+    filter?: PlaylistTypeFilter
   ): Promise<[Playlist[], number]> {
     const skip = (page - 1) * limit;
 
-    return this.playlistRepository
+    const qb = this.playlistRepository
       .createQueryBuilder('playlist')
       .leftJoinAndSelect('playlist.user', 'user')
       .where('playlist.isPublic = :isPublic', { isPublic: true })
-      .andWhere((qb) => {
-        const subQuery = qb
-          .subQuery()
-          .select('like.playlistId')
-          .from(PlaylistLike, 'like')
-          .where('like.userId = :userId')
-          .getQuery();
-        return `(playlist.userId = :userId OR playlist.playlistId IN ${subQuery})`;
-      })
-      .setParameter('userId', userId)
-      .orderBy('playlist.createdAt', 'DESC')
-      .skip(skip)
-      .take(limit)
-      .getManyAndCount();
+      .andWhere(
+        new Brackets((bqb: WhereExpressionBuilder) => {
+          bqb
+            .where('playlist.userId = :userId', { userId })
+            .orWhere((subQb: SelectQueryBuilder<any>) => {
+              const subQuery = subQb
+                .subQuery()
+                .select('like.playlistId')
+                .from(PlaylistLike, 'like')
+                .where('like.userId = :userId')
+                .getQuery();
+              return `playlist.playlistId IN ${subQuery}`;
+            });
+        })
+      )
+      .setParameter('userId', userId);
+
+    if (filter === 'playlist') {
+      qb.andWhere('playlist.type = :type', { type: PlaylistType.PLAYLIST });
+    } else if (filter === 'station') {
+      qb.andWhere('playlist.type = :type', { type: PlaylistType.STATION });
+    } else if (filter === 'album') {
+      qb.andWhere('playlist.type IN (:...albumTypes)', { albumTypes: ALBUM_TYPES });
+    }
+
+    return qb.orderBy('playlist.createdAt', 'DESC').skip(skip).take(limit).getManyAndCount();
   }
 
   async findByIds(ids: string[]): Promise<Playlist[]> {

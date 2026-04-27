@@ -539,7 +539,13 @@ describe('TrackController', () => {
 
       await controller.getTrackPlaylists(MOCK_TRACK_ID, MOCK_USER_ID, 1, 20);
 
-      expect(service.getTrackPlaylists).toHaveBeenCalledWith(MOCK_TRACK_ID, MOCK_USER_ID, 1, 20);
+      expect(service.getTrackPlaylists).toHaveBeenCalledWith(
+        MOCK_TRACK_ID,
+        MOCK_USER_ID,
+        1,
+        20,
+        undefined
+      );
     });
 
     it('should return service response as-is', async () => {
@@ -557,6 +563,48 @@ describe('TrackController', () => {
       await expect(
         controller.getTrackPlaylists(MOCK_TRACK_ID, MOCK_USER_ID, 1, 20)
       ).rejects.toThrow(ForbiddenException);
+    });
+
+    it("should pass filter='playlist' to service", async () => {
+      service.getTrackPlaylists.mockResolvedValue({ status: 'success', data: [] });
+
+      await controller.getTrackPlaylists(MOCK_TRACK_ID, MOCK_USER_ID, 1, 20, 'playlist');
+
+      expect(service.getTrackPlaylists).toHaveBeenCalledWith(
+        MOCK_TRACK_ID,
+        MOCK_USER_ID,
+        1,
+        20,
+        'playlist'
+      );
+    });
+
+    it("should pass filter='station' to service", async () => {
+      service.getTrackPlaylists.mockResolvedValue({ status: 'success', data: [] });
+
+      await controller.getTrackPlaylists(MOCK_TRACK_ID, MOCK_USER_ID, 1, 20, 'station');
+
+      expect(service.getTrackPlaylists).toHaveBeenCalledWith(
+        MOCK_TRACK_ID,
+        MOCK_USER_ID,
+        1,
+        20,
+        'station'
+      );
+    });
+
+    it("should pass filter='album' to service", async () => {
+      service.getTrackPlaylists.mockResolvedValue({ status: 'success', data: [] });
+
+      await controller.getTrackPlaylists(MOCK_TRACK_ID, MOCK_USER_ID, 1, 20, 'album');
+
+      expect(service.getTrackPlaylists).toHaveBeenCalledWith(
+        MOCK_TRACK_ID,
+        MOCK_USER_ID,
+        1,
+        20,
+        'album'
+      );
     });
   });
 

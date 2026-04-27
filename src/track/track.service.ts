@@ -31,7 +31,7 @@ import { UploadQuotaResponseDto } from './dto/upload-quota.res.dto';
 import { PlaylistOwnerDto } from './dto/playlist-owner.dto';
 import { TrackPlaylistResponseDto } from './dto/track-playlist-res.dto';
 import { PlaylistTrack } from '../playlist/entities/playlist-tracks.entity';
-import { Playlist } from '../playlist/entities/playlist.entity';
+import { Playlist, PlaylistTypeFilter } from '../playlist/entities/playlist.entity';
 import { GenreRepository } from '../genre/genre.repository';
 import { JwtPayload } from '../authentication/strategies/jwt.strategy';
 import { TrackGenreDto } from './dto/track-genre.dto';
@@ -731,7 +731,8 @@ export class TrackService {
     trackId: string,
     currentUserId: string,
     page: number = 1,
-    limit: number = 20
+    limit: number = 20,
+    filter?: PlaylistTypeFilter
   ) {
     const track = await this.trackRepository.findById(trackId);
     if (!track) throw new NotFoundException('Track not found');
@@ -744,7 +745,8 @@ export class TrackService {
       trackId,
       currentUserId,
       page,
-      cappedLimit
+      cappedLimit,
+      filter
     );
 
     const shaped = (entries as Array<PlaylistTrack & { playlist: Playlist & { user: User } }>).map(

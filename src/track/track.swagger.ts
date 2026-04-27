@@ -1343,6 +1343,12 @@ export function ApiGetTrackPlaylists() {
       example: 20,
       description: 'Items per page, capped at 100',
     }),
+    ApiQuery({
+      name: 'filter',
+      required: false,
+      enum: ['playlist', 'station', 'album'],
+      description: 'Filter by type: playlist, station, or album (includes EP, Single, Compilation)',
+    }),
     ApiResponse({
       status: 200,
       description: 'Paginated list of playlists',

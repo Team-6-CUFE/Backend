@@ -864,7 +864,12 @@ describe('PlaylistService', () => {
 
       await service.getUserPlaylistLikes(mockOtherUserId, mockMyUserId, 1, 20);
 
-      expect(playlistRepo.getUserPlaylistLikes).toHaveBeenCalledWith(mockOtherUserId, 1, 20);
+      expect(playlistRepo.getUserPlaylistLikes).toHaveBeenCalledWith(
+        mockOtherUserId,
+        1,
+        20,
+        undefined
+      );
       expect(playlistRepo.getUserPlaylistReposts).not.toHaveBeenCalled();
     });
 
@@ -899,7 +904,12 @@ describe('PlaylistService', () => {
 
       await service.getUserPlaylistLikes(mockOtherUserId, mockMyUserId, 1, 200);
 
-      expect(playlistRepo.getUserPlaylistLikes).toHaveBeenCalledWith(mockOtherUserId, 1, 100);
+      expect(playlistRepo.getUserPlaylistLikes).toHaveBeenCalledWith(
+        mockOtherUserId,
+        1,
+        100,
+        undefined
+      );
     });
 
     it('should use defaults page=1, limit=20 when not provided', async () => {
@@ -908,7 +918,54 @@ describe('PlaylistService', () => {
 
       await service.getUserPlaylistLikes(mockOtherUserId, mockMyUserId);
 
-      expect(playlistRepo.getUserPlaylistLikes).toHaveBeenCalledWith(mockOtherUserId, 1, 20);
+      expect(playlistRepo.getUserPlaylistLikes).toHaveBeenCalledWith(
+        mockOtherUserId,
+        1,
+        20,
+        undefined
+      );
+    });
+
+    it("should forward filter='playlist' to the repository", async () => {
+      userRepo.findById.mockResolvedValue(mockPublicUser());
+      playlistRepo.getUserPlaylistLikes.mockResolvedValue([[], 0]);
+
+      await service.getUserPlaylistLikes(mockOtherUserId, mockMyUserId, 1, 20, 'playlist');
+
+      expect(playlistRepo.getUserPlaylistLikes).toHaveBeenCalledWith(
+        mockOtherUserId,
+        1,
+        20,
+        'playlist'
+      );
+    });
+
+    it("should forward filter='station' to the repository", async () => {
+      userRepo.findById.mockResolvedValue(mockPublicUser());
+      playlistRepo.getUserPlaylistLikes.mockResolvedValue([[], 0]);
+
+      await service.getUserPlaylistLikes(mockOtherUserId, mockMyUserId, 1, 20, 'station');
+
+      expect(playlistRepo.getUserPlaylistLikes).toHaveBeenCalledWith(
+        mockOtherUserId,
+        1,
+        20,
+        'station'
+      );
+    });
+
+    it("should forward filter='album' to the repository", async () => {
+      userRepo.findById.mockResolvedValue(mockPublicUser());
+      playlistRepo.getUserPlaylistLikes.mockResolvedValue([[], 0]);
+
+      await service.getUserPlaylistLikes(mockOtherUserId, mockMyUserId, 1, 20, 'album');
+
+      expect(playlistRepo.getUserPlaylistLikes).toHaveBeenCalledWith(
+        mockOtherUserId,
+        1,
+        20,
+        'album'
+      );
     });
 
     it('should map like fields correctly with likedAt (not repostedAt)', async () => {
@@ -1471,7 +1528,31 @@ describe('PlaylistService', () => {
 
       await service.getMyPlaylists(mockUserId);
 
-      expect(playlistRepo.getMyPlaylists).toHaveBeenCalledWith(mockUserId, 1, 20);
+      expect(playlistRepo.getMyPlaylists).toHaveBeenCalledWith(mockUserId, 1, 20, undefined);
+    });
+
+    it("should forward filter='playlist' to the repository", async () => {
+      playlistRepo.getMyPlaylists.mockResolvedValue([[], 0]);
+
+      await service.getMyPlaylists(mockUserId, 1, 20, 'playlist');
+
+      expect(playlistRepo.getMyPlaylists).toHaveBeenCalledWith(mockUserId, 1, 20, 'playlist');
+    });
+
+    it("should forward filter='station' to the repository", async () => {
+      playlistRepo.getMyPlaylists.mockResolvedValue([[], 0]);
+
+      await service.getMyPlaylists(mockUserId, 1, 20, 'station');
+
+      expect(playlistRepo.getMyPlaylists).toHaveBeenCalledWith(mockUserId, 1, 20, 'station');
+    });
+
+    it("should forward filter='album' to the repository", async () => {
+      playlistRepo.getMyPlaylists.mockResolvedValue([[], 0]);
+
+      await service.getMyPlaylists(mockUserId, 1, 20, 'album');
+
+      expect(playlistRepo.getMyPlaylists).toHaveBeenCalledWith(mockUserId, 1, 20, 'album');
     });
   });
 
@@ -1552,6 +1633,38 @@ describe('PlaylistService', () => {
       await service.getUserPlaylists(mockOtherUserId, mockMyUserId);
 
       expect(userRepo.findById).toHaveBeenCalledWith(mockOtherUserId);
+    });
+
+    it("should forward filter='playlist' to the repository", async () => {
+      userRepo.findById.mockResolvedValue(mockPublicUser());
+      playlistRepo.getUserPlaylists.mockResolvedValue([[], 0]);
+
+      await service.getUserPlaylists(mockOtherUserId, mockMyUserId, 1, 20, 'playlist');
+
+      expect(playlistRepo.getUserPlaylists).toHaveBeenCalledWith(
+        mockOtherUserId,
+        1,
+        20,
+        'playlist'
+      );
+    });
+
+    it("should forward filter='station' to the repository", async () => {
+      userRepo.findById.mockResolvedValue(mockPublicUser());
+      playlistRepo.getUserPlaylists.mockResolvedValue([[], 0]);
+
+      await service.getUserPlaylists(mockOtherUserId, mockMyUserId, 1, 20, 'station');
+
+      expect(playlistRepo.getUserPlaylists).toHaveBeenCalledWith(mockOtherUserId, 1, 20, 'station');
+    });
+
+    it("should forward filter='album' to the repository", async () => {
+      userRepo.findById.mockResolvedValue(mockPublicUser());
+      playlistRepo.getUserPlaylists.mockResolvedValue([[], 0]);
+
+      await service.getUserPlaylists(mockOtherUserId, mockMyUserId, 1, 20, 'album');
+
+      expect(playlistRepo.getUserPlaylists).toHaveBeenCalledWith(mockOtherUserId, 1, 20, 'album');
     });
   });
 });

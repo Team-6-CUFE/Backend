@@ -1192,7 +1192,53 @@ describe('TrackService', () => {
         MOCK_TRACK_ID,
         MOCK_USER_ID,
         1,
-        100
+        100,
+        undefined
+      );
+    });
+
+    it("should forward filter='playlist' to playlist service", async () => {
+      trackRepo.findById.mockResolvedValue(mockPublicTrack());
+      playlistService.getTrackPlaylists.mockResolvedValue([[], 0]);
+
+      await service.getTrackPlaylists(MOCK_TRACK_ID, MOCK_USER_ID, 1, 20, 'playlist');
+
+      expect(playlistService.getTrackPlaylists).toHaveBeenCalledWith(
+        MOCK_TRACK_ID,
+        MOCK_USER_ID,
+        1,
+        20,
+        'playlist'
+      );
+    });
+
+    it("should forward filter='station' to playlist service", async () => {
+      trackRepo.findById.mockResolvedValue(mockPublicTrack());
+      playlistService.getTrackPlaylists.mockResolvedValue([[], 0]);
+
+      await service.getTrackPlaylists(MOCK_TRACK_ID, MOCK_USER_ID, 1, 20, 'station');
+
+      expect(playlistService.getTrackPlaylists).toHaveBeenCalledWith(
+        MOCK_TRACK_ID,
+        MOCK_USER_ID,
+        1,
+        20,
+        'station'
+      );
+    });
+
+    it("should forward filter='album' to playlist service", async () => {
+      trackRepo.findById.mockResolvedValue(mockPublicTrack());
+      playlistService.getTrackPlaylists.mockResolvedValue([[], 0]);
+
+      await service.getTrackPlaylists(MOCK_TRACK_ID, MOCK_USER_ID, 1, 20, 'album');
+
+      expect(playlistService.getTrackPlaylists).toHaveBeenCalledWith(
+        MOCK_TRACK_ID,
+        MOCK_USER_ID,
+        1,
+        20,
+        'album'
       );
     });
 
