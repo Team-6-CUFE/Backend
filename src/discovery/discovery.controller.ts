@@ -17,9 +17,13 @@ import {
   ApiGetLikedByUsersForUser,
   ApiGetMoreAlbumsOfWhatYouLike,
   ApiGetDiscoverFeed,
+  ApiGetPublicTrendingMusicByGenre,
+  ApiGetArtistsToWatchOutFor,
+  ApiGetCuratedPlaylists,
 } from './discovery.swagger';
 import { CurrentUser } from '../authentication/decorators/current-user.decorator';
 import { EntityType } from '../search/types';
+import { Public } from '../authentication/decorators/public.decorator';
 
 @ApiTags('Discovery')
 @Controller('discovery')
@@ -133,6 +137,13 @@ export class DiscoveryController {
     return this.discoveryService.getTrendingMusicByGenre(userId);
   }
 
+  @ApiGetPublicTrendingMusicByGenre()
+  @Public()
+  @Get('/trending/genres/random')
+  async getTrendingMusicByGenreRandom() {
+    return this.discoveryService.getTrendingMusicByGenre();
+  }
+
   @ApiGetLikedByUsers()
   @Get('/liked-by-users')
   async getLikedbyUsers(@CurrentUser('sub') userId: string) {
@@ -174,5 +185,19 @@ export class DiscoveryController {
   @Get('feed/discover')
   async getDiscoverFeed(@CurrentUser('sub') userId: string, @Ip() ip: string) {
     return this.discoveryService.getDiscoverFeed(userId, ip);
+  }
+
+  @ApiGetArtistsToWatchOutFor()
+  @Get('artists-to-watch-out-for')
+  @Public()
+  async getArtistsToWatchOutFor() {
+    return this.discoveryService.getArtistsToWatchOutFor();
+  }
+
+  @ApiGetCuratedPlaylists()
+  @Get('curated')
+  @Public()
+  async getCuratedPlaylists() {
+    return this.discoveryService.getCuratedPlaylists();
   }
 }
