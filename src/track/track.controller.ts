@@ -66,6 +66,7 @@ import { OptionalCurrentUser } from '../authentication/decorators/optional-curre
 import { JwtPayload } from '../authentication/strategies/jwt.strategy';
 import { BlockedRegionsDto } from './dto/blocked-regions.dto';
 import { Plans } from '../authentication/decorators/plans.decorator';
+import { PlaylistTypeFilter } from '../playlist/entities/playlist.entity';
 
 const ALLOWED_AUDIO_MIME_TYPES = [
   'audio/mpeg',
@@ -401,9 +402,10 @@ export class TrackController {
     @Param('trackId', ParseUUIDPipe) userId: string,
     @CurrentUser('sub') currentUserId: string,
     @Query('page') page: number,
-    @Query('limit') limit: number
+    @Query('limit') limit: number,
+    @Query('filter') filter?: PlaylistTypeFilter
   ) {
-    return this.trackService.getTrackPlaylists(userId, currentUserId, page, limit);
+    return this.trackService.getTrackPlaylists(userId, currentUserId, page, limit, filter);
   }
 
   @ApiGetAllGenres()
