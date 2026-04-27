@@ -1,4 +1,4 @@
-import { IsEnum, IsNotEmpty } from 'class-validator';
+import { IsEnum, IsNotEmpty, IsString } from 'class-validator';
 
 export enum BillingCycle {
   MONTHLY = 'monthly',
@@ -18,4 +18,8 @@ export class CreateCheckoutSessionDto {
   @IsNotEmpty()
   @IsEnum(PlanType)
   plan!: PlanType;
+
+  @IsNotEmpty()
+  @IsString()
+  paymentMethodId!: string; // ← add this
 }
