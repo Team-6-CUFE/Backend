@@ -19,6 +19,7 @@ import {
   ApiGetDiscoverFeed,
   ApiGetPublicTrendingMusicByGenre,
   ApiGetArtistsToWatchOutFor,
+  ApiGetCuratedPlaylists,
 } from './discovery.swagger';
 import { CurrentUser } from '../authentication/decorators/current-user.decorator';
 import { EntityType } from '../search/types';
@@ -193,6 +194,7 @@ export class DiscoveryController {
     return this.discoveryService.getArtistsToWatchOutFor();
   }
 
+  @ApiGetCuratedPlaylists()
   @Get('curated')
   @Public()
   async getCuratedPlaylists() {

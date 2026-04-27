@@ -1524,3 +1524,49 @@ export function ApiGetArtistsToWatchOutFor() {
     })
   );
 }
+
+// ─── Get Curated Playlists ────────────────────────────────────────────────────
+
+export function ApiGetCuratedPlaylists() {
+  return applyDecorators(
+    ApiOperation({
+      summary: 'Get curated playlists',
+      description:
+        'Returns the top 5 trending tracks from the last month. ' +
+        'Each entry contains the track title, artist username, artist display name, and cover image, ' +
+        'enabling the client to request a track station for each track.',
+    }),
+    ApiResponse({
+      status: 200,
+      description: 'Curated playlist tracks retrieved successfully.',
+      schema: {
+        example: {
+          status: 'success',
+          data: {
+            tracks: [
+              {
+                title: 'Midnight Drive',
+                artistUsername: 'dj_nour',
+                artistDisplayName: 'DJ Nour',
+                coverImage: 'https://cdn.harmonica.com/covers/midnight.jpg',
+              },
+              {
+                title: 'Solar Winds',
+                artistUsername: 'luna_beats',
+                artistDisplayName: 'Luna Beats',
+                coverImage: 'https://cdn.harmonica.com/covers/solar.jpg',
+              },
+            ],
+          },
+        },
+      },
+    }),
+    ApiResponse({
+      status: 200,
+      description: 'No trending tracks in the last month — returns empty tracks array.',
+      schema: {
+        example: { status: 'success', data: { tracks: [] } },
+      },
+    })
+  );
+}
