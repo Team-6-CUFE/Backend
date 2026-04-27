@@ -1,5 +1,12 @@
 import { ConflictException, Injectable } from '@nestjs/common';
-import { Brackets, In, IsNull, Repository } from 'typeorm';
+import {
+  Brackets,
+  In,
+  IsNull,
+  Repository,
+  SelectQueryBuilder,
+  WhereExpressionBuilder,
+} from 'typeorm';
 import { InjectRepository } from '@nestjs/typeorm';
 import {
   ALBUM_TYPES,
@@ -496,16 +503,21 @@ export class PlaylistRepository {
     const qb = this.playlistRepository
       .createQueryBuilder('playlist')
       .leftJoinAndSelect('playlist.user', 'user')
-      .where('playlist.userId = :userId', { userId })
-      .orWhere((subQb) => {
-        const subQuery = subQb
-          .subQuery()
-          .select('like.playlistId')
-          .from(PlaylistLike, 'like')
-          .where('like.userId = :userId')
-          .getQuery();
-        return `playlist.playlistId IN ${subQuery}`;
-      });
+      .where(
+        new Brackets((bqb: WhereExpressionBuilder) => {
+          bqb
+            .where('playlist.userId = :userId', { userId })
+            .orWhere((subQb: SelectQueryBuilder<any>) => {
+              const subQuery = subQb
+                .subQuery()
+                .select('like.playlistId')
+                .from(PlaylistLike, 'like')
+                .where('like.userId = :userId')
+                .getQuery();
+              return `playlist.playlistId IN ${subQuery}`;
+            });
+        })
+      );
 
     if (filter === 'playlist') {
       qb.andWhere('playlist.type = :type', { type: PlaylistType.PLAYLIST });
@@ -530,15 +542,21 @@ export class PlaylistRepository {
       .createQueryBuilder('playlist')
       .leftJoinAndSelect('playlist.user', 'user')
       .where('playlist.isPublic = :isPublic', { isPublic: true })
-      .andWhere((subQb) => {
-        const subQuery = subQb
-          .subQuery()
-          .select('like.playlistId')
-          .from(PlaylistLike, 'like')
-          .where('like.userId = :userId')
-          .getQuery();
-        return `(playlist.userId = :userId OR playlist.playlistId IN ${subQuery})`;
-      })
+      .andWhere(
+        new Brackets((bqb: WhereExpressionBuilder) => {
+          bqb
+            .where('playlist.userId = :userId', { userId })
+            .orWhere((subQb: SelectQueryBuilder<any>) => {
+              const subQuery = subQb
+                .subQuery()
+                .select('like.playlistId')
+                .from(PlaylistLike, 'like')
+                .where('like.userId = :userId')
+                .getQuery();
+              return `playlist.playlistId IN ${subQuery}`;
+            });
+        })
+      )
       .setParameter('userId', userId);
 
     if (filter === 'playlist') {
