@@ -334,6 +334,10 @@ export const mockPlaylistService = () => ({
   getTrackPlaylists: jest.fn(),
 });
 
+export const mockFfmpegService = () => ({
+  getDuration: jest.fn(),
+});
+
 export const mockTrackPlay = (overrides?: object) => ({
   trackPlayId: '550e8400-e29b-41d4-a716-446655441111',
   trackId: MOCK_TRACK_ID,
