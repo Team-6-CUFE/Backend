@@ -4,16 +4,21 @@ import Stripe from 'stripe';
 
 @Injectable()
 export class StripeService {
-  private stripe: Stripe;
+  private stripe: InstanceType<typeof Stripe>;
 
   constructor(private readonly configService: ConfigService) {
     this.stripe = new Stripe(this.configService.get<string>('STRIPE_SECRET_KEY') as string, {
       apiVersion: '2025-02-24.acacia',
     });
   }
+
   // ─── Customer ─────────────────────────────────────────────────────────────
 
-  async createCustomer(email: string, username: string, userId: string): Promise<Stripe.Customer> {
+  async createCustomer(
+    email: string,
+    username: string,
+    userId: string
+  ): Promise<Stripe.Response<Stripe.Customer>> {
     return this.stripe.customers.create({
       email,
       name: username,
@@ -21,41 +26,60 @@ export class StripeService {
     });
   }
 
-  async getCustomer(stripeCustomerId: string): Promise<Stripe.Customer | Stripe.DeletedCustomer> {
+  async getCustomer(
+    stripeCustomerId: string
+  ): Promise<Stripe.Response<Stripe.Customer | Stripe.DeletedCustomer>> {
     return this.stripe.customers.retrieve(stripeCustomerId);
   }
 
-  // ─── Checkout Session ──────────────────────────────────────────────────────
+  // ─── Payment Method ────────────────────────────────────────────────────────
 
-  async createCheckoutSession(
-    stripeCustomerId: string,
-    priceId: string,
-    userId: string
-  ): Promise<Stripe.Checkout.Session> {
-    return this.stripe.checkout.sessions.create({
+  async attachPaymentMethod(paymentMethodId: string, stripeCustomerId: string): Promise<void> {
+    await this.stripe.paymentMethods.attach(paymentMethodId, {
       customer: stripeCustomerId,
-      payment_method_types: ['card'],
-      mode: 'subscription',
-      line_items: [{ price: priceId, quantity: 1 }],
-      success_url: `http://localhost:3000/subscription/success`,
-      cancel_url: `http://localhost:3000/subscription/cancel`,
-      metadata: { userId },
+    });
+
+    await this.stripe.customers.update(stripeCustomerId, {
+      invoice_settings: {
+        default_payment_method: paymentMethodId,
+      },
     });
   }
 
   // ─── Subscription ──────────────────────────────────────────────────────────
 
-  async getSubscription(stripeSubscriptionId: string): Promise<Stripe.Subscription> {
+  async createStripeSubscription(
+    stripeCustomerId: string,
+    priceId: string
+  ): Promise<Stripe.Response<Stripe.Subscription>> {
+    return this.stripe.subscriptions.create({
+      customer: stripeCustomerId,
+      items: [{ price: priceId }],
+      payment_settings: {
+        payment_method_types: ['card'],
+        save_default_payment_method: 'on_subscription',
+      },
+      expand: ['latest_invoice.payment_intent'],
+    });
+  }
+
+  async getSubscription(
+    stripeSubscriptionId: string
+  ): Promise<Stripe.Response<Stripe.Subscription>> {
     return this.stripe.subscriptions.retrieve(stripeSubscriptionId);
   }
 
-  async cancelSubscription(stripeSubscriptionId: string): Promise<Stripe.Subscription> {
+  async cancelSubscription(
+    stripeSubscriptionId: string
+  ): Promise<Stripe.Response<Stripe.Subscription>> {
     return this.stripe.subscriptions.update(stripeSubscriptionId, {
       cancel_at_period_end: true,
     });
   }
 
-  async resumeSubscription(stripeSubscriptionId: string): Promise<Stripe.Subscription> {
+  async resumeSubscription(
+    stripeSubscriptionId: string
+  ): Promise<Stripe.Response<Stripe.Subscription>> {
     return this.stripe.subscriptions.update(stripeSubscriptionId, {
       cancel_at_period_end: false,
     });
