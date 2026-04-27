@@ -97,6 +97,7 @@ export class SubscriptionService {
     const paymentIntent = invoice?.payment_intent as Stripe.PaymentIntent;
 
     if (paymentIntent?.status === 'succeeded') {
+      await this.userRepository.update(userId, { plan });
       return {
         status: 'success',
         message: 'Subscription created successfully',
@@ -196,7 +197,16 @@ export class SubscriptionService {
       case 'invoice.payment_succeeded': {
         const invoice = event.data.object as Stripe.Invoice;
         const stripeCustomerId = invoice.customer as string;
-        const priceId = invoice.lines.data[0]?.price?.id;
+        const lineItem = invoice.lines.data[0];
+
+        const priceId = (lineItem as any)?.pricing?.price_details?.price ?? lineItem?.price?.id;
+
+        const stripeSubscriptionId =
+          (lineItem as any)?.parent?.subscription_item_details?.subscription ??
+          (invoice.subscription as string);
+
+        const currentPeriodStart = new Date(lineItem.period.start * 1000);
+        const currentPeriodEnd = new Date(lineItem.period.end * 1000);
 
         if (!priceId) break;
 
@@ -206,9 +216,9 @@ export class SubscriptionService {
         await this.subscriptionRepository.updateSubscription(stripeCustomerId, {
           plan,
           status: SubscriptionStatus.ACTIVE,
-          stripeSubscriptionId: invoice.subscription as string,
-          currentPeriodStart: new Date(invoice.period_start * 1000),
-          currentPeriodEnd: new Date(invoice.period_end * 1000),
+          stripeSubscriptionId,
+          currentPeriodStart,
+          currentPeriodEnd,
           cancelAtPeriodEnd: false,
         });
         break;

@@ -10,6 +10,7 @@ import {
 import { Request } from 'express';
 import { SubscriptionService } from './subscription.service';
 import { StripeService } from './stripe.service';
+import { Public } from '../authentication/decorators/public.decorator';
 
 @Controller('webhooks')
 export class WebhookController {
@@ -18,6 +19,7 @@ export class WebhookController {
     private readonly stripeService: StripeService
   ) {}
 
+  @Public()
   @Post('stripe')
   async handleStripeWebhook(
     @Req() req: RawBodyRequest<Request>,

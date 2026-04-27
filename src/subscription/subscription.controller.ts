@@ -10,6 +10,7 @@ export class SubscriptionController {
   // POST /subscriptions/checkout
   @Post('checkout')
   async createCheckout(@CurrentUser('sub') userId: string, @Body() dto: CreateCheckoutSessionDto) {
+    console.log(dto);
     return this.subscriptionService.createCheckout(
       userId,
       dto.plan,

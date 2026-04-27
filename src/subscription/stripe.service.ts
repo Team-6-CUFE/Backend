@@ -35,13 +35,24 @@ export class StripeService {
   // ─── Payment Method ────────────────────────────────────────────────────────
 
   async attachPaymentMethod(paymentMethodId: string, stripeCustomerId: string): Promise<void> {
-    await this.stripe.paymentMethods.attach(paymentMethodId, {
+    // If it's a test token, create a real payment method from it first
+    let realPaymentMethodId = paymentMethodId;
+
+    if (paymentMethodId.startsWith('pm_card_')) {
+      const paymentMethod = await this.stripe.paymentMethods.create({
+        type: 'card',
+        card: { token: 'tok_visa' }, // test token
+      });
+      realPaymentMethodId = paymentMethod.id;
+    }
+
+    await this.stripe.paymentMethods.attach(realPaymentMethodId, {
       customer: stripeCustomerId,
     });
 
     await this.stripe.customers.update(stripeCustomerId, {
       invoice_settings: {
-        default_payment_method: paymentMethodId,
+        default_payment_method: realPaymentMethodId,
       },
     });
   }
