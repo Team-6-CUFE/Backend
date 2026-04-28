@@ -619,6 +619,13 @@ export function ApiTrackComment() {
       },
     }),
     ApiResponse({
+      status: 403,
+      description: 'Comments are not allowed',
+      schema: {
+        example: { statusCode: 403, message: 'Comments are not allowed' },
+      },
+    }),
+    ApiResponse({
       status: 404,
       description: 'Track or parent comment not found',
       schema: {
@@ -749,6 +756,7 @@ export function ApiGetTrackComments() {
       },
     }),
     ApiResponse({ status: 403, description: 'Track is private' }),
+    ApiResponse({ status: 403, description: 'Cannot show comments for this track' }),
     ApiResponse({ status: 404, description: 'Track not found' }),
     ApiResponse({ status: 401, description: 'Unauthorized' })
   );
@@ -1818,6 +1826,47 @@ export function ApiGetAllTimeStats() {
         },
       },
     }),
+    ApiResponse({ status: 401, description: 'Unauthorized' })
+  );
+}
+
+export function ApiUpdateCommentsSettings() {
+  return applyDecorators(
+    ApiCookieAuth('access_token'),
+    ApiOperation({
+      summary: 'Update comment settings for a track',
+      description:
+        'Allows the track owner to update the comment settings for a specific track. ' +
+        'You can control whether comments are allowed and whether they are visible.',
+    }),
+    ApiParam({
+      name: 'trackId',
+      type: 'string',
+      description: 'The UUID of the track to update',
+    }),
+    ApiQuery({
+      name: 'allowComments',
+      type: 'boolean',
+      required: false,
+      description: 'Whether comments are allowed on the track',
+    }),
+    ApiQuery({
+      name: 'showComments',
+      type: 'boolean',
+      required: false,
+      description: 'Whether comments are visible on the track',
+    }),
+    ApiResponse({
+      status: 200,
+      description: 'Comment settings updated successfully',
+      schema: {
+        example: {
+          status: 'success',
+          message: 'track comment settings updated',
+        },
+      },
+    }),
+    ApiResponse({ status: 400, description: 'Track not found or user is not the owner' }),
     ApiResponse({ status: 401, description: 'Unauthorized' })
   );
 }

@@ -628,7 +628,7 @@ export class TrackService {
     if (track.visibility === TrackVisibility.PRIVATE && track.userId !== userId) {
       throw new ForbiddenException('This track is private');
     }
-    if (!track.showComments) {
+    if (!track.showComments && track.userId !== userId) {
       throw new ForbiddenException('Cannot show comments for this track');
     }
     const cappedLimit = Math.min(limit, 100);

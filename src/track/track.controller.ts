@@ -53,6 +53,7 @@ import {
   ApiDeleteTrack,
   ApiGetRelatedTracks,
   ApiGetAllTimeStats,
+  ApiUpdateCommentsSettings,
 } from './track.swagger';
 import { CurrentUser } from '../authentication/decorators/current-user.decorator';
 import { CheckBlock } from '../followers/decorators/no-block.decorator';
@@ -474,7 +475,7 @@ export class TrackController {
     return this.trackService.getRelatedTracks(title, artistUsername, page, limit, ip);
   }
 
-  @ApiDeleteComment()
+  @ApiUpdateCommentsSettings()
   @Patch('/update-comment-settings/:trackId')
   updateCommentSettings(
     @CurrentUser('sub') userId: string,
