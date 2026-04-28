@@ -793,11 +793,6 @@ export function ApiGetTrendingMusicByGenre() {
         },
       },
     }),
-    ApiResponse({
-      status: 200,
-      description: 'No interaction history — returns empty array.',
-      schema: { example: { status: 'success', data: [] } },
-    }),
     ApiResponse({ status: 401, description: 'Unauthorized' })
   );
 }
@@ -860,11 +855,6 @@ export function ApiGetPublicTrendingMusicByGenre() {
           ],
         },
       },
-    }),
-    ApiResponse({
-      status: 200,
-      description: 'No interaction history — returns empty array.',
-      schema: { example: { status: 'success', data: [] } },
     }),
     ApiResponse({ status: 401, description: 'Unauthorized' })
   );
@@ -1559,13 +1549,6 @@ export function ApiGetCuratedPlaylists() {
             ],
           },
         },
-      },
-    }),
-    ApiResponse({
-      status: 200,
-      description: 'No trending tracks in the last month — returns empty tracks array.',
-      schema: {
-        example: { status: 'success', data: { tracks: [] } },
       },
     })
   );
