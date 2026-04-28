@@ -127,7 +127,7 @@ export class Track extends BaseEntity {
   @Column({ name: 'enable_direct_downloads', type: 'boolean', default: false })
   enableDirectDownloads!: boolean;
 
-  @Column({ name: 'offline_listening', type: 'boolean', default: false })
+  @Column({ name: 'offline_listening', type: 'boolean', default: true })
   offlineListening!: boolean;
 
   // Licensing (Creative Commons style)
