@@ -8,7 +8,8 @@ export class StripeService {
 
   constructor(private readonly configService: ConfigService) {
     this.stripe = new Stripe(this.configService.get<string>('STRIPE_SECRET_KEY') as string, {
-      apiVersion: '2025-02-24.acacia',
+      // @ts-expect-error - stripe package types are behind the actual API version
+      apiVersion: '2026-04-22.dahlia',
     });
   }
 
