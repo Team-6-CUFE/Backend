@@ -18,6 +18,7 @@ import { TrackStatus } from '../enums/track-status.enum';
 import { TrackVisibility } from '../enums/track-visibility.enum';
 import { Genre } from '../../genre/entities/genre.entity';
 import { TrackPlay } from './track-play.entity';
+import { DownloadedTrack } from '../../download/entities/downloaded-tracks.entity';
 
 @Entity('tracks')
 export class Track extends BaseEntity {
@@ -181,4 +182,7 @@ export class Track extends BaseEntity {
 
   @OneToMany(() => TrackPlay, (play) => play.track)
   plays!: TrackPlay[];
+
+  @OneToMany(() => DownloadedTrack, (dt) => dt.track)
+  downloads!: DownloadedTrack[];
 }

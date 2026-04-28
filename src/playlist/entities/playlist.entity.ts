@@ -17,6 +17,8 @@ import { PlaylistRepost } from './playlist-reposts.entity';
 import { PlaylistTrack } from './playlist-tracks.entity';
 import { Genre } from '../../genre/entities/genre.entity'; // Import Genre Entity
 import { Track } from '../../track/entities/track.entity';
+import { DownloadedPlaylist } from '../../download/entities/downloaded-playlists.entity';
+import { DownloadedTrack } from '../../download/entities/downloaded-tracks.entity';
 
 export enum PlaylistType {
   PLAYLIST = 'Playlist',
@@ -125,4 +127,10 @@ export class Playlist extends BaseEntity {
     inverseJoinColumn: { name: 'tag_id', referencedColumnName: 'genreId' },
   })
   tags!: Genre[];
+
+  @OneToMany(() => DownloadedPlaylist, (dp) => dp.playlist)
+  downloads!: DownloadedPlaylist[];
+
+  @OneToMany(() => DownloadedTrack, (dt) => dt.sourcePlaylist)
+  trackDownloads!: DownloadedTrack[];
 }
