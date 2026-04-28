@@ -121,4 +121,16 @@ export class AdminService {
       },
     };
   }
+
+  async deleteReport(reportId: string) {
+    const report = await this.reportRepository.findOne({ where: { reportId } });
+    if (!report) {
+      throw new BadRequestException('report not found');
+    }
+    await this.reportRepository.delete(reportId);
+    return {
+      status: 'success',
+      message: 'report deleted successfully',
+    };
+  }
 }

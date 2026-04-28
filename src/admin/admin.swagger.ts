@@ -1,5 +1,12 @@
 import { applyDecorators } from '@nestjs/common';
-import { ApiOperation, ApiBody, ApiResponse, ApiBearerAuth, ApiQuery } from '@nestjs/swagger';
+import {
+  ApiOperation,
+  ApiBody,
+  ApiResponse,
+  ApiBearerAuth,
+  ApiQuery,
+  ApiParam,
+} from '@nestjs/swagger';
 import { CreateReportDto } from './dto/createReport.dto';
 
 export function ApiAddReport() {
@@ -199,6 +206,45 @@ export function ApiGetAllReports() {
             limit: 20,
             totalPages: 5,
           },
+        },
+      },
+    }),
+    ApiResponse({ status: 401, description: 'Unauthorized — missing or invalid access token.' }),
+    ApiResponse({ status: 403, description: 'Forbidden — admin access only.' })
+  );
+}
+
+export function ApiDeleteReport() {
+  return applyDecorators(
+    ApiBearerAuth('access_token'),
+    ApiOperation({
+      summary: 'Delete a report (Admin only)',
+      description:
+        'Permanently deletes a report by its ID. Throws 400 if the report does not exist.',
+    }),
+    ApiParam({
+      name: 'reportId',
+      description: 'UUID of the report to delete.',
+      format: 'uuid',
+      example: 'a1b2c3d4-e5f6-7890-abcd-ef1234567890',
+    }),
+    ApiResponse({
+      status: 200,
+      description: 'Report deleted successfully.',
+      schema: {
+        example: {
+          status: 'success',
+          message: 'Report deleted successfully',
+        },
+      },
+    }),
+    ApiResponse({
+      status: 400,
+      description: 'Report not found.',
+      schema: {
+        example: {
+          statusCode: 400,
+          message: 'Report not found',
         },
       },
     }),
