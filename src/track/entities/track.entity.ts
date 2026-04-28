@@ -145,6 +145,15 @@ export class Track extends BaseEntity {
   @Column({ name: 'genre_id', type: 'uuid', nullable: true })
   genreId!: string | null;
 
+  @Column({ name: 'show_comments', type: 'boolean', default: true })
+  showComments!: boolean;
+
+  @Column({ name: 'allow_comments', type: 'boolean', default: true })
+  allowComments!: boolean;
+
+  @Column({ name: 'show_insights', type: 'boolean', default: false })
+  showInsights!: boolean;
+
   @ManyToOne(() => User, (user) => user.tracks, { onDelete: 'CASCADE' })
   @JoinColumn({ name: 'user_id' })
   user!: Relation<User>;
