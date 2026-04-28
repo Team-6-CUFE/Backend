@@ -473,4 +473,20 @@ export class TrackController {
   ) {
     return this.trackService.getRelatedTracks(title, artistUsername, page, limit, ip);
   }
+
+  @ApiDeleteComment()
+  @Patch('/update-comment-settings/:trackId')
+  updateCommentSettings(
+    @CurrentUser('sub') userId: string,
+    @Param('trackId') trackId: string,
+    @Query('allowComments') allowComments: boolean,
+    @Query('showComments') showComments: boolean
+  ) {
+    return this.trackService.updateTrackCommentSettings(
+      userId,
+      trackId,
+      allowComments,
+      showComments
+    );
+  }
 }

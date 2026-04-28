@@ -1014,4 +1014,24 @@ export class TrackService {
   async getTopTracksByTagIds(tagIds: string[], userId: string) {
     return this.trackRepository.getTopTracksByTagIds(tagIds, userId);
   }
+
+  async updateTrackCommentSettings(
+    userId: string,
+    trackId: string,
+    allowComments: boolean,
+    showComments: boolean
+  ) {
+    const track = await this.trackRepository.findById(trackId);
+    if (!track) {
+      throw new BadRequestException('track is not found');
+    }
+    if (track.userId !== userId) {
+      throw new BadRequestException('you are not the owner of this track');
+    }
+    await this.trackRepository.updateTrackCommentSettings(trackId, allowComments, showComments);
+    return {
+      status: 'success',
+      message: 'track comment settings  updated',
+    };
+  }
 }
