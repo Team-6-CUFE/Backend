@@ -736,14 +736,22 @@ export class TrackRepository {
   async getTopTracksByTagIds(tagIds: string[], userId: string) {
     const tracks = await this.trackRepository
       .createQueryBuilder('track')
-      .innerJoin('track.tags', 'tag')
-      .leftJoin('track.user', 'user')
-      .leftJoinAndSelect('track.likes', 'like', 'like.user_id = :userId')
-      .leftJoinAndSelect('track.reposts', 'repost', 'repost.user_id = :userId')
-      .where('tag.genre_id IN (:...tagIds)', { tagIds })
+      .leftJoinAndSelect('track.genre', 'genre')
+      .leftJoinAndSelect('track.user', 'user')
+      .leftJoinAndSelect('track.likes', 'like', 'like.userId = :userId', { userId })
+      .leftJoinAndSelect('track.reposts', 'repost', 'repost.userId = :userId', { userId })
+      .where(
+        new Brackets((qb) => {
+          // Match tracks whose primary genre is in tagIds OR whose ManyToMany tag is in tagIds
+          qb.where('track.genreId IN (:...tagIds)').orWhere(
+            'track.trackId IN (SELECT tt.track_id FROM track_tags tt WHERE tt.tag_id IN (:...tagIds))'
+          );
+        })
+      )
       .andWhere('track.visibility = :visibility', { visibility: TrackVisibility.PUBLIC })
       .andWhere('track.hidden = false')
-      .addSelect([
+      .setParameter('tagIds', tagIds)
+      .select([
         'track.trackId',
         'track.title',
         'track.coverImage',
@@ -757,6 +765,11 @@ export class TrackRepository {
         'track.commentsCount',
         'track.blockedRegions',
         'track.mainArtists',
+        'track.visibility',
+        'track.hidden',
+        'track.createdAt',
+        'genre.genreId',
+        'genre.name',
         'user.userId',
         'user.username',
         'user.displayName',
@@ -764,16 +777,19 @@ export class TrackRepository {
         'user.city',
         'user.country',
         'user.followersCount',
+        'like.userId',
+        'like.trackId',
+        'repost.userId',
+        'repost.trackId',
       ])
-      .setParameter('userId', userId)
       .orderBy('track.playCount', 'DESC')
       .take(20)
       .getMany();
 
     return tracks.map((track) => ({
       ...track,
-      isLiked: track.likes.length > 0,
-      isReposted: track.reposts.length > 0,
+      isLiked: (track.likes?.length ?? 0) > 0,
+      isReposted: (track.reposts?.length ?? 0) > 0,
     }));
   }
 
