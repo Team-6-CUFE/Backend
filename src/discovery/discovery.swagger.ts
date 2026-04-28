@@ -426,11 +426,19 @@ export function ApiGetMoreOfWhatYouLike() {
               commentsCount: 45,
               isLiked: true,
               isReposted: false,
+              createdAt: '2026-04-17T10:00:00.000Z',
+              mainArtists: ['dj_nour'],
               user: {
                 userId: 'user-uuid',
                 username: 'dj_nour',
                 displayName: 'DJ Nour',
                 avatarUrl: 'https://cdn.harmonica.com/avatars/dj_nour.jpg',
+                city: 'Cairo',
+                country: 'EG',
+              },
+              genre: {
+                genreId: 'genre-uuid-1',
+                name: 'Electronic',
               },
             },
           ],
@@ -793,11 +801,6 @@ export function ApiGetTrendingMusicByGenre() {
         },
       },
     }),
-    ApiResponse({
-      status: 200,
-      description: 'No interaction history — returns empty array.',
-      schema: { example: { status: 'success', data: [] } },
-    }),
     ApiResponse({ status: 401, description: 'Unauthorized' })
   );
 }
@@ -860,11 +863,6 @@ export function ApiGetPublicTrendingMusicByGenre() {
           ],
         },
       },
-    }),
-    ApiResponse({
-      status: 200,
-      description: 'No interaction history — returns empty array.',
-      schema: { example: { status: 'success', data: [] } },
     }),
     ApiResponse({ status: 401, description: 'Unauthorized' })
   );
@@ -1202,9 +1200,10 @@ export function ApiGetLikedByUsersForUser() {
   return applyDecorators(
     ApiCookieAuth('access_token'),
     ApiOperation({
-      summary: 'Get tracks and playlists liked by a user',
+      summary: 'Get liked tracks and playlists for a user as a single playlist',
       description:
-        'Returns the paginated tracks and playlists that a specific user has liked. ' +
+        'Returns a single playlist-shaped object containing all tracks liked by the user, ' +
+        'followed by tracks from their liked playlists (up to 5 per playlist). ' +
         'Throws 403 when the target account is private and is not the authenticated user. ' +
         "For tracks blocked in the requester's region, `audioUrl` is returned as `null`.",
     }),
@@ -1213,102 +1212,79 @@ export function ApiGetLikedByUsersForUser() {
       description: 'Target user UUID',
       example: 'b6fc3946-ee96-4721-9118-5ca776a874f8',
     }),
-    ApiQuery({ name: 'page', required: false, type: Number, example: 1 }),
-    ApiQuery({ name: 'limit', required: false, type: Number, example: 20 }),
     ApiResponse({
       status: 200,
-      description:
-        'Liked tracks and playlists for the user. `audioUrl` is `null` for region-blocked tracks.',
+      description: 'A playlist-shaped object of all liked tracks and playlist tracks.',
       schema: {
         example: {
-          status: 'success',
-          tracks: {
-            data: [
-              {
-                trackId: 'track-uuid-1',
-                title: 'Midnight Drive',
-                coverImage: 'https://cdn.harmonica.com/covers/midnight.jpg',
-                audioUrl: 'https://cdn.harmonica.com/audio/midnight.mp3',
-                waveformUrl: 'https://cdn.harmonica.com/waveforms/midnight.json',
-                playCount: 12000,
-                likesCount: 870,
-                repostsCount: 130,
-                commentsCount: 45,
-                durationSeconds: 213,
-                mainArtists: ['DJ Nour'],
-                createdAt: '2026-04-17T10:00:00.000Z',
-                isLiked: true,
-                isReposted: false,
-                user: {
-                  userId: 'user-uuid',
-                  username: 'dj_nour',
-                  displayName: 'DJ Nour',
-                  avatarUrl: 'https://cdn.harmonica.com/avatars/dj_nour.jpg',
-                  followersCount: 5200,
-                  city: 'Cairo',
-                  country: 'EG',
-                },
-                genre: {
-                  genreId: 'genre-uuid-1',
-                  name: 'Electronic',
-                },
-              },
-            ],
-            total: 1,
+          playlistId: 'b6fc3946-ee96-4721-9118-5ca776a874f8',
+          title: 'Liked by dj_nour',
+          description: 'Liked by this user',
+          coverImage: 'https://cdn.harmonica.com/covers/midnight.jpg',
+          tracksCount: 3,
+          durationSeconds: 639,
+          isLiked: false,
+          isReposted: false,
+          createdAt: null,
+          user: {
+            userId: 'b6fc3946-ee96-4721-9118-5ca776a874f8',
+            username: 'dj_nour',
+            displayName: 'DJ Nour',
+            avatarUrl: 'https://cdn.harmonica.com/avatars/dj_nour.jpg',
+            city: 'Cairo',
+            country: 'EG',
+            followersCount: 5200,
           },
-          playlists: {
-            data: [
-              {
-                playlistId: 'playlist-uuid-1',
-                title: 'Chill Vibes',
-                description: 'A relaxing playlist',
-                coverImage: 'https://cdn.harmonica.com/covers/chill.jpg',
-                tracksCount: 10,
-                durationSeconds: 2400,
-                likesCount: 230,
-                repostsCount: 15,
-                createdAt: '2026-03-10T08:00:00.000Z',
-                isLiked: true,
-                isReposted: false,
-                user: {
-                  userId: 'user-uuid-2',
-                  username: 'curator_sam',
-                  displayName: 'Sam Curator',
-                  avatarUrl: null,
-                  city: null,
-                  country: null,
-                  followersCount: 320,
-                },
-                playlistTracks: [
-                  {
-                    position: 1,
-                    trackId: 'track-uuid-1',
-                    title: 'Midnight Drive',
-                    durationSeconds: 213,
-                    coverImage: 'https://cdn.harmonica.com/covers/midnight.jpg',
-                    audioUrl: 'https://cdn.harmonica.com/audio/midnight.mp3',
-                    waveformUrl: 'https://cdn.harmonica.com/waveforms/midnight.json',
-                    playCount: 12000,
-                    likesCount: 870,
-                    repostsCount: 130,
-                    commentsCount: 45,
-                    isLiked: false,
-                    isReposted: false,
-                    artist: {
-                      userId: 'user-uuid',
-                      username: 'dj_nour',
-                      displayName: 'DJ Nour',
-                      avatarUrl: 'https://cdn.harmonica.com/avatars/dj_nour.jpg',
-                      city: 'Cairo',
-                      country: 'EG',
-                      followersCount: 5200,
-                    },
-                  },
-                ],
+          playlistTracks: [
+            {
+              position: 1,
+              trackId: 'track-uuid-1',
+              title: 'Midnight Drive',
+              durationSeconds: 213,
+              coverImage: 'https://cdn.harmonica.com/covers/midnight.jpg',
+              audioUrl: 'https://cdn.harmonica.com/audio/midnight.mp3',
+              waveformUrl: 'https://cdn.harmonica.com/waveforms/midnight.json',
+              playCount: 12000,
+              likesCount: 870,
+              repostsCount: 130,
+              commentsCount: 45,
+              isLiked: true,
+              isReposted: false,
+              artist: {
+                userId: 'user-uuid',
+                username: 'dj_nour',
+                displayName: 'DJ Nour',
+                avatarUrl: 'https://cdn.harmonica.com/avatars/dj_nour.jpg',
+                city: 'Cairo',
+                country: 'EG',
+                followersCount: 5200,
               },
-            ],
-            total: 1,
-          },
+            },
+            {
+              position: 2,
+              trackId: 'track-uuid-2',
+              title: 'Desert Rose',
+              durationSeconds: 198,
+              coverImage: 'https://cdn.harmonica.com/covers/desert.jpg',
+              audioUrl: null,
+              waveformUrl: 'https://cdn.harmonica.com/waveforms/desert.json',
+              playCount: 8400,
+              likesCount: 540,
+              repostsCount: 60,
+              commentsCount: 20,
+              isLiked: false,
+              isReposted: false,
+              artist: {
+                userId: 'user-uuid-2',
+                username: 'curator_sam',
+                displayName: 'Sam Curator',
+                avatarUrl: null,
+                city: null,
+                country: null,
+                followersCount: 320,
+              },
+            },
+          ],
         },
       },
     }),
@@ -1324,9 +1300,7 @@ export function ApiGetLikedByUsersForUser() {
     }),
     ApiResponse({ status: 401, description: 'Unauthorized' })
   );
-}
-
-// ─── Get More Albums Of What You Like ─────────────────────────────────────────
+} // ─── Get More Albums Of What You Like ─────────────────────────────────────────
 
 export function ApiGetMoreAlbumsOfWhatYouLike() {
   return applyDecorators(
@@ -1559,13 +1533,6 @@ export function ApiGetCuratedPlaylists() {
             ],
           },
         },
-      },
-    }),
-    ApiResponse({
-      status: 200,
-      description: 'No trending tracks in the last month — returns empty tracks array.',
-      schema: {
-        example: { status: 'success', data: { tracks: [] } },
       },
     })
   );

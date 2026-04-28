@@ -18,6 +18,7 @@ import { TrackStatus } from '../enums/track-status.enum';
 import { TrackVisibility } from '../enums/track-visibility.enum';
 import { Genre } from '../../genre/entities/genre.entity';
 import { TrackPlay } from './track-play.entity';
+import { DownloadedTrack } from '../../download/entities/downloaded-tracks.entity';
 
 @Entity('tracks')
 export class Track extends BaseEntity {
@@ -145,6 +146,15 @@ export class Track extends BaseEntity {
   @Column({ name: 'genre_id', type: 'uuid', nullable: true })
   genreId!: string | null;
 
+  @Column({ name: 'show_comments', type: 'boolean', default: true })
+  showComments!: boolean;
+
+  @Column({ name: 'allow_comments', type: 'boolean', default: true })
+  allowComments!: boolean;
+
+  @Column({ name: 'show_insights', type: 'boolean', default: false })
+  showInsights!: boolean;
+
   @ManyToOne(() => User, (user) => user.tracks, { onDelete: 'CASCADE' })
   @JoinColumn({ name: 'user_id' })
   user!: Relation<User>;
@@ -172,4 +182,7 @@ export class Track extends BaseEntity {
 
   @OneToMany(() => TrackPlay, (play) => play.track)
   plays!: TrackPlay[];
+
+  @OneToMany(() => DownloadedTrack, (dt) => dt.track)
+  downloads!: DownloadedTrack[];
 }

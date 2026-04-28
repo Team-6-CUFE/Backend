@@ -504,7 +504,12 @@ export class TrackService {
     }
 
     const cappedLimit = Math.min(limit, 100);
-    const [likes, total] = await this.trackRepository.getUserTrackLikes(userId, page, cappedLimit);
+    const [likes, total] = await this.trackRepository.getUserTrackLikes(
+      userId,
+      myUserId,
+      page,
+      cappedLimit
+    );
     const mappedLikes = likes.map((like) => ({
       trackId: like.track.trackId,
       title: like.track.title,
@@ -532,7 +537,9 @@ export class TrackService {
     if (track.visibility !== TrackVisibility.PUBLIC) {
       throw new ForbiddenException('This track is private');
     }
-
+    if (!track.allowComments) {
+      throw new ForbiddenException('Comment are not allowed');
+    }
     let parentComment = null;
     if (commentDto.parentId) {
       parentComment = await this.trackRepository.findCommentById(commentDto.parentId);
@@ -626,7 +633,9 @@ export class TrackService {
     if (track.visibility === TrackVisibility.PRIVATE && track.userId !== userId) {
       throw new ForbiddenException('This track is private');
     }
-
+    if (!track.showComments && track.userId !== userId) {
+      throw new ForbiddenException('Cannot show comments for this track');
+    }
     const cappedLimit = Math.min(limit, 100);
 
     // Fetch comments and total count
@@ -1013,5 +1022,25 @@ export class TrackService {
 
   async getTopTracksByTagIds(tagIds: string[], userId: string) {
     return this.trackRepository.getTopTracksByTagIds(tagIds, userId);
+  }
+
+  async updateTrackCommentSettings(
+    userId: string,
+    trackId: string,
+    allowComments: boolean,
+    showComments: boolean
+  ) {
+    const track = await this.trackRepository.findById(trackId);
+    if (!track) {
+      throw new BadRequestException('track is not found');
+    }
+    if (track.userId !== userId) {
+      throw new BadRequestException('you are not the owner of this track');
+    }
+    await this.trackRepository.updateTrackCommentSettings(trackId, allowComments, showComments);
+    return {
+      status: 'success',
+      message: 'track comment settings  updated',
+    };
   }
 }
