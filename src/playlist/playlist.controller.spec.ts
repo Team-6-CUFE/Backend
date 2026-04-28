@@ -561,9 +561,64 @@ describe('PlaylistController', () => {
         mockUserId,
         mockMyUserId,
         mockPage,
-        mockLimit
+        mockLimit,
+        undefined
       );
       expect(service.getUserPlaylistLikes).toHaveBeenCalledTimes(1);
+    });
+
+    it("should pass filter='playlist' to service", async () => {
+      service.getUserPlaylistLikes.mockResolvedValue({
+        status: 'success',
+        data: [],
+        pagination: { currentPage: 1, totalPages: 0, totalCount: 0, limit: mockLimit },
+      });
+
+      await controller.getUserTrackLikes(mockUserId, mockMyUserId, mockPage, mockLimit, 'playlist');
+
+      expect(service.getUserPlaylistLikes).toHaveBeenCalledWith(
+        mockUserId,
+        mockMyUserId,
+        mockPage,
+        mockLimit,
+        'playlist'
+      );
+    });
+
+    it("should pass filter='station' to service", async () => {
+      service.getUserPlaylistLikes.mockResolvedValue({
+        status: 'success',
+        data: [],
+        pagination: { currentPage: 1, totalPages: 0, totalCount: 0, limit: mockLimit },
+      });
+
+      await controller.getUserTrackLikes(mockUserId, mockMyUserId, mockPage, mockLimit, 'station');
+
+      expect(service.getUserPlaylistLikes).toHaveBeenCalledWith(
+        mockUserId,
+        mockMyUserId,
+        mockPage,
+        mockLimit,
+        'station'
+      );
+    });
+
+    it("should pass filter='album' to service", async () => {
+      service.getUserPlaylistLikes.mockResolvedValue({
+        status: 'success',
+        data: [],
+        pagination: { currentPage: 1, totalPages: 0, totalCount: 0, limit: mockLimit },
+      });
+
+      await controller.getUserTrackLikes(mockUserId, mockMyUserId, mockPage, mockLimit, 'album');
+
+      expect(service.getUserPlaylistLikes).toHaveBeenCalledWith(
+        mockUserId,
+        mockMyUserId,
+        mockPage,
+        mockLimit,
+        'album'
+      );
     });
 
     it('should return the service response as-is', async () => {
@@ -910,7 +965,12 @@ describe('PlaylistController', () => {
 
       await controller.getMyPlaylists(mockUserId, mockPage, mockLimit);
 
-      expect(service.getMyPlaylists).toHaveBeenCalledWith(mockUserId, mockPage, mockLimit);
+      expect(service.getMyPlaylists).toHaveBeenCalledWith(
+        mockUserId,
+        mockPage,
+        mockLimit,
+        undefined
+      );
       expect(service.getMyPlaylists).toHaveBeenCalledTimes(1);
     });
 
@@ -945,7 +1005,8 @@ describe('PlaylistController', () => {
         mockUserId,
         mockMyUserId,
         mockPage,
-        mockLimit
+        mockLimit,
+        undefined
       );
       expect(service.getUserPlaylists).toHaveBeenCalledTimes(1);
     });
@@ -978,7 +1039,67 @@ describe('PlaylistController', () => {
 
       await controller.getUserPlaylists(mockUserId, null, mockPage, mockLimit);
 
-      expect(service.getUserPlaylists).toHaveBeenCalledWith(mockUserId, null, mockPage, mockLimit);
+      expect(service.getUserPlaylists).toHaveBeenCalledWith(
+        mockUserId,
+        null,
+        mockPage,
+        mockLimit,
+        undefined
+      );
+    });
+
+    it("should pass filter='playlist' to service", async () => {
+      service.getUserPlaylists.mockResolvedValue({
+        status: 'success',
+        data: [],
+        pagination: { currentPage: 1, totalPages: 1, totalCount: 0, limit: 20 },
+      });
+
+      await controller.getUserPlaylists(mockUserId, mockMyUserId, mockPage, mockLimit, 'playlist');
+
+      expect(service.getUserPlaylists).toHaveBeenCalledWith(
+        mockUserId,
+        mockMyUserId,
+        mockPage,
+        mockLimit,
+        'playlist'
+      );
+    });
+
+    it("should pass filter='station' to service", async () => {
+      service.getUserPlaylists.mockResolvedValue({
+        status: 'success',
+        data: [],
+        pagination: { currentPage: 1, totalPages: 1, totalCount: 0, limit: 20 },
+      });
+
+      await controller.getUserPlaylists(mockUserId, mockMyUserId, mockPage, mockLimit, 'station');
+
+      expect(service.getUserPlaylists).toHaveBeenCalledWith(
+        mockUserId,
+        mockMyUserId,
+        mockPage,
+        mockLimit,
+        'station'
+      );
+    });
+
+    it("should pass filter='album' to service", async () => {
+      service.getUserPlaylists.mockResolvedValue({
+        status: 'success',
+        data: [],
+        pagination: { currentPage: 1, totalPages: 1, totalCount: 0, limit: 20 },
+      });
+
+      await controller.getUserPlaylists(mockUserId, mockMyUserId, mockPage, mockLimit, 'album');
+
+      expect(service.getUserPlaylists).toHaveBeenCalledWith(
+        mockUserId,
+        mockMyUserId,
+        mockPage,
+        mockLimit,
+        'album'
+      );
     });
 
     it('should propagate NotFoundException when user profile does not exist', async () => {
@@ -1011,8 +1132,59 @@ describe('PlaylistController', () => {
 
       await controller.getMyPlaylists(mockUserId, mockPage, mockLimit);
 
-      expect(service.getMyPlaylists).toHaveBeenCalledWith(mockUserId, mockPage, mockLimit);
+      expect(service.getMyPlaylists).toHaveBeenCalledWith(
+        mockUserId,
+        mockPage,
+        mockLimit,
+        undefined
+      );
       expect(service.getMyPlaylists).toHaveBeenCalledTimes(1);
+    });
+
+    it("should pass filter='playlist' to service", async () => {
+      service.getMyPlaylists.mockResolvedValue({
+        status: 'success',
+        data: [],
+        pagination: { currentPage: 1, totalPages: 1, totalCount: 0, limit: 20 },
+      });
+
+      await controller.getMyPlaylists(mockUserId, mockPage, mockLimit, 'playlist');
+
+      expect(service.getMyPlaylists).toHaveBeenCalledWith(
+        mockUserId,
+        mockPage,
+        mockLimit,
+        'playlist'
+      );
+    });
+
+    it("should pass filter='station' to service", async () => {
+      service.getMyPlaylists.mockResolvedValue({
+        status: 'success',
+        data: [],
+        pagination: { currentPage: 1, totalPages: 1, totalCount: 0, limit: 20 },
+      });
+
+      await controller.getMyPlaylists(mockUserId, mockPage, mockLimit, 'station');
+
+      expect(service.getMyPlaylists).toHaveBeenCalledWith(
+        mockUserId,
+        mockPage,
+        mockLimit,
+        'station'
+      );
+    });
+
+    it("should pass filter='album' to service", async () => {
+      service.getMyPlaylists.mockResolvedValue({
+        status: 'success',
+        data: [],
+        pagination: { currentPage: 1, totalPages: 1, totalCount: 0, limit: 20 },
+      });
+
+      await controller.getMyPlaylists(mockUserId, mockPage, mockLimit, 'album');
+
+      expect(service.getMyPlaylists).toHaveBeenCalledWith(mockUserId, mockPage, mockLimit, 'album');
     });
 
     it('should return the service response as-is', async () => {

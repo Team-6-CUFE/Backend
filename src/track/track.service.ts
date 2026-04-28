@@ -31,7 +31,7 @@ import { UploadQuotaResponseDto } from './dto/upload-quota.res.dto';
 import { PlaylistOwnerDto } from './dto/playlist-owner.dto';
 import { TrackPlaylistResponseDto } from './dto/track-playlist-res.dto';
 import { PlaylistTrack } from '../playlist/entities/playlist-tracks.entity';
-import { Playlist } from '../playlist/entities/playlist.entity';
+import { Playlist, PlaylistTypeFilter } from '../playlist/entities/playlist.entity';
 import { GenreRepository } from '../genre/genre.repository';
 import { JwtPayload } from '../authentication/strategies/jwt.strategy';
 import { TrackGenreDto } from './dto/track-genre.dto';
@@ -51,6 +51,7 @@ import { REDIS_CLIENT } from '../redis/redis.module';
 import { Genre } from '../genre/entities/genre.entity';
 import { DEFAULT_GENRE_NAMES } from '../genre/genre.constants';
 import { NotificationsService } from '../notifications/notifications.service';
+import { FfmpegService } from '../audio/ffmpeg.service';
 
 const RELATED_TRACKS_TTL_SECS = 3 * 24 * 60 * 60; // 3 days
 const ALL_TIME_STATS_TTL_SECS = 24 * 60 * 60; // 1 day
@@ -70,7 +71,8 @@ export class TrackService {
     private readonly audioQueue: Queue,
 
     @Inject(REDIS_CLIENT)
-    private readonly redis: ReturnType<typeof createClient>
+    private readonly redis: ReturnType<typeof createClient>,
+    private readonly ffmpegService: FfmpegService
   ) {}
 
   private resolveAudioUrl(track: Track, user?: JwtPayload): string | null {
@@ -97,6 +99,18 @@ export class TrackService {
     const tempFileName = `track_${Date.now()}_${audioFile.originalname}`;
     const tempFilePath = path.join(tempDir, tempFileName);
     fs.writeFileSync(tempFilePath, audioFile.buffer);
+
+    // check quota limit first
+    const durationSeconds = await this.ffmpegService.getDuration(tempFilePath);
+    const remainingMinutes = await this.getUserQuota(userId).then(
+      (res) => res.data.remainingMinutes
+    );
+    const trackDurationMinutes = Math.ceil(durationSeconds / 60);
+    if (remainingMinutes && remainingMinutes < trackDurationMinutes) {
+      // Clean up temp file before throwing
+      fs.unlinkSync(tempFilePath);
+      throw new ForbiddenException('Insufficient quota');
+    }
 
     // Step 3 — create track record in DB with PROCESSING status
     const savedTrack = await this.trackRepository.createTrack(userId, dto, coverImageUrl);
@@ -490,7 +504,12 @@ export class TrackService {
     }
 
     const cappedLimit = Math.min(limit, 100);
-    const [likes, total] = await this.trackRepository.getUserTrackLikes(userId, page, cappedLimit);
+    const [likes, total] = await this.trackRepository.getUserTrackLikes(
+      userId,
+      myUserId,
+      page,
+      cappedLimit
+    );
     const mappedLikes = likes.map((like) => ({
       trackId: like.track.trackId,
       title: like.track.title,
@@ -518,7 +537,9 @@ export class TrackService {
     if (track.visibility !== TrackVisibility.PUBLIC) {
       throw new ForbiddenException('This track is private');
     }
-
+    if (!track.allowComments) {
+      throw new ForbiddenException('Comment are not allowed');
+    }
     let parentComment = null;
     if (commentDto.parentId) {
       parentComment = await this.trackRepository.findCommentById(commentDto.parentId);
@@ -612,7 +633,9 @@ export class TrackService {
     if (track.visibility === TrackVisibility.PRIVATE && track.userId !== userId) {
       throw new ForbiddenException('This track is private');
     }
-
+    if (!track.showComments && track.userId !== userId) {
+      throw new ForbiddenException('Cannot show comments for this track');
+    }
     const cappedLimit = Math.min(limit, 100);
 
     // Fetch comments and total count
@@ -717,7 +740,8 @@ export class TrackService {
     trackId: string,
     currentUserId: string,
     page: number = 1,
-    limit: number = 20
+    limit: number = 20,
+    filter?: PlaylistTypeFilter
   ) {
     const track = await this.trackRepository.findById(trackId);
     if (!track) throw new NotFoundException('Track not found');
@@ -730,7 +754,8 @@ export class TrackService {
       trackId,
       currentUserId,
       page,
-      cappedLimit
+      cappedLimit,
+      filter
     );
 
     const shaped = (entries as Array<PlaylistTrack & { playlist: Playlist & { user: User } }>).map(
@@ -997,5 +1022,25 @@ export class TrackService {
 
   async getTopTracksByTagIds(tagIds: string[], userId: string) {
     return this.trackRepository.getTopTracksByTagIds(tagIds, userId);
+  }
+
+  async updateTrackCommentSettings(
+    userId: string,
+    trackId: string,
+    allowComments: boolean,
+    showComments: boolean
+  ) {
+    const track = await this.trackRepository.findById(trackId);
+    if (!track) {
+      throw new BadRequestException('track is not found');
+    }
+    if (track.userId !== userId) {
+      throw new BadRequestException('you are not the owner of this track');
+    }
+    await this.trackRepository.updateTrackCommentSettings(trackId, allowComments, showComments);
+    return {
+      status: 'success',
+      message: 'track comment settings  updated',
+    };
   }
 }

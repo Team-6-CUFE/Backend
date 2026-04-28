@@ -49,6 +49,7 @@ import { CheckBlock } from '../followers/decorators/no-block.decorator';
 import { CreatePlaylistDto } from './dto/create-playlist.dto';
 import { UpdatePlaylistDto } from './dto/update-playlist.dto';
 import { AddTrackDto } from './dto/add-track.dto';
+import { PlaylistTypeFilter } from './entities/playlist.entity';
 
 @ApiTags('Playlist')
 @Controller('playlist')
@@ -60,10 +61,11 @@ export class PlaylistController {
   async getMyPlaylists(
     @CurrentUser('sub') userId: string,
     @Query('page') page: number = 1,
-    @Query('limit') limit: number = 20
+    @Query('limit') limit: number = 20,
+    @Query('filter') filter?: PlaylistTypeFilter
   ) {
     console.log('getting my playlist', userId);
-    return this.playlistService.getMyPlaylists(userId, page, limit);
+    return this.playlistService.getMyPlaylists(userId, page, limit, filter);
   }
 
   @ApiRepostPlaylist()
@@ -159,9 +161,10 @@ export class PlaylistController {
     @Param('user_id', ParseUUIDPipe) userId: string,
     @CurrentUser('sub') myUserId: string,
     @Query('page') page: number,
-    @Query('limit') limit: number
+    @Query('limit') limit: number,
+    @Query('filter') filter?: PlaylistTypeFilter
   ) {
-    return this.playlistService.getUserPlaylistLikes(userId, myUserId, page, limit);
+    return this.playlistService.getUserPlaylistLikes(userId, myUserId, page, limit, filter);
   }
 
   @ApiCreatePlaylist()
@@ -282,9 +285,10 @@ export class PlaylistController {
     @Param('user_id', ParseUUIDPipe) userId: string,
     @CurrentUser('sub') myUserId: string | null,
     @Query('page') page: number = 1,
-    @Query('limit') limit: number = 20
+    @Query('limit') limit: number = 20,
+    @Query('filter') filter?: PlaylistTypeFilter
   ) {
     console.log("getting a user's playlist", userId);
-    return this.playlistService.getUserPlaylists(userId, myUserId, page, limit);
+    return this.playlistService.getUserPlaylists(userId, myUserId, page, limit, filter);
   }
 }

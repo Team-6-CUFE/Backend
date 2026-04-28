@@ -47,6 +47,8 @@ export const mockPublicTrack = (overrides?: object) => ({
     displayName: 'Nour',
     avatarUrl: 'https://s3.amazonaws.com/avatars/nour.jpg',
   },
+  allowComments: true,
+  showComments: true,
   ...overrides,
 });
 
@@ -332,6 +334,10 @@ export const mockFansService = () => ({
 export const mockPlaylistService = () => ({
   getPlaylistById: jest.fn(),
   getTrackPlaylists: jest.fn(),
+});
+
+export const mockFfmpegService = () => ({
+  getDuration: jest.fn(),
 });
 
 export const mockTrackPlay = (overrides?: object) => ({

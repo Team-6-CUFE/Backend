@@ -53,6 +53,7 @@ import {
   ApiDeleteTrack,
   ApiGetRelatedTracks,
   ApiGetAllTimeStats,
+  ApiUpdateCommentsSettings,
 } from './track.swagger';
 import { CurrentUser } from '../authentication/decorators/current-user.decorator';
 import { CheckBlock } from '../followers/decorators/no-block.decorator';
@@ -65,6 +66,8 @@ import { Public } from '../authentication/decorators/public.decorator';
 import { OptionalCurrentUser } from '../authentication/decorators/optional-current-user.decorator';
 import { JwtPayload } from '../authentication/strategies/jwt.strategy';
 import { BlockedRegionsDto } from './dto/blocked-regions.dto';
+import { Plans } from '../authentication/decorators/plans.decorator';
+import { PlaylistTypeFilter } from '../playlist/entities/playlist.entity';
 
 const ALLOWED_AUDIO_MIME_TYPES = [
   'audio/mpeg',
@@ -331,6 +334,7 @@ export class TrackController {
   }
 
   @ApiReuploadTrackAudio()
+  @Plans('pro')
   @Patch(':trackId/audio')
   @UseInterceptors(
     FileInterceptor('audio', {
@@ -399,9 +403,10 @@ export class TrackController {
     @Param('trackId', ParseUUIDPipe) userId: string,
     @CurrentUser('sub') currentUserId: string,
     @Query('page') page: number,
-    @Query('limit') limit: number
+    @Query('limit') limit: number,
+    @Query('filter') filter?: PlaylistTypeFilter
   ) {
-    return this.trackService.getTrackPlaylists(userId, currentUserId, page, limit);
+    return this.trackService.getTrackPlaylists(userId, currentUserId, page, limit, filter);
   }
 
   @ApiGetAllGenres()
@@ -439,6 +444,7 @@ export class TrackController {
   }
 
   @ApiUpdateBlockedRegions()
+  @Plans('pro')
   @Post(':trackId/blocked-regions')
   updateBlockedRegions(
     @Param('trackId', ParseUUIDPipe) trackId: string,
@@ -467,5 +473,21 @@ export class TrackController {
     @Ip() ip: string
   ) {
     return this.trackService.getRelatedTracks(title, artistUsername, page, limit, ip);
+  }
+
+  @ApiUpdateCommentsSettings()
+  @Patch('/update-comment-settings/:trackId')
+  updateCommentSettings(
+    @CurrentUser('sub') userId: string,
+    @Param('trackId') trackId: string,
+    @Query('allowComments') allowComments: boolean,
+    @Query('showComments') showComments: boolean
+  ) {
+    return this.trackService.updateTrackCommentSettings(
+      userId,
+      trackId,
+      allowComments,
+      showComments
+    );
   }
 }

@@ -113,6 +113,7 @@ export class DiscoveryService {
     const isBlocked = country && track.blockedRegions?.includes(country);
 
     const artist = track.user as User;
+    console.log('liked?', track.isLiked);
     return {
       position: pt.position,
       trackId: track.trackId,
@@ -973,28 +974,34 @@ export class DiscoveryService {
     return playlistId;
   }
 
-  async getTrendingMusicByGenre(userId: string) {
+  async getTrendingMusicByGenre(userId?: string) {
     const trendingMusicUser = await this.userService.findByUsername(TRENDING_MUSIC_USER.username);
     if (!trendingMusicUser) throw new Error('Trending Music user not found');
+    let topTagNames: string[] = [];
+    if (userId) {
+      // if a user is logged in, show them personalized trending music based on their interactions
+      // get genres of tracks the user has interacted with
+      const interactedTrackTags = await this.trackService.getUserInteractedTrackTags(userId);
+      // determine top 5 most interacted genres
+      const tagFrequency = interactedTrackTags.reduce<
+        Record<string, { count: number; name: string }>
+      >((acc, tag) => {
+        acc[tag.genreId] = acc[tag.genreId]
+          ? { ...acc[tag.genreId], count: acc[tag.genreId].count + 1 }
+          : { count: 1, name: tag.name };
+        return acc;
+      }, {});
+      topTagNames = Object.entries(tagFrequency)
+        .sort((a, b) => b[1].count - a[1].count)
+        .slice(0, 5)
+        .map(([_, value]) => value.name);
+    }
 
-    // get genres of tracks the user has interacted with
-    const interactedTrackTags = await this.trackService.getUserInteractedTrackTags(userId);
-    // determine top 5 most interacted genres
-    const tagFrequency = interactedTrackTags.reduce<
-      Record<string, { count: number; name: string }>
-    >((acc, tag) => {
-      acc[tag.genreId] = acc[tag.genreId]
-        ? { ...acc[tag.genreId], count: acc[tag.genreId].count + 1 }
-        : { count: 1, name: tag.name };
-      return acc;
-    }, {});
-    const topTagNames = Object.entries(tagFrequency)
-      .sort((a, b) => b[1].count - a[1].count)
-      .slice(0, 5)
-      .map(([_, value]) => value.name);
-
-    if (topTagNames.length === 0) {
-      return { status: 'success', data: [] };
+    if (!userId || topTagNames.length === 0) {
+      // get random genres for non-logged in users or users with no interactions
+      const randomGenres = DEFAULT_GENRE_NAMES.sort(() => 0.5 - Math.random()).slice(0, 5);
+      const defaultGenres = await this.genreRepository.findByNames([...randomGenres]);
+      topTagNames = defaultGenres.map((g) => g.name);
     }
 
     const playlists = await this.playlistRepository.getPlaylistByUserAndTitles(
@@ -1002,10 +1009,13 @@ export class DiscoveryService {
       topTagNames
     );
 
-    const isFollowedByCurrentUser = await this.followersRepository.isFollowing(
-      userId,
-      trendingMusicUser.userId
-    );
+    let isFollowedByCurrentUser = false;
+    if (userId) {
+      isFollowedByCurrentUser = await this.followersRepository.isFollowing(
+        userId,
+        trendingMusicUser.userId
+      );
+    }
 
     const mappedPlaylistsPromises = playlists.map(async (playlist) => ({
       playlistId: playlist.playlistId,
@@ -1025,9 +1035,10 @@ export class DiscoveryService {
         avatarUrl: trendingMusicUser.avatarUrl,
         isFollowedByCurrentUser,
       },
-      isLiked:
-        (await this.playlistRepository.findLikeByUserAndPlaylist(userId, playlist.playlistId)) !==
-        null,
+      isLiked: userId
+        ? (await this.playlistRepository.findLikeByUserAndPlaylist(userId, playlist.playlistId)) !==
+          null
+        : false,
     }));
 
     const mappedPlaylists = await Promise.all(mappedPlaylistsPromises);
@@ -1051,43 +1062,62 @@ export class DiscoveryService {
     };
   }
 
-  async getUserLikedby(
-    userId: string,
-    myUserId: string,
-    ip: string | null,
-    page: number = 1,
-    limit: number = 20
-  ) {
+  async getUserLikedby(userId: string, myUserId: string, ip: string | null) {
     const { country } = ip ? getLocationFromIp(ip) : { country: null };
     const user = await this.userService.findById(userId);
     if (!user) throw new NotFoundException('User not found');
     if (!user.isPublic && user.userId !== myUserId)
       throw new ForbiddenException('This account is private');
 
-    const cappedLimit = Math.min(limit, 100);
-
-    const [[trackLikes, totalTracks], [playlistLikes, totalPlaylists]] = await Promise.all([
-      this.trackRepository.getUserTrackLikes(userId, page, cappedLimit),
-      this.playlistRepository.getUserPlaylistLikes(userId, page, cappedLimit),
+    const [[trackLikes], [playlistLikes]] = await Promise.all([
+      this.trackRepository.getUserTrackLikes(userId, myUserId, 1, 1000),
+      this.playlistRepository.getUserPlaylistLikes(userId, 1, 1000),
     ]);
+
+    // format liked tracks as playlist tracks
+    const likedTrackItems = trackLikes
+      .map((like, index) =>
+        this.formatPlaylistTrack({ position: index + 1, track: like.track }, country)
+      )
+      .filter(Boolean);
+
+    // format tracks from liked playlists (5 per playlist)
+    const playlistTrackItems = playlistLikes.flatMap((like) =>
+      (like.playlist.playlistTracks ?? [])
+        .slice(0, 5)
+        .map((pt: any) => this.formatPlaylistTrack(pt, country))
+        .filter(Boolean)
+    );
+
+    const allTracks = [...likedTrackItems, ...playlistTrackItems].map((pt: any, index) => ({
+      ...pt,
+      position: index + 1,
+    }));
+    const totalDuration = allTracks.reduce(
+      (sum, pt: any) => sum + (pt?.track?.durationSeconds ?? pt?.durationSeconds ?? 0),
+      0
+    );
+
     return {
-      status: 'success',
-      tracks: {
-        data: trackLikes.map((like) => this.formatTrack(like.track, country)).filter(Boolean),
-        total: totalTracks,
+      playlistId: userId,
+      title: `Liked by ${user.username}`,
+      description: `Liked by this user`,
+      coverImage: trackLikes[0]?.track?.coverImage ?? null,
+      tracksCount: allTracks.length,
+      durationSeconds: totalDuration,
+      isLiked: false,
+      isReposted: false,
+      createdAt: null,
+      user: {
+        userId: user.userId,
+        username: user.username,
+        displayName: user.displayName,
+        avatarUrl: user.avatarUrl,
+        city: user.city,
+        country: user.country,
+        followersCount: user.followersCount,
       },
-      playlists: {
-        data: playlistLikes
-          .map((like) => {
-            const playlist = {
-              ...like.playlist,
-              playlistTracks: like.playlist.playlistTracks?.slice(0, 5) ?? [],
-            };
-            return this.formatPlaylist(playlist, country);
-          })
-          .filter(Boolean),
-        total: totalPlaylists,
-      },
+      playlistTracks: allTracks,
     };
   }
 
@@ -1322,6 +1352,32 @@ export class DiscoveryService {
     return {
       status: 'success',
       data: formattedTracks,
+    };
+  }
+
+  async getArtistsToWatchOutFor() {
+    // return a list of up and coming artists based on how many unique plays their tracks got in the last 7 days
+    const artists = await this.trackRepository.findUpAndComingArtists();
+    return {
+      status: 'success',
+      data: artists,
+    };
+  }
+
+  async getCuratedPlaylists() {
+    // get top tracks based on track plays created in the last month
+    // return the track's info to be able to later get its track station made by us
+    const tracks = await this.trackRepository.findTrendingTracks();
+    return {
+      status: 'success',
+      data: {
+        tracks: tracks.map((t) => ({
+          title: t.title,
+          artistUsername: t.user.username,
+          artistDisplayName: t.user.displayName,
+          coverImage: t.coverImage,
+        })),
+      },
     };
   }
 }

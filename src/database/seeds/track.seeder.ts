@@ -30,7 +30,7 @@ export class TrackSeeder implements Seeder {
     }
 
     // 2. Get all artists (Users with role 'artist' or 'admin')
-    const artists = await userRepository.find({
+    var artists = await userRepository.find({
       where: [{ role: 'artist' }, { role: 'admin' }],
     });
 
@@ -41,6 +41,11 @@ export class TrackSeeder implements Seeder {
 
     // 3. Get all users (for engagement seeding)
     const allUsers = await userRepository.find();
+
+    // add some listeners to the artists array to seed some tracks for them as well
+    artists = artists.concat(
+      allUsers.filter((u) => u.role === 'listener').slice(0, Math.floor(allUsers.length * 0.1))
+    );
 
     console.log('Seeding tracks and engagements...');
 
