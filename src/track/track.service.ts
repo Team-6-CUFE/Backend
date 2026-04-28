@@ -532,7 +532,9 @@ export class TrackService {
     if (track.visibility !== TrackVisibility.PUBLIC) {
       throw new ForbiddenException('This track is private');
     }
-
+    if (!track.allowComments) {
+      throw new ForbiddenException('Comment are not allowed');
+    }
     let parentComment = null;
     if (commentDto.parentId) {
       parentComment = await this.trackRepository.findCommentById(commentDto.parentId);
