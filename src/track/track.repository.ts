@@ -888,4 +888,11 @@ export class TrackRepository {
     });
     return track?.visibility === TrackVisibility.PRIVATE;
   }
+
+  async updateTrackCommentSettings(trackId: string, allowComments: boolean, showComments: boolean) {
+    await this.trackRepository.update(trackId, {
+      allowComments,
+      showComments,
+    });
+  }
 }

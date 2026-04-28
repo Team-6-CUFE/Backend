@@ -21,6 +21,7 @@ import { MessagingModule } from './messaging/messaging.module';
 import { NotificationsModule } from './notifications/notifications.module';
 import { SubscriptionModule } from './subscription/subscription.module';
 import { DownloadModule } from './download/download.module';
+import { AdminModule } from './admin/admin.module';
 
 @Module({
   imports: [
@@ -59,6 +60,7 @@ import { DownloadModule } from './download/download.module';
     NotificationsModule,
     SubscriptionModule,
     DownloadModule,
+    AdminModule,
   ],
 })
 export class AppModule {}

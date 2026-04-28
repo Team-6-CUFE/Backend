@@ -53,6 +53,7 @@ import {
   ApiDeleteTrack,
   ApiGetRelatedTracks,
   ApiGetAllTimeStats,
+  ApiUpdateCommentsSettings,
 } from './track.swagger';
 import { CurrentUser } from '../authentication/decorators/current-user.decorator';
 import { CheckBlock } from '../followers/decorators/no-block.decorator';
@@ -472,5 +473,21 @@ export class TrackController {
     @Ip() ip: string
   ) {
     return this.trackService.getRelatedTracks(title, artistUsername, page, limit, ip);
+  }
+
+  @ApiUpdateCommentsSettings()
+  @Patch('/update-comment-settings/:trackId')
+  updateCommentSettings(
+    @CurrentUser('sub') userId: string,
+    @Param('trackId') trackId: string,
+    @Query('allowComments') allowComments: boolean,
+    @Query('showComments') showComments: boolean
+  ) {
+    return this.trackService.updateTrackCommentSettings(
+      userId,
+      trackId,
+      allowComments,
+      showComments
+    );
   }
 }
