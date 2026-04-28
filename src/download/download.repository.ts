@@ -46,8 +46,12 @@ export class DownloadRepository {
     await this.downloadedTrackRepository.update({ downloadId }, { status });
   }
 
-  async deleteDownloadedTrack(downloadId: string) {
-    await this.downloadedTrackRepository.delete({ downloadId });
+  async deleteDownloadedTrack(
+    trackId: string,
+    userId: string,
+    source: DownloadSource = DownloadSource.TRACK
+  ) {
+    await this.downloadedTrackRepository.delete({ trackId, userId, source });
   }
 
   async deleteDownloadedPlaylist(playlistId: string, userId: string) {

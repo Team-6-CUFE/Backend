@@ -880,4 +880,12 @@ export class TrackRepository {
 
     return track?.offlineListening ?? false;
   }
+
+  async isPrivate(trackId: string): Promise<boolean> {
+    const track = await this.trackRepository.findOne({
+      where: { trackId },
+      select: ['visibility'],
+    });
+    return track?.visibility === TrackVisibility.PRIVATE;
+  }
 }
