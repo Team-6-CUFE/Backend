@@ -556,7 +556,26 @@ describe('TrackService', () => {
         ForbiddenException
       );
     });
+    it('should throw ForbiddenException when comments are not allowed', async () => {
+      trackRepo.findById.mockResolvedValue({
+        ...mockPublicTrack(),
+        allowComments: false,
+      });
 
+      await expect(service.addComment(MOCK_TRACK_ID, MOCK_USER_ID, mockDto)).rejects.toThrow(
+        ForbiddenException
+      );
+    });
+
+    it('should NOT call addComment when comments are not allowed', async () => {
+      trackRepo.findById.mockResolvedValue({
+        ...mockPublicTrack(),
+        allowComments: false,
+      });
+
+      await expect(service.addComment(MOCK_TRACK_ID, MOCK_USER_ID, mockDto)).rejects.toThrow();
+      expect(trackRepo.addComment).not.toHaveBeenCalled();
+    });
     it('should throw NotFoundException when parentId not found', async () => {
       trackRepo.findById.mockResolvedValue(mockPublicTrack());
       trackRepo.findCommentById.mockResolvedValue(null);
@@ -751,7 +770,29 @@ describe('TrackService', () => {
 
       expect(trackRepo.getTrackComments).toHaveBeenCalledWith(MOCK_TRACK_ID, 1, 20, 'oldest');
     });
+    it('should throw ForbiddenException when showComments is false', async () => {
+      trackRepo.findById.mockResolvedValue({
+        ...mockPublicTrack(),
+        showComments: false,
+      });
 
+      await expect(
+        service.getTrackComments(MOCK_TRACK_ID, MOCK_USER_ID, 1, 20, 'timestamp')
+      ).rejects.toThrow(ForbiddenException);
+    });
+
+    it('should allow owner to view comments even when showComments is false', async () => {
+      trackRepo.findById.mockResolvedValue({
+        ...mockPublicTrack(),
+        userId: MOCK_USER_ID,
+        showComments: false,
+      });
+      trackRepo.getTrackComments.mockResolvedValue([[], 0]);
+
+      await expect(
+        service.getTrackComments(MOCK_TRACK_ID, MOCK_USER_ID, 1, 20, 'timestamp')
+      ).resolves.not.toThrow();
+    });
     it('should cap limit at 100', async () => {
       trackRepo.findById.mockResolvedValue(mockPublicTrack());
       trackRepo.getTrackComments.mockResolvedValue([[], 0]);
