@@ -49,6 +49,8 @@ jobs:
           script: |
             cd ~/app
             docker pull ${{ secrets.DOCKERHUB_USERNAME }}/harmonica-backend:${{ env.TAG }}
-            docker compose -p ${{ env.PROJECT }} -f ${{ env.COMPOSE_FILE }} --env-file ${{ env.ENV_FILE }} \
-              up -d --no-deps --force-recreate backend
+            docker compose -p ${{ env.PROJECT }} \
+            -f ${{ env.COMPOSE_FILE }} \
+            --env-file ${{ env.ENV_FILE }} \
+            up -d --no-deps --force-recreate --pull always backend
             docker image prune -f
