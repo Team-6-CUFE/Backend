@@ -1,4 +1,4 @@
-import { Controller, Delete, Param, Post } from '@nestjs/common';
+import { Controller, Delete, Ip, Param, Post } from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
 import { DownloadService } from './download.service';
 import { Plans } from '../authentication/decorators/plans.decorator';
@@ -22,5 +22,24 @@ export class DownloadController {
     @CurrentUser('sub') userId: string
   ) {
     return this.downloadService.deleteDownloadedTrack(trackId, userId);
+  }
+
+  @Plans('pro', 'go+')
+  @Post('playlist/:playlist_id')
+  async downloadPlaylist(
+    @Param('playlist_id') playlistId: string,
+    @CurrentUser('sub') userId: string,
+    @Ip() ip: string
+  ) {
+    return this.downloadService.downloadPlaylist(playlistId, userId, ip);
+  }
+
+  @Plans('pro', 'go+')
+  @Delete('playlist/:playlist_id')
+  async deleteDownloadedPlaylist(
+    @Param('playlist_id') playlistId: string,
+    @CurrentUser('sub') userId: string
+  ) {
+    return this.downloadService.deleteDownloadedPlaylist(playlistId, userId);
   }
 }

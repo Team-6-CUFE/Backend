@@ -55,7 +55,13 @@ export class DownloadRepository {
   }
 
   async deleteDownloadedPlaylist(playlistId: string, userId: string) {
-    await this.downloadedPlaylistRepository.delete({ playlistId, userId });
+    const result = await this.downloadedPlaylistRepository.delete({ playlistId, userId });
+    if (result.affected && result.affected > 0) {
+      // Also delete all tracks associated with this playlist download
+      await this.downloadedTrackRepository.delete({ sourcePlaylistId: playlistId, userId });
+      return true;
+    }
+    return false;
   }
 
   async getDownloadedTracksByUser(userId: string): Promise<DownloadedTrack[]> {
