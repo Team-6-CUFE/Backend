@@ -1344,50 +1344,51 @@ describe('DiscoveryController', () => {
   describe('getLikedByUsersForUser', () => {
     const targetUserId = 'target-user-456';
 
+    const mockPlaylistResponse = {
+      playlistId: targetUserId,
+      title: 'Liked by testuser',
+      description: 'Liked by this user',
+      coverImage: null,
+      tracksCount: 0,
+      durationSeconds: 0,
+      isLiked: false,
+      isReposted: false,
+      createdAt: null,
+      user: {
+        userId: targetUserId,
+        username: 'testuser',
+        displayName: 'Test User',
+        avatarUrl: null,
+        city: null,
+        country: null,
+        followersCount: 0,
+      },
+      playlistTracks: [],
+    };
+
     it('should call getUserLikedby with currentUserId first then targetUserId', async () => {
-      const expected = {
-        status: 'success',
-        tracks: { data: [], total: 0 },
-        playlists: { data: [], total: 0 },
-      };
-      mockDiscoveryService.getUserLikedby.mockResolvedValue(expected);
+      mockDiscoveryService.getUserLikedby.mockResolvedValue(mockPlaylistResponse);
 
-      const result = await controller.getLikedByUsersForUser(
-        targetUserId,
-        mockUserId,
-        mockIp,
-        1,
-        20
-      );
+      const result = await controller.getLikedByUsersForUser(targetUserId, mockUserId, mockIp);
 
-      // controller calls service.getUserLikedby(currentUserId, userId, ip, page, limit)
       expect(mockDiscoveryService.getUserLikedby).toHaveBeenCalledWith(
         mockUserId,
         targetUserId,
-        mockIp,
-        1,
-        20
+        mockIp
       );
-      expect(result).toEqual(expected);
+      expect(result).toEqual(mockPlaylistResponse);
     });
 
-    it('should use default page=1 and limit=20', async () => {
-      const expected = {
-        status: 'success',
-        tracks: { data: [], total: 0 },
-        playlists: { data: [], total: 0 },
-      };
-      mockDiscoveryService.getUserLikedby.mockResolvedValue(expected);
+    it('should return playlist shaped response', async () => {
+      mockDiscoveryService.getUserLikedby.mockResolvedValue(mockPlaylistResponse);
 
-      await controller.getLikedByUsersForUser(targetUserId, mockUserId, mockIp);
+      const result = await controller.getLikedByUsersForUser(targetUserId, mockUserId, mockIp);
 
-      expect(mockDiscoveryService.getUserLikedby).toHaveBeenCalledWith(
-        mockUserId,
-        targetUserId,
-        mockIp,
-        1,
-        20
-      );
+      expect(result).toHaveProperty('playlistId');
+      expect(result).toHaveProperty('playlistTracks');
+      expect(result).toHaveProperty('tracksCount');
+      expect(result).not.toHaveProperty('tracks');
+      expect(result).not.toHaveProperty('playlists');
     });
 
     it('should propagate NotFoundException from service', async () => {
