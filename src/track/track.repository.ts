@@ -871,4 +871,11 @@ export class TrackRepository {
 
     return tracks;
   }
+
+  async updateTrackCommentSettings(trackId: string, allowComments: boolean, showComments: boolean) {
+    await this.trackRepository.update(trackId, {
+      allowComments,
+      showComments,
+    });
+  }
 }

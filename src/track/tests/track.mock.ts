@@ -47,6 +47,8 @@ export const mockPublicTrack = (overrides?: object) => ({
     displayName: 'Nour',
     avatarUrl: 'https://s3.amazonaws.com/avatars/nour.jpg',
   },
+  allowComments: true,
+  showComments: true,
   ...overrides,
 });
 
