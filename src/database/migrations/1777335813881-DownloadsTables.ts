@@ -22,6 +22,8 @@ export class DownloadsTables1777335813881 implements MigrationInterface {
                 FOREIGN KEY (user_id) REFERENCES users(id),
                 FOREIGN KEY (track_id) REFERENCES tracks(id),
                 FOREIGN KEY (source_playlist_id) REFERENCES playlists(id),   
+                UNIQUE (user_id, track_id, source)
+            )
         `);
     await queryRunner.query(`
             CREATE TABLE downloaded_playlists (

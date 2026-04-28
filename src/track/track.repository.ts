@@ -871,4 +871,13 @@ export class TrackRepository {
 
     return tracks;
   }
+
+  async isTrackDownloadable(trackId: string): Promise<boolean> {
+    const track = await this.trackRepository.findOne({
+      where: { trackId },
+      select: ['offlineListening'],
+    });
+
+    return track?.offlineListening ?? false;
+  }
 }
