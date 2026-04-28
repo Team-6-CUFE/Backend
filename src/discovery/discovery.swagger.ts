@@ -426,11 +426,19 @@ export function ApiGetMoreOfWhatYouLike() {
               commentsCount: 45,
               isLiked: true,
               isReposted: false,
+              createdAt: '2026-04-17T10:00:00.000Z',
+              mainArtists: ['dj_nour'],
               user: {
                 userId: 'user-uuid',
                 username: 'dj_nour',
                 displayName: 'DJ Nour',
                 avatarUrl: 'https://cdn.harmonica.com/avatars/dj_nour.jpg',
+                city: 'Cairo',
+                country: 'EG',
+              },
+              genre: {
+                genreId: 'genre-uuid-1',
+                name: 'Electronic',
               },
             },
           ],
@@ -793,11 +801,6 @@ export function ApiGetTrendingMusicByGenre() {
         },
       },
     }),
-    ApiResponse({
-      status: 200,
-      description: 'No interaction history — returns empty array.',
-      schema: { example: { status: 'success', data: [] } },
-    }),
     ApiResponse({ status: 401, description: 'Unauthorized' })
   );
 }
@@ -860,11 +863,6 @@ export function ApiGetPublicTrendingMusicByGenre() {
           ],
         },
       },
-    }),
-    ApiResponse({
-      status: 200,
-      description: 'No interaction history — returns empty array.',
-      schema: { example: { status: 'success', data: [] } },
     }),
     ApiResponse({ status: 401, description: 'Unauthorized' })
   );
@@ -1535,13 +1533,6 @@ export function ApiGetCuratedPlaylists() {
             ],
           },
         },
-      },
-    }),
-    ApiResponse({
-      status: 200,
-      description: 'No trending tracks in the last month — returns empty tracks array.',
-      schema: {
-        example: { status: 'success', data: { tracks: [] } },
       },
     })
   );
