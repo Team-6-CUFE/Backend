@@ -872,6 +872,23 @@ export class TrackRepository {
     return tracks;
   }
 
+  async isTrackDownloadable(trackId: string): Promise<boolean> {
+    const track = await this.trackRepository.findOne({
+      where: { trackId },
+      select: ['offlineListening'],
+    });
+
+    return track?.offlineListening ?? false;
+  }
+
+  async isPrivate(trackId: string): Promise<boolean> {
+    const track = await this.trackRepository.findOne({
+      where: { trackId },
+      select: ['visibility'],
+    });
+    return track?.visibility === TrackVisibility.PRIVATE;
+  }
+
   async updateTrackCommentSettings(trackId: string, allowComments: boolean, showComments: boolean) {
     await this.trackRepository.update(trackId, {
       allowComments,

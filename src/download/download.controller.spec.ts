@@ -8,7 +8,17 @@ describe('DownloadController', () => {
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       controllers: [DownloadController],
-      providers: [DownloadService],
+      providers: [
+        {
+          provide: DownloadService,
+          useValue: {
+            // Mock only the methods your controller calls
+            isTrackDownloadable: jest.fn(),
+            saveDownloadedTrack: jest.fn(),
+            downloadTrackFile: jest.fn(),
+          },
+        },
+      ],
     }).compile();
 
     controller = module.get<DownloadController>(DownloadController);
