@@ -113,6 +113,7 @@ export class DiscoveryService {
     const isBlocked = country && track.blockedRegions?.includes(country);
 
     const artist = track.user as User;
+    console.log('liked?', track.isLiked);
     return {
       position: pt.position,
       trackId: track.trackId,
@@ -1061,43 +1062,62 @@ export class DiscoveryService {
     };
   }
 
-  async getUserLikedby(
-    userId: string,
-    myUserId: string,
-    ip: string | null,
-    page: number = 1,
-    limit: number = 20
-  ) {
+  async getUserLikedby(userId: string, myUserId: string, ip: string | null) {
     const { country } = ip ? getLocationFromIp(ip) : { country: null };
     const user = await this.userService.findById(userId);
     if (!user) throw new NotFoundException('User not found');
     if (!user.isPublic && user.userId !== myUserId)
       throw new ForbiddenException('This account is private');
 
-    const cappedLimit = Math.min(limit, 100);
-
-    const [[trackLikes, totalTracks], [playlistLikes, totalPlaylists]] = await Promise.all([
-      this.trackRepository.getUserTrackLikes(userId, page, cappedLimit),
-      this.playlistRepository.getUserPlaylistLikes(userId, page, cappedLimit),
+    const [[trackLikes], [playlistLikes]] = await Promise.all([
+      this.trackRepository.getUserTrackLikes(userId, myUserId, 1, 1000),
+      this.playlistRepository.getUserPlaylistLikes(userId, 1, 1000),
     ]);
+
+    // format liked tracks as playlist tracks
+    const likedTrackItems = trackLikes
+      .map((like, index) =>
+        this.formatPlaylistTrack({ position: index + 1, track: like.track }, country)
+      )
+      .filter(Boolean);
+
+    // format tracks from liked playlists (5 per playlist)
+    const playlistTrackItems = playlistLikes.flatMap((like) =>
+      (like.playlist.playlistTracks ?? [])
+        .slice(0, 5)
+        .map((pt: any) => this.formatPlaylistTrack(pt, country))
+        .filter(Boolean)
+    );
+
+    const allTracks = [...likedTrackItems, ...playlistTrackItems].map((pt: any, index) => ({
+      ...pt,
+      position: index + 1,
+    }));
+    const totalDuration = allTracks.reduce(
+      (sum, pt: any) => sum + (pt?.track?.durationSeconds ?? pt?.durationSeconds ?? 0),
+      0
+    );
+
     return {
-      status: 'success',
-      tracks: {
-        data: trackLikes.map((like) => this.formatTrack(like.track, country)).filter(Boolean),
-        total: totalTracks,
+      playlistId: userId,
+      title: `Liked by ${user.username}`,
+      description: `Liked by this user`,
+      coverImage: trackLikes[0]?.track?.coverImage ?? null,
+      tracksCount: allTracks.length,
+      durationSeconds: totalDuration,
+      isLiked: false,
+      isReposted: false,
+      createdAt: null,
+      user: {
+        userId: user.userId,
+        username: user.username,
+        displayName: user.displayName,
+        avatarUrl: user.avatarUrl,
+        city: user.city,
+        country: user.country,
+        followersCount: user.followersCount,
       },
-      playlists: {
-        data: playlistLikes
-          .map((like) => {
-            const playlist = {
-              ...like.playlist,
-              playlistTracks: like.playlist.playlistTracks?.slice(0, 5) ?? [],
-            };
-            return this.formatPlaylist(playlist, country);
-          })
-          .filter(Boolean),
-        total: totalPlaylists,
-      },
+      playlistTracks: allTracks,
     };
   }
 
