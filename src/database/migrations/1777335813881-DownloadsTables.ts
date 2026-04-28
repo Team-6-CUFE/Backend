@@ -19,9 +19,9 @@ export class DownloadsTables1777335813881 implements MigrationInterface {
                 status download_status_enum DEFAULT 'pending',
                 source download_source_enum DEFAULT 'track',
                 source_playlist_id UUID,
-                FOREIGN KEY (user_id) REFERENCES users(id),
-                FOREIGN KEY (track_id) REFERENCES tracks(id),
-                FOREIGN KEY (source_playlist_id) REFERENCES playlists(id),   
+                FOREIGN KEY (user_id) REFERENCES users(user_id),
+                FOREIGN KEY (track_id) REFERENCES tracks(track_id),
+                FOREIGN KEY (source_playlist_id) REFERENCES playlists(playlist_id),   
                 UNIQUE (user_id, track_id, source)
             )
         `);
@@ -31,8 +31,8 @@ export class DownloadsTables1777335813881 implements MigrationInterface {
                 playlist_id UUID NOT NULL,
                 downloaded_at TIMESTAMP DEFAULT NOW(),
                 status download_status_enum DEFAULT 'pending',
-                FOREIGN KEY (user_id) REFERENCES users(id),
-                FOREIGN KEY (playlist_id) REFERENCES playlists(id),
+                FOREIGN KEY (user_id) REFERENCES users(user_id),
+                FOREIGN KEY (playlist_id) REFERENCES playlists(playlist_id),
                 PRIMARY KEY (user_id, playlist_id)
             )
         `);
