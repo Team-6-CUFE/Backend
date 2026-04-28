@@ -6,6 +6,7 @@ import { CreateReportDto } from './dto/createReport.dto';
 import { ReportType } from './report-enums';
 import { TrackService } from '../track/track.service';
 import { TrackRepository } from '../track/track.repository';
+import { UserRepository } from '../user/user.repository';
 
 @Injectable()
 export class AdminService {
@@ -13,7 +14,8 @@ export class AdminService {
     @InjectRepository(Report)
     private readonly reportRepository: Repository<Report>,
     private readonly trackService: TrackService,
-    private readonly trackRepository: TrackRepository
+    private readonly trackRepository: TrackRepository,
+    private readonly userRepository: UserRepository
   ) {}
 
   async addReport(userId: string, createReportDto: CreateReportDto) {
@@ -55,6 +57,68 @@ export class AdminService {
       status: 'success',
       message: 'Report submitted successfully',
       data: report,
+    };
+  }
+
+  async getAllReports(page: number = 1, limit: number = 20) {
+    const [reports, total] = await this.reportRepository.findAndCount({
+      skip: (page - 1) * limit,
+      take: limit,
+      order: { createdAt: 'DESC' },
+    });
+
+    const enrichedReports = await Promise.all(
+      reports.map(async (report) => {
+        const reporterData = await this.userRepository.findById(report.reporterId);
+
+        const reporter = {
+          userId: reporterData?.userId,
+          username: reporterData?.username,
+          displayName: reporterData?.displayName,
+          avatarUrl: reporterData?.avatarUrl,
+          coverPhoto: reporterData?.coverPhoto,
+        };
+
+        let target = null;
+
+        if (report.type === ReportType.USER) {
+          const user = await this.userRepository.findById(report.targetId);
+          target = {
+            username: user?.username,
+            displayName: user?.displayName,
+            coverPhoto: user?.coverPhoto,
+            avatarUrl: user?.avatarUrl,
+            isPublic: user?.isPublic,
+          };
+        } else if (report.type === ReportType.TRACK) {
+          const track = await this.trackService.getTrackById(report.targetId);
+          target = { trackId: track.trackId, title: track.title, coverImage: track.coverImage };
+        } else if (report.type === ReportType.COMMENT) {
+          const comment = await this.trackRepository.findCommentById(report.targetId);
+          target = {
+            commentId: comment?.commentId,
+            userId: comment?.userId,
+            content: comment?.content,
+          };
+        }
+
+        return {
+          ...report,
+          reporter,
+          target,
+        };
+      })
+    );
+
+    return {
+      status: 'success',
+      data: enrichedReports,
+      meta: {
+        total,
+        page,
+        limit,
+        totalPages: Math.ceil(total / limit),
+      },
     };
   }
 }

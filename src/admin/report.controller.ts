@@ -1,9 +1,10 @@
-import { Body, Controller, Post } from '@nestjs/common';
+import { Body, Controller, Get, Post, Query } from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
 import { AdminService } from './admin.service';
 import { CurrentUser } from '../authentication/decorators/current-user.decorator';
 import { CreateReportDto } from './dto/createReport.dto';
-import { ApiAddReport } from './admin.swagger';
+import { ApiAddReport, ApiGetAllReports } from './admin.swagger';
+import { Roles } from '../authentication/decorators/roles.decorator';
 
 @ApiTags('Reports')
 @Controller('report')
@@ -14,5 +15,17 @@ export class ReportController {
   @Post('add-report')
   addReport(@CurrentUser('sub') userId: string, @Body() createReportDto: CreateReportDto) {
     return this.adminService.addReport(userId, createReportDto);
+  }
+
+  @ApiGetAllReports()
+  @Roles('admin')
+  @Get('/all')
+  getAllReports(
+    @CurrentUser('sub') userId: string,
+    @Query('page') page: number = 1,
+    @Query('limit') limit: number = 20
+  ) {
+    console.log(userId);
+    return this.adminService.getAllReports(page, limit);
   }
 }
