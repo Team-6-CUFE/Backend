@@ -13,6 +13,8 @@ import { TrackComment } from '../../track/entities/track-comments.entity';
 import { TrackRepost } from '../../track/entities/track-reposts.entity';
 import { Settings } from '../../settings/entities/settings.entity';
 import { Subscription } from '../../subscription/entities/subscription.entity';
+import { DownloadedTrack } from '../../download/entities/downloaded-tracks.entity';
+import { DownloadedPlaylist } from '../../download/entities/downloaded-playlists.entity';
 
 @Entity('users')
 export class User extends BaseEntity {
@@ -130,4 +132,10 @@ export class User extends BaseEntity {
 
   @OneToOne(() => Subscription, (subscription) => subscription.user)
   subscription!: Subscription;
+
+  @OneToMany(() => DownloadedTrack, (dt) => dt.user)
+  downloadedTracks!: DownloadedTrack[];
+
+  @OneToMany(() => DownloadedPlaylist, (dp) => dp.user)
+  downloadedPlaylists!: DownloadedPlaylist[];
 }
