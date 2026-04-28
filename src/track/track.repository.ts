@@ -222,21 +222,38 @@ export class TrackRepository {
 
   async getUserTrackLikes(
     userId: string,
+    myUserId: string,
     page: number,
     limit: number
   ): Promise<[TrackLikes[], number]> {
     const skip = (page - 1) * limit;
 
-    return this.trackLikesRepository
+    const [likes, total] = await this.trackLikesRepository
       .createQueryBuilder('like')
       .innerJoinAndSelect('like.track', 'track')
       .innerJoinAndSelect('track.user', 'artist')
+      .leftJoinAndSelect('track.likes', 'userlike', 'userlike.user_id = :myUserId', { myUserId })
+      .leftJoinAndSelect('track.reposts', 'userrepost', 'userrepost.user_id = :myUserId', {
+        myUserId,
+      })
       .where('like.userId = :userId', { userId })
       .andWhere('track.visibility != :trackType', { trackType: TrackVisibility.PRIVATE })
       .orderBy('like.createdAt', 'DESC')
       .skip(skip)
       .take(limit)
       .getManyAndCount();
+
+    return [
+      likes.map((like) => ({
+        ...like,
+        track: {
+          ...like.track,
+          isLiked: (like.track.likes?.length ?? 0) > 0,
+          isReposted: (like.track.reposts?.length ?? 0) > 0,
+        },
+      })),
+      total,
+    ];
   }
 
   async findCommentById(commentId: string): Promise<TrackComment | null> {

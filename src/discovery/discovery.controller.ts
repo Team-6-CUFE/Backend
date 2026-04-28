@@ -155,11 +155,9 @@ export class DiscoveryController {
   async getLikedByUsersForUser(
     @Param('userId') userId: string,
     @CurrentUser('sub') currentUserId: string,
-    @Ip() ip: string,
-    @Query('page') page: number = 1,
-    @Query('limit') limit: number = 20
+    @Ip() ip: string
   ) {
-    return this.discoveryService.getUserLikedby(currentUserId, userId, ip, page, limit);
+    return this.discoveryService.getUserLikedby(currentUserId, userId, ip);
   }
 
   @ApiGetTracksByTag()

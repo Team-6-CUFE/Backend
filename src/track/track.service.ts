@@ -504,7 +504,12 @@ export class TrackService {
     }
 
     const cappedLimit = Math.min(limit, 100);
-    const [likes, total] = await this.trackRepository.getUserTrackLikes(userId, page, cappedLimit);
+    const [likes, total] = await this.trackRepository.getUserTrackLikes(
+      userId,
+      myUserId,
+      page,
+      cappedLimit
+    );
     const mappedLikes = likes.map((like) => ({
       trackId: like.track.trackId,
       title: like.track.title,
