@@ -34,7 +34,7 @@ export class AdminRepository {
   async updateUserSuspensionStatus(
     userId: string,
     isSuspended: boolean,
-    reason: string
+    reason: string | null
   ): Promise<void> {
     await this.userRepository.update(userId, {
       isSuspended,
