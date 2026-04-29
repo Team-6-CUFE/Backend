@@ -250,7 +250,7 @@ export function ApiDeleteReport() {
         },
       },
     }),
-    ApiResponse({ status: 401, description: 'Unauthorized — missing or invalid access token.' }),
+    ApiResponse({ status: 401, description: 'Unauthorized — missing or invalid access token. ' }),
     ApiResponse({ status: 403, description: 'Forbidden — admin access only.' })
   );
 }
