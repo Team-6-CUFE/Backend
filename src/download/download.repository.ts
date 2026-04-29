@@ -55,15 +55,31 @@ export class DownloadRepository {
   }
 
   async deleteDownloadedPlaylist(playlistId: string, userId: string) {
-    await this.downloadedPlaylistRepository.delete({ playlistId, userId });
+    const result = await this.downloadedPlaylistRepository.delete({ playlistId, userId });
+    if (result.affected && result.affected > 0) {
+      // Also delete all tracks associated with this playlist download
+      await this.downloadedTrackRepository.delete({ sourcePlaylistId: playlistId, userId });
+      return true;
+    }
+    return false;
   }
 
-  async getDownloadedTracksByUser(userId: string): Promise<DownloadedTrack[]> {
-    return this.downloadedTrackRepository.find({ where: { userId } });
-  }
-
-  async getDownloadedPlaylistsByUser(userId: string): Promise<DownloadedPlaylist[]> {
-    return this.downloadedPlaylistRepository.find({ where: { userId } });
+  async getDownloadedTracksByPlaylistIds(
+    userId: string,
+    playlistIds: string[]
+  ): Promise<DownloadedTrack[]> {
+    if (!playlistIds.length) return [];
+    return this.downloadedTrackRepository
+      .createQueryBuilder('dt')
+      .leftJoinAndSelect('dt.track', 'track')
+      .leftJoinAndSelect('track.user', 'artist')
+      .leftJoinAndSelect('track.genre', 'genre')
+      .where('dt.userId = :userId', { userId })
+      .andWhere('dt.source = :source', { source: DownloadSource.PLAYLIST })
+      .andWhere('dt.sourcePlaylistId IN (:...playlistIds)', { playlistIds })
+      .andWhere('dt.status = :status', { status: DownloadStatus.COMPLETED })
+      .orderBy('dt.downloadedAt', 'ASC')
+      .getMany();
   }
 
   async getDownloadedTrack(
