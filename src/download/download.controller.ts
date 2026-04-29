@@ -3,12 +3,20 @@ import { ApiTags } from '@nestjs/swagger';
 import { DownloadService } from './download.service';
 import { Plans } from '../authentication/decorators/plans.decorator';
 import { CurrentUser } from '../authentication/decorators/current-user.decorator';
+import {
+  ApiDownloadTrack,
+  ApiDeleteDownloadedTrack,
+  ApiDownloadPlaylist,
+  ApiDeleteDownloadedPlaylist,
+  ApiGetDownloadedList,
+} from './download.swagger';
 
 @ApiTags('Download')
 @Controller('download')
 export class DownloadController {
   constructor(private readonly downloadService: DownloadService) {}
 
+  @ApiDownloadTrack()
   @Plans('pro', 'go+')
   @Post('track/:track_id')
   async downloadTrack(
@@ -19,6 +27,7 @@ export class DownloadController {
     return this.downloadService.downloadTrack(trackId, userId, ip);
   }
 
+  @ApiDeleteDownloadedTrack()
   @Plans('pro', 'go+')
   @Delete('track/:track_id')
   async deleteDownloadedTrack(
@@ -28,6 +37,7 @@ export class DownloadController {
     return this.downloadService.deleteDownloadedTrack(trackId, userId);
   }
 
+  @ApiDownloadPlaylist()
   @Plans('pro', 'go+')
   @Post('playlist/:playlist_id')
   async downloadPlaylist(
@@ -38,6 +48,7 @@ export class DownloadController {
     return this.downloadService.downloadPlaylist(playlistId, userId, ip);
   }
 
+  @ApiDeleteDownloadedPlaylist()
   @Plans('pro', 'go+')
   @Delete('playlist/:playlist_id')
   async deleteDownloadedPlaylist(
@@ -47,6 +58,7 @@ export class DownloadController {
     return this.downloadService.deleteDownloadedPlaylist(playlistId, userId);
   }
 
+  @ApiGetDownloadedList()
   @Plans('pro', 'go+')
   @Get('/list')
   async getDownloadedList(
