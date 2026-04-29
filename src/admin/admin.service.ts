@@ -1,4 +1,9 @@
-import { BadRequestException, ForbiddenException, Injectable } from '@nestjs/common';
+import {
+  BadRequestException,
+  ForbiddenException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Report } from './entities/report.entity';
@@ -8,6 +13,9 @@ import { TrackService } from '../track/track.service';
 import { TrackRepository } from '../track/track.repository';
 import { UserRepository } from '../user/user.repository';
 
+import { AdminRepository } from './admin.repository';
+import { UserService } from '../user/user.service';
+
 @Injectable()
 export class AdminService {
   constructor(
@@ -15,7 +23,9 @@ export class AdminService {
     private readonly reportRepository: Repository<Report>,
     private readonly trackService: TrackService,
     private readonly trackRepository: TrackRepository,
-    private readonly userRepository: UserRepository
+    private readonly userRepository: UserRepository,
+    private readonly adminRepository: AdminRepository,
+    private readonly userService: UserService
   ) {}
 
   async addReport(userId: string, createReportDto: CreateReportDto) {
@@ -199,5 +209,31 @@ export class AdminService {
         target,
       },
     };
+  }
+
+  async getUsers(limit: number, offset: number, search?: string) {
+    const [users, total] = await this.adminRepository.findAllUsers(limit, offset, search);
+    return { users, total };
+  }
+
+  async suspendUser(userId: string, reason: string): Promise<void> {
+    const user = await this.userService.findById(userId);
+    if (!user) {
+      throw new NotFoundException(`User with ID ${userId} not found`);
+    }
+    await this.adminRepository.updateUserSuspensionStatus(userId, true, reason);
+  }
+
+  async reactivateUser(userId: string): Promise<void> {
+    const user = await this.userService.findById(userId);
+    if (!user) {
+      throw new NotFoundException(`User with ID ${userId} not found`);
+    }
+    // Set isSuspended to false and clear the reason
+    await this.adminRepository.updateUserSuspensionStatus(userId, false, null);
+  }
+
+  async getTopTracks() {
+    return this.adminRepository.getTopTracks();
   }
 }
