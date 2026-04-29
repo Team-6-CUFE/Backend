@@ -13,7 +13,12 @@ import { ApiTags } from '@nestjs/swagger';
 import { AdminService } from './admin.service';
 import { SuspendUserDto } from './dto/suspend-user.dto';
 import { Roles } from '../authentication/decorators/roles.decorator';
-import { ApiGetAllUsers, ApiSuspendUser, ApiReactivateUser } from './admin.swagger';
+import {
+  ApiGetAllUsers,
+  ApiSuspendUser,
+  ApiReactivateUser,
+  ApiGetAllTracksWithReportCount,
+} from './admin.swagger';
 
 @Roles('admin')
 @ApiTags('Admin')
@@ -82,5 +87,12 @@ export class AdminController {
         tracks,
       },
     };
+  }
+
+  @Roles('admin')
+  @ApiGetAllTracksWithReportCount()
+  @Get('tracks')
+  getAllTracksWithReportCount(@Query('page') page: number = 1, @Query('limit') limit: number = 20) {
+    return this.adminService.getAllTracksWithReportCount(page, limit);
   }
 }
