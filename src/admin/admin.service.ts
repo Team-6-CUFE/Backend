@@ -30,4 +30,8 @@ export class AdminService {
     // Set isSuspended to false and clear the reason
     await this.adminRepository.updateUserSuspensionStatus(userId, false, null);
   }
+
+  async getTopTracks() {
+    return this.adminRepository.getTopTracks();
+  }
 }

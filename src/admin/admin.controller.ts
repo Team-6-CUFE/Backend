@@ -16,13 +16,13 @@ import { Roles } from '../authentication/decorators/roles.decorator';
 import { ApiGetAllUsers, ApiSuspendUser, ApiReactivateUser } from './admin.swagger';
 
 @Roles('admin')
-@ApiTags('Admin Users')
-@Controller('admin/users')
+@ApiTags('Admin')
+@Controller('admin')
 export class AdminController {
   constructor(private readonly adminService: AdminService) {}
 
   @ApiGetAllUsers()
-  @Get()
+  @Get('users')
   async getUsers(
     @Query('limit', new DefaultValuePipe(20), ParseIntPipe) limit: number,
     @Query('offset', new DefaultValuePipe(0), ParseIntPipe) offset: number,
@@ -46,7 +46,7 @@ export class AdminController {
     };
   }
 
-  @Patch(':user_id/suspend')
+  @Patch('users/:user_id/suspend')
   @ApiSuspendUser()
   async suspendUser(
     @Param('user_id', ParseUUIDPipe) userId: string,
@@ -60,7 +60,7 @@ export class AdminController {
     };
   }
 
-  @Patch(':user_id/reactivate')
+  @Patch('users/:user_id/reactivate')
   @ApiReactivateUser()
   async reactivateUser(@Param('user_id', ParseUUIDPipe) userId: string) {
     await this.adminService.reactivateUser(userId);
@@ -68,6 +68,19 @@ export class AdminController {
     return {
       status: 'success',
       message: 'User reactivated successfully',
+    };
+  }
+
+  // @ApiGetTopTracks()
+  @Get('tracks/top')
+  async getTopTracks() {
+    const tracks = await this.adminService.getTopTracks();
+
+    return {
+      status: 'success',
+      data: {
+        tracks,
+      },
     };
   }
 }

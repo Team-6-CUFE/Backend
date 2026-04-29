@@ -5,13 +5,11 @@ import { AdminService } from './admin.service';
 import { AdminRepository } from './admin.repository';
 import { User } from '../user/entities/user.entity';
 import { UserModule } from '../user/user.module';
+import { Track } from '../track/entities/track.entity';
 
 @Module({
-  imports: [
-    TypeOrmModule.forFeature([User]), // Tells TypeORM to make the User repository available here
-    UserModule, // Makes UserService available to AdminService
-  ],
+  imports: [TypeOrmModule.forFeature([User, Track]), UserModule],
   controllers: [AdminController],
-  providers: [AdminService, AdminRepository], // Registering both your service and repository here!
+  providers: [AdminService, AdminRepository],
 })
 export class AdminModule {}
