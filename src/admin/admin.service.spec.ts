@@ -1,8 +1,14 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { NotFoundException } from '@nestjs/common';
+import { getRepositoryToken } from '@nestjs/typeorm';
 import { AdminService } from './admin.service';
 import { AdminRepository } from './admin.repository';
 import { UserService } from '../user/user.service';
+import { Report } from './entities/report.entity';
+
+import { TrackService } from '../track/track.service';
+import { TrackRepository } from '../track/track.repository';
+import { UserRepository } from '../user/user.repository';
 
 describe('AdminService', () => {
   let service: AdminService;
@@ -10,7 +16,14 @@ describe('AdminService', () => {
   let userService: jest.Mocked<UserService>;
 
   const mockUser = { id: 'user-123', username: 'testuser' };
-
+  const mockReportRepository = {
+    findOne: jest.fn(),
+    findAndCount: jest.fn(),
+    create: jest.fn(),
+    save: jest.fn(),
+    update: jest.fn(),
+    delete: jest.fn(),
+  };
   beforeEach(async () => {
     // Create mock providers
     const mockAdminRepository = {
@@ -21,12 +34,27 @@ describe('AdminService', () => {
     const mockUserService = {
       findById: jest.fn(),
     };
+    const mockTrackService = {
+      getTrackById: jest.fn(),
+    };
+
+    const mockTrackRepository = {
+      findCommentById: jest.fn(),
+    };
+
+    const mockUserRepository = {
+      findById: jest.fn(),
+    };
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         AdminService,
         { provide: AdminRepository, useValue: mockAdminRepository },
         { provide: UserService, useValue: mockUserService },
+        { provide: getRepositoryToken(Report), useValue: mockReportRepository },
+        { provide: TrackService, useValue: mockTrackService }, // 👈
+        { provide: TrackRepository, useValue: mockTrackRepository }, // 👈
+        { provide: UserRepository, useValue: mockUserRepository }, // 👈
       ],
     }).compile();
 
