@@ -30,6 +30,7 @@ describe('AdminService', () => {
       updateUserSuspensionStatus: jest.fn(),
       getTopTracks: jest.fn(),
       getPlatformStats: jest.fn(),
+      getEngagementAnalytics30Days: jest.fn(),
     };
 
     const mockUserService = {
@@ -166,6 +167,28 @@ describe('AdminService', () => {
 
       expect(adminRepository.getPlatformStats).toHaveBeenCalledTimes(1);
       expect(result).toEqual(mockStats);
+    });
+  });
+
+  describe('getEngagementAnalytics', () => {
+    it('should return 30-day engagement analytics from the repository', async () => {
+      const mockTimeline = [
+        {
+          date: '2026-04-20',
+          activeUsers: 85,
+          uploads: 5,
+          plays: 120,
+          likes: 45,
+          reposts: 10,
+        },
+      ];
+
+      adminRepository.getEngagementAnalytics30Days.mockResolvedValue(mockTimeline as any);
+
+      const result = await service.getEngagementAnalytics();
+
+      expect(adminRepository.getEngagementAnalytics30Days).toHaveBeenCalledTimes(1);
+      expect(result).toEqual(mockTimeline);
     });
   });
 });

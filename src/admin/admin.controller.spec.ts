@@ -14,6 +14,7 @@ describe('AdminController', () => {
       reactivateUser: jest.fn(),
       getTopTracks: jest.fn(),
       getPlatformStats: jest.fn(),
+      getEngagementAnalytics: jest.fn(),
     };
 
     const module: TestingModule = await Test.createTestingModule({
@@ -137,6 +138,33 @@ describe('AdminController', () => {
       expect(result).toEqual({
         status: 'success',
         data: mockStats,
+      });
+    });
+  });
+
+  describe('getEngagementAnalytics', () => {
+    it('should return a success response containing the 30-day engagement timeline', async () => {
+      const mockTimeline = [
+        {
+          date: '2026-04-20',
+          activeUsers: 85,
+          uploads: 5,
+          plays: 120,
+          likes: 45,
+          reposts: 10,
+        },
+      ];
+
+      adminService.getEngagementAnalytics.mockResolvedValue(mockTimeline as any);
+
+      const result = await controller.getEngagementAnalytics();
+
+      expect(adminService.getEngagementAnalytics).toHaveBeenCalledTimes(1);
+      expect(result).toEqual({
+        status: 'success',
+        data: {
+          timeline: mockTimeline,
+        },
       });
     });
   });
