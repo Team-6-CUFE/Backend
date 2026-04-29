@@ -25,9 +25,6 @@ export class Report extends BaseEntity {
   @Column({ type: 'enum', enum: ReportStatus, default: ReportStatus.PENDING })
   status!: ReportStatus;
 
-  @Column({ name: 'reviewed_by', type: 'uuid', nullable: true })
-  reviewedBy!: string; // admin userId who acted on it
-
   @Column({ name: 'reviewed_at', type: 'timestamp', nullable: true })
   reviewedAt!: Date;
 }

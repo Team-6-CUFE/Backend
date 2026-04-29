@@ -15,6 +15,7 @@ import { TrackPlay } from './entities/track-play.entity';
 import { RecentlyPlayed, RecentlyPlayedItemType } from './entities/recently-played.entity';
 import { mapTrack, addDocuments, updateDocument, deleteDocument } from '../search/indexing';
 import { DownloadedTrack } from '../download/entities/downloaded-tracks.entity';
+import { ReportType } from '../admin/report-enums';
 
 const RECENTLY_PLAYED_LIMIT = 6;
 
@@ -940,5 +941,32 @@ export class TrackRepository {
       .skip((page - 1) * limit)
       .take(limit)
       .getManyAndCount();
+  }
+
+  async findAllTracksWithReportCount(page: number, limit: number) {
+    const { entities, raw } = await this.trackRepository
+      .createQueryBuilder('track')
+      .addSelect(
+        (qb) =>
+          qb
+            .select('COUNT(r.report_id)', 'reportsCount')
+            .from('reports', 'r')
+            .where('r.target_id = track.track_id')
+            .andWhere('r.type = :type', { type: ReportType.TRACK }),
+        'reportsCount'
+      )
+      .skip((page - 1) * limit)
+      .take(limit)
+      .orderBy('track.createdAt', 'DESC')
+      .getRawAndEntities();
+
+    const total = await this.trackRepository.count();
+
+    const tracks = entities.map((track, index) => ({
+      ...track,
+      reportsCount: parseInt(raw[index]?.reportsCount ?? '0', 10),
+    }));
+
+    return { tracks, total };
   }
 }
