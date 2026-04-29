@@ -3,6 +3,8 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, Brackets } from 'typeorm';
 import { User } from '../user/entities/user.entity';
 import { Track } from '../track/entities/track.entity';
+import { Report } from './entities/report.entity';
+import { ReportStatus } from './report-enums';
 
 @Injectable()
 export class AdminRepository {
@@ -10,7 +12,9 @@ export class AdminRepository {
     @InjectRepository(User)
     private readonly userRepository: Repository<User>,
     @InjectRepository(Track)
-    private readonly trackRepository: Repository<Track>
+    private readonly trackRepository: Repository<Track>,
+    @InjectRepository(Report)
+    private readonly reportRepository: Repository<Report>
   ) {}
 
   async findAllUsers(limit: number, offset: number, search?: string): Promise<[User[], number]> {
@@ -64,5 +68,27 @@ export class AdminRepository {
         },
       },
     });
+  }
+
+  async getPlatformStats() {
+    const [activeUsers, totalUploads, openReports, totalPlaysResult] = await Promise.all([
+      this.userRepository.count({ where: { isSuspended: false } }),
+
+      this.trackRepository.count(),
+
+      this.reportRepository.count({ where: { status: ReportStatus.PENDING } }),
+
+      this.trackRepository
+        .createQueryBuilder('track')
+        .select('SUM(track.playCount)', 'sum')
+        .getRawOne(),
+    ]);
+
+    return {
+      activeUsers,
+      totalPlays: parseInt(totalPlaysResult?.sum || '0', 10),
+      totalUploads,
+      openReports,
+    };
   }
 }

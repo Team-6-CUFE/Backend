@@ -229,11 +229,14 @@ export class AdminService {
     if (!user) {
       throw new NotFoundException(`User with ID ${userId} not found`);
     }
-    // Set isSuspended to false and clear the reason
     await this.adminRepository.updateUserSuspensionStatus(userId, false, null);
   }
 
   async getTopTracks() {
     return this.adminRepository.getTopTracks();
+  }
+
+  async getPlatformStats() {
+    return this.adminRepository.getPlatformStats();
   }
 }

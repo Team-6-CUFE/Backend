@@ -18,6 +18,7 @@ import {
   ApiSuspendUser,
   ApiReactivateUser,
   ApiGetTopTracks,
+  ApiGetPlatformStats,
 } from './admin.swagger';
 
 @Roles('admin')
@@ -86,6 +87,17 @@ export class AdminController {
       data: {
         tracks,
       },
+    };
+  }
+
+  @ApiGetPlatformStats()
+  @Get('stats')
+  async getPlatformStats() {
+    const stats = await this.adminService.getPlatformStats();
+
+    return {
+      status: 'success',
+      data: stats,
     };
   }
 }
