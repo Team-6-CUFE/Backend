@@ -27,6 +27,7 @@ import { FansJobProcessor } from './listeners/fans-job.processor';
 import { ActivityModule } from '../activity/activity.module';
 import { NotificationsModule } from '../notifications/notifications.module';
 import { FfmpegService } from '../audio/ffmpeg.service';
+import { DownloadedTrack } from '../download/entities/downloaded-tracks.entity';
 
 @Module({
   imports: [
@@ -40,6 +41,7 @@ import { FfmpegService } from '../audio/ffmpeg.service';
       RecentlyPlayed,
       TrackFirstFan,
       Settings,
+      DownloadedTrack,
     ]),
     PlaylistModule,
     NotificationsModule,

@@ -14,6 +14,7 @@ import { TrackVisibility } from './enums/track-visibility.enum';
 import { TrackPlay } from './entities/track-play.entity';
 import { RecentlyPlayed, RecentlyPlayedItemType } from './entities/recently-played.entity';
 import { mapTrack, addDocuments, updateDocument, deleteDocument } from '../search/indexing';
+import { DownloadedTrack } from '../download/entities/downloaded-tracks.entity';
 import { ReportType } from '../admin/report-enums';
 
 const RECENTLY_PLAYED_LIMIT = 6;
@@ -40,7 +41,10 @@ export class TrackRepository {
     private readonly trackPlayRepository: Repository<TrackPlay>,
 
     @InjectRepository(RecentlyPlayed)
-    private readonly recentlyPlayedRepository: Repository<RecentlyPlayed>
+    private readonly recentlyPlayedRepository: Repository<RecentlyPlayed>,
+
+    @InjectRepository(DownloadedTrack)
+    private readonly downloadedTrackRepository: Repository<DownloadedTrack>
   ) {}
 
   async findById(trackId: string): Promise<Track | null> {
@@ -552,7 +556,15 @@ export class TrackRepository {
     totalLikes: number;
     totalComments: number;
   }> {
-    const totalDownloads = 0; // TODO: add download count to track entity in module 12
+    const { totalDownloads } = await this.downloadedTrackRepository
+      .createQueryBuilder('download')
+      .innerJoin('download.track', 'track')
+      .where('track.userId = :userId', { userId })
+      .select('COUNT(DISTINCT(download.userId, download.trackId))', 'totalDownloads')
+      .getRawOne();
+
+    console.log('Total Downloads Raw Result:', totalDownloads);
+
     const { totalPlays, totalReposts, totalLikes, totalComments } = await this.trackRepository
       .createQueryBuilder('track')
       .select('SUM(track.playCount)', 'totalPlays')
@@ -906,28 +918,29 @@ export class TrackRepository {
     return tracks;
   }
 
-  async isTrackDownloadable(trackId: string): Promise<boolean> {
-    const track = await this.trackRepository.findOne({
-      where: { trackId },
-      select: ['offlineListening'],
-    });
-
-    return track?.offlineListening ?? false;
-  }
-
-  async isPrivate(trackId: string): Promise<boolean> {
-    const track = await this.trackRepository.findOne({
-      where: { trackId },
-      select: ['visibility'],
-    });
-    return track?.visibility === TrackVisibility.PRIVATE;
-  }
-
   async updateTrackCommentSettings(trackId: string, allowComments: boolean, showComments: boolean) {
     await this.trackRepository.update(trackId, {
       allowComments,
       showComments,
     });
+  }
+
+  async getDownloadedTracksByUser(
+    userId: string,
+    page: number = 1,
+    limit: number = 10
+  ): Promise<[Track[], number]> {
+    return this.trackRepository
+      .createQueryBuilder('track')
+      .innerJoin('track.downloads', 'download')
+      .leftJoinAndSelect('track.user', 'artist')
+      .leftJoinAndSelect('track.genre', 'genre')
+      .addSelect('download.downloadedAt')
+      .where('download.userId = :userId', { userId })
+      .orderBy('download.downloadedAt', 'DESC')
+      .skip((page - 1) * limit)
+      .take(limit)
+      .getManyAndCount();
   }
 
   async findAllTracksWithReportCount(page: number, limit: number) {
