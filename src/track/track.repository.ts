@@ -905,27 +905,28 @@ export class TrackRepository {
     return tracks;
   }
 
-  async isTrackDownloadable(trackId: string): Promise<boolean> {
-    const track = await this.trackRepository.findOne({
-      where: { trackId },
-      select: ['offlineListening'],
-    });
-
-    return track?.offlineListening ?? false;
-  }
-
-  async isPrivate(trackId: string): Promise<boolean> {
-    const track = await this.trackRepository.findOne({
-      where: { trackId },
-      select: ['visibility'],
-    });
-    return track?.visibility === TrackVisibility.PRIVATE;
-  }
-
   async updateTrackCommentSettings(trackId: string, allowComments: boolean, showComments: boolean) {
     await this.trackRepository.update(trackId, {
       allowComments,
       showComments,
     });
+  }
+
+  async getDownloadedTracksByUser(
+    userId: string,
+    page: number = 1,
+    limit: number = 10
+  ): Promise<[Track[], number]> {
+    return this.trackRepository
+      .createQueryBuilder('track')
+      .innerJoin('track.downloads', 'download')
+      .leftJoinAndSelect('track.user', 'artist')
+      .leftJoinAndSelect('track.genre', 'genre')
+      .addSelect('download.downloadedAt')
+      .where('download.userId = :userId', { userId })
+      .orderBy('download.downloadedAt', 'DESC')
+      .skip((page - 1) * limit)
+      .take(limit)
+      .getManyAndCount();
   }
 }
