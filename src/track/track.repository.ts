@@ -14,6 +14,7 @@ import { TrackVisibility } from './enums/track-visibility.enum';
 import { TrackPlay } from './entities/track-play.entity';
 import { RecentlyPlayed, RecentlyPlayedItemType } from './entities/recently-played.entity';
 import { mapTrack, addDocuments, updateDocument, deleteDocument } from '../search/indexing';
+import { DownloadedTrack } from '../download/entities/downloaded-tracks.entity';
 
 const RECENTLY_PLAYED_LIMIT = 6;
 
@@ -39,7 +40,10 @@ export class TrackRepository {
     private readonly trackPlayRepository: Repository<TrackPlay>,
 
     @InjectRepository(RecentlyPlayed)
-    private readonly recentlyPlayedRepository: Repository<RecentlyPlayed>
+    private readonly recentlyPlayedRepository: Repository<RecentlyPlayed>,
+
+    @InjectRepository(DownloadedTrack)
+    private readonly downloadedTrackRepository: Repository<DownloadedTrack>
   ) {}
 
   async findById(trackId: string): Promise<Track | null> {
@@ -551,7 +555,15 @@ export class TrackRepository {
     totalLikes: number;
     totalComments: number;
   }> {
-    const totalDownloads = 0; // TODO: add download count to track entity in module 12
+    const { totalDownloads } = await this.downloadedTrackRepository
+      .createQueryBuilder('download')
+      .innerJoin('download.track', 'track')
+      .where('track.userId = :userId', { userId })
+      .select('COUNT(DISTINCT(download.userId, download.trackId))', 'totalDownloads')
+      .getRawOne();
+
+    console.log('Total Downloads Raw Result:', totalDownloads);
+
     const { totalPlays, totalReposts, totalLikes, totalComments } = await this.trackRepository
       .createQueryBuilder('track')
       .select('SUM(track.playCount)', 'totalPlays')
