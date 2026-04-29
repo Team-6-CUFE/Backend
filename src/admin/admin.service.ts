@@ -236,4 +236,19 @@ export class AdminService {
   async getTopTracks() {
     return this.adminRepository.getTopTracks();
   }
+
+  async getAllTracksWithReportCount(page: number = 1, limit: number = 20) {
+    const { tracks, total } = await this.trackRepository.findAllTracksWithReportCount(page, limit);
+
+    return {
+      status: 'success',
+      data: tracks,
+      meta: {
+        total,
+        page,
+        limit,
+        totalPages: Math.ceil(total / limit),
+      },
+    };
+  }
 }
