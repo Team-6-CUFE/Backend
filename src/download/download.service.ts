@@ -246,7 +246,7 @@ export class DownloadService {
       trackId: track.trackId,
       title: track.title,
       coverImage: track.coverImage,
-      audioUrl: track.audioUrl,
+      audioUrl: track.audioUrlHq,
       waveformUrl: track.waveformUrl,
       durationSeconds: track.durationSeconds,
       playCount: track.playCount,
