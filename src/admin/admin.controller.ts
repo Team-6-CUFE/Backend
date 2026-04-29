@@ -20,6 +20,7 @@ import {
   ApiGetTopTracks,
   ApiGetPlatformStats,
   ApiGetEngagementAnalytics,
+  ApiGetAllTracksWithReportCount,
 } from './admin.swagger';
 
 @Roles('admin')
@@ -113,5 +114,11 @@ export class AdminController {
         timeline: analytics,
       },
     };
+  }
+
+  @ApiGetAllTracksWithReportCount()
+  @Get('tracks')
+  getAllTracksWithReportCount(@Query('page') page: number = 1, @Query('limit') limit: number = 20) {
+    return this.adminService.getAllTracksWithReportCount(page, limit);
   }
 }

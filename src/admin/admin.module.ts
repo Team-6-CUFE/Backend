@@ -9,9 +9,9 @@ import { UserModule } from '../user/user.module';
 import { User } from '../user/entities/user.entity';
 import { Track } from '../track/entities/track.entity';
 import { AdminRepository } from './admin.repository';
-import { RecentlyPlayed } from '../track/entities/recently-played.entity';
 import { TrackLikes } from '../track/entities/track-likes.entity';
 import { TrackRepost } from '../track/entities/track-reposts.entity';
+import { RecentlyPlayed } from '../track/entities/recently-played.entity';
 
 @Module({
   imports: [

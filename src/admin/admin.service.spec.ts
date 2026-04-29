@@ -1,14 +1,15 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { NotFoundException } from '@nestjs/common';
+import { NotFoundException, BadRequestException, ForbiddenException } from '@nestjs/common';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { AdminService } from './admin.service';
 import { AdminRepository } from './admin.repository';
 import { UserService } from '../user/user.service';
-import { Report } from './entities/report.entity';
-
 import { TrackService } from '../track/track.service';
 import { TrackRepository } from '../track/track.repository';
 import { UserRepository } from '../user/user.repository';
+import { Report } from './entities/report.entity';
+import { ReportStatus, ReportType, ReportReason } from './report-enums';
+import { CreateReportDto } from './dto/createReport.dto';
 
 describe('AdminService', () => {
   let service: AdminService;
@@ -16,6 +17,7 @@ describe('AdminService', () => {
   let userService: jest.Mocked<UserService>;
 
   const mockUser = { id: 'user-123', username: 'testuser' };
+
   const mockReportRepository = {
     findOne: jest.fn(),
     findAndCount: jest.fn(),
@@ -24,6 +26,24 @@ describe('AdminService', () => {
     update: jest.fn(),
     delete: jest.fn(),
   };
+
+  const mockUserService = {
+    findById: jest.fn(),
+  };
+
+  const mockTrackService = {
+    getTrackById: jest.fn(),
+  };
+
+  const mockTrackRepository = {
+    findCommentById: jest.fn(),
+    findAllTracksWithReportCount: jest.fn(),
+  };
+
+  const mockUserRepository = {
+    findById: jest.fn(),
+  };
+
   beforeEach(async () => {
     const mockAdminRepository = {
       findAllUsers: jest.fn(),
@@ -31,21 +51,6 @@ describe('AdminService', () => {
       getTopTracks: jest.fn(),
       getPlatformStats: jest.fn(),
       getEngagementAnalytics30Days: jest.fn(),
-    };
-
-    const mockUserService = {
-      findById: jest.fn(),
-    };
-    const mockTrackService = {
-      getTrackById: jest.fn(),
-    };
-
-    const mockTrackRepository = {
-      findCommentById: jest.fn(),
-    };
-
-    const mockUserRepository = {
-      findById: jest.fn(),
     };
 
     const module: TestingModule = await Test.createTestingModule({
@@ -64,6 +69,8 @@ describe('AdminService', () => {
     adminRepository = module.get(AdminRepository);
     userService = module.get(UserService);
   });
+
+  afterEach(() => jest.clearAllMocks());
 
   it('should be defined', () => {
     expect(service).toBeDefined();
@@ -189,6 +196,207 @@ describe('AdminService', () => {
 
       expect(adminRepository.getEngagementAnalytics30Days).toHaveBeenCalledTimes(1);
       expect(result).toEqual(mockTimeline);
+    });
+  }); // 👈 Here are the fully restored closing brackets!
+
+  describe('addReport', () => {
+    it('should submit a report successfully', async () => {
+      const userId = 'user-123';
+      const dto: CreateReportDto = {
+        type: ReportType.TRACK,
+        targetId: 'track-123',
+        reason: ReportReason.COPYRIGHT,
+        description: 'Stolen',
+      };
+      mockReportRepository.findOne.mockResolvedValue(null);
+      mockTrackService.getTrackById.mockResolvedValue({ userId: 'other-user' });
+      mockReportRepository.create.mockReturnValue({ ...dto, reporterId: userId });
+      mockReportRepository.save.mockResolvedValue(undefined);
+
+      const result = await service.addReport(userId, dto);
+
+      expect(result.status).toBe('success');
+      expect(result.message).toBe('Report submitted successfully');
+    });
+
+    it('should throw BadRequestException if report already exists', async () => {
+      mockReportRepository.findOne.mockResolvedValue({ reportId: 'existing' });
+
+      await expect(
+        service.addReport('user-123', {
+          type: ReportType.TRACK,
+          targetId: 'track-123',
+          reason: ReportReason.COPYRIGHT,
+        } as CreateReportDto)
+      ).rejects.toThrow(BadRequestException);
+    });
+
+    it('should throw ForbiddenException if user reports themselves', async () => {
+      mockReportRepository.findOne.mockResolvedValue(null);
+
+      await expect(
+        service.addReport('user-123', {
+          type: ReportType.USER,
+          targetId: 'user-123',
+          reason: ReportReason.SPAM,
+        } as CreateReportDto)
+      ).rejects.toThrow(ForbiddenException);
+    });
+
+    it('should throw ForbiddenException if user reports their own track', async () => {
+      mockReportRepository.findOne.mockResolvedValue(null);
+      mockTrackService.getTrackById.mockResolvedValue({ userId: 'user-123' });
+
+      await expect(
+        service.addReport('user-123', {
+          type: ReportType.TRACK,
+          targetId: 'track-123',
+          reason: ReportReason.COPYRIGHT,
+        } as CreateReportDto)
+      ).rejects.toThrow(ForbiddenException);
+    });
+
+    it('should throw ForbiddenException if user reports their own comment', async () => {
+      mockReportRepository.findOne.mockResolvedValue(null);
+      mockTrackRepository.findCommentById.mockResolvedValue({
+        commentId: 'c-1',
+        userId: 'user-123',
+        content: 'hi',
+      });
+
+      await expect(
+        service.addReport('user-123', {
+          type: ReportType.COMMENT,
+          targetId: 'comment-123',
+          reason: ReportReason.SPAM,
+        } as CreateReportDto)
+      ).rejects.toThrow(ForbiddenException);
+    });
+  });
+
+  describe('getAllReports', () => {
+    it('should return paginated enriched reports', async () => {
+      const mockReport = {
+        reportId: 'r-1',
+        reporterId: 'user-123',
+        targetId: 'track-123',
+        type: ReportType.TRACK,
+        reason: ReportReason.COPYRIGHT,
+        status: ReportStatus.PENDING,
+      };
+      mockReportRepository.findAndCount.mockResolvedValue([[mockReport], 1]);
+      mockUserRepository.findById.mockResolvedValue({
+        userId: 'user-123',
+        username: 'dj_nour',
+        displayName: 'DJ Nour',
+        avatarUrl: null,
+        coverPhoto: null,
+      });
+      mockTrackService.getTrackById.mockResolvedValue({
+        trackId: 'track-123',
+        title: 'Midnight Drive',
+        coverImage: null,
+      });
+
+      const result = await service.getAllReports(1, 20);
+
+      expect(result.status).toBe('success');
+      expect(result.data).toHaveLength(1);
+      expect(result.meta.total).toBe(1);
+    });
+  });
+
+  describe('deleteReport', () => {
+    it('should delete a report successfully', async () => {
+      mockReportRepository.findOne.mockResolvedValue({ reportId: 'r-1' });
+      mockReportRepository.delete.mockResolvedValue(undefined);
+
+      const result = await service.deleteReport('r-1');
+
+      expect(result.status).toBe('success');
+      expect(mockReportRepository.delete).toHaveBeenCalledWith('r-1');
+    });
+
+    it('should throw BadRequestException if report not found', async () => {
+      mockReportRepository.findOne.mockResolvedValue(null);
+
+      await expect(service.deleteReport('non-existent')).rejects.toThrow(BadRequestException);
+    });
+  });
+
+  describe('updateReportStatus', () => {
+    it('should update report status successfully', async () => {
+      mockReportRepository.findOne.mockResolvedValue({ reportId: 'r-1' });
+      mockReportRepository.update.mockResolvedValue(undefined);
+
+      const result = await service.updateReportStatus(ReportStatus.RESOLVED, 'r-1');
+
+      expect(result.status).toBe('success');
+      expect(mockReportRepository.update).toHaveBeenCalledWith('r-1', {
+        status: ReportStatus.RESOLVED,
+        reviewedAt: expect.any(Date),
+      });
+    });
+
+    it('should throw BadRequestException if report not found', async () => {
+      mockReportRepository.findOne.mockResolvedValue(null);
+
+      await expect(
+        service.updateReportStatus(ReportStatus.RESOLVED, 'non-existent')
+      ).rejects.toThrow(BadRequestException);
+    });
+  });
+
+  describe('getReport', () => {
+    it('should return a single enriched report', async () => {
+      const mockReport = {
+        reportId: 'r-1',
+        reporterId: 'user-123',
+        targetId: 'track-123',
+        type: ReportType.TRACK,
+      };
+      mockReportRepository.findOne.mockResolvedValue(mockReport);
+      mockUserRepository.findById.mockResolvedValue({
+        userId: 'user-123',
+        username: 'dj_nour',
+        displayName: 'DJ Nour',
+        avatarUrl: null,
+        coverPhoto: null,
+      });
+      mockTrackService.getTrackById.mockResolvedValue({
+        trackId: 'track-123',
+        title: 'Midnight Drive',
+        coverImage: null,
+      });
+
+      const result = await service.getReport('r-1');
+
+      expect(result.status).toBe('success');
+      expect(result.data).toHaveProperty('reporter');
+      expect(result.data).toHaveProperty('target');
+    });
+
+    it('should throw BadRequestException if report not found', async () => {
+      mockReportRepository.findOne.mockResolvedValue(null);
+
+      await expect(service.getReport('non-existent')).rejects.toThrow(BadRequestException);
+    });
+  });
+
+  describe('getAllTracksWithReportCount', () => {
+    it('should return paginated tracks with report counts', async () => {
+      const mockTracks = [{ trackId: 'track-123', title: 'Midnight Drive', reportsCount: 3 }];
+      mockTrackRepository.findAllTracksWithReportCount.mockResolvedValue({
+        tracks: mockTracks,
+        total: 1,
+      });
+
+      const result = await service.getAllTracksWithReportCount(1, 20);
+
+      expect(result.status).toBe('success');
+      expect(result.data).toHaveLength(1);
+      expect(result.data[0]).toHaveProperty('reportsCount', 3);
+      expect(result.meta).toEqual({ total: 1, page: 1, limit: 20, totalPages: 1 });
     });
   });
 });

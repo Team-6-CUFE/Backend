@@ -302,6 +302,7 @@ export function ApiUpdateReportStatus() {
     ApiResponse({ status: 403, description: 'Forbidden — admin access only.' })
   );
 }
+
 export function ApiGetReport() {
   return applyDecorators(
     ApiBearerAuth('access_token'),
@@ -544,6 +545,64 @@ export function ApiGetTopTracks() {
         },
       },
     }),
+    ApiResponse({ status: 401, description: 'Unauthorized.' }),
+    ApiResponse({ status: 403, description: 'Forbidden. Admin role required.' })
+  );
+}
+
+export function ApiGetAllTracksWithReportCount() {
+  return applyDecorators(
+    ApiBearerAuth('access_token'),
+    ApiOperation({
+      summary: 'Get all tracks with report count (Admin only)',
+      description:
+        'Returns a paginated list of all tracks, each including the number of reports associated with it.',
+    }),
+    ApiQuery({
+      name: 'page',
+      required: false,
+      type: Number,
+      description: 'Page number (default: 1)',
+      example: 1,
+    }),
+    ApiQuery({
+      name: 'limit',
+      required: false,
+      type: Number,
+      description: 'Number of tracks per page (default: 20)',
+      example: 20,
+    }),
+    ApiResponse({
+      status: 200,
+      description: 'Paginated list of tracks with report counts.',
+      schema: {
+        example: {
+          status: 'success',
+          data: [
+            {
+              trackId: 'c7d8e9f0-1234-5678-abcd-ef0987654321',
+              title: 'Midnight Drive',
+              coverImage: 'https://cdn.harmonica.com/covers/midnight.jpg',
+              audioUrl: 'https://cdn.harmonica.com/audio/midnight.mp3',
+              userId: 'b6fc3946-ee96-4721-9118-5ca776a874f8',
+              playCount: 12000,
+              likesCount: 870,
+              repostsCount: 130,
+              commentsCount: 45,
+              createdAt: '2025-04-29T12:00:00.000Z',
+              updatedAt: '2025-04-29T12:00:00.000Z',
+              reportsCount: 3,
+            },
+          ],
+          meta: {
+            total: 100,
+            page: 1,
+            limit: 20,
+            totalPages: 5,
+          },
+        },
+      },
+    }),
     ApiResponse({
       status: 401,
       description: 'Unauthorized. The user making the request is not authenticated.',
@@ -617,6 +676,8 @@ export function ApiGetEngagementAnalytics() {
       },
     }),
     ApiResponse({ status: 401, description: 'Unauthorized.' }),
-    ApiResponse({ status: 403, description: 'Forbidden. Admin role required.' })
+    ApiResponse({ status: 403, description: 'Forbidden. Admin role required.' }),
+    ApiResponse({ status: 401, description: 'Unauthorized — missing or invalid access token.' }),
+    ApiResponse({ status: 403, description: 'Forbidden — admin access only.' })
   );
 }
