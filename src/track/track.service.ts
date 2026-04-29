@@ -909,7 +909,11 @@ export class TrackService {
   async deleteTrack(trackId: string, userId: string) {
     const track = await this.trackRepository.findById(trackId);
     if (!track) throw new NotFoundException('Track not found');
-    if (track.userId !== userId) throw new ForbiddenException('You do not own this track');
+    const user = await this.userRepository.findById(userId);
+    if (user) {
+      if (track.userId !== userId && user.role !== 'admin')
+        throw new ForbiddenException('You do not own this track');
+    }
     const oldUrls = track
       ? [track.audioUrl, track.audioUrlHq, track.previewAudioUrl, track.waveformUrl].filter(Boolean)
       : [];
