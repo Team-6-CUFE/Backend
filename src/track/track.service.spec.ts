@@ -1743,21 +1743,20 @@ describe('TrackService', () => {
       expect(trackRepo.deleteTrack).toHaveBeenCalledWith(MOCK_TRACK_ID);
       expect(result).toEqual({ status: 'success', message: 'Track deleted successfully' });
     });
+    it('should throw ForbiddenException when user does not own the track', async () => {
+      trackRepo.findById.mockResolvedValue(mockPublicTrack({ userId: MOCK_OTHER_USER_ID }));
+      userRepo.findById.mockResolvedValue({ userId: MOCK_USER_ID, role: 'user' }); // 👈 add this
 
+      await expect(service.deleteTrack(MOCK_TRACK_ID, MOCK_USER_ID)).rejects.toThrow(
+        ForbiddenException
+      );
+      expect(trackRepo.deleteTrack).not.toHaveBeenCalled();
+    });
     it('should throw NotFoundException when track does not exist', async () => {
       trackRepo.findById.mockResolvedValue(null);
 
       await expect(service.deleteTrack(MOCK_TRACK_ID, MOCK_USER_ID)).rejects.toThrow(
         NotFoundException
-      );
-      expect(trackRepo.deleteTrack).not.toHaveBeenCalled();
-    });
-
-    it('should throw ForbiddenException when user does not own the track', async () => {
-      trackRepo.findById.mockResolvedValue(mockPublicTrack({ userId: MOCK_OTHER_USER_ID }));
-
-      await expect(service.deleteTrack(MOCK_TRACK_ID, MOCK_USER_ID)).rejects.toThrow(
-        ForbiddenException
       );
       expect(trackRepo.deleteTrack).not.toHaveBeenCalled();
     });

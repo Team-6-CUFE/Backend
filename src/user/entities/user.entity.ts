@@ -70,7 +70,7 @@ export class User extends BaseEntity {
   isSuspended!: boolean;
 
   @Column({ type: 'varchar', length: 500, nullable: true, name: 'suspension_reason' })
-  suspensionReason!: string;
+  suspensionReason!: string | null;
 
   @Column({ type: 'varchar', length: 500, nullable: true, name: 'support_link' })
   supportLink!: string;
