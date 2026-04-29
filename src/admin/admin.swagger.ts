@@ -8,6 +8,7 @@ import {
   ApiParam,
 } from '@nestjs/swagger';
 import { CreateReportDto } from './dto/createReport.dto';
+import { ReportStatus } from './report-enums';
 
 export function ApiAddReport() {
   return applyDecorators(
@@ -235,6 +236,54 @@ export function ApiDeleteReport() {
         example: {
           status: 'success',
           message: 'Report deleted successfully',
+        },
+      },
+    }),
+    ApiResponse({
+      status: 400,
+      description: 'Report not found.',
+      schema: {
+        example: {
+          statusCode: 400,
+          message: 'Report not found',
+        },
+      },
+    }),
+    ApiResponse({ status: 401, description: 'Unauthorized — missing or invalid access token.' }),
+    ApiResponse({ status: 403, description: 'Forbidden — admin access only.' })
+  );
+}
+
+export function ApiUpdateReportStatus() {
+  return applyDecorators(
+    ApiBearerAuth('access_token'),
+    ApiOperation({
+      summary: 'Update report status (Admin only)',
+      description:
+        'Updates the status of a report and sets reviewedAt to the current date. ' +
+        'Throws 400 if the report does not exist.',
+    }),
+    ApiParam({
+      name: 'reportId',
+      description: 'UUID of the report to update.',
+      format: 'uuid',
+      example: 'a1b2c3d4-e5f6-7890-abcd-ef1234567890',
+    }),
+    ApiQuery({
+      name: 'status',
+      required: true,
+      enum: ReportStatus,
+      description:
+        'New status to set. Accepted values: `pending | reviewed | resolved | rejected`.',
+      example: ReportStatus.RESOLVED,
+    }),
+    ApiResponse({
+      status: 200,
+      description: 'Report status updated successfully.',
+      schema: {
+        example: {
+          status: 'success',
+          message: 'Report status updated successfully',
         },
       },
     }),

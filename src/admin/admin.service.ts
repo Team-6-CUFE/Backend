@@ -3,7 +3,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Report } from './entities/report.entity';
 import { CreateReportDto } from './dto/createReport.dto';
-import { ReportType } from './report-enums';
+import { ReportStatus, ReportType } from './report-enums';
 import { TrackService } from '../track/track.service';
 import { TrackRepository } from '../track/track.repository';
 import { UserRepository } from '../user/user.repository';
@@ -131,6 +131,23 @@ export class AdminService {
     return {
       status: 'success',
       message: 'report deleted successfully',
+    };
+  }
+
+  async updateReportStatus(status: ReportStatus, reportId: string) {
+    const report = await this.reportRepository.findOne({ where: { reportId } });
+    if (!report) {
+      throw new BadRequestException('Report not found');
+    }
+
+    await this.reportRepository.update(reportId, {
+      status,
+      reviewedAt: new Date(),
+    });
+
+    return {
+      status: 'success',
+      message: 'Report status updated successfully',
     };
   }
 }

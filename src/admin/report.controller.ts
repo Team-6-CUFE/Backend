@@ -1,10 +1,11 @@
-import { Body, Controller, Delete, Get, Param, Post, Query } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, Patch, Post, Query } from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
 import { AdminService } from './admin.service';
 import { CurrentUser } from '../authentication/decorators/current-user.decorator';
 import { CreateReportDto } from './dto/createReport.dto';
 import { ApiAddReport, ApiDeleteReport, ApiGetAllReports } from './admin.swagger';
 import { Roles } from '../authentication/decorators/roles.decorator';
+import { ReportStatus } from './report-enums';
 
 @ApiTags('Reports')
 @Controller('report')
@@ -34,5 +35,11 @@ export class ReportController {
   @Delete(':reportId')
   deleteReport(@Param('reportId') reportId: string) {
     return this.adminService.deleteReport(reportId);
+  }
+
+  @Roles('admin')
+  @Patch('update-status/:reportId')
+  updateReportStatus(@Query('status') status: ReportStatus, @Param('reportId') reportId: string) {
+    return this.adminService.updateReportStatus(status, reportId);
   }
 }
