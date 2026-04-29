@@ -100,4 +100,17 @@ export class AdminController {
       data: stats,
     };
   }
+
+  // @ApiGetEngagementAnalytics()
+  @Get('engagement')
+  async getEngagementAnalytics() {
+    const analytics = await this.adminService.getEngagementAnalytics();
+
+    return {
+      status: 'success',
+      data: {
+        timeline: analytics,
+      },
+    };
+  }
 }

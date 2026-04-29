@@ -239,4 +239,8 @@ export class AdminService {
   async getPlatformStats() {
     return this.adminRepository.getPlatformStats();
   }
+
+  async getEngagementAnalytics() {
+    return this.adminRepository.getEngagementAnalytics30Days();
+  }
 }
