@@ -554,3 +554,36 @@ export function ApiGetTopTracks() {
     })
   );
 }
+
+export function ApiGetPlatformStats() {
+  return applyDecorators(
+    ApiOperation({
+      summary: 'Retrieve platform statistics',
+      description:
+        'Fetches high-level metrics for the admin dashboard, including active users, total track plays, total uploads, and pending reports.',
+    }),
+    ApiResponse({
+      status: 200,
+      description: 'Successfully retrieved the statistics.',
+      schema: {
+        example: {
+          status: 'success',
+          data: {
+            activeUsers: 1452,
+            totalPlays: 854930,
+            totalUploads: 340,
+            openReports: 12,
+          },
+        },
+      },
+    }),
+    ApiResponse({
+      status: 401,
+      description: 'Unauthorized.',
+    }),
+    ApiResponse({
+      status: 403,
+      description: 'Forbidden. Admin role required.',
+    })
+  );
+}
