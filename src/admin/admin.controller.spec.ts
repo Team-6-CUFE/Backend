@@ -13,6 +13,7 @@ describe('AdminController', () => {
       suspendUser: jest.fn(),
       reactivateUser: jest.fn(),
       getTopTracks: jest.fn(),
+      getPlatformStats: jest.fn(),
     };
 
     const module: TestingModule = await Test.createTestingModule({
@@ -115,6 +116,27 @@ describe('AdminController', () => {
         data: {
           tracks: mockTracks,
         },
+      });
+    });
+  });
+
+  describe('getPlatformStats', () => {
+    it('should return a success response containing platform statistics', async () => {
+      const mockStats = {
+        activeUsers: 150,
+        totalPlays: 5000,
+        totalUploads: 300,
+        openReports: 5,
+      };
+
+      adminService.getPlatformStats.mockResolvedValue(mockStats);
+
+      const result = await controller.getPlatformStats();
+
+      expect(adminService.getPlatformStats).toHaveBeenCalledTimes(1);
+      expect(result).toEqual({
+        status: 'success',
+        data: mockStats,
       });
     });
   });

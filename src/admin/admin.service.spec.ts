@@ -25,11 +25,11 @@ describe('AdminService', () => {
     delete: jest.fn(),
   };
   beforeEach(async () => {
-    // Create mock providers
     const mockAdminRepository = {
       findAllUsers: jest.fn(),
       updateUserSuspensionStatus: jest.fn(),
       getTopTracks: jest.fn(),
+      getPlatformStats: jest.fn(),
     };
 
     const mockUserService = {
@@ -148,6 +148,24 @@ describe('AdminService', () => {
 
       expect(adminRepository.getTopTracks).toHaveBeenCalledTimes(1);
       expect(result).toEqual(mockTracks);
+    });
+  });
+
+  describe('getPlatformStats', () => {
+    it('should return overall platform statistics', async () => {
+      const mockStats = {
+        activeUsers: 150,
+        totalPlays: 5000,
+        totalUploads: 300,
+        openReports: 5,
+      };
+
+      adminRepository.getPlatformStats.mockResolvedValue(mockStats);
+
+      const result = await service.getPlatformStats();
+
+      expect(adminRepository.getPlatformStats).toHaveBeenCalledTimes(1);
+      expect(result).toEqual(mockStats);
     });
   });
 });
