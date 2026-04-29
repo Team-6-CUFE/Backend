@@ -19,6 +19,7 @@ import {
   ApiReactivateUser,
   ApiGetTopTracks,
   ApiGetPlatformStats,
+  ApiGetEngagementAnalytics,
 } from './admin.swagger';
 
 @Roles('admin')
@@ -101,7 +102,7 @@ export class AdminController {
     };
   }
 
-  // @ApiGetEngagementAnalytics()
+  @ApiGetEngagementAnalytics()
   @Get('engagement')
   async getEngagementAnalytics() {
     const analytics = await this.adminService.getEngagementAnalytics();

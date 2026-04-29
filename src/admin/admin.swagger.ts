@@ -587,3 +587,36 @@ export function ApiGetPlatformStats() {
     })
   );
 }
+
+export function ApiGetEngagementAnalytics() {
+  return applyDecorators(
+    ApiOperation({
+      summary: 'Retrieve 30-day engagement analytics',
+      description:
+        'Fetches daily activity metrics (active users, uploads, plays, likes, reposts) over the last 30 days.',
+    }),
+    ApiResponse({
+      status: 200,
+      description: 'Successfully retrieved the engagement timeline.',
+      schema: {
+        example: {
+          status: 'success',
+          data: {
+            timeline: [
+              {
+                date: '2026-04-20',
+                activeUsers: 85,
+                uploads: 5,
+                plays: 120,
+                likes: 45,
+                reposts: 10,
+              },
+            ],
+          },
+        },
+      },
+    }),
+    ApiResponse({ status: 401, description: 'Unauthorized.' }),
+    ApiResponse({ status: 403, description: 'Forbidden. Admin role required.' })
+  );
+}
