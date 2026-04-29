@@ -301,3 +301,66 @@ export function ApiUpdateReportStatus() {
     ApiResponse({ status: 403, description: 'Forbidden — admin access only.' })
   );
 }
+export function ApiGetReport() {
+  return applyDecorators(
+    ApiBearerAuth('access_token'),
+    ApiOperation({
+      summary: 'Get a report by ID (Admin only)',
+      description:
+        'Returns a single report enriched with reporter and target details. ' +
+        'Target details vary by report type: user reports return user profile info, ' +
+        'track reports return track title and cover image, ' +
+        'comment reports return comment content and author.',
+    }),
+    ApiParam({
+      name: 'reportId',
+      description: 'UUID of the report to retrieve.',
+      format: 'uuid',
+      example: 'a1b2c3d4-e5f6-7890-abcd-ef1234567890',
+    }),
+    ApiResponse({
+      status: 200,
+      description: 'Report retrieved successfully.',
+      schema: {
+        example: {
+          status: 'success',
+          data: {
+            reportId: 'a1b2c3d4-e5f6-7890-abcd-ef1234567890',
+            type: 'track',
+            reason: 'copyright',
+            description: 'This track uses my original composition without permission.',
+            status: 'pending',
+            reviewedBy: null,
+            reviewedAt: null,
+            createdAt: '2025-04-29T12:00:00.000Z',
+            updatedAt: '2025-04-29T12:00:00.000Z',
+            reporter: {
+              userId: 'b6fc3946-ee96-4721-9118-5ca776a874f8',
+              username: 'dj_nour',
+              displayName: 'DJ Nour',
+              avatarUrl: 'https://cdn.harmonica.com/avatars/dj_nour.jpg',
+              coverPhoto: 'https://cdn.harmonica.com/covers/dj_nour.jpg',
+            },
+            target: {
+              trackId: 'c7d8e9f0-1234-5678-abcd-ef0987654321',
+              title: 'Midnight Drive',
+              coverImage: 'https://cdn.harmonica.com/covers/midnight.jpg',
+            },
+          },
+        },
+      },
+    }),
+    ApiResponse({
+      status: 400,
+      description: 'Report not found.',
+      schema: {
+        example: {
+          statusCode: 400,
+          message: 'Report not found',
+        },
+      },
+    }),
+    ApiResponse({ status: 401, description: 'Unauthorized — missing or invalid access token.' }),
+    ApiResponse({ status: 403, description: 'Forbidden — admin access only.' })
+  );
+}

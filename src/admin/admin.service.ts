@@ -150,4 +150,54 @@ export class AdminService {
       message: 'Report status updated successfully',
     };
   }
+
+  async getReport(reportId: string) {
+    const report = await this.reportRepository.findOne({ where: { reportId } });
+
+    if (!report) {
+      throw new BadRequestException('Report not found');
+    }
+
+    const reporterData = await this.userRepository.findById(report.reporterId);
+
+    const reporter = {
+      userId: reporterData?.userId,
+      username: reporterData?.username,
+      displayName: reporterData?.displayName,
+      avatarUrl: reporterData?.avatarUrl,
+      coverPhoto: reporterData?.coverPhoto,
+    };
+
+    let target = null;
+
+    if (report.type === ReportType.USER) {
+      const user = await this.userRepository.findById(report.targetId);
+      target = {
+        username: user?.username,
+        displayName: user?.displayName,
+        coverPhoto: user?.coverPhoto,
+        avatarUrl: user?.avatarUrl,
+        isPublic: user?.isPublic,
+      };
+    } else if (report.type === ReportType.TRACK) {
+      const track = await this.trackService.getTrackById(report.targetId);
+      target = { trackId: track.trackId, title: track.title, coverImage: track.coverImage };
+    } else if (report.type === ReportType.COMMENT) {
+      const comment = await this.trackRepository.findCommentById(report.targetId);
+      target = {
+        commentId: comment?.commentId,
+        userId: comment?.userId,
+        content: comment?.content,
+      };
+    }
+
+    return {
+      status: 'success',
+      data: {
+        ...report,
+        reporter,
+        target,
+      },
+    };
+  }
 }
