@@ -3,7 +3,13 @@ import { ApiTags } from '@nestjs/swagger';
 import { AdminService } from './admin.service';
 import { CurrentUser } from '../authentication/decorators/current-user.decorator';
 import { CreateReportDto } from './dto/createReport.dto';
-import { ApiAddReport, ApiDeleteReport, ApiGetAllReports, ApiGetReport } from './admin.swagger';
+import {
+  ApiAddReport,
+  ApiDeleteReport,
+  ApiGetAllReports,
+  ApiGetReport,
+  ApiUpdateReportStatus,
+} from './admin.swagger';
 import { Roles } from '../authentication/decorators/roles.decorator';
 import { ReportStatus } from './report-enums';
 
@@ -38,6 +44,7 @@ export class ReportController {
   }
 
   @Roles('admin')
+  @ApiUpdateReportStatus()
   @Patch('update-status/:reportId')
   updateReportStatus(@Query('status') status: ReportStatus, @Param('reportId') reportId: string) {
     return this.adminService.updateReportStatus(status, reportId);

@@ -48,6 +48,9 @@ describe('AdminService', () => {
     const mockAdminRepository = {
       findAllUsers: jest.fn(),
       updateUserSuspensionStatus: jest.fn(),
+      getTopTracks: jest.fn(),
+      getPlatformStats: jest.fn(),
+      getEngagementAnalytics30Days: jest.fn(),
     };
 
     const module: TestingModule = await Test.createTestingModule({
@@ -139,6 +142,62 @@ describe('AdminService', () => {
       expect(adminRepository.updateUserSuspensionStatus).not.toHaveBeenCalled();
     });
   });
+
+  describe('getTopTracks', () => {
+    it('should return the top 5 tracks from the repository', async () => {
+      const mockTracks = [
+        { trackId: '1', title: 'Banger 1', playCount: 1000 },
+        { trackId: '2', title: 'Banger 2', playCount: 800 },
+      ];
+
+      adminRepository.getTopTracks.mockResolvedValue(mockTracks as any);
+
+      const result = await service.getTopTracks();
+
+      expect(adminRepository.getTopTracks).toHaveBeenCalledTimes(1);
+      expect(result).toEqual(mockTracks);
+    });
+  });
+
+  describe('getPlatformStats', () => {
+    it('should return overall platform statistics', async () => {
+      const mockStats = {
+        activeUsers: 150,
+        totalPlays: 5000,
+        totalUploads: 300,
+        openReports: 5,
+      };
+
+      adminRepository.getPlatformStats.mockResolvedValue(mockStats);
+
+      const result = await service.getPlatformStats();
+
+      expect(adminRepository.getPlatformStats).toHaveBeenCalledTimes(1);
+      expect(result).toEqual(mockStats);
+    });
+  });
+
+  describe('getEngagementAnalytics', () => {
+    it('should return 30-day engagement analytics from the repository', async () => {
+      const mockTimeline = [
+        {
+          date: '2026-04-20',
+          activeUsers: 85,
+          uploads: 5,
+          plays: 120,
+          likes: 45,
+          reposts: 10,
+        },
+      ];
+
+      adminRepository.getEngagementAnalytics30Days.mockResolvedValue(mockTimeline as any);
+
+      const result = await service.getEngagementAnalytics();
+
+      expect(adminRepository.getEngagementAnalytics30Days).toHaveBeenCalledTimes(1);
+      expect(result).toEqual(mockTimeline);
+    });
+  }); // 👈 Here are the fully restored closing brackets!
 
   describe('addReport', () => {
     it('should submit a report successfully', async () => {

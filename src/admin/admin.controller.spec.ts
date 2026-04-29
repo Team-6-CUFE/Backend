@@ -12,6 +12,9 @@ describe('AdminController', () => {
       getUsers: jest.fn(),
       suspendUser: jest.fn(),
       reactivateUser: jest.fn(),
+      getTopTracks: jest.fn(),
+      getPlatformStats: jest.fn(),
+      getEngagementAnalytics: jest.fn(),
     };
 
     const module: TestingModule = await Test.createTestingModule({
@@ -96,6 +99,72 @@ describe('AdminController', () => {
       expect(result).toEqual({
         status: 'success',
         message: 'User reactivated successfully',
+      });
+    });
+  });
+
+  describe('getTopTracks', () => {
+    it('should return a success response containing the top tracks', async () => {
+      const mockTracks = [{ trackId: '1', title: 'Banger 1', playCount: 1000 }];
+
+      adminService.getTopTracks.mockResolvedValue(mockTracks as any);
+
+      const result = await controller.getTopTracks();
+
+      expect(adminService.getTopTracks).toHaveBeenCalledTimes(1);
+      expect(result).toEqual({
+        status: 'success',
+        data: {
+          tracks: mockTracks,
+        },
+      });
+    });
+  });
+
+  describe('getPlatformStats', () => {
+    it('should return a success response containing platform statistics', async () => {
+      const mockStats = {
+        activeUsers: 150,
+        totalPlays: 5000,
+        totalUploads: 300,
+        openReports: 5,
+      };
+
+      adminService.getPlatformStats.mockResolvedValue(mockStats);
+
+      const result = await controller.getPlatformStats();
+
+      expect(adminService.getPlatformStats).toHaveBeenCalledTimes(1);
+      expect(result).toEqual({
+        status: 'success',
+        data: mockStats,
+      });
+    });
+  });
+
+  describe('getEngagementAnalytics', () => {
+    it('should return a success response containing the 30-day engagement timeline', async () => {
+      const mockTimeline = [
+        {
+          date: '2026-04-20',
+          activeUsers: 85,
+          uploads: 5,
+          plays: 120,
+          likes: 45,
+          reposts: 10,
+        },
+      ];
+
+      adminService.getEngagementAnalytics.mockResolvedValue(mockTimeline as any);
+
+      const result = await controller.getEngagementAnalytics();
+
+      expect(adminService.getEngagementAnalytics).toHaveBeenCalledTimes(1);
+      expect(result).toEqual({
+        status: 'success',
+        data: {
+          timeline: mockTimeline,
+        },
       });
     });
   });

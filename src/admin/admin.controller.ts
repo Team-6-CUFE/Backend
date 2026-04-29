@@ -17,6 +17,9 @@ import {
   ApiGetAllUsers,
   ApiSuspendUser,
   ApiReactivateUser,
+  ApiGetTopTracks,
+  ApiGetPlatformStats,
+  ApiGetEngagementAnalytics,
   ApiGetAllTracksWithReportCount,
 } from './admin.swagger';
 
@@ -76,7 +79,7 @@ export class AdminController {
     };
   }
 
-  // @ApiGetTopTracks()
+  @ApiGetTopTracks()
   @Get('tracks/top')
   async getTopTracks() {
     const tracks = await this.adminService.getTopTracks();
@@ -89,7 +92,30 @@ export class AdminController {
     };
   }
 
-  @Roles('admin')
+  @ApiGetPlatformStats()
+  @Get('stats')
+  async getPlatformStats() {
+    const stats = await this.adminService.getPlatformStats();
+
+    return {
+      status: 'success',
+      data: stats,
+    };
+  }
+
+  @ApiGetEngagementAnalytics()
+  @Get('engagement')
+  async getEngagementAnalytics() {
+    const analytics = await this.adminService.getEngagementAnalytics();
+
+    return {
+      status: 'success',
+      data: {
+        timeline: analytics,
+      },
+    };
+  }
+
   @ApiGetAllTracksWithReportCount()
   @Get('tracks')
   getAllTracksWithReportCount(@Query('page') page: number = 1, @Query('limit') limit: number = 20) {
