@@ -8,10 +8,11 @@ import { TrackModule } from '../track/track.module';
 import { UserModule } from '../user/user.module';
 import { User } from '../user/entities/user.entity';
 import { Track } from '../track/entities/track.entity';
+import { AdminRepository } from './admin.repository';
 
 @Module({
   imports: [TypeOrmModule.forFeature([Report, User, Track]), TrackModule, UserModule],
   controllers: [AdminController, ReportController],
-  providers: [AdminService],
+  providers: [AdminService, AdminRepository],
 })
 export class AdminModule {}

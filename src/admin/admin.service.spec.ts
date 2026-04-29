@@ -29,6 +29,7 @@ describe('AdminService', () => {
     const mockAdminRepository = {
       findAllUsers: jest.fn(),
       updateUserSuspensionStatus: jest.fn(),
+      getTopTracks: jest.fn(),
     };
 
     const mockUserService = {
@@ -52,9 +53,9 @@ describe('AdminService', () => {
         { provide: AdminRepository, useValue: mockAdminRepository },
         { provide: UserService, useValue: mockUserService },
         { provide: getRepositoryToken(Report), useValue: mockReportRepository },
-        { provide: TrackService, useValue: mockTrackService }, // 👈
-        { provide: TrackRepository, useValue: mockTrackRepository }, // 👈
-        { provide: UserRepository, useValue: mockUserRepository }, // 👈
+        { provide: TrackService, useValue: mockTrackService },
+        { provide: TrackRepository, useValue: mockTrackRepository },
+        { provide: UserRepository, useValue: mockUserRepository },
       ],
     }).compile();
 
@@ -131,6 +132,22 @@ describe('AdminService', () => {
       await expect(service.reactivateUser(userId)).rejects.toThrow(NotFoundException);
       expect(userService.findById).toHaveBeenCalledWith(userId);
       expect(adminRepository.updateUserSuspensionStatus).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('getTopTracks', () => {
+    it('should return the top 5 tracks from the repository', async () => {
+      const mockTracks = [
+        { trackId: '1', title: 'Banger 1', playCount: 1000 },
+        { trackId: '2', title: 'Banger 2', playCount: 800 },
+      ];
+
+      adminRepository.getTopTracks.mockResolvedValue(mockTracks as any);
+
+      const result = await service.getTopTracks();
+
+      expect(adminRepository.getTopTracks).toHaveBeenCalledTimes(1);
+      expect(result).toEqual(mockTracks);
     });
   });
 });

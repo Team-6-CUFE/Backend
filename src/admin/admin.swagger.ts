@@ -512,3 +512,45 @@ export function ApiReactivateUser() {
     })
   );
 }
+
+export function ApiGetTopTracks() {
+  return applyDecorators(
+    ApiOperation({
+      summary: 'Retrieve top 5 tracks',
+      description:
+        'Fetches the top 5 tracks on the platform based on their all-time total play count.',
+    }),
+    ApiResponse({
+      status: 200,
+      description: 'Successfully retrieved the top tracks.',
+      schema: {
+        example: {
+          status: 'success',
+          data: {
+            tracks: [
+              {
+                trackId: '123e4567-e89b-12d3-a456-426614174000',
+                title: 'Summer Vibes',
+                playCount: 154302,
+                coverImage: 'https://example.com/image.jpg',
+                durationSeconds: 210,
+                user: {
+                  userId: '987e6543-e21b-12d3-a456-426614174000',
+                  username: 'dj_awesome',
+                },
+              },
+            ],
+          },
+        },
+      },
+    }),
+    ApiResponse({
+      status: 401,
+      description: 'Unauthorized. The user making the request is not authenticated.',
+    }),
+    ApiResponse({
+      status: 403,
+      description: 'Forbidden. The user does not have the required admin role.',
+    })
+  );
+}

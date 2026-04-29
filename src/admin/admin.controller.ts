@@ -13,7 +13,12 @@ import { ApiTags } from '@nestjs/swagger';
 import { AdminService } from './admin.service';
 import { SuspendUserDto } from './dto/suspend-user.dto';
 import { Roles } from '../authentication/decorators/roles.decorator';
-import { ApiGetAllUsers, ApiSuspendUser, ApiReactivateUser } from './admin.swagger';
+import {
+  ApiGetAllUsers,
+  ApiSuspendUser,
+  ApiReactivateUser,
+  ApiGetTopTracks,
+} from './admin.swagger';
 
 @Roles('admin')
 @ApiTags('Admin')
@@ -71,7 +76,7 @@ export class AdminController {
     };
   }
 
-  // @ApiGetTopTracks()
+  @ApiGetTopTracks()
   @Get('tracks/top')
   async getTopTracks() {
     const tracks = await this.adminService.getTopTracks();

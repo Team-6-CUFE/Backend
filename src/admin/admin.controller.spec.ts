@@ -12,6 +12,7 @@ describe('AdminController', () => {
       getUsers: jest.fn(),
       suspendUser: jest.fn(),
       reactivateUser: jest.fn(),
+      getTopTracks: jest.fn(),
     };
 
     const module: TestingModule = await Test.createTestingModule({
@@ -96,6 +97,24 @@ describe('AdminController', () => {
       expect(result).toEqual({
         status: 'success',
         message: 'User reactivated successfully',
+      });
+    });
+  });
+
+  describe('getTopTracks', () => {
+    it('should return a success response containing the top tracks', async () => {
+      const mockTracks = [{ trackId: '1', title: 'Banger 1', playCount: 1000 }];
+
+      adminService.getTopTracks.mockResolvedValue(mockTracks as any);
+
+      const result = await controller.getTopTracks();
+
+      expect(adminService.getTopTracks).toHaveBeenCalledTimes(1);
+      expect(result).toEqual({
+        status: 'success',
+        data: {
+          tracks: mockTracks,
+        },
       });
     });
   });
