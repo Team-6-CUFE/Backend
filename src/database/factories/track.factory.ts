@@ -31,7 +31,7 @@ export default setSeederFactory(Track, async () => {
   track.commentsCount = 0;
 
   // Status & Visibility
-  track.trackStatus = faker.helpers.arrayElement(Object.values(TrackStatus)) as TrackStatus;
+  track.trackStatus = TrackStatus.FINISHED;
   track.visibility = faker.helpers.weightedArrayElement([
     { weight: 3, value: TrackVisibility.PUBLIC },
     { weight: 1, value: TrackVisibility.PRIVATE },
