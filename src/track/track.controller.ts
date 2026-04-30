@@ -54,6 +54,7 @@ import {
   ApiGetRelatedTracks,
   ApiGetAllTimeStats,
   ApiUpdateCommentsSettings,
+  ApiGetTopListeners,
 } from './track.swagger';
 import { CurrentUser } from '../authentication/decorators/current-user.decorator';
 import { CheckBlock } from '../followers/decorators/no-block.decorator';
@@ -491,6 +492,7 @@ export class TrackController {
     );
   }
 
+  @ApiGetTopListeners()
   @Plans('pro')
   @Get('insights/top-listeners')
   getTopListeners(@CurrentUser('sub') userId: string) {

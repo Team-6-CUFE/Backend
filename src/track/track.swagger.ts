@@ -1878,3 +1878,39 @@ export function ApiUpdateCommentsSettings() {
     ApiResponse({ status: 401, description: 'Unauthorized' })
   );
 }
+
+// ─── Get Top Listeners ────────────────────────────────────────────────────────
+
+export function ApiGetTopListeners() {
+  return applyDecorators(
+    ApiCookieAuth('access_token'),
+    ApiOperation({
+      summary: 'Get top listeners for the authenticated artist',
+      description:
+        "Returns the top 10 listeners who played the authenticated artist's tracks the most " +
+        'in the last 30 days, ordered by play count descending. ' +
+        'Requires a Pro plan.',
+    }),
+    ApiResponse({
+      status: 200,
+      description: 'Top listeners returned successfully',
+      schema: {
+        example: {
+          status: 'success',
+          data: [
+            {
+              userId: '550e8400-e29b-41d4-a716-446655440001',
+              username: 'superfan1',
+              displayName: 'Super Fan',
+              avatarUrl: 'https://s3.amazonaws.com/profiles/avatar.webp',
+              followersCount: 200,
+              playCount: 42,
+            },
+          ],
+        },
+      },
+    }),
+    ApiResponse({ status: 401, description: 'Unauthorized' }),
+    ApiResponse({ status: 403, description: 'Forbidden — Pro plan required' })
+  );
+}
