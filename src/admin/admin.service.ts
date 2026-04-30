@@ -8,7 +8,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Report } from './entities/report.entity';
 import { CreateReportDto } from './dto/createReport.dto';
-import { ReportStatus, ReportType } from './report-enums';
+import { ReportStatus, ReportType, Role, UserStatus } from './report-enums';
 import { TrackService } from '../track/track.service';
 import { TrackRepository } from '../track/track.repository';
 import { UserRepository } from '../user/user.repository';
@@ -212,8 +212,14 @@ export class AdminService {
     };
   }
 
-  async getUsers(limit: number, offset: number, search?: string) {
-    const [users, total] = await this.adminRepository.findAllUsers(limit, offset, search);
+  async getUsers(limit: number, offset: number, search?: string, role?: Role, status?: UserStatus) {
+    const [users, total] = await this.adminRepository.findAllUsers(
+      limit,
+      offset,
+      search,
+      role,
+      status
+    );
     return { users, total };
   }
 

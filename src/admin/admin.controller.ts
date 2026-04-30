@@ -23,6 +23,7 @@ import {
   ApiGetAllTracksWithReportCount,
 } from './admin.swagger';
 import { TrackStatus } from '../track/enums/track-status.enum';
+import { Role, UserStatus } from './report-enums';
 
 @Roles('admin')
 @ApiTags('Admin')
@@ -35,11 +36,13 @@ export class AdminController {
   async getUsers(
     @Query('limit', new DefaultValuePipe(20), ParseIntPipe) limit: number,
     @Query('offset', new DefaultValuePipe(0), ParseIntPipe) offset: number,
-    @Query('search') search?: string
+    @Query('search') search?: string,
+    @Query('role') role?: Role,
+    @Query('status') status?: UserStatus
   ) {
     const safeLimit = Math.min(limit, 50);
 
-    const result = await this.adminService.getUsers(safeLimit, offset, search);
+    const result = await this.adminService.getUsers(safeLimit, offset, search, role, status);
 
     return {
       status: 'success',

@@ -8,7 +8,7 @@ import {
   ApiParam,
 } from '@nestjs/swagger';
 import { CreateReportDto } from './dto/createReport.dto';
-import { ReportStatus } from './report-enums';
+import { ReportStatus, Role, UserStatus } from './report-enums';
 import { SuspendUserDto } from './dto/suspend-user.dto';
 import { TrackStatus } from '../track/enums/track-status.enum';
 
@@ -396,6 +396,20 @@ export function ApiGetAllUsers() {
       description:
         'Optional search term to filter users by username or email address (case-insensitive).',
       example: 'schuyler.kozey-okuneva',
+    }),
+    ApiQuery({
+      name: 'role',
+      required: false,
+      enum: Role,
+      description: 'Optional filter to return only users with a specific role.',
+      example: Role.LISTENER,
+    }),
+    ApiQuery({
+      name: 'status',
+      required: false,
+      enum: UserStatus,
+      description: 'Optional filter to return only users with a specific status.',
+      example: UserStatus.ACTIVE,
     }),
     ApiResponse({
       status: 200,
