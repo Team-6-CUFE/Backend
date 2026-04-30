@@ -1366,10 +1366,10 @@ describe('DiscoveryController', () => {
       playlistTracks: [],
     };
 
-    it('should call getUserLikedby with currentUserId first then targetUserId', async () => {
+    it('should call getUserLikedby with targetUserId first then currentUserId', async () => {
       mockDiscoveryService.getUserLikedby.mockResolvedValue(mockPlaylistResponse);
 
-      const result = await controller.getLikedByUsersForUser(targetUserId, mockUserId, mockIp);
+      const result = await controller.getLikedByUsersForUser(mockUserId, targetUserId, mockIp);
 
       expect(mockDiscoveryService.getUserLikedby).toHaveBeenCalledWith(
         mockUserId,
