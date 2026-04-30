@@ -8,13 +8,14 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Report } from './entities/report.entity';
 import { CreateReportDto } from './dto/createReport.dto';
-import { ReportStatus, ReportType } from './report-enums';
+import { ReportReason, ReportStatus, ReportType, Role, UserStatus } from './report-enums';
 import { TrackService } from '../track/track.service';
 import { TrackRepository } from '../track/track.repository';
 import { UserRepository } from '../user/user.repository';
 
 import { AdminRepository } from './admin.repository';
 import { UserService } from '../user/user.service';
+import { TrackStatus } from '../track/enums/track-status.enum';
 
 @Injectable()
 export class AdminService {
@@ -70,13 +71,27 @@ export class AdminService {
     };
   }
 
-  async getAllReports(page: number = 1, limit: number = 20) {
+  async getAllReports(
+    page: number = 1,
+    limit: number = 20,
+    status?: ReportStatus,
+    type?: ReportType,
+    reason?: ReportReason
+  ) {
+    const where: Record<string, unknown> = {};
+
+    if (status) where.status = status;
+    if (type) where.type = type;
+    if (reason) where.reason = reason;
+
     const [reports, total] = await this.reportRepository.findAndCount({
+      where,
       skip: (page - 1) * limit,
       take: limit,
       order: { createdAt: 'DESC' },
     });
 
+    // ... rest of the function stays exactly the same
     const enrichedReports = await Promise.all(
       reports.map(async (report) => {
         const reporterData = await this.userRepository.findById(report.reporterId);
@@ -101,8 +116,12 @@ export class AdminService {
             isPublic: user?.isPublic,
           };
         } else if (report.type === ReportType.TRACK) {
-          const track = await this.trackService.getTrackById(report.targetId);
-          target = { trackId: track.trackId, title: track.title, coverImage: track.coverImage };
+          try {
+            const track = await this.trackService.getTrackById(report.targetId);
+            target = { trackId: track.trackId, title: track.title, coverImage: track.coverImage };
+          } catch {
+            target = { trackId: report.targetId, title: null, coverImage: null, deleted: true };
+          }
         } else if (report.type === ReportType.COMMENT) {
           const comment = await this.trackRepository.findCommentById(report.targetId);
           target = {
@@ -211,8 +230,14 @@ export class AdminService {
     };
   }
 
-  async getUsers(limit: number, offset: number, search?: string) {
-    const [users, total] = await this.adminRepository.findAllUsers(limit, offset, search);
+  async getUsers(limit: number, offset: number, search?: string, role?: Role, status?: UserStatus) {
+    const [users, total] = await this.adminRepository.findAllUsers(
+      limit,
+      offset,
+      search,
+      role,
+      status
+    );
     return { users, total };
   }
 
@@ -244,8 +269,12 @@ export class AdminService {
     return this.adminRepository.getEngagementAnalytics30Days();
   }
 
-  async getAllTracksWithReportCount(page: number = 1, limit: number = 20) {
-    const { tracks, total } = await this.trackRepository.findAllTracksWithReportCount(page, limit);
+  async getAllTracksWithReportCount(page: number = 1, limit: number = 20, status?: TrackStatus) {
+    const { tracks, total } = await this.trackRepository.findAllTracksWithReportCount(
+      page,
+      limit,
+      status
+    );
 
     return {
       status: 'success',

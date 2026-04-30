@@ -1047,4 +1047,28 @@ export class TrackService {
       message: 'track comment settings  updated',
     };
   }
+
+  async getTopListeners(userId: string) {
+    const data = await this.trackRepository.getTopListeners(userId);
+    return {
+      status: 'success',
+      data,
+    };
+  }
+
+  async getTopRegions(userId: string) {
+    const data = await this.trackRepository.getTopRegions(userId);
+    return {
+      status: 'success',
+      data,
+    };
+  }
+
+  async getTopPlaylistsAndAlbums(userId: string) {
+    const data = await this.trackRepository.getTopPlaylistsAndAlbums(userId);
+    return {
+      status: 'success',
+      data,
+    };
+  }
 }

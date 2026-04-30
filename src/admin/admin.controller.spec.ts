@@ -15,6 +15,7 @@ describe('AdminController', () => {
       getTopTracks: jest.fn(),
       getPlatformStats: jest.fn(),
       getEngagementAnalytics: jest.fn(),
+      getAllTracksWithReportCount: jest.fn(),
     };
 
     const module: TestingModule = await Test.createTestingModule({
@@ -42,7 +43,13 @@ describe('AdminController', () => {
 
       const result = await controller.getUsers(limit, offset, search);
 
-      expect(adminService.getUsers).toHaveBeenCalledWith(limit, offset, search);
+      expect(adminService.getUsers).toHaveBeenCalledWith(
+        limit,
+        offset,
+        search,
+        undefined,
+        undefined
+      );
       expect(result).toEqual({
         status: 'success',
         data: {
@@ -166,6 +173,35 @@ describe('AdminController', () => {
           timeline: mockTimeline,
         },
       });
+    });
+  });
+
+  describe('getAllTracksWithReportCount', () => {
+    it('should return paginated tracks with their report counts', async () => {
+      const mockResult = {
+        status: 'success',
+        data: [{ trackId: 'track-123', title: 'Midnight Drive', reportsCount: 3 }],
+        meta: { total: 1, page: 1, limit: 20, totalPages: 1 },
+      };
+
+      adminService.getAllTracksWithReportCount.mockResolvedValue(mockResult as any);
+
+      const result = await controller.getAllTracksWithReportCount(1, 20, undefined);
+
+      expect(adminService.getAllTracksWithReportCount).toHaveBeenCalledWith(1, 20, undefined);
+      expect(result).toEqual(mockResult);
+    });
+
+    it('should forward optional status filter to service', async () => {
+      adminService.getAllTracksWithReportCount.mockResolvedValue({
+        status: 'success',
+        data: [],
+        meta: { total: 0, page: 1, limit: 20, totalPages: 0 },
+      } as any);
+
+      await controller.getAllTracksWithReportCount(1, 20, 'finished' as any);
+
+      expect(adminService.getAllTracksWithReportCount).toHaveBeenCalledWith(1, 20, 'finished');
     });
   });
 });

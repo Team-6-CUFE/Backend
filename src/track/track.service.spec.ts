@@ -1972,4 +1972,151 @@ describe('TrackService', () => {
       expect(result.data).toEqual(emptyStats);
     });
   });
+
+  // ─── getTopListeners ─────────────────────────────────────────────────────────
+
+  describe('getTopListeners', () => {
+    const mockListeners = [
+      {
+        userId: MOCK_MY_USER_ID,
+        username: 'superfan1',
+        displayName: 'Super Fan',
+        avatarUrl: 'https://example.com/avatar.jpg',
+        followersCount: 200,
+        playCount: 42,
+      },
+      {
+        userId: MOCK_OTHER_USER_ID,
+        username: 'superfan2',
+        displayName: 'Super Fan 2',
+        avatarUrl: 'https://example.com/avatar2.jpg',
+        followersCount: 150,
+        playCount: 30,
+      },
+    ];
+
+    it('should return top listeners wrapped in a success envelope', async () => {
+      trackRepo.getTopListeners.mockResolvedValue(mockListeners);
+
+      const result = await service.getTopListeners(MOCK_USER_ID);
+
+      expect(trackRepo.getTopListeners).toHaveBeenCalledWith(MOCK_USER_ID);
+      expect(result).toEqual({ status: 'success', data: mockListeners });
+    });
+
+    it('should return empty data array when no plays exist in the last month', async () => {
+      trackRepo.getTopListeners.mockResolvedValue([]);
+
+      const result = await service.getTopListeners(MOCK_USER_ID);
+
+      expect(result).toEqual({ status: 'success', data: [] });
+    });
+
+    it('should return listeners ordered by playCount descending (as returned by repo)', async () => {
+      trackRepo.getTopListeners.mockResolvedValue(mockListeners);
+
+      const result = await service.getTopListeners(MOCK_USER_ID);
+
+      expect(result.data[0].playCount).toBeGreaterThanOrEqual(result.data[1].playCount);
+    });
+  });
+
+  // ─── getTopRegions ────────────────────────────────────────────────────────────
+
+  describe('getTopRegions', () => {
+    const mockRegions = [
+      { country: 'EG', playCount: 120 },
+      { country: 'US', playCount: 85 },
+      { country: 'GB', playCount: 40 },
+    ];
+
+    it('should return top regions wrapped in a success envelope', async () => {
+      trackRepo.getTopRegions.mockResolvedValue(mockRegions);
+
+      const result = await service.getTopRegions(MOCK_USER_ID);
+
+      expect(trackRepo.getTopRegions).toHaveBeenCalledWith(MOCK_USER_ID);
+      expect(result).toEqual({ status: 'success', data: mockRegions });
+    });
+
+    it('should return empty data array when no plays with country data exist', async () => {
+      trackRepo.getTopRegions.mockResolvedValue([]);
+
+      const result = await service.getTopRegions(MOCK_USER_ID);
+
+      expect(result).toEqual({ status: 'success', data: [] });
+    });
+
+    it('should return regions ordered by playCount descending (as returned by repo)', async () => {
+      trackRepo.getTopRegions.mockResolvedValue(mockRegions);
+
+      const result = await service.getTopRegions(MOCK_USER_ID);
+
+      expect(result.data[0].playCount).toBeGreaterThanOrEqual(result.data[1].playCount);
+    });
+  });
+
+  // ─── getTopPlaylistsAndAlbums ─────────────────────────────────────────────────
+
+  describe('getTopPlaylistsAndAlbums', () => {
+    const mockPlaylists = [
+      {
+        playlistId: '770e8400-e29b-41d4-a716-446655440020',
+        title: 'Late Night Vibes',
+        coverImage: 'https://s3.amazonaws.com/covers/playlist.jpg',
+        trackCount: 14,
+        likesCount: 200,
+        repostsCount: 30,
+        ownerId: MOCK_MY_USER_ID,
+        type: 'playlist',
+        playCount: 560,
+      },
+      {
+        playlistId: '770e8400-e29b-41d4-a716-446655440021',
+        title: 'Debut Album',
+        coverImage: 'https://s3.amazonaws.com/covers/album.jpg',
+        trackCount: 10,
+        likesCount: 150,
+        repostsCount: 20,
+        ownerId: MOCK_MY_USER_ID,
+        type: 'album',
+        playCount: 310,
+      },
+    ];
+
+    it('should return top playlists and albums wrapped in a success envelope', async () => {
+      trackRepo.getTopPlaylistsAndAlbums.mockResolvedValue(mockPlaylists);
+
+      const result = await service.getTopPlaylistsAndAlbums(MOCK_USER_ID);
+
+      expect(trackRepo.getTopPlaylistsAndAlbums).toHaveBeenCalledWith(MOCK_USER_ID);
+      expect(result).toEqual({ status: 'success', data: mockPlaylists });
+    });
+
+    it('should return empty data array when no playlist plays exist in the last month', async () => {
+      trackRepo.getTopPlaylistsAndAlbums.mockResolvedValue([]);
+
+      const result = await service.getTopPlaylistsAndAlbums(MOCK_USER_ID);
+
+      expect(result).toEqual({ status: 'success', data: [] });
+    });
+
+    it('should return playlists ordered by playCount descending (as returned by repo)', async () => {
+      trackRepo.getTopPlaylistsAndAlbums.mockResolvedValue(mockPlaylists);
+
+      const result = await service.getTopPlaylistsAndAlbums(MOCK_USER_ID);
+
+      expect(result.data[0].playCount).toBeGreaterThanOrEqual(result.data[1].playCount);
+    });
+
+    it('should include both playlist and album types in the response', async () => {
+      trackRepo.getTopPlaylistsAndAlbums.mockResolvedValue(mockPlaylists);
+
+      const result = await service.getTopPlaylistsAndAlbums(MOCK_USER_ID);
+      const types = result.data.map((item: { type: string }) => item.type);
+
+      expect(types).toContain('playlist');
+      expect(types).toContain('album');
+    });
+  });
 });

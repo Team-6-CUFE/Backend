@@ -54,6 +54,9 @@ import {
   ApiGetRelatedTracks,
   ApiGetAllTimeStats,
   ApiUpdateCommentsSettings,
+  ApiGetTopListeners,
+  ApiGetTopRegions,
+  ApiGetTopPlaylistsAndAlbums,
 } from './track.swagger';
 import { CurrentUser } from '../authentication/decorators/current-user.decorator';
 import { CheckBlock } from '../followers/decorators/no-block.decorator';
@@ -489,5 +492,26 @@ export class TrackController {
       allowComments,
       showComments
     );
+  }
+
+  @ApiGetTopListeners()
+  @Plans('pro')
+  @Get('insights/top-listeners')
+  getTopListeners(@CurrentUser('sub') userId: string) {
+    return this.trackService.getTopListeners(userId);
+  }
+
+  @ApiGetTopRegions()
+  @Plans('pro')
+  @Get('insights/top-regions')
+  getTopRegions(@CurrentUser('sub') userId: string) {
+    return this.trackService.getTopRegions(userId);
+  }
+
+  @ApiGetTopPlaylistsAndAlbums()
+  @Plans('pro')
+  @Get('insights/top-playlists-albums')
+  getTopPlaylistsAndAlbums(@CurrentUser('sub') userId: string) {
+    return this.trackService.getTopPlaylistsAndAlbums(userId);
   }
 }
