@@ -16,6 +16,7 @@ import { RecentlyPlayed, RecentlyPlayedItemType } from './entities/recently-play
 import { mapTrack, addDocuments, updateDocument, deleteDocument } from '../search/indexing';
 import { DownloadedTrack } from '../download/entities/downloaded-tracks.entity';
 import { ReportType } from '../admin/report-enums';
+import { PlaylistType } from '../playlist/entities/playlist.entity';
 
 const RECENTLY_PLAYED_LIMIT = 6;
 
@@ -1035,6 +1036,57 @@ export class TrackRepository {
 
     return rawResults.map((result) => ({
       country: result.country,
+      playCount: Number(result.playCount),
+    }));
+  }
+
+  async getTopPlaylistsAndAlbums(userId: string) {
+    const oneMonthAgo = new Date();
+    oneMonthAgo.setMonth(oneMonthAgo.getMonth() - 1);
+
+    const rawResults = await this.trackPlayRepository
+      .createQueryBuilder('play')
+      .innerJoin('play.track', 'track')
+      .innerJoin('track.user', 'artist')
+      .innerJoin('play.playlist', 'playlist')
+      .select([
+        'playlist.playlistId AS "playlistId"',
+        'playlist.title AS "title"',
+        'playlist.coverImage AS "coverImage"',
+        'playlist.tracksCount AS "trackCount"',
+        'playlist.likesCount AS "likesCount"',
+        'playlist.repostsCount AS "repostsCount"',
+        'playlist.userId AS "ownerId"',
+        'playlist.isPublic AS "isPublic"',
+        'playlist.type AS "type"',
+        'COUNT(play.trackPlayId) AS "playCount"',
+      ])
+      .where('play.playedAt > :oneMonthAgo', { oneMonthAgo })
+      .andWhere('artist.userId = :userId', { userId })
+      .andWhere('playlist.isPublic = true')
+      .andWhere('playlist.type != :playlistType ', { playlistType: PlaylistType.STATION })
+      .groupBy('playlist.playlistId')
+      .addGroupBy('playlist.title')
+      .addGroupBy('playlist.coverImage')
+      .addGroupBy('playlist.tracksCount')
+      .addGroupBy('playlist.likesCount')
+      .addGroupBy('playlist.repostsCount')
+      .addGroupBy('playlist.userId')
+      .addGroupBy('playlist.isPublic')
+      .addGroupBy('playlist.type')
+      .orderBy('"playCount"', 'DESC')
+      .limit(10)
+      .getRawMany();
+
+    return rawResults.map((result) => ({
+      playlistId: result.playlistId,
+      title: result.title,
+      coverImage: result.coverImage,
+      trackCount: Number(result.trackCount),
+      likesCount: Number(result.likesCount),
+      repostsCount: Number(result.repostsCount),
+      ownerId: result.ownerId,
+      type: result.type,
       playCount: Number(result.playCount),
     }));
   }

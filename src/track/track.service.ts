@@ -1063,4 +1063,12 @@ export class TrackService {
       data,
     };
   }
+
+  async getTopPlaylistsAndAlbums(userId: string) {
+    const data = await this.trackRepository.getTopPlaylistsAndAlbums(userId);
+    return {
+      status: 'success',
+      data,
+    };
+  }
 }

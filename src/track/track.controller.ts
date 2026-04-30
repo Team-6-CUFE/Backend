@@ -56,6 +56,7 @@ import {
   ApiUpdateCommentsSettings,
   ApiGetTopListeners,
   ApiGetTopRegions,
+  ApiGetTopPlaylistsAndAlbums,
 } from './track.swagger';
 import { CurrentUser } from '../authentication/decorators/current-user.decorator';
 import { CheckBlock } from '../followers/decorators/no-block.decorator';
@@ -505,5 +506,12 @@ export class TrackController {
   @Get('insights/top-regions')
   getTopRegions(@CurrentUser('sub') userId: string) {
     return this.trackService.getTopRegions(userId);
+  }
+
+  @ApiGetTopPlaylistsAndAlbums()
+  @Plans('pro')
+  @Get('insights/top-playlists-albums')
+  getTopPlaylistsAndAlbums(@CurrentUser('sub') userId: string) {
+    return this.trackService.getTopPlaylistsAndAlbums(userId);
   }
 }

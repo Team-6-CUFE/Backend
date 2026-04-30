@@ -1915,7 +1915,7 @@ export function ApiGetTopListeners() {
   );
 }
 
-// ─── Get Top Listeners ────────────────────────────────────────────────────────
+// ─── Get Top Regions ────────────────────────────────────────────────────────
 
 export function ApiGetTopRegions() {
   return applyDecorators(
@@ -1941,6 +1941,45 @@ export function ApiGetTopRegions() {
             {
               country: 'England',
               playCount: 23,
+            },
+          ],
+        },
+      },
+    }),
+    ApiResponse({ status: 401, description: 'Unauthorized' }),
+    ApiResponse({ status: 403, description: 'Forbidden — Pro plan required' })
+  );
+}
+
+// ─── Get Top Playlists ────────────────────────────────────────────────────────
+
+export function ApiGetTopPlaylistsAndAlbums() {
+  return applyDecorators(
+    ApiCookieAuth('access_token'),
+    ApiOperation({
+      summary: 'Get top playlists and albums streams for the authenticated artist',
+      description:
+        "Returns the top 10 playlists and albums that the authenticated artist's tracks get played from the most " +
+        'in the last 30 days, ordered by play count descending. ' +
+        'Requires a Pro plan.',
+    }),
+    ApiResponse({
+      status: 200,
+      description: 'Top playlists and albums returned successfully',
+      schema: {
+        example: {
+          status: 'success',
+          data: [
+            {
+              playlistId: '550e8400-e29b-41d4-a716-446655440001',
+              title: 'Top Hits',
+              coverImage: 'https://s3.amazonaws.com/playlists/cover.webp',
+              trackCount: 10,
+              likesCount: 100,
+              repostsCount: 50,
+              ownerId: '550e8400-e29b-41d4-a716-446655440001',
+              type: 'playlist',
+              playCount: 1000,
             },
           ],
         },
