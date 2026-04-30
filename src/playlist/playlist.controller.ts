@@ -261,9 +261,10 @@ export class PlaylistController {
   async getPublicPlaylist(
     @Param('playlistId', ParseUUIDPipe) playlistId: string,
     @CurrentUser('sub') userId: string,
-    @Ip() ip: string
+    @Ip() ip: string,
+    @CurrentUser('plan') plan?: string
   ) {
-    return this.playlistService.getPublicPlaylist(playlistId, userId, ip);
+    return this.playlistService.getPublicPlaylist(playlistId, userId, ip, plan);
   }
 
   @ApiGetSecretPlaylist()
