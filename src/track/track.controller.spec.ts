@@ -55,6 +55,8 @@ const mockTrackService = () => ({
   getRelatedTracks: jest.fn(),
   getAllTimeStats: jest.fn(),
   getTopListeners: jest.fn(),
+  getTopRegions: jest.fn(),
+  getTopPlaylistsAndAlbums: jest.fn(),
   updateTrackCommentSettings: jest.fn(),
 });
 
@@ -1071,6 +1073,69 @@ describe('TrackController', () => {
       service.getTopListeners.mockResolvedValue(mockResponse);
 
       const result = await controller.getTopListeners(MOCK_USER_ID);
+
+      expect(result).toBe(mockResponse);
+    });
+  });
+
+  // ─── getTopRegions ────────────────────────────────────────────────────────────
+
+  describe('getTopRegions', () => {
+    it('should delegate to service with the current userId', async () => {
+      service.getTopRegions.mockResolvedValue({ status: 'success', data: [] });
+
+      await controller.getTopRegions(MOCK_USER_ID);
+
+      expect(service.getTopRegions).toHaveBeenCalledWith(MOCK_USER_ID);
+    });
+
+    it('should return service response as-is', async () => {
+      const mockResponse = {
+        status: 'success',
+        data: [
+          { country: 'EG', playCount: 120 },
+          { country: 'US', playCount: 85 },
+        ],
+      };
+      service.getTopRegions.mockResolvedValue(mockResponse);
+
+      const result = await controller.getTopRegions(MOCK_USER_ID);
+
+      expect(result).toBe(mockResponse);
+    });
+  });
+
+  // ─── getTopPlaylistsAndAlbums ─────────────────────────────────────────────────
+
+  describe('getTopPlaylistsAndAlbums', () => {
+    it('should delegate to service with the current userId', async () => {
+      service.getTopPlaylistsAndAlbums.mockResolvedValue({ status: 'success', data: [] });
+
+      await controller.getTopPlaylistsAndAlbums(MOCK_USER_ID);
+
+      expect(service.getTopPlaylistsAndAlbums).toHaveBeenCalledWith(MOCK_USER_ID);
+    });
+
+    it('should return service response as-is', async () => {
+      const mockResponse = {
+        status: 'success',
+        data: [
+          {
+            playlistId: '770e8400-e29b-41d4-a716-446655440020',
+            title: 'Late Night Vibes',
+            coverImage: 'https://s3.amazonaws.com/covers/playlist.jpg',
+            trackCount: 14,
+            likesCount: 200,
+            repostsCount: 30,
+            ownerId: MOCK_MY_USER_ID,
+            type: 'playlist',
+            playCount: 560,
+          },
+        ],
+      };
+      service.getTopPlaylistsAndAlbums.mockResolvedValue(mockResponse);
+
+      const result = await controller.getTopPlaylistsAndAlbums(MOCK_USER_ID);
 
       expect(result).toBe(mockResponse);
     });
