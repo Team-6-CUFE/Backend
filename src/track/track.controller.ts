@@ -55,6 +55,8 @@ import {
   ApiGetAllTimeStats,
   ApiUpdateCommentsSettings,
   ApiUpdateSpotlight,
+  ApiGetSpotlightTracks,
+  ApiAddToSpotlight,
 } from './track.swagger';
 import { CurrentUser } from '../authentication/decorators/current-user.decorator';
 import { CheckBlock } from '../followers/decorators/no-block.decorator';
@@ -492,12 +494,14 @@ export class TrackController {
     );
   }
 
+  @ApiGetSpotlightTracks()
   @CheckBlock()
   @Get('/spotlight/:userId')
   getsSpotlightTracks(@Param('userId') userId: string, @Ip() ip: string) {
     return this.trackService.getUserSpotlightTacks(userId, ip);
   }
 
+  @ApiAddToSpotlight()
   @Plans('pro')
   @Post('/spotlight/:trackId')
   addToSpotlight(

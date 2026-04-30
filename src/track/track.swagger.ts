@@ -1880,6 +1880,71 @@ export function ApiUpdateCommentsSettings() {
   );
 }
 
+export function ApiGetSpotlightTracks() {
+  return applyDecorators(
+    ApiOperation({
+      summary: 'Get spotlight tracks for a user',
+      description:
+        "Returns the spotlight tracks of the given user. Audio URLs are stripped for tracks blocked in the requesting user's region.",
+    }),
+    ApiParam({ name: 'userId', description: 'UUID of the user', type: 'string' }),
+    ApiResponse({
+      status: 200,
+      description: 'Spotlight tracks returned successfully',
+      schema: {
+        type: 'array',
+        items: {
+          type: 'object',
+          properties: {
+            trackId: { type: 'string', format: 'uuid' },
+            title: { type: 'string' },
+            audioUrl: {
+              type: 'string',
+              nullable: true,
+              description: "Null if track is blocked in the requester's region",
+            },
+            audioUrlHq: {
+              type: 'string',
+              nullable: true,
+              description: "Null if track is blocked in the requester's region",
+            },
+          },
+        },
+      },
+    }),
+    ApiResponse({ status: 400, description: 'User not found' })
+  );
+}
+
+export function ApiAddToSpotlight() {
+  return applyDecorators(
+    ApiCookieAuth('access_token'),
+    ApiOperation({
+      summary: 'Add a track to spotlight',
+      description:
+        "Adds the specified track to the authenticated user's spotlight. Requires Pro plan. Maximum 5 tracks allowed.",
+    }),
+    ApiParam({ name: 'trackId', description: 'UUID of the track to add', type: 'string' }),
+    ApiResponse({
+      status: 201,
+      description: 'Track added to spotlight successfully',
+      schema: {
+        type: 'object',
+        properties: {
+          status: { type: 'string', example: 'success' },
+          messsage: { type: 'string', example: 'track is successfully added to spotlight' },
+        },
+      },
+    }),
+    ApiResponse({ status: 400, description: 'Track not found or already in spotlight' }),
+    ApiResponse({
+      status: 403,
+      description: 'Spotlight limit (5 tracks) reached or Pro plan required',
+    }),
+    ApiUnauthorizedResponse({ description: 'Unauthorized' })
+  );
+}
+
 export function ApiUpdateSpotlight() {
   return applyDecorators(
     ApiOperation({ summary: 'Update spotlight tracks' }),
