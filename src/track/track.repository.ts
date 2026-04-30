@@ -1014,4 +1014,28 @@ export class TrackRepository {
       playCount: Number(result.playCount),
     }));
   }
+
+  async getTopRegions(userId: string) {
+    const oneMonthAgo = new Date();
+    oneMonthAgo.setMonth(oneMonthAgo.getMonth() - 1);
+
+    const rawResults = await this.trackPlayRepository
+      .createQueryBuilder('play')
+      .innerJoin('play.track', 'track')
+      .innerJoin('track.user', 'artist')
+      .innerJoin('play.user', 'user')
+      .select(['user.country AS "country"', 'COUNT(play.trackPlayId) AS "playCount"'])
+      .where('play.playedAt > :oneMonthAgo', { oneMonthAgo })
+      .andWhere('artist.userId = :userId', { userId })
+      .andWhere('user.country IS NOT NULL')
+      .groupBy('user.country')
+      .orderBy('"playCount"', 'DESC')
+      .limit(10)
+      .getRawMany();
+
+    return rawResults.map((result) => ({
+      country: result.country,
+      playCount: Number(result.playCount),
+    }));
+  }
 }

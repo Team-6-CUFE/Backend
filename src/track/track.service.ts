@@ -1055,4 +1055,12 @@ export class TrackService {
       data,
     };
   }
+
+  async getTopRegions(userId: string) {
+    const data = await this.trackRepository.getTopRegions(userId);
+    return {
+      status: 'success',
+      data,
+    };
+  }
 }

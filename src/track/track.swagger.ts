@@ -1914,3 +1914,39 @@ export function ApiGetTopListeners() {
     ApiResponse({ status: 403, description: 'Forbidden — Pro plan required' })
   );
 }
+
+// ─── Get Top Listeners ────────────────────────────────────────────────────────
+
+export function ApiGetTopRegions() {
+  return applyDecorators(
+    ApiCookieAuth('access_token'),
+    ApiOperation({
+      summary: 'Get top regions for the authenticated artist',
+      description:
+        "Returns the top 10 regions where the authenticated artist's tracks were played the most " +
+        'in the last 30 days, ordered by play count descending. ' +
+        'Requires a Pro plan.',
+    }),
+    ApiResponse({
+      status: 200,
+      description: 'Top regions returned successfully',
+      schema: {
+        example: {
+          status: 'success',
+          data: [
+            {
+              country: 'Egypt',
+              playCount: 42,
+            },
+            {
+              country: 'England',
+              playCount: 23,
+            },
+          ],
+        },
+      },
+    }),
+    ApiResponse({ status: 401, description: 'Unauthorized' }),
+    ApiResponse({ status: 403, description: 'Forbidden — Pro plan required' })
+  );
+}
