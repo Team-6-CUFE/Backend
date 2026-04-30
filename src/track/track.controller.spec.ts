@@ -61,6 +61,7 @@ const mockTrackService = () => ({
   getUserSpotlightTacks: jest.fn(),
   addToSpotlight: jest.fn(),
   updateSpotlightTracks: jest.fn(),
+  scheduleRelease: jest.fn(),
 });
 
 jest.mock('meilisearch', () => ({
