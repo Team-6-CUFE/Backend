@@ -69,6 +69,8 @@ export class TrackService {
     private readonly notificationsService: NotificationsService,
     @InjectQueue('audioQueue')
     private readonly audioQueue: Queue,
+    @InjectQueue('releaseQueue')
+    private readonly releaseQueue: Queue,
 
     @Inject(REDIS_CLIENT)
     private readonly redis: ReturnType<typeof createClient>,
@@ -1070,6 +1072,51 @@ export class TrackService {
       status: 'success',
       data,
     };
+  }
+
+  async scheduleRelease(userId: string, trackId: string, scheduledAt: Date) {
+    const track = await this.trackRepository.findById(trackId);
+    if (!track) throw new NotFoundException('Track not found');
+    if (track.userId !== userId) throw new ForbiddenException('You do not own this track');
+    if (scheduledAt <= new Date()) {
+      throw new BadRequestException('Scheduled date must be in the future');
+    }
+
+    if (track.trackStatus === TrackStatus.FINISHED || track.trackStatus === TrackStatus.SCHEDULED) {
+      // FINISHED → first-time schedule; SCHEDULED → update existing schedule
+      await this.trackRepository.scheduleTrackRelease(
+        trackId,
+        scheduledAt,
+        track.trackStatus === TrackStatus.FINISHED
+      );
+      const existing = await this.releaseQueue.getJob(`release-${trackId}`);
+      if (existing) await existing.remove();
+      await this.releaseQueue.add(
+        'release-track',
+        { trackId },
+        {
+          jobId: `release-${trackId}`,
+          delay: scheduledAt.getTime() - Date.now(),
+          removeOnComplete: true,
+          removeOnFail: { count: 3 },
+        }
+      );
+      return {
+        status: 'success',
+        message:
+          track.trackStatus === TrackStatus.FINISHED
+            ? 'Track scheduled for release.'
+            : 'Release schedule updated.',
+        data: { trackId, scheduledAt },
+      };
+    }
+
+    // PROCESSING, FAILED — not valid
+    throw new BadRequestException(
+      track.trackStatus === TrackStatus.PROCESSING
+        ? 'Track is still processing. Wait for processing to complete before scheduling.'
+        : `Cannot schedule a track with status: ${track.trackStatus}`
+    );
   }
 
   async getUserSpotlightTacks(userId: string, ip: string) {

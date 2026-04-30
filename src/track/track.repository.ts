@@ -1106,12 +1106,18 @@ export class TrackRepository {
     await this.trackRepository.update(trackId, { scheduledAt });
   }
 
-  async scheduleTrackRelease(trackId: string, scheduledAt: Date): Promise<void> {
+  async scheduleTrackRelease(
+    trackId: string,
+    scheduledAt: Date,
+    removeFromSearch = true
+  ): Promise<void> {
     await this.trackRepository.update(trackId, {
       scheduledAt,
       trackStatus: TrackStatus.SCHEDULED,
     });
-    await deleteDocument(`track_${trackId}`);
+    if (removeFromSearch) {
+      await deleteDocument(`track_${trackId}`);
+    }
   }
 
   async releaseTrack(trackId: string): Promise<Track | null> {

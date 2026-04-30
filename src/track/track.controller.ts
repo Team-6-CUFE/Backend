@@ -60,6 +60,7 @@ import {
   ApiUpdateSpotlight,
   ApiGetSpotlightTracks,
   ApiAddToSpotlight,
+  ApiScheduleTrackRelease,
 } from './track.swagger';
 import { CurrentUser } from '../authentication/decorators/current-user.decorator';
 import { CheckBlock } from '../followers/decorators/no-block.decorator';
@@ -72,6 +73,7 @@ import { Public } from '../authentication/decorators/public.decorator';
 import { OptionalCurrentUser } from '../authentication/decorators/optional-current-user.decorator';
 import { JwtPayload } from '../authentication/strategies/jwt.strategy';
 import { BlockedRegionsDto } from './dto/blocked-regions.dto';
+import { ScheduleReleaseDto } from './dto/schedule-release.dto';
 import { Plans } from '../authentication/decorators/plans.decorator';
 import { PlaylistTypeFilter } from '../playlist/entities/playlist.entity';
 
@@ -516,6 +518,17 @@ export class TrackController {
   @Get('insights/top-playlists-albums')
   getTopPlaylistsAndAlbums(@CurrentUser('sub') userId: string) {
     return this.trackService.getTopPlaylistsAndAlbums(userId);
+  }
+
+  @ApiScheduleTrackRelease()
+  @Plans('pro')
+  @Post(':trackId/schedule')
+  scheduleRelease(
+    @CurrentUser('sub') userId: string,
+    @Param('trackId', ParseUUIDPipe) trackId: string,
+    @Body() dto: ScheduleReleaseDto
+  ) {
+    return this.trackService.scheduleRelease(userId, trackId, new Date(dto.scheduledAt));
   }
 
   @ApiGetSpotlightTracks()

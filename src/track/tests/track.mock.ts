@@ -297,6 +297,9 @@ export const mockTrackRepository = () => ({
   findSpotlight: jest.fn(),
   addToSpotlight: jest.fn(),
   updateSpotlightTracks: jest.fn(),
+  setScheduledAt: jest.fn(),
+  scheduleTrackRelease: jest.fn(),
+  releaseTrack: jest.fn(),
 });
 
 export const mockUserRepository = () => ({
@@ -328,6 +331,11 @@ export const mockTrackSseService = () => ({
 export const mockAudioQueue = () => ({
   add: jest.fn(),
   remove: jest.fn(),
+});
+
+export const mockReleaseQueue = () => ({
+  add: jest.fn(),
+  getJob: jest.fn(),
 });
 
 export const mockFansService = () => ({
