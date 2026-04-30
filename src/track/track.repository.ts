@@ -969,4 +969,42 @@ export class TrackRepository {
 
     return { tracks, total };
   }
+
+  async getTopListeners(userId: string) {
+    const oneMonthAgo = new Date();
+    oneMonthAgo.setMonth(oneMonthAgo.getMonth() - 1);
+
+    const rawResults = await this.trackPlayRepository
+      .createQueryBuilder('play')
+      .innerJoin('play.track', 'track')
+      .innerJoin('track.user', 'artist')
+      .innerJoin('play.user', 'user')
+      .select([
+        'user.userId AS "userId"',
+        'user.username AS "username"',
+        'user.displayName AS "displayName"',
+        'user.avatarUrl AS "avatarUrl"',
+        'user.followersCount AS "followersCount"',
+        'COUNT(play.trackPlayId) AS "playCount"',
+      ])
+      .where('play.playedAt > :oneMonthAgo', { oneMonthAgo })
+      .andWhere('artist.userId = :userId', { userId })
+      .groupBy('user.userId')
+      .addGroupBy('user.username')
+      .addGroupBy('user.displayName')
+      .addGroupBy('user.avatarUrl')
+      .addGroupBy('user.followersCount')
+      .orderBy('"playCount"', 'DESC')
+      .limit(10)
+      .getRawMany();
+
+    return rawResults.map((result) => ({
+      userId: result.userId,
+      username: result.username,
+      displayName: result.displayName,
+      avatarUrl: result.avatarUrl,
+      followersCount: Number(result.followersCount),
+      playCount: Number(result.playCount),
+    }));
+  }
 }

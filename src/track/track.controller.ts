@@ -490,4 +490,10 @@ export class TrackController {
       showComments
     );
   }
+
+  @Plans('pro')
+  @Get('insights/top-listeners')
+  getTopListeners(@CurrentUser('sub') userId: string) {
+    return this.trackService.getTopListeners(userId);
+  }
 }

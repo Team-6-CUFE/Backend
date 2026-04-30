@@ -1047,4 +1047,12 @@ export class TrackService {
       message: 'track comment settings  updated',
     };
   }
+
+  async getTopListeners(userId: string) {
+    const data = await this.trackRepository.getTopListeners(userId);
+    return {
+      status: 'success',
+      data,
+    };
+  }
 }
