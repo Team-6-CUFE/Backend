@@ -45,6 +45,16 @@ export class MessagingRepository {
       .getOne();
   }
 
+  async isFirstMessage(chatId: string): Promise<boolean> {
+    const count = await this.messageRepo.count({ where: { chatId } });
+    return count === 0;
+  }
+
+  async getChatUnreadCountForUser(chatId: string, userId: string): Promise<number> {
+    const status = await this.chatStatusRepo.findOne({ where: { chatId, userId } });
+    return this.getUnreadCount(chatId, status?.lastReadMessageId ?? null);
+  }
+
   async createChat(participantOneId: string, participantTwoId: string): Promise<Chat> {
     const chat = this.chatRepo.create({ participantOneId, participantTwoId });
     return this.chatRepo.save(chat);
