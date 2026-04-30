@@ -16,6 +16,7 @@ import { RecentlyPlayed, RecentlyPlayedItemType } from './entities/recently-play
 import { mapTrack, addDocuments, updateDocument, deleteDocument } from '../search/indexing';
 import { DownloadedTrack } from '../download/entities/downloaded-tracks.entity';
 import { ReportType } from '../admin/report-enums';
+import { SpotlightTrack } from './entities/spotlght-track.entity';
 
 const RECENTLY_PLAYED_LIMIT = 6;
 
@@ -44,7 +45,9 @@ export class TrackRepository {
     private readonly recentlyPlayedRepository: Repository<RecentlyPlayed>,
 
     @InjectRepository(DownloadedTrack)
-    private readonly downloadedTrackRepository: Repository<DownloadedTrack>
+    private readonly downloadedTrackRepository: Repository<DownloadedTrack>,
+    @InjectRepository(SpotlightTrack)
+    private readonly spotlightTracksRepository: Repository<SpotlightTrack>
   ) {}
 
   async findById(trackId: string): Promise<Track | null> {
@@ -968,5 +971,14 @@ export class TrackRepository {
     }));
 
     return { tracks, total };
+  }
+
+  async getSpotlightTracks(userId: string) {
+    const spotlights = await this.spotlightTracksRepository.find({
+      where: { userId },
+      relations: ['track', 'track.genre', 'track.tags'],
+    });
+
+    return spotlights.map((s) => s.track);
   }
 }

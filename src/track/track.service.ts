@@ -1047,4 +1047,24 @@ export class TrackService {
       message: 'track comment settings  updated',
     };
   }
+
+  async getUserSpotlightTacks(userId: string, ip: string) {
+    const { country } = getLocationFromIp(ip);
+    const user = await this.userRepository.findById(userId);
+    if (!user) {
+      throw new BadRequestException('user is not found');
+    }
+
+    const tracks = await this.trackRepository.getSpotlightTracks(userId);
+
+    return tracks.map((track) => {
+      const isBlocked = track.blockedRegions.includes(country!);
+      if (isBlocked) {
+        const { audioUrl, audioUrlHq, ...rest } = track;
+        console.log(audioUrl, audioUrlHq);
+        return rest;
+      }
+      return track;
+    });
+  }
 }

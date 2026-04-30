@@ -490,4 +490,10 @@ export class TrackController {
       showComments
     );
   }
+
+  @CheckBlock()
+  @Get('/spotlight/:userId')
+  getsSpotlightTracks(@Param('user_id', ParseUUIDPipe) userId: string, @Ip() ip: string) {
+    return this.trackService.getUserSpotlightTacks(userId, ip);
+  }
 }
