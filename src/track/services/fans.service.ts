@@ -7,8 +7,8 @@ import { REDIS_CLIENT } from '../../redis/redis.module';
 import { Track } from '../entities/track.entity';
 import { Settings } from '../../settings/entities/settings.entity';
 
-const TOP_FANS_TTL_SECS = 25 * 60 * 60;
-const FIRST_FANS_TTL_SECS = 25 * 60 * 60;
+const TOP_FANS_TTL_SECS = 1 * 60 * 60; // 25 hours but for testing and demonstration of the project we will set it to 1 hour
+const FIRST_FANS_TTL_SECS = 1 * 60 * 60; // 25 hours but for testing and demonstration of the project we will set it to 1 hour
 const FIRST_FANS_LIVE_TTL_SECS = 60 * 60; // 1h cache while window is still open
 
 export interface FanResult {

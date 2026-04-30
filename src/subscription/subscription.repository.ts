@@ -36,4 +36,11 @@ export class SubscriptionRepository {
       where: { stripeCustomerId },
     });
   }
+
+  async findOneByCustomerId(stripeCustomerId: string): Promise<Subscription | null> {
+    return this.subscriptionRepository.findOne({
+      where: { stripeCustomerId },
+      relations: ['user'], // make sure user relation is loaded
+    });
+  }
 }

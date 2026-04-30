@@ -812,7 +812,12 @@ export class PlaylistService {
     }
 
     const country = ip ? getLocationFromIp(ip).country : null;
-
+    let returnSecret = false;
+    if (!playlist.isPublic) {
+      if (playlist.userId === userId) {
+        returnSecret = true;
+      }
+    }
     return {
       status: 'success',
       data: {
@@ -829,6 +834,7 @@ export class PlaylistService {
         updatedAt: playlist.updatedAt,
         genreName: playlist.genre?.name,
         genreId: playlist.genre?.genreId,
+        secretToken: returnSecret ? playlist.secretToken : undefined,
         tags: playlist.tags.map((tag) => ({
           tagId: tag.genreId,
           name: tag.name,

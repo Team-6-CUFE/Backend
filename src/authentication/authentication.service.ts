@@ -734,7 +734,7 @@ export class AuthenticationService {
 
     // Brand new user
     const pendingToken = await this.createPendingOAuthSession(profile);
-    const displayName = `${profile.firstName} ${profile.lastName}`;
+    const displayName = `${profile.firstName} ${profile.lastName ? profile.lastName : ''}`;
     const pendingParams = `pendingToken=${pendingToken}&displayName=${encodeURIComponent(displayName)}`;
     return {
       url: isMobile

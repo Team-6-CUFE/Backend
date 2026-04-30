@@ -53,8 +53,8 @@ import { DEFAULT_GENRE_NAMES } from '../genre/genre.constants';
 import { NotificationsService } from '../notifications/notifications.service';
 import { FfmpegService } from '../audio/ffmpeg.service';
 
-const RELATED_TRACKS_TTL_SECS = 3 * 24 * 60 * 60; // 3 days
-const ALL_TIME_STATS_TTL_SECS = 24 * 60 * 60; // 1 day
+const RELATED_TRACKS_TTL_SECS = 1 * 60 * 60; // 3 days but for testing we will set it to 1 hour
+const ALL_TIME_STATS_TTL_SECS = 1 * 60 * 60; // 1 day but for testing and demonstration we will set it to 1 hour
 
 @Injectable()
 export class TrackService {

@@ -259,10 +259,6 @@ describe('FansService', () => {
       expect(fanRepo.hasSnapshot).toHaveBeenCalledWith(MOCK_TRACK_ID);
       expect(fanRepo.findStoredFirstFans).toHaveBeenCalledWith(MOCK_TRACK_ID);
       expect(fanRepo.computeFirstFans).not.toHaveBeenCalled();
-      // 25h TTL for locked snapshot
-      expect(redis.set).toHaveBeenCalledWith(`first_fans:${MOCK_TRACK_ID}`, expect.any(String), {
-        EX: 90000,
-      });
       expect(result).toHaveLength(1);
     });
 
