@@ -155,7 +155,9 @@ export class UserRepository {
 
     // Step 3 - create user settings record with defaults
     await this.settingsService.createDefaultSettings(savedUser.userId);
-
+    if (savedUser.isPublic) {
+      await addDocuments([mapUser(savedUser)]);
+    }
     return savedUser;
   }
 
