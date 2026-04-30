@@ -95,6 +95,25 @@ export class MailService {
     });
   }
 
+  async sendFirstMessageEmail(
+    recipientEmail: string,
+    recipientUsername: string,
+    senderUsername: string
+  ) {
+    const messagesUrl = `${this.configService.get('FRONTEND_URL')}/messages`;
+
+    await this.mailerService.sendMail({
+      to: recipientEmail,
+      subject: `${senderUsername} sent you a message`,
+      template: 'first-message',
+      context: {
+        recipientUsername,
+        senderUsername,
+        messagesUrl,
+      },
+    });
+  }
+
   /**
    * Send confirmation after primary email change
    */
