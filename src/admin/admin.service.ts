@@ -15,6 +15,7 @@ import { UserRepository } from '../user/user.repository';
 
 import { AdminRepository } from './admin.repository';
 import { UserService } from '../user/user.service';
+import { TrackStatus } from '../track/enums/track-status.enum';
 
 @Injectable()
 export class AdminService {
@@ -244,8 +245,12 @@ export class AdminService {
     return this.adminRepository.getEngagementAnalytics30Days();
   }
 
-  async getAllTracksWithReportCount(page: number = 1, limit: number = 20) {
-    const { tracks, total } = await this.trackRepository.findAllTracksWithReportCount(page, limit);
+  async getAllTracksWithReportCount(page: number = 1, limit: number = 20, status?: TrackStatus) {
+    const { tracks, total } = await this.trackRepository.findAllTracksWithReportCount(
+      page,
+      limit,
+      status
+    );
 
     return {
       status: 'success',

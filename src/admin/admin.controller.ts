@@ -22,6 +22,7 @@ import {
   ApiGetEngagementAnalytics,
   ApiGetAllTracksWithReportCount,
 } from './admin.swagger';
+import { TrackStatus } from '../track/enums/track-status.enum';
 
 @Roles('admin')
 @ApiTags('Admin')
@@ -118,7 +119,11 @@ export class AdminController {
 
   @ApiGetAllTracksWithReportCount()
   @Get('tracks')
-  getAllTracksWithReportCount(@Query('page') page: number = 1, @Query('limit') limit: number = 20) {
-    return this.adminService.getAllTracksWithReportCount(page, limit);
+  getAllTracksWithReportCount(
+    @Query('page') page: number = 1,
+    @Query('limit') limit: number = 20,
+    @Query('status') status?: TrackStatus
+  ) {
+    return this.adminService.getAllTracksWithReportCount(page, limit, status);
   }
 }

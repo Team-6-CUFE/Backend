@@ -10,6 +10,7 @@ import {
 import { CreateReportDto } from './dto/createReport.dto';
 import { ReportStatus } from './report-enums';
 import { SuspendUserDto } from './dto/suspend-user.dto';
+import { TrackStatus } from '../track/enums/track-status.enum';
 
 export function ApiAddReport() {
   return applyDecorators(
@@ -572,6 +573,12 @@ export function ApiGetAllTracksWithReportCount() {
       description: 'Number of tracks per page (default: 20)',
       example: 20,
     }),
+    ApiQuery({
+      name: 'status',
+      required: false,
+      enum: TrackStatus,
+      description: 'Filter tracks by status (optional)',
+    }),
     ApiResponse({
       status: 200,
       description: 'Paginated list of tracks with report counts.',
@@ -582,6 +589,7 @@ export function ApiGetAllTracksWithReportCount() {
             {
               trackId: 'c7d8e9f0-1234-5678-abcd-ef0987654321',
               title: 'Midnight Drive',
+              trackStatus: 'published',
               coverImage: 'https://cdn.harmonica.com/covers/midnight.jpg',
               audioUrl: 'https://cdn.harmonica.com/audio/midnight.mp3',
               userId: 'b6fc3946-ee96-4721-9118-5ca776a874f8',
