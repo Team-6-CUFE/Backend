@@ -27,6 +27,7 @@ const mockSubscription = (overrides?: object) => ({
   currentPeriodStart: null,
   currentPeriodEnd: new Date('2026-05-30T00:00:00Z'),
   cancelAtPeriodEnd: false,
+  user: { userId: MOCK_USER_ID },
   ...overrides,
 });
 
@@ -47,6 +48,7 @@ describe('SubscriptionService', () => {
     createSubscription: jest.fn(),
     updateSubscription: jest.fn(),
     findByStripeCustomerId: jest.fn(),
+    findOneByCustomerId: jest.fn(),
   };
 
   const mockStripeService = {
@@ -78,6 +80,7 @@ describe('SubscriptionService', () => {
 
   beforeEach(async () => {
     jest.clearAllMocks();
+    jest.useFakeTimers();
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -90,6 +93,10 @@ describe('SubscriptionService', () => {
     }).compile();
 
     service = module.get<SubscriptionService>(SubscriptionService);
+  });
+
+  afterEach(() => {
+    jest.useRealTimers();
   });
 
   it('should be defined', () => {
@@ -187,21 +194,78 @@ describe('SubscriptionService', () => {
       expect(mockUserRepository.update).toHaveBeenCalledWith(MOCK_USER_ID, { plan: PlanType.PRO });
     });
 
-    it('should return pending when payment intent is in another status', async () => {
+    it('should return success when webhook updates DB to active while polling', async () => {
       mockSubscriptionRepository.findOne.mockResolvedValue(mockSubscription());
       mockStripeService.attachPaymentMethod.mockResolvedValue(undefined);
       mockStripeService.createStripeSubscription.mockResolvedValue(
         makeStripeSubscription('processing')
       );
+      mockUserRepository.update.mockResolvedValue(undefined);
+      mockSubscriptionRepository.findOneByCustomerId.mockResolvedValue(
+        mockSubscription({ status: SubscriptionStatus.ACTIVE, plan: SubscriptionPlan.PRO_MONTHLY })
+      );
 
-      const result = await service.createCheckout(
+      const resultPromise = service.createCheckout(
         MOCK_USER_ID,
         PlanType.PRO,
         BillingCycle.MONTHLY,
         MOCK_PAYMENT_METHOD_ID
       );
 
-      expect(result).toEqual({ status: 'pending', message: 'Payment is being processed' });
+      await jest.runAllTimersAsync();
+
+      const result = await resultPromise;
+      expect(result).toEqual({ status: 'success', message: 'Subscription created successfully' });
+    });
+
+    it('should throw BadRequestException when webhook signals payment failure', async () => {
+      mockSubscriptionRepository.findOne.mockResolvedValue(mockSubscription());
+      mockStripeService.attachPaymentMethod.mockResolvedValue(undefined);
+      mockStripeService.createStripeSubscription.mockResolvedValue(
+        makeStripeSubscription('processing')
+      );
+      mockSubscriptionRepository.findOneByCustomerId.mockResolvedValue(
+        mockSubscription({ status: SubscriptionStatus.PAST_DUE })
+      );
+
+      // ✅ capture the error via .catch() before timers run
+      let caughtError: unknown;
+      const resultPromise = service
+        .createCheckout(MOCK_USER_ID, PlanType.PRO, BillingCycle.MONTHLY, MOCK_PAYMENT_METHOD_ID)
+        .catch((err: unknown) => {
+          caughtError = err;
+        });
+
+      await jest.runAllTimersAsync();
+      await resultPromise;
+
+      expect(caughtError).toBeInstanceOf(BadRequestException);
+      expect((caughtError as BadRequestException).message).toBe('Payment failed');
+    });
+
+    it('should throw BadRequestException when payment times out', async () => {
+      mockSubscriptionRepository.findOne.mockResolvedValue(mockSubscription());
+      mockStripeService.attachPaymentMethod.mockResolvedValue(undefined);
+      mockStripeService.createStripeSubscription.mockResolvedValue(
+        makeStripeSubscription('processing')
+      );
+      // ✅ never return a terminal status — poll runs until timeout fires
+      mockSubscriptionRepository.findOneByCustomerId.mockResolvedValue(null);
+
+      let caughtError: unknown;
+      const resultPromise = service
+        .createCheckout(MOCK_USER_ID, PlanType.PRO, BillingCycle.MONTHLY, MOCK_PAYMENT_METHOD_ID)
+        .catch((err: unknown) => {
+          caughtError = err;
+        });
+
+      await jest.runAllTimersAsync();
+      await resultPromise;
+
+      expect(caughtError).toBeInstanceOf(BadRequestException);
+      expect((caughtError as BadRequestException).message).toBe(
+        'Payment timed out, please check your subscription status'
+      );
     });
 
     it('should attach payment method to stripe customer before creating subscription', async () => {
