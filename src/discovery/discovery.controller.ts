@@ -157,7 +157,7 @@ export class DiscoveryController {
     @CurrentUser('sub') currentUserId: string,
     @Ip() ip: string
   ) {
-    return this.discoveryService.getUserLikedby(currentUserId, userId, ip);
+    return this.discoveryService.getUserLikedby(userId, currentUserId, ip);
   }
 
   @ApiGetTracksByTag()

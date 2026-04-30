@@ -113,7 +113,6 @@ export class DiscoveryService {
     const isBlocked = country && track.blockedRegions?.includes(country);
 
     const artist = track.user as User;
-    console.log('liked?', track.isLiked);
     return {
       position: pt.position,
       trackId: track.trackId,
