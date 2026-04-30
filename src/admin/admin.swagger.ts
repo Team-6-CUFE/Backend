@@ -8,7 +8,7 @@ import {
   ApiParam,
 } from '@nestjs/swagger';
 import { CreateReportDto } from './dto/createReport.dto';
-import { ReportStatus, Role, UserStatus } from './report-enums';
+import { ReportReason, ReportStatus, ReportType, Role, UserStatus } from './report-enums';
 import { SuspendUserDto } from './dto/suspend-user.dto';
 import { TrackStatus } from '../track/enums/track-status.enum';
 
@@ -98,7 +98,6 @@ export function ApiAddReport() {
     ApiResponse({ status: 401, description: 'Unauthorized — missing or invalid access token.' })
   );
 }
-
 export function ApiGetAllReports() {
   return applyDecorators(
     ApiBearerAuth('access_token'),
@@ -123,6 +122,27 @@ export function ApiGetAllReports() {
       type: Number,
       description: 'Number of reports per page (default: 20)',
       example: 20,
+    }),
+    ApiQuery({
+      name: 'status',
+      required: false,
+      enum: ReportStatus,
+      description: 'Filter by report status.',
+      example: ReportStatus.PENDING,
+    }),
+    ApiQuery({
+      name: 'type',
+      required: false,
+      enum: ReportType,
+      description: 'Filter by report type.',
+      example: ReportType.TRACK,
+    }),
+    ApiQuery({
+      name: 'reason',
+      required: false,
+      enum: ReportReason,
+      description: 'Filter by report reason.',
+      example: ReportReason.COPYRIGHT,
     }),
     ApiResponse({
       status: 200,
@@ -216,7 +236,6 @@ export function ApiGetAllReports() {
     ApiResponse({ status: 403, description: 'Forbidden — admin access only.' })
   );
 }
-
 export function ApiDeleteReport() {
   return applyDecorators(
     ApiBearerAuth('access_token'),
