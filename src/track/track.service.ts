@@ -42,6 +42,7 @@ import { BlockedRegionsDto } from './dto/blocked-regions.dto';
 import { GenresResDto } from './dto/get-genres-res.dto';
 import { TrackTagDto } from './dto/track-tag.dto';
 import { getLocationFromIp } from '../common/utilities/geolocation.util';
+import { resolveAudioUrl } from '../common/utilities/audio.util';
 import { PlaylistService } from '../playlist/playlist.service';
 import { RecentlyPlayedItemType } from './entities/recently-played.entity';
 import { FansService } from './services/fans.service';
@@ -78,9 +79,7 @@ export class TrackService {
   ) {}
 
   private resolveAudioUrl(track: Track, user?: JwtPayload): string | null {
-    const isHqEligible = user?.plan === 'pro' || user?.plan === 'go+';
-    if (isHqEligible && track.audioUrlHq) return track.audioUrlHq;
-    return track.audioUrl ?? null;
+    return resolveAudioUrl(track, user?.plan);
   }
 
   async uploadTrack(
@@ -787,7 +786,8 @@ export class TrackService {
     userId: string,
     currentUserId: string,
     page: number = 1,
-    limit: number = 20
+    limit: number = 20,
+    currentUserPlan?: string
   ) {
     const user = await this.userRepository.findById(userId);
     if (!user) throw new NotFoundException('User does not exist');
@@ -804,8 +804,10 @@ export class TrackService {
       cappedLimit
     );
 
-    const data = plainToInstance(UserTrackResponseDto, tracks, {
-      excludeExtraneousValues: true,
+    const data = tracks.map((t) => {
+      const dto = plainToInstance(UserTrackResponseDto, t, { excludeExtraneousValues: true });
+      dto.audioUrl = resolveAudioUrl(t, currentUserPlan);
+      return dto;
     });
 
     return { status: 'success', ...buildPaginationResponse(data, total, page, cappedLimit) };
@@ -955,7 +957,8 @@ export class TrackService {
     artistUsername: string,
     page: number = 1,
     limit: number = 10,
-    ip?: string
+    ip?: string,
+    plan?: string
   ): Promise<{
     status: string;
     data: UserTrackResponseDto[];
@@ -975,9 +978,12 @@ export class TrackService {
 
     const data = relatedTracks.map((t) => {
       const dto = plainToInstance(UserTrackResponseDto, t, { excludeExtraneousValues: true });
-      if (country && t.blockedRegions?.includes(country)) {
+      const isBlocked = country && t.blockedRegions?.includes(country);
+      if (isBlocked) {
         dto.audioUrl = null;
         dto.waveformUrl = null;
+      } else {
+        dto.audioUrl = resolveAudioUrl(t, plan);
       }
       dto.genreName = t.genre?.name ?? null;
       dto.artistId = t.user.userId;

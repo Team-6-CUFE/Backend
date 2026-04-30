@@ -400,9 +400,10 @@ export class TrackController {
     @Param('userId', ParseUUIDPipe) userId: string,
     @CurrentUser('sub') currentUserId: string,
     @Query('page') page: number,
-    @Query('limit') limit: number
+    @Query('limit') limit: number,
+    @CurrentUser('plan') plan?: string
   ) {
-    return this.trackService.getUserUploadedTracks(userId, currentUserId, page, limit);
+    return this.trackService.getUserUploadedTracks(userId, currentUserId, page, limit, plan);
   }
 
   @ApiGetTrackPlaylists()
@@ -478,9 +479,10 @@ export class TrackController {
     @Param('title') title: string,
     @Query('page', new DefaultValuePipe(1), ParseIntPipe) page: number,
     @Query('limit', new DefaultValuePipe(10), ParseIntPipe) limit: number,
-    @Ip() ip: string
+    @Ip() ip: string,
+    @CurrentUser('plan') plan?: string
   ) {
-    return this.trackService.getRelatedTracks(title, artistUsername, page, limit, ip);
+    return this.trackService.getRelatedTracks(title, artistUsername, page, limit, ip, plan);
   }
 
   @ApiUpdateCommentsSettings()

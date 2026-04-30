@@ -520,13 +520,14 @@ describe('TrackController', () => {
     it('should delegate to service with all params', async () => {
       service.getUserUploadedTracks.mockResolvedValue({ status: 'success', data: [] });
 
-      await controller.getUserUploadedTracks(MOCK_OTHER_USER_ID, MOCK_USER_ID, 1, 20);
+      await controller.getUserUploadedTracks(MOCK_OTHER_USER_ID, MOCK_USER_ID, 1, 20, undefined);
 
       expect(service.getUserUploadedTracks).toHaveBeenCalledWith(
         MOCK_OTHER_USER_ID,
         MOCK_USER_ID,
         1,
-        20
+        20,
+        undefined
       );
     });
 
@@ -534,7 +535,7 @@ describe('TrackController', () => {
       service.getUserUploadedTracks.mockRejectedValue(new ForbiddenException());
 
       await expect(
-        controller.getUserUploadedTracks(MOCK_OTHER_USER_ID, MOCK_USER_ID, 1, 20)
+        controller.getUserUploadedTracks(MOCK_OTHER_USER_ID, MOCK_USER_ID, 1, 20, undefined)
       ).rejects.toThrow(ForbiddenException);
     });
   });
@@ -984,9 +985,16 @@ describe('TrackController', () => {
     it('should delegate to service with correct args', async () => {
       service.getRelatedTracks.mockResolvedValue({ status: 'success', data: [] });
 
-      await controller.getRelatedTracks(ARTIST, TITLE, 1, 10, '1.2.3.4');
+      await controller.getRelatedTracks(ARTIST, TITLE, 1, 10, '1.2.3.4', undefined);
 
-      expect(service.getRelatedTracks).toHaveBeenCalledWith(TITLE, ARTIST, 1, 10, '1.2.3.4');
+      expect(service.getRelatedTracks).toHaveBeenCalledWith(
+        TITLE,
+        ARTIST,
+        1,
+        10,
+        '1.2.3.4',
+        undefined
+      );
     });
 
     it('should return service response as-is', async () => {
@@ -997,7 +1005,7 @@ describe('TrackController', () => {
       };
       service.getRelatedTracks.mockResolvedValue(mockResponse);
 
-      const result = await controller.getRelatedTracks(ARTIST, TITLE, 1, 10, '1.2.3.4');
+      const result = await controller.getRelatedTracks(ARTIST, TITLE, 1, 10, '1.2.3.4', undefined);
 
       expect(result).toBe(mockResponse);
     });
@@ -1005,17 +1013,17 @@ describe('TrackController', () => {
     it('should propagate NotFoundException when track does not exist', async () => {
       service.getRelatedTracks.mockRejectedValue(new NotFoundException());
 
-      await expect(controller.getRelatedTracks(ARTIST, TITLE, 1, 10, '1.2.3.4')).rejects.toThrow(
-        NotFoundException
-      );
+      await expect(
+        controller.getRelatedTracks(ARTIST, TITLE, 1, 10, '1.2.3.4', undefined)
+      ).rejects.toThrow(NotFoundException);
     });
 
     it('should propagate ForbiddenException when track is private', async () => {
       service.getRelatedTracks.mockRejectedValue(new ForbiddenException());
 
-      await expect(controller.getRelatedTracks(ARTIST, TITLE, 1, 10, '1.2.3.4')).rejects.toThrow(
-        ForbiddenException
-      );
+      await expect(
+        controller.getRelatedTracks(ARTIST, TITLE, 1, 10, '1.2.3.4', undefined)
+      ).rejects.toThrow(ForbiddenException);
     });
   });
 
