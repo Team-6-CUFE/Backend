@@ -65,6 +65,8 @@ export const mockMessagingRepository = {
   getUnreadCount: jest.fn(),
   getTotalUnreadCount: jest.fn(),
   hasBlockRelationship: jest.fn(),
+  isFirstMessage: jest.fn().mockResolvedValue(false),
+  getChatUnreadCountForUser: jest.fn().mockResolvedValue(0),
 };
 
 export const mockWebsocketsService = {
@@ -103,6 +105,11 @@ export function makeMockSocket(userId: string, socketId = 'socket-abc'): any {
   };
 }
 
+export const mockUserRepository = {
+  findById: jest.fn().mockResolvedValue(mockUserOne),
+  getPrimaryEmail: jest.fn().mockResolvedValue('user@example.com'),
+};
+
 export const makeCreateChatDto = (participantTwoId = mockUserTwo.userId) => ({
   participantTwoId,
 });
@@ -137,3 +144,7 @@ export const makeGetMessagesDto = (overrides = {}) => ({
   limit: 20,
   ...overrides,
 });
+
+export const mockNotificationsService = {
+  notifyNewMessage: jest.fn(),
+};

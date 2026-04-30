@@ -9,9 +9,20 @@ import { MessagingGateway } from './messaging.gateway';
 import { MessagingController } from './messaging.controller';
 import { WebsocketsModule } from '../websockets/websockets.module';
 import { UserBlock } from '../followers/entities/user-blocks.entity';
+import { User } from '../user/entities/user.entity';
+import { UserEmail } from '../user/entities/user-email.entity';
+import { NotificationsModule } from '../notifications/notifications.module';
+import { MailModule } from '../mail/mail.module';
+import { UserModule } from '../user/user.module';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([Chat, Message, ChatStatus, UserBlock]), WebsocketsModule],
+  imports: [
+    TypeOrmModule.forFeature([Chat, Message, ChatStatus, UserBlock, User, UserEmail]),
+    WebsocketsModule,
+    NotificationsModule,
+    MailModule,
+    UserModule,
+  ],
   providers: [MessagingRepository, MessagingService, MessagingGateway],
   controllers: [MessagingController],
   exports: [MessagingService],
