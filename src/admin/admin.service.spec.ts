@@ -88,7 +88,13 @@ describe('AdminService', () => {
 
       const result = await service.getUsers(limit, offset, search);
 
-      expect(adminRepository.findAllUsers).toHaveBeenCalledWith(limit, offset, search);
+      expect(adminRepository.findAllUsers).toHaveBeenCalledWith(
+        limit,
+        offset,
+        search,
+        undefined,
+        undefined
+      );
       expect(result).toEqual({ users: mockUsers, total });
     });
   });

@@ -1972,4 +1972,274 @@ describe('TrackService', () => {
       expect(result.data).toEqual(emptyStats);
     });
   });
+
+  // ─── getTopListeners ─────────────────────────────────────────────────────────
+
+  describe('getTopListeners', () => {
+    const mockListeners = [
+      {
+        userId: MOCK_MY_USER_ID,
+        username: 'superfan1',
+        displayName: 'Super Fan',
+        avatarUrl: 'https://example.com/avatar.jpg',
+        followersCount: 200,
+        playCount: 42,
+      },
+      {
+        userId: MOCK_OTHER_USER_ID,
+        username: 'superfan2',
+        displayName: 'Super Fan 2',
+        avatarUrl: 'https://example.com/avatar2.jpg',
+        followersCount: 150,
+        playCount: 30,
+      },
+    ];
+
+    it('should return top listeners wrapped in a success envelope', async () => {
+      trackRepo.getTopListeners.mockResolvedValue(mockListeners);
+
+      const result = await service.getTopListeners(MOCK_USER_ID);
+
+      expect(trackRepo.getTopListeners).toHaveBeenCalledWith(MOCK_USER_ID);
+      expect(result).toEqual({ status: 'success', data: mockListeners });
+    });
+
+    it('should return empty data array when no plays exist in the last month', async () => {
+      trackRepo.getTopListeners.mockResolvedValue([]);
+
+      const result = await service.getTopListeners(MOCK_USER_ID);
+
+      expect(result).toEqual({ status: 'success', data: [] });
+    });
+
+    it('should return listeners ordered by playCount descending (as returned by repo)', async () => {
+      trackRepo.getTopListeners.mockResolvedValue(mockListeners);
+
+      const result = await service.getTopListeners(MOCK_USER_ID);
+
+      expect(result.data[0].playCount).toBeGreaterThanOrEqual(result.data[1].playCount);
+    });
+  });
+
+  // ─── getTopRegions ────────────────────────────────────────────────────────────
+
+  describe('getTopRegions', () => {
+    const mockRegions = [
+      { country: 'EG', playCount: 120 },
+      { country: 'US', playCount: 85 },
+      { country: 'GB', playCount: 40 },
+    ];
+
+    it('should return top regions wrapped in a success envelope', async () => {
+      trackRepo.getTopRegions.mockResolvedValue(mockRegions);
+
+      const result = await service.getTopRegions(MOCK_USER_ID);
+
+      expect(trackRepo.getTopRegions).toHaveBeenCalledWith(MOCK_USER_ID);
+      expect(result).toEqual({ status: 'success', data: mockRegions });
+    });
+
+    it('should return empty data array when no plays with country data exist', async () => {
+      trackRepo.getTopRegions.mockResolvedValue([]);
+
+      const result = await service.getTopRegions(MOCK_USER_ID);
+
+      expect(result).toEqual({ status: 'success', data: [] });
+    });
+
+    it('should return regions ordered by playCount descending (as returned by repo)', async () => {
+      trackRepo.getTopRegions.mockResolvedValue(mockRegions);
+
+      const result = await service.getTopRegions(MOCK_USER_ID);
+
+      expect(result.data[0].playCount).toBeGreaterThanOrEqual(result.data[1].playCount);
+    });
+  });
+
+  // ─── getTopPlaylistsAndAlbums ─────────────────────────────────────────────────
+
+  describe('getTopPlaylistsAndAlbums', () => {
+    const mockPlaylists = [
+      {
+        playlistId: '770e8400-e29b-41d4-a716-446655440020',
+        title: 'Late Night Vibes',
+        coverImage: 'https://s3.amazonaws.com/covers/playlist.jpg',
+        trackCount: 14,
+        likesCount: 200,
+        repostsCount: 30,
+        ownerId: MOCK_MY_USER_ID,
+        type: 'playlist',
+        playCount: 560,
+      },
+      {
+        playlistId: '770e8400-e29b-41d4-a716-446655440021',
+        title: 'Debut Album',
+        coverImage: 'https://s3.amazonaws.com/covers/album.jpg',
+        trackCount: 10,
+        likesCount: 150,
+        repostsCount: 20,
+        ownerId: MOCK_MY_USER_ID,
+        type: 'album',
+        playCount: 310,
+      },
+    ];
+
+    it('should return top playlists and albums wrapped in a success envelope', async () => {
+      trackRepo.getTopPlaylistsAndAlbums.mockResolvedValue(mockPlaylists);
+
+      const result = await service.getTopPlaylistsAndAlbums(MOCK_USER_ID);
+
+      expect(trackRepo.getTopPlaylistsAndAlbums).toHaveBeenCalledWith(MOCK_USER_ID);
+      expect(result).toEqual({ status: 'success', data: mockPlaylists });
+    });
+
+    it('should return empty data array when no playlist plays exist in the last month', async () => {
+      trackRepo.getTopPlaylistsAndAlbums.mockResolvedValue([]);
+
+      const result = await service.getTopPlaylistsAndAlbums(MOCK_USER_ID);
+
+      expect(result).toEqual({ status: 'success', data: [] });
+    });
+
+    it('should return playlists ordered by playCount descending (as returned by repo)', async () => {
+      trackRepo.getTopPlaylistsAndAlbums.mockResolvedValue(mockPlaylists);
+
+      const result = await service.getTopPlaylistsAndAlbums(MOCK_USER_ID);
+
+      expect(result.data[0].playCount).toBeGreaterThanOrEqual(result.data[1].playCount);
+    });
+
+    it('should include both playlist and album types in the response', async () => {
+      trackRepo.getTopPlaylistsAndAlbums.mockResolvedValue(mockPlaylists);
+
+      const result = await service.getTopPlaylistsAndAlbums(MOCK_USER_ID);
+      const types = result.data.map((item: { type: string }) => item.type);
+
+      expect(types).toContain('playlist');
+      expect(types).toContain('album');
+    });
+  });
+
+  // ─── getUserSpotlightTacks ────────────────────────────────────────────────────
+
+  describe('getUserSpotlightTacks', () => {
+    const MOCK_IP = '1.2.3.4';
+
+    beforeEach(() => {
+      jest.spyOn(geolocationUtil, 'getLocationFromIp').mockReturnValue({ country: 'US' } as any);
+    });
+
+    it('should throw BadRequestException if user not found', async () => {
+      userRepo.findById.mockResolvedValue(null);
+
+      await expect(service.getUserSpotlightTacks(MOCK_USER_ID, MOCK_IP)).rejects.toThrow(
+        BadRequestException
+      );
+    });
+
+    it('should return tracks as-is when none are blocked in the user region', async () => {
+      userRepo.findById.mockResolvedValue(mockPublicUser());
+      const track = {
+        ...mockPublicTrack(),
+        blockedRegions: ['DE'],
+        audioUrl: 'url',
+        audioUrlHq: 'hq',
+      };
+      trackRepo.getSpotlightTracks.mockResolvedValue([track]);
+
+      const result = await service.getUserSpotlightTacks(MOCK_USER_ID, MOCK_IP);
+
+      expect(result[0]).toHaveProperty('audioUrl');
+      expect(result[0]).toHaveProperty('audioUrlHq');
+    });
+
+    it('should strip audioUrl and audioUrlHq for tracks blocked in the user region', async () => {
+      userRepo.findById.mockResolvedValue(mockPublicUser());
+      const track = {
+        ...mockPublicTrack(),
+        blockedRegions: ['US'],
+        audioUrl: 'url',
+        audioUrlHq: 'hq',
+      };
+      trackRepo.getSpotlightTracks.mockResolvedValue([track]);
+
+      const result = await service.getUserSpotlightTacks(MOCK_USER_ID, MOCK_IP);
+
+      expect(result[0]).not.toHaveProperty('audioUrl');
+      expect(result[0]).not.toHaveProperty('audioUrlHq');
+    });
+
+    it('should return empty array when spotlight is empty', async () => {
+      userRepo.findById.mockResolvedValue(mockPublicUser());
+      trackRepo.getSpotlightTracks.mockResolvedValue([]);
+
+      const result = await service.getUserSpotlightTacks(MOCK_USER_ID, MOCK_IP);
+
+      expect(result).toEqual([]);
+    });
+  });
+
+  // ─── addToSpotlight ───────────────────────────────────────────────────────────
+
+  describe('addToSpotlight', () => {
+    it('should throw BadRequestException if track not found', async () => {
+      trackRepo.findById.mockResolvedValue(null);
+
+      await expect(service.addToSpotlight(MOCK_USER_ID, MOCK_TRACK_ID)).rejects.toThrow(
+        BadRequestException
+      );
+    });
+
+    it('should throw BadRequestException if track already in spotlight', async () => {
+      trackRepo.findById.mockResolvedValue(mockPublicTrack());
+      trackRepo.findSpotlight.mockResolvedValue({ id: 'existing' });
+
+      await expect(service.addToSpotlight(MOCK_USER_ID, MOCK_TRACK_ID)).rejects.toThrow(
+        BadRequestException
+      );
+    });
+
+    it('should throw ForbiddenException if spotlight count exceeds 5', async () => {
+      trackRepo.findById.mockResolvedValue(mockPublicTrack());
+      trackRepo.findSpotlight.mockResolvedValue(null);
+      trackRepo.countSpotlight.mockResolvedValue(6);
+
+      await expect(service.addToSpotlight(MOCK_USER_ID, MOCK_TRACK_ID)).rejects.toThrow(
+        ForbiddenException
+      );
+    });
+
+    it('should add track to spotlight and return success message', async () => {
+      trackRepo.findById.mockResolvedValue(mockPublicTrack());
+      trackRepo.findSpotlight.mockResolvedValue(null);
+      trackRepo.countSpotlight.mockResolvedValue(3);
+      trackRepo.addToSpotlight.mockResolvedValue(undefined);
+
+      const result = await service.addToSpotlight(MOCK_USER_ID, MOCK_TRACK_ID);
+
+      expect(trackRepo.addToSpotlight).toHaveBeenCalledWith(MOCK_USER_ID, MOCK_TRACK_ID);
+      expect(result).toMatchObject({ status: 'success' });
+    });
+  });
+
+  // ─── updateSpotlightTracks ────────────────────────────────────────────────────
+
+  describe('updateSpotlightTracks', () => {
+    it('should throw BadRequestException if more than 5 trackIds provided', async () => {
+      const trackIds = ['1', '2', '3', '4', '5', '6'];
+
+      await expect(service.updateSpotlightTracks(MOCK_USER_ID, trackIds)).rejects.toThrow(
+        BadRequestException
+      );
+    });
+
+    it('should call repository updateSpotlightTracks with correct args', async () => {
+      const trackIds = [MOCK_TRACK_ID];
+      trackRepo.updateSpotlightTracks.mockResolvedValue(undefined);
+
+      await service.updateSpotlightTracks(MOCK_USER_ID, trackIds);
+
+      expect(trackRepo.updateSpotlightTracks).toHaveBeenCalledWith(MOCK_USER_ID, trackIds);
+    });
+  });
 });

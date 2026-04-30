@@ -62,7 +62,13 @@ describe('ReportController', () => {
 
       const result = await controller.getAllReports('user-123', 1, 20);
 
-      expect(adminService.getAllReports).toHaveBeenCalledWith(1, 20);
+      expect(adminService.getAllReports).toHaveBeenCalledWith(
+        1,
+        20,
+        undefined,
+        undefined,
+        undefined
+      );
       expect(result).toEqual(mockResult);
     });
   });

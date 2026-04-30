@@ -19,6 +19,7 @@ import { TrackVisibility } from '../enums/track-visibility.enum';
 import { Genre } from '../../genre/entities/genre.entity';
 import { TrackPlay } from './track-play.entity';
 import { DownloadedTrack } from '../../download/entities/downloaded-tracks.entity';
+import { SpotlightTrack } from './spotlght-track.entity';
 
 @Entity('tracks')
 export class Track extends BaseEntity {
@@ -185,4 +186,7 @@ export class Track extends BaseEntity {
 
   @OneToMany(() => DownloadedTrack, (dt) => dt.track)
   downloads!: DownloadedTrack[];
+
+  @OneToMany(() => SpotlightTrack, (spotlight) => spotlight.user)
+  spotlightTracks!: SpotlightTrack[];
 }

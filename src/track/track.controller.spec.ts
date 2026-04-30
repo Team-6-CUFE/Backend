@@ -54,6 +54,13 @@ const mockTrackService = () => ({
   deleteTrack: jest.fn(),
   getRelatedTracks: jest.fn(),
   getAllTimeStats: jest.fn(),
+  getTopListeners: jest.fn(),
+  getTopRegions: jest.fn(),
+  getTopPlaylistsAndAlbums: jest.fn(),
+  updateTrackCommentSettings: jest.fn(),
+  getUserSpotlightTacks: jest.fn(),
+  addToSpotlight: jest.fn(),
+  updateSpotlightTracks: jest.fn(),
 });
 
 jest.mock('meilisearch', () => ({
@@ -1038,6 +1045,179 @@ describe('TrackController', () => {
       const result = await controller.getAllTimeStats(MOCK_USER_ID);
 
       expect(result).toBe(mockResponse);
+    });
+  });
+
+  // ─── getTopListeners ─────────────────────────────────────────────────────────
+
+  describe('getTopListeners', () => {
+    it('should delegate to service with the current userId', async () => {
+      service.getTopListeners.mockResolvedValue({ status: 'success', data: [] });
+
+      await controller.getTopListeners(MOCK_USER_ID);
+
+      expect(service.getTopListeners).toHaveBeenCalledWith(MOCK_USER_ID);
+    });
+
+    it('should return service response as-is', async () => {
+      const mockResponse = {
+        status: 'success',
+        data: [
+          {
+            userId: MOCK_MY_USER_ID,
+            username: 'superfan1',
+            displayName: 'Super Fan',
+            avatarUrl: 'https://example.com/avatar.jpg',
+            followersCount: 200,
+            playCount: 42,
+          },
+        ],
+      };
+      service.getTopListeners.mockResolvedValue(mockResponse);
+
+      const result = await controller.getTopListeners(MOCK_USER_ID);
+
+      expect(result).toBe(mockResponse);
+    });
+  });
+
+  // ─── getTopRegions ────────────────────────────────────────────────────────────
+
+  describe('getTopRegions', () => {
+    it('should delegate to service with the current userId', async () => {
+      service.getTopRegions.mockResolvedValue({ status: 'success', data: [] });
+
+      await controller.getTopRegions(MOCK_USER_ID);
+
+      expect(service.getTopRegions).toHaveBeenCalledWith(MOCK_USER_ID);
+    });
+
+    it('should return service response as-is', async () => {
+      const mockResponse = {
+        status: 'success',
+        data: [
+          { country: 'EG', playCount: 120 },
+          { country: 'US', playCount: 85 },
+        ],
+      };
+      service.getTopRegions.mockResolvedValue(mockResponse);
+
+      const result = await controller.getTopRegions(MOCK_USER_ID);
+
+      expect(result).toBe(mockResponse);
+    });
+  });
+
+  // ─── getTopPlaylistsAndAlbums ─────────────────────────────────────────────────
+
+  describe('getTopPlaylistsAndAlbums', () => {
+    it('should delegate to service with the current userId', async () => {
+      service.getTopPlaylistsAndAlbums.mockResolvedValue({ status: 'success', data: [] });
+
+      await controller.getTopPlaylistsAndAlbums(MOCK_USER_ID);
+
+      expect(service.getTopPlaylistsAndAlbums).toHaveBeenCalledWith(MOCK_USER_ID);
+    });
+
+    it('should return service response as-is', async () => {
+      const mockResponse = {
+        status: 'success',
+        data: [
+          {
+            playlistId: '770e8400-e29b-41d4-a716-446655440020',
+            title: 'Late Night Vibes',
+            coverImage: 'https://s3.amazonaws.com/covers/playlist.jpg',
+            trackCount: 14,
+            likesCount: 200,
+            repostsCount: 30,
+            ownerId: MOCK_MY_USER_ID,
+            type: 'playlist',
+            playCount: 560,
+          },
+        ],
+      };
+      service.getTopPlaylistsAndAlbums.mockResolvedValue(mockResponse);
+
+      const result = await controller.getTopPlaylistsAndAlbums(MOCK_USER_ID);
+
+      expect(result).toBe(mockResponse);
+    });
+  });
+
+  // ─── getsSpotlightTracks ──────────────────────────────────────────────────────
+
+  describe('getsSpotlightTracks', () => {
+    it('should delegate to service with userId and ip', async () => {
+      service.getUserSpotlightTacks.mockResolvedValue([]);
+      await controller.getsSpotlightTracks(MOCK_USER_ID, '1.2.3.4');
+      expect(service.getUserSpotlightTacks).toHaveBeenCalledWith(MOCK_USER_ID, '1.2.3.4');
+    });
+
+    it('should return service response as-is', async () => {
+      const mockTracks = [{ trackId: MOCK_TRACK_ID, title: 'My Song' }];
+      service.getUserSpotlightTacks.mockResolvedValue(mockTracks);
+      expect(await controller.getsSpotlightTracks(MOCK_USER_ID, '1.2.3.4')).toBe(mockTracks);
+    });
+
+    it('should propagate BadRequestException when user not found', async () => {
+      service.getUserSpotlightTacks.mockRejectedValue(new BadRequestException('user is not found'));
+      await expect(controller.getsSpotlightTracks(MOCK_USER_ID, '1.2.3.4')).rejects.toThrow(
+        BadRequestException
+      );
+    });
+  });
+
+  // ─── addToSpotlight ───────────────────────────────────────────────────────────
+
+  describe('addToSpotlight', () => {
+    it('should delegate to service with userId and trackId', async () => {
+      service.addToSpotlight.mockResolvedValue({ status: 'success' });
+      await controller.addToSpotlight(MOCK_USER_ID, MOCK_TRACK_ID);
+      expect(service.addToSpotlight).toHaveBeenCalledWith(MOCK_USER_ID, MOCK_TRACK_ID);
+    });
+
+    it('should return service response as-is', async () => {
+      const mockResponse = {
+        status: 'success',
+        messsage: 'track is successfully added to spotlight',
+      };
+      service.addToSpotlight.mockResolvedValue(mockResponse);
+      expect(await controller.addToSpotlight(MOCK_USER_ID, MOCK_TRACK_ID)).toBe(mockResponse);
+    });
+
+    it('should propagate BadRequestException when track not found', async () => {
+      service.addToSpotlight.mockRejectedValue(new BadRequestException('track not found'));
+      await expect(controller.addToSpotlight(MOCK_USER_ID, MOCK_TRACK_ID)).rejects.toThrow(
+        BadRequestException
+      );
+    });
+
+    it('should propagate ForbiddenException when spotlight limit reached', async () => {
+      service.addToSpotlight.mockRejectedValue(new ForbiddenException());
+      await expect(controller.addToSpotlight(MOCK_USER_ID, MOCK_TRACK_ID)).rejects.toThrow(
+        ForbiddenException
+      );
+    });
+  });
+
+  // ─── updateSpotlightTracks ────────────────────────────────────────────────────
+
+  describe('updateSpotlightTracks', () => {
+    const body = { trackIds: [MOCK_TRACK_ID] };
+
+    it('should delegate to service with userId and trackIds', async () => {
+      service.updateSpotlightTracks.mockResolvedValue(undefined);
+      await controller.updateSpotlightTracks(MOCK_USER_ID, body);
+      expect(service.updateSpotlightTracks).toHaveBeenCalledWith(MOCK_USER_ID, body.trackIds);
+    });
+
+    it('should propagate BadRequestException when too many trackIds', async () => {
+      service.updateSpotlightTracks.mockRejectedValue(
+        new BadRequestException('Maximum 5 tracks allowed in spotlight')
+      );
+      await expect(controller.updateSpotlightTracks(MOCK_USER_ID, body)).rejects.toThrow(
+        BadRequestException
+      );
     });
   });
 });

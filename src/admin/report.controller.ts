@@ -11,7 +11,7 @@ import {
   ApiUpdateReportStatus,
 } from './admin.swagger';
 import { Roles } from '../authentication/decorators/roles.decorator';
-import { ReportStatus } from './report-enums';
+import { ReportReason, ReportStatus, ReportType } from './report-enums';
 
 @ApiTags('Reports')
 @Controller('report')
@@ -30,10 +30,13 @@ export class ReportController {
   getAllReports(
     @CurrentUser('sub') userId: string,
     @Query('page') page: number = 1,
-    @Query('limit') limit: number = 20
+    @Query('limit') limit: number = 20,
+    @Query('status') status?: ReportStatus,
+    @Query('type') type?: ReportType,
+    @Query('reason') reason?: ReportReason
   ) {
     console.log(userId);
-    return this.adminService.getAllReports(page, limit);
+    return this.adminService.getAllReports(page, limit, status, type, reason);
   }
 
   @Roles('admin')

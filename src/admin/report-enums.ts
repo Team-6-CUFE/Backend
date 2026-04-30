@@ -17,3 +17,13 @@ export enum ReportStatus {
   RESOLVED = 'resolved',
   REJECTED = 'rejected',
 }
+
+export enum Role {
+  LISTENER = 'listener',
+  ARTIST = 'artist',
+  ADMIN = 'admin',
+}
+export enum UserStatus {
+  ACTIVE = 'active',
+  SUSPENDED = 'suspended',
+}

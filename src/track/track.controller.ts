@@ -54,6 +54,12 @@ import {
   ApiGetRelatedTracks,
   ApiGetAllTimeStats,
   ApiUpdateCommentsSettings,
+  ApiGetTopListeners,
+  ApiGetTopRegions,
+  ApiGetTopPlaylistsAndAlbums,
+  ApiUpdateSpotlight,
+  ApiGetSpotlightTracks,
+  ApiAddToSpotlight,
 } from './track.swagger';
 import { CurrentUser } from '../authentication/decorators/current-user.decorator';
 import { CheckBlock } from '../followers/decorators/no-block.decorator';
@@ -489,5 +495,50 @@ export class TrackController {
       allowComments,
       showComments
     );
+  }
+
+  @ApiGetTopListeners()
+  @Plans('pro')
+  @Get('insights/top-listeners')
+  getTopListeners(@CurrentUser('sub') userId: string) {
+    return this.trackService.getTopListeners(userId);
+  }
+
+  @ApiGetTopRegions()
+  @Plans('pro')
+  @Get('insights/top-regions')
+  getTopRegions(@CurrentUser('sub') userId: string) {
+    return this.trackService.getTopRegions(userId);
+  }
+
+  @ApiGetTopPlaylistsAndAlbums()
+  @Plans('pro')
+  @Get('insights/top-playlists-albums')
+  getTopPlaylistsAndAlbums(@CurrentUser('sub') userId: string) {
+    return this.trackService.getTopPlaylistsAndAlbums(userId);
+  }
+
+  @ApiGetSpotlightTracks()
+  @CheckBlock()
+  @Get('/spotlight/:userId')
+  getsSpotlightTracks(@Param('userId') userId: string, @Ip() ip: string) {
+    return this.trackService.getUserSpotlightTacks(userId, ip);
+  }
+
+  @ApiAddToSpotlight()
+  @Plans('pro')
+  @Post('/spotlight/:trackId')
+  addToSpotlight(
+    @CurrentUser('sub') userId: string,
+    @Param('trackId') trackId: string // was 'trackid', must be 'trackId'
+  ) {
+    return this.trackService.addToSpotlight(userId, trackId);
+  }
+
+  @ApiUpdateSpotlight()
+  @Plans('pro')
+  @Patch('/spotlight')
+  updateSpotlightTracks(@CurrentUser('sub') userId: string, @Body() body: { trackIds: string[] }) {
+    return this.trackService.updateSpotlightTracks(userId, body.trackIds);
   }
 }

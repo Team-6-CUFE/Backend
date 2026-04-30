@@ -4,7 +4,7 @@ import { Repository, Brackets } from 'typeorm';
 import { User } from '../user/entities/user.entity';
 import { Track } from '../track/entities/track.entity';
 import { Report } from './entities/report.entity';
-import { ReportStatus } from './report-enums';
+import { ReportStatus, Role, UserStatus } from './report-enums';
 import { RecentlyPlayed } from '../track/entities/recently-played.entity';
 import { TrackLikes } from '../track/entities/track-likes.entity';
 import { TrackRepost } from '../track/entities/track-reposts.entity';
@@ -26,7 +26,13 @@ export class AdminRepository {
     private readonly trackRepostRepository: Repository<TrackRepost>
   ) {}
 
-  async findAllUsers(limit: number, offset: number, search?: string): Promise<[User[], number]> {
+  async findAllUsers(
+    limit: number,
+    offset: number,
+    search?: string,
+    role?: Role,
+    status?: UserStatus
+  ): Promise<[User[], number]> {
     const query = this.userRepository
       .createQueryBuilder('user')
       .leftJoinAndSelect('user.emails', 'emailRecord');
@@ -42,6 +48,17 @@ export class AdminRepository {
       );
     }
 
+    if (role) {
+      query.andWhere('user.role = :role', { role });
+    }
+
+    if (status) {
+      if (status === UserStatus.SUSPENDED) {
+        query.andWhere('user.isSuspended = :isSuspended', { isSuspended: true });
+      } else if (status === UserStatus.ACTIVE) {
+        query.andWhere('user.isSuspended = :isSuspended', { isSuspended: false });
+      }
+    }
     query.skip(offset).take(limit).orderBy('user.createdAt', 'DESC');
 
     return query.getManyAndCount();

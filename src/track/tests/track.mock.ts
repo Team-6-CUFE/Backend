@@ -289,6 +289,14 @@ export const mockTrackRepository = () => ({
   getTrackTopFansIds: jest.fn(),
   findRelatedTracks: jest.fn(),
   findAllTimeStats: jest.fn(),
+  getTopListeners: jest.fn(),
+  getTopRegions: jest.fn(),
+  getTopPlaylistsAndAlbums: jest.fn(),
+  getSpotlightTracks: jest.fn(),
+  countSpotlight: jest.fn(),
+  findSpotlight: jest.fn(),
+  addToSpotlight: jest.fn(),
+  updateSpotlightTracks: jest.fn(),
 });
 
 export const mockUserRepository = () => ({
