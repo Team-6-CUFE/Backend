@@ -17,6 +17,7 @@ import { mapTrack, addDocuments, updateDocument, deleteDocument } from '../searc
 import { DownloadedTrack } from '../download/entities/downloaded-tracks.entity';
 import { ReportType } from '../admin/report-enums';
 import { PlaylistType } from '../playlist/entities/playlist.entity';
+import { SpotlightTrack } from './entities/spotlght-track.entity';
 
 const RECENTLY_PLAYED_LIMIT = 6;
 
@@ -45,7 +46,9 @@ export class TrackRepository {
     private readonly recentlyPlayedRepository: Repository<RecentlyPlayed>,
 
     @InjectRepository(DownloadedTrack)
-    private readonly downloadedTrackRepository: Repository<DownloadedTrack>
+    private readonly downloadedTrackRepository: Repository<DownloadedTrack>,
+    @InjectRepository(SpotlightTrack)
+    private readonly spotlightTracksRepository: Repository<SpotlightTrack>
   ) {}
 
   async findById(trackId: string): Promise<Track | null> {
@@ -1089,5 +1092,41 @@ export class TrackRepository {
       type: result.type,
       playCount: Number(result.playCount),
     }));
+  }
+
+  async getSpotlightTracks(userId: string) {
+    const spotlights = await this.spotlightTracksRepository.find({
+      where: { userId },
+      relations: ['track', 'track.genre', 'track.tags'],
+    });
+
+    return spotlights.map((s) => s.track);
+  }
+
+  async countSpotlight(userId: string) {
+    return this.spotlightTracksRepository.count({ where: { userId } });
+  }
+
+  async findSpotlight(userId: string, trackId: string) {
+    return this.spotlightTracksRepository.findOne({
+      where: { userId, trackId },
+    });
+  }
+
+  async addToSpotlight(userId: string, trackId: string) {
+    const spotlight = this.spotlightTracksRepository.create({ userId, trackId });
+    return this.spotlightTracksRepository.save(spotlight);
+  }
+
+  async updateSpotlightTracks(userId: string, trackIds: string[]): Promise<void> {
+    await this.spotlightTracksRepository.delete({ userId });
+
+    if (trackIds.length === 0) return;
+
+    const spotlights = trackIds.map((trackId) =>
+      this.spotlightTracksRepository.create({ userId, trackId })
+    );
+
+    await this.spotlightTracksRepository.save(spotlights);
   }
 }

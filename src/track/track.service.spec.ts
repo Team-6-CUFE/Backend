@@ -2119,4 +2119,127 @@ describe('TrackService', () => {
       expect(types).toContain('album');
     });
   });
+
+  // ─── getUserSpotlightTacks ────────────────────────────────────────────────────
+
+  describe('getUserSpotlightTacks', () => {
+    const MOCK_IP = '1.2.3.4';
+
+    beforeEach(() => {
+      jest.spyOn(geolocationUtil, 'getLocationFromIp').mockReturnValue({ country: 'US' } as any);
+    });
+
+    it('should throw BadRequestException if user not found', async () => {
+      userRepo.findById.mockResolvedValue(null);
+
+      await expect(service.getUserSpotlightTacks(MOCK_USER_ID, MOCK_IP)).rejects.toThrow(
+        BadRequestException
+      );
+    });
+
+    it('should return tracks as-is when none are blocked in the user region', async () => {
+      userRepo.findById.mockResolvedValue(mockPublicUser());
+      const track = {
+        ...mockPublicTrack(),
+        blockedRegions: ['DE'],
+        audioUrl: 'url',
+        audioUrlHq: 'hq',
+      };
+      trackRepo.getSpotlightTracks.mockResolvedValue([track]);
+
+      const result = await service.getUserSpotlightTacks(MOCK_USER_ID, MOCK_IP);
+
+      expect(result[0]).toHaveProperty('audioUrl');
+      expect(result[0]).toHaveProperty('audioUrlHq');
+    });
+
+    it('should strip audioUrl and audioUrlHq for tracks blocked in the user region', async () => {
+      userRepo.findById.mockResolvedValue(mockPublicUser());
+      const track = {
+        ...mockPublicTrack(),
+        blockedRegions: ['US'],
+        audioUrl: 'url',
+        audioUrlHq: 'hq',
+      };
+      trackRepo.getSpotlightTracks.mockResolvedValue([track]);
+
+      const result = await service.getUserSpotlightTacks(MOCK_USER_ID, MOCK_IP);
+
+      expect(result[0]).not.toHaveProperty('audioUrl');
+      expect(result[0]).not.toHaveProperty('audioUrlHq');
+    });
+
+    it('should return empty array when spotlight is empty', async () => {
+      userRepo.findById.mockResolvedValue(mockPublicUser());
+      trackRepo.getSpotlightTracks.mockResolvedValue([]);
+
+      const result = await service.getUserSpotlightTacks(MOCK_USER_ID, MOCK_IP);
+
+      expect(result).toEqual([]);
+    });
+  });
+
+  // ─── addToSpotlight ───────────────────────────────────────────────────────────
+
+  describe('addToSpotlight', () => {
+    it('should throw BadRequestException if track not found', async () => {
+      trackRepo.findById.mockResolvedValue(null);
+
+      await expect(service.addToSpotlight(MOCK_USER_ID, MOCK_TRACK_ID)).rejects.toThrow(
+        BadRequestException
+      );
+    });
+
+    it('should throw BadRequestException if track already in spotlight', async () => {
+      trackRepo.findById.mockResolvedValue(mockPublicTrack());
+      trackRepo.findSpotlight.mockResolvedValue({ id: 'existing' });
+
+      await expect(service.addToSpotlight(MOCK_USER_ID, MOCK_TRACK_ID)).rejects.toThrow(
+        BadRequestException
+      );
+    });
+
+    it('should throw ForbiddenException if spotlight count exceeds 5', async () => {
+      trackRepo.findById.mockResolvedValue(mockPublicTrack());
+      trackRepo.findSpotlight.mockResolvedValue(null);
+      trackRepo.countSpotlight.mockResolvedValue(6);
+
+      await expect(service.addToSpotlight(MOCK_USER_ID, MOCK_TRACK_ID)).rejects.toThrow(
+        ForbiddenException
+      );
+    });
+
+    it('should add track to spotlight and return success message', async () => {
+      trackRepo.findById.mockResolvedValue(mockPublicTrack());
+      trackRepo.findSpotlight.mockResolvedValue(null);
+      trackRepo.countSpotlight.mockResolvedValue(3);
+      trackRepo.addToSpotlight.mockResolvedValue(undefined);
+
+      const result = await service.addToSpotlight(MOCK_USER_ID, MOCK_TRACK_ID);
+
+      expect(trackRepo.addToSpotlight).toHaveBeenCalledWith(MOCK_USER_ID, MOCK_TRACK_ID);
+      expect(result).toMatchObject({ status: 'success' });
+    });
+  });
+
+  // ─── updateSpotlightTracks ────────────────────────────────────────────────────
+
+  describe('updateSpotlightTracks', () => {
+    it('should throw BadRequestException if more than 5 trackIds provided', async () => {
+      const trackIds = ['1', '2', '3', '4', '5', '6'];
+
+      await expect(service.updateSpotlightTracks(MOCK_USER_ID, trackIds)).rejects.toThrow(
+        BadRequestException
+      );
+    });
+
+    it('should call repository updateSpotlightTracks with correct args', async () => {
+      const trackIds = [MOCK_TRACK_ID];
+      trackRepo.updateSpotlightTracks.mockResolvedValue(undefined);
+
+      await service.updateSpotlightTracks(MOCK_USER_ID, trackIds);
+
+      expect(trackRepo.updateSpotlightTracks).toHaveBeenCalledWith(MOCK_USER_ID, trackIds);
+    });
+  });
 });
