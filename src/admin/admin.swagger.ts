@@ -8,8 +8,9 @@ import {
   ApiParam,
 } from '@nestjs/swagger';
 import { CreateReportDto } from './dto/createReport.dto';
-import { ReportStatus } from './report-enums';
+import { ReportReason, ReportStatus, ReportType, Role, UserStatus } from './report-enums';
 import { SuspendUserDto } from './dto/suspend-user.dto';
+import { TrackStatus } from '../track/enums/track-status.enum';
 
 export function ApiAddReport() {
   return applyDecorators(
@@ -97,7 +98,6 @@ export function ApiAddReport() {
     ApiResponse({ status: 401, description: 'Unauthorized — missing or invalid access token.' })
   );
 }
-
 export function ApiGetAllReports() {
   return applyDecorators(
     ApiBearerAuth('access_token'),
@@ -122,6 +122,27 @@ export function ApiGetAllReports() {
       type: Number,
       description: 'Number of reports per page (default: 20)',
       example: 20,
+    }),
+    ApiQuery({
+      name: 'status',
+      required: false,
+      enum: ReportStatus,
+      description: 'Filter by report status.',
+      example: ReportStatus.PENDING,
+    }),
+    ApiQuery({
+      name: 'type',
+      required: false,
+      enum: ReportType,
+      description: 'Filter by report type.',
+      example: ReportType.TRACK,
+    }),
+    ApiQuery({
+      name: 'reason',
+      required: false,
+      enum: ReportReason,
+      description: 'Filter by report reason.',
+      example: ReportReason.COPYRIGHT,
     }),
     ApiResponse({
       status: 200,
@@ -215,7 +236,6 @@ export function ApiGetAllReports() {
     ApiResponse({ status: 403, description: 'Forbidden — admin access only.' })
   );
 }
-
 export function ApiDeleteReport() {
   return applyDecorators(
     ApiBearerAuth('access_token'),
@@ -396,6 +416,20 @@ export function ApiGetAllUsers() {
         'Optional search term to filter users by username or email address (case-insensitive).',
       example: 'schuyler.kozey-okuneva',
     }),
+    ApiQuery({
+      name: 'role',
+      required: false,
+      enum: Role,
+      description: 'Optional filter to return only users with a specific role.',
+      example: Role.LISTENER,
+    }),
+    ApiQuery({
+      name: 'status',
+      required: false,
+      enum: UserStatus,
+      description: 'Optional filter to return only users with a specific status.',
+      example: UserStatus.ACTIVE,
+    }),
     ApiResponse({
       status: 200,
       description: 'Successfully retrieved the list of users.',
@@ -572,6 +606,12 @@ export function ApiGetAllTracksWithReportCount() {
       description: 'Number of tracks per page (default: 20)',
       example: 20,
     }),
+    ApiQuery({
+      name: 'status',
+      required: false,
+      enum: TrackStatus,
+      description: 'Filter tracks by status (optional)',
+    }),
     ApiResponse({
       status: 200,
       description: 'Paginated list of tracks with report counts.',
@@ -582,6 +622,7 @@ export function ApiGetAllTracksWithReportCount() {
             {
               trackId: 'c7d8e9f0-1234-5678-abcd-ef0987654321',
               title: 'Midnight Drive',
+              trackStatus: 'published',
               coverImage: 'https://cdn.harmonica.com/covers/midnight.jpg',
               audioUrl: 'https://cdn.harmonica.com/audio/midnight.mp3',
               userId: 'b6fc3946-ee96-4721-9118-5ca776a874f8',

@@ -16,6 +16,7 @@ import { RecentlyPlayed, RecentlyPlayedItemType } from './entities/recently-play
 import { mapTrack, addDocuments, updateDocument, deleteDocument } from '../search/indexing';
 import { DownloadedTrack } from '../download/entities/downloaded-tracks.entity';
 import { ReportType } from '../admin/report-enums';
+import { PlaylistType } from '../playlist/entities/playlist.entity';
 import { SpotlightTrack } from './entities/spotlght-track.entity';
 
 const RECENTLY_PLAYED_LIMIT = 6;
@@ -946,12 +947,12 @@ export class TrackRepository {
       .getManyAndCount();
   }
 
-  async findAllTracksWithReportCount(page: number, limit: number) {
-    const { entities, raw } = await this.trackRepository
+  async findAllTracksWithReportCount(page: number, limit: number, status?: TrackStatus) {
+    const qb = this.trackRepository
       .createQueryBuilder('track')
       .addSelect(
-        (qb) =>
-          qb
+        (subQb) =>
+          subQb
             .select('COUNT(r.report_id)', 'reportsCount')
             .from('reports', 'r')
             .where('r.target_id = track.track_id')
@@ -960,10 +961,17 @@ export class TrackRepository {
       )
       .skip((page - 1) * limit)
       .take(limit)
-      .orderBy('track.createdAt', 'DESC')
-      .getRawAndEntities();
+      .orderBy('track.createdAt', 'DESC');
 
-    const total = await this.trackRepository.count();
+    if (status) {
+      qb.andWhere('track.trackStatus = :status', { status });
+    }
+
+    const { entities, raw } = await qb.getRawAndEntities();
+
+    const total = await this.trackRepository.count({
+      where: status ? { trackStatus: status } : {},
+    });
 
     const tracks = entities.map((track, index) => ({
       ...track,
@@ -971,6 +979,119 @@ export class TrackRepository {
     }));
 
     return { tracks, total };
+  }
+
+  async getTopListeners(userId: string) {
+    const oneMonthAgo = new Date();
+    oneMonthAgo.setMonth(oneMonthAgo.getMonth() - 1);
+
+    const rawResults = await this.trackPlayRepository
+      .createQueryBuilder('play')
+      .innerJoin('play.track', 'track')
+      .innerJoin('track.user', 'artist')
+      .innerJoin('play.user', 'user')
+      .select([
+        'user.userId AS "userId"',
+        'user.username AS "username"',
+        'user.displayName AS "displayName"',
+        'user.avatarUrl AS "avatarUrl"',
+        'user.followersCount AS "followersCount"',
+        'COUNT(play.trackPlayId) AS "playCount"',
+      ])
+      .where('play.playedAt > :oneMonthAgo', { oneMonthAgo })
+      .andWhere('artist.userId = :userId', { userId })
+      .groupBy('user.userId')
+      .addGroupBy('user.username')
+      .addGroupBy('user.displayName')
+      .addGroupBy('user.avatarUrl')
+      .addGroupBy('user.followersCount')
+      .orderBy('"playCount"', 'DESC')
+      .limit(10)
+      .getRawMany();
+
+    return rawResults.map((result) => ({
+      userId: result.userId,
+      username: result.username,
+      displayName: result.displayName,
+      avatarUrl: result.avatarUrl,
+      followersCount: Number(result.followersCount),
+      playCount: Number(result.playCount),
+    }));
+  }
+
+  async getTopRegions(userId: string) {
+    const oneMonthAgo = new Date();
+    oneMonthAgo.setMonth(oneMonthAgo.getMonth() - 1);
+
+    const rawResults = await this.trackPlayRepository
+      .createQueryBuilder('play')
+      .innerJoin('play.track', 'track')
+      .innerJoin('track.user', 'artist')
+      .innerJoin('play.user', 'user')
+      .select(['user.country AS "country"', 'COUNT(play.trackPlayId) AS "playCount"'])
+      .where('play.playedAt > :oneMonthAgo', { oneMonthAgo })
+      .andWhere('artist.userId = :userId', { userId })
+      .andWhere('user.country IS NOT NULL')
+      .groupBy('user.country')
+      .orderBy('"playCount"', 'DESC')
+      .limit(10)
+      .getRawMany();
+
+    return rawResults.map((result) => ({
+      country: result.country,
+      playCount: Number(result.playCount),
+    }));
+  }
+
+  async getTopPlaylistsAndAlbums(userId: string) {
+    const oneMonthAgo = new Date();
+    oneMonthAgo.setMonth(oneMonthAgo.getMonth() - 1);
+
+    const rawResults = await this.trackPlayRepository
+      .createQueryBuilder('play')
+      .innerJoin('play.track', 'track')
+      .innerJoin('track.user', 'artist')
+      .innerJoin('play.playlist', 'playlist')
+      .select([
+        'playlist.playlistId AS "playlistId"',
+        'playlist.title AS "title"',
+        'playlist.coverImage AS "coverImage"',
+        'playlist.tracksCount AS "trackCount"',
+        'playlist.likesCount AS "likesCount"',
+        'playlist.repostsCount AS "repostsCount"',
+        'playlist.userId AS "ownerId"',
+        'playlist.isPublic AS "isPublic"',
+        'playlist.type AS "type"',
+        'COUNT(play.trackPlayId) AS "playCount"',
+      ])
+      .where('play.playedAt > :oneMonthAgo', { oneMonthAgo })
+      .andWhere('artist.userId = :userId', { userId })
+      .andWhere('playlist.isPublic = true')
+      .andWhere('playlist.type != :playlistType ', { playlistType: PlaylistType.STATION })
+      .groupBy('playlist.playlistId')
+      .addGroupBy('playlist.title')
+      .addGroupBy('playlist.coverImage')
+      .addGroupBy('playlist.tracksCount')
+      .addGroupBy('playlist.likesCount')
+      .addGroupBy('playlist.repostsCount')
+      .addGroupBy('playlist.userId')
+      .addGroupBy('playlist.isPublic')
+      .addGroupBy('playlist.type')
+      .orderBy('"playCount"', 'DESC')
+      .limit(10)
+      .getRawMany();
+
+    return rawResults.map((result) => ({
+      playlistId: result.playlistId,
+      title: result.title,
+      coverImage: result.coverImage,
+      trackCount: Number(result.trackCount),
+      likesCount: Number(result.likesCount),
+      repostsCount: Number(result.repostsCount),
+      ownerId: result.ownerId,
+      type: result.type,
+      playCount: Number(result.playCount),
+    }));
   }
 
   async getSpotlightTracks(userId: string) {

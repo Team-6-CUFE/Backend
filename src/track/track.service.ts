@@ -1048,6 +1048,30 @@ export class TrackService {
     };
   }
 
+  async getTopListeners(userId: string) {
+    const data = await this.trackRepository.getTopListeners(userId);
+    return {
+      status: 'success',
+      data,
+    };
+  }
+
+  async getTopRegions(userId: string) {
+    const data = await this.trackRepository.getTopRegions(userId);
+    return {
+      status: 'success',
+      data,
+    };
+  }
+
+  async getTopPlaylistsAndAlbums(userId: string) {
+    const data = await this.trackRepository.getTopPlaylistsAndAlbums(userId);
+    return {
+      status: 'success',
+      data,
+    };
+  }
+
   async getUserSpotlightTacks(userId: string, ip: string) {
     const { country } = getLocationFromIp(ip);
     const user = await this.userRepository.findById(userId);
