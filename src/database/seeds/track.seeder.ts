@@ -104,8 +104,10 @@ export class TrackSeeder implements Seeder {
         totalActivitiesCreated++;
       }
 
-      // 6. Generate Engagement for each track
+      // 6. Generate Engagement for each track (public, non-hidden only)
       for (const track of tracks) {
+        if (track.visibility !== TrackVisibility.PUBLIC || track.hidden) continue;
+
         // --- A. Seed Likes ---
         // 20% to 60% of users like each track
         const likers = [...allUsers]
