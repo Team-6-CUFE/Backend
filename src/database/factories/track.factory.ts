@@ -13,19 +13,19 @@ export default setSeederFactory(Track, async () => {
 
   // Media URLs
   track.audioUrl =
-    'https://harmonica-s3-storage-287109772507-us-east-1-an.s3.amazonaws.com/tracks/594929cf-87b3-4461-a80f-c2572fed8107/u_vld2chgq8f-magma-prod-2025-sample-142bpm-459102_standard.mp3';
+    'https://harmonica-s3-storage-287109772507-us-east-1-an.s3.amazonaws.com/tracks/12dad54c-5a07-42db-94c1-33c4867a30e7/Sahy_Men_El_Nom_standard.mp3';
   track.previewAudioUrl =
-    'https://harmonica-s3-storage-287109772507-us-east-1-an.s3.amazonaws.com/tracks/594929cf-87b3-4461-a80f-c2572fed8107/u_vld2chgq8f-magma-prod-2025-sample-142bpm-459102_preview.mp3';
+    'https://harmonica-s3-storage-287109772507-us-east-1-an.s3.amazonaws.com/tracks/12dad54c-5a07-42db-94c1-33c4867a30e7/Sahy_Men_El_Nom_preview.mp3';
   track.waveformUrl =
-    'https://harmonica-s3-storage-287109772507-us-east-1-an.s3.amazonaws.com/tracks/594929cf-87b3-4461-a80f-c2572fed8107/waveform.json';
-  track.coverImage =
-    'https://harmonica-s3-storage-287109772507-us-east-1-an.s3.amazonaws.com/transparent-cassete.png';
+    'https://harmonica-s3-storage-287109772507-us-east-1-an.s3.amazonaws.com/tracks/12dad54c-5a07-42db-94c1-33c4867a30e7/waveform.json';
   track.audioUrlHq =
-    'https://harmonica-s3-storage-287109772507-us-east-1-an.s3.amazonaws.com/tracks/594929cf-87b3-4461-a80f-c2572fed8107/u_vld2chgq8f-magma-prod-2025-sample-142bpm-459102_hq.mp3';
+    'https://harmonica-s3-storage-287109772507-us-east-1-an.s3.amazonaws.com/tracks/12dad54c-5a07-42db-94c1-33c4867a30e7/Sahy_Men_El_Nom_hq.mp3';
+
+  track.coverImage = faker.image.url({ width: 500, height: 500 });
 
   // Metadata
   track.durationSeconds = faker.number.int({ min: 60, max: 600 });
-  track.playCount = faker.number.int({ min: 0, max: 100000 });
+  track.playCount = 0; // DB trigger increments this from actual track_plays inserts
   track.likesCount = 0;
   track.repostsCount = 0;
   track.commentsCount = 0;

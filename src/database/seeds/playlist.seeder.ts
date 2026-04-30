@@ -199,7 +199,9 @@ export class PlaylistSeeder implements Seeder {
         });
       }
 
-      // --- Seed Likes + playlist_like activities ---
+      // --- Seed Likes + playlist_like activities (public playlists only) ---
+      if (!playlist.isPublic) continue;
+
       const numLikes = Math.floor(Math.random() * 5);
       const likers = [...users].sort(() => 0.5 - Math.random()).slice(0, numLikes);
       for (const liker of likers) {
