@@ -1972,4 +1972,52 @@ describe('TrackService', () => {
       expect(result.data).toEqual(emptyStats);
     });
   });
+
+  // ─── getTopListeners ─────────────────────────────────────────────────────────
+
+  describe('getTopListeners', () => {
+    const mockListeners = [
+      {
+        userId: MOCK_MY_USER_ID,
+        username: 'superfan1',
+        displayName: 'Super Fan',
+        avatarUrl: 'https://example.com/avatar.jpg',
+        followersCount: 200,
+        playCount: 42,
+      },
+      {
+        userId: MOCK_OTHER_USER_ID,
+        username: 'superfan2',
+        displayName: 'Super Fan 2',
+        avatarUrl: 'https://example.com/avatar2.jpg',
+        followersCount: 150,
+        playCount: 30,
+      },
+    ];
+
+    it('should return top listeners wrapped in a success envelope', async () => {
+      trackRepo.getTopListeners.mockResolvedValue(mockListeners);
+
+      const result = await service.getTopListeners(MOCK_USER_ID);
+
+      expect(trackRepo.getTopListeners).toHaveBeenCalledWith(MOCK_USER_ID);
+      expect(result).toEqual({ status: 'success', data: mockListeners });
+    });
+
+    it('should return empty data array when no plays exist in the last month', async () => {
+      trackRepo.getTopListeners.mockResolvedValue([]);
+
+      const result = await service.getTopListeners(MOCK_USER_ID);
+
+      expect(result).toEqual({ status: 'success', data: [] });
+    });
+
+    it('should return listeners ordered by playCount descending (as returned by repo)', async () => {
+      trackRepo.getTopListeners.mockResolvedValue(mockListeners);
+
+      const result = await service.getTopListeners(MOCK_USER_ID);
+
+      expect(result.data[0].playCount).toBeGreaterThanOrEqual(result.data[1].playCount);
+    });
+  });
 });

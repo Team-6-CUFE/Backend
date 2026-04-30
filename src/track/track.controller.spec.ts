@@ -54,6 +54,8 @@ const mockTrackService = () => ({
   deleteTrack: jest.fn(),
   getRelatedTracks: jest.fn(),
   getAllTimeStats: jest.fn(),
+  getTopListeners: jest.fn(),
+  updateTrackCommentSettings: jest.fn(),
 });
 
 jest.mock('meilisearch', () => ({
@@ -1036,6 +1038,39 @@ describe('TrackController', () => {
       service.getAllTimeStats.mockResolvedValue(mockResponse);
 
       const result = await controller.getAllTimeStats(MOCK_USER_ID);
+
+      expect(result).toBe(mockResponse);
+    });
+  });
+
+  // ─── getTopListeners ─────────────────────────────────────────────────────────
+
+  describe('getTopListeners', () => {
+    it('should delegate to service with the current userId', async () => {
+      service.getTopListeners.mockResolvedValue({ status: 'success', data: [] });
+
+      await controller.getTopListeners(MOCK_USER_ID);
+
+      expect(service.getTopListeners).toHaveBeenCalledWith(MOCK_USER_ID);
+    });
+
+    it('should return service response as-is', async () => {
+      const mockResponse = {
+        status: 'success',
+        data: [
+          {
+            userId: MOCK_MY_USER_ID,
+            username: 'superfan1',
+            displayName: 'Super Fan',
+            avatarUrl: 'https://example.com/avatar.jpg',
+            followersCount: 200,
+            playCount: 42,
+          },
+        ],
+      };
+      service.getTopListeners.mockResolvedValue(mockResponse);
+
+      const result = await controller.getTopListeners(MOCK_USER_ID);
 
       expect(result).toBe(mockResponse);
     });
