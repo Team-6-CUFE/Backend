@@ -981,4 +981,31 @@ export class TrackRepository {
 
     return spotlights.map((s) => s.track);
   }
+
+  async countSpotlight(userId: string) {
+    return this.spotlightTracksRepository.count({ where: { userId } });
+  }
+
+  async findSpotlight(userId: string, trackId: string) {
+    return this.spotlightTracksRepository.findOne({
+      where: { userId, trackId },
+    });
+  }
+
+  async addToSpotlight(userId: string, trackId: string) {
+    const spotlight = this.spotlightTracksRepository.create({ userId, trackId });
+    return this.spotlightTracksRepository.save(spotlight);
+  }
+
+  async updateSpotlightTracks(userId: string, trackIds: string[]): Promise<void> {
+    await this.spotlightTracksRepository.delete({ userId });
+
+    if (trackIds.length === 0) return;
+
+    const spotlights = trackIds.map((trackId) =>
+      this.spotlightTracksRepository.create({ userId, trackId })
+    );
+
+    await this.spotlightTracksRepository.save(spotlights);
+  }
 }

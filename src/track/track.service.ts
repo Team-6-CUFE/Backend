@@ -1067,4 +1067,33 @@ export class TrackService {
       return track;
     });
   }
+
+  async addToSpotlight(userId: string, trackId: string) {
+    const track = await this.trackRepository.findById(trackId);
+    if (!track) {
+      throw new BadRequestException('track not found');
+    }
+    const existing = await this.trackRepository.findSpotlight(userId, trackId);
+    if (existing) {
+      throw new BadRequestException('you have already added this to your spotlight');
+    }
+    const countSpotlighTracks = await this.trackRepository.countSpotlight(userId);
+    if (countSpotlighTracks > 5) {
+      throw new ForbiddenException(
+        'you have reached the maximum limit of tracks to be added to your spotlight'
+      );
+    }
+    await this.trackRepository.addToSpotlight(userId, trackId);
+    return {
+      status: 'success',
+      messsage: 'track is successfully added to spotlight',
+    };
+  }
+
+  async updateSpotlightTracks(userId: string, trackIds: string[]) {
+    if (trackIds.length > 5) {
+      throw new BadRequestException('Maximum 5 tracks allowed in spotlight');
+    }
+    return this.trackRepository.updateSpotlightTracks(userId, trackIds);
+  }
 }

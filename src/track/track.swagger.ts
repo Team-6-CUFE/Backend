@@ -7,6 +7,7 @@ import {
   ApiParam,
   ApiQuery,
   ApiResponse,
+  ApiUnauthorizedResponse,
 } from '@nestjs/swagger';
 import { AddCommentDto } from './dto/add-comment.dto';
 
@@ -1876,5 +1877,32 @@ export function ApiUpdateCommentsSettings() {
     }),
     ApiResponse({ status: 400, description: 'Track not found or user is not the owner' }),
     ApiResponse({ status: 401, description: 'Unauthorized' })
+  );
+}
+
+export function ApiUpdateSpotlight() {
+  return applyDecorators(
+    ApiOperation({ summary: 'Update spotlight tracks' }),
+    ApiBody({
+      schema: {
+        type: 'object',
+        properties: {
+          trackIds: {
+            type: 'array',
+            items: { type: 'string', format: 'uuid' },
+            maxItems: 5,
+            example: [
+              '550e8400-e29b-41d4-a716-446655440000',
+              '550e8400-e29b-41d4-a716-446655440001',
+            ],
+          },
+        },
+        required: ['trackIds'],
+      },
+    }),
+    ApiResponse({ status: 200, description: 'Spotlight tracks updated successfully' }),
+    ApiResponse({ status: 400, description: 'Maximum 5 tracks allowed in spotlight' }),
+    ApiResponse({ status: 403, description: 'Pro plan required' }),
+    ApiUnauthorizedResponse({ description: 'Unauthorized' })
   );
 }

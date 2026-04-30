@@ -54,6 +54,7 @@ import {
   ApiGetRelatedTracks,
   ApiGetAllTimeStats,
   ApiUpdateCommentsSettings,
+  ApiUpdateSpotlight,
 } from './track.swagger';
 import { CurrentUser } from '../authentication/decorators/current-user.decorator';
 import { CheckBlock } from '../followers/decorators/no-block.decorator';
@@ -493,7 +494,23 @@ export class TrackController {
 
   @CheckBlock()
   @Get('/spotlight/:userId')
-  getsSpotlightTracks(@Param('user_id', ParseUUIDPipe) userId: string, @Ip() ip: string) {
+  getsSpotlightTracks(@Param('userId') userId: string, @Ip() ip: string) {
     return this.trackService.getUserSpotlightTacks(userId, ip);
+  }
+
+  @Plans('pro')
+  @Post('/spotlight/:trackId')
+  addToSpotlight(
+    @CurrentUser('sub') userId: string,
+    @Param('trackId') trackId: string // was 'trackid', must be 'trackId'
+  ) {
+    return this.trackService.addToSpotlight(userId, trackId);
+  }
+
+  @ApiUpdateSpotlight()
+  @Plans('pro')
+  @Patch('/spotlight')
+  updateSpotlightTracks(@CurrentUser('sub') userId: string, @Body() body: { trackIds: string[] }) {
+    return this.trackService.updateSpotlightTracks(userId, body.trackIds);
   }
 }
