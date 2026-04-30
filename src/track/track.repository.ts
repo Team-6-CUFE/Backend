@@ -943,12 +943,12 @@ export class TrackRepository {
       .getManyAndCount();
   }
 
-  async findAllTracksWithReportCount(page: number, limit: number) {
-    const { entities, raw } = await this.trackRepository
+  async findAllTracksWithReportCount(page: number, limit: number, status?: TrackStatus) {
+    const qb = this.trackRepository
       .createQueryBuilder('track')
       .addSelect(
-        (qb) =>
-          qb
+        (subQb) =>
+          subQb
             .select('COUNT(r.report_id)', 'reportsCount')
             .from('reports', 'r')
             .where('r.target_id = track.track_id')
@@ -957,10 +957,17 @@ export class TrackRepository {
       )
       .skip((page - 1) * limit)
       .take(limit)
-      .orderBy('track.createdAt', 'DESC')
-      .getRawAndEntities();
+      .orderBy('track.createdAt', 'DESC');
 
-    const total = await this.trackRepository.count();
+    if (status) {
+      qb.andWhere('track.trackStatus = :status', { status });
+    }
+
+    const { entities, raw } = await qb.getRawAndEntities();
+
+    const total = await this.trackRepository.count({
+      where: status ? { trackStatus: status } : {},
+    });
 
     const tracks = entities.map((track, index) => ({
       ...track,
