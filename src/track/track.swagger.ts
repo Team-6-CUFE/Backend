@@ -1705,7 +1705,7 @@ export function ApiGetRelatedTracks() {
         'Returns a paginated list of tracks that are related to the given track, ' +
         'based on the listening history of its top fans. ' +
         'The track must be public. Results are cached for 3 days. ' +
-        "For tracks blocked in the requester's region, `audioUrl` and `waveformUrl` are returned as `null`.",
+        "For tracks blocked in the requester's region, `audioUrl` is returned as `null`",
     }),
     ApiParam({
       name: 'artistUsername',
@@ -1736,7 +1736,7 @@ export function ApiGetRelatedTracks() {
     ApiResponse({
       status: 200,
       description:
-        "Paginated list of related tracks. `audioUrl` and `waveformUrl` are `null` for tracks blocked in the requester's region.",
+        "Paginated list of related tracks. `audioUrl` per track is `null` when blocked in the requester's region.",
       schema: {
         example: {
           status: 'success',
@@ -1768,7 +1768,7 @@ export function ApiGetRelatedTracks() {
               description: 'Not available in all regions.',
               coverImage: 'https://s3.amazonaws.com/covers/locked.jpg',
               audioUrl: null,
-              waveformUrl: null,
+              waveformUrl: 'https://s3.amazonaws.com/waveforms/locked.json',
               durationSeconds: 210,
               playCount: 800,
               likesCount: 90,

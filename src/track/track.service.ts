@@ -981,7 +981,6 @@ export class TrackService {
       const isBlocked = country && t.blockedRegions?.includes(country);
       if (isBlocked) {
         dto.audioUrl = null;
-        dto.waveformUrl = null;
       } else {
         dto.audioUrl = resolveAudioUrl(t, plan);
       }
@@ -1137,9 +1136,7 @@ export class TrackService {
     return tracks.map((track) => {
       const isBlocked = track.blockedRegions.includes(country!);
       if (isBlocked) {
-        const { audioUrl, audioUrlHq, ...rest } = track;
-        console.log(audioUrl, audioUrlHq);
-        return rest;
+        return { ...track, audioUrl: null, audioUrlHq: null };
       }
       return track;
     });
