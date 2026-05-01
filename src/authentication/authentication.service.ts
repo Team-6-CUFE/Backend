@@ -302,10 +302,13 @@ export class AuthenticationService {
       expiresIn: ACCESS_TOKEN_EXPIRY,
     });
 
-    const newRefreshToken = this.jwtService.sign(payload, {
-      secret: this.configService.get<string>('JWT_REFRESH_SECRET'),
-      expiresIn: REFRESH_TOKEN_EXPIRY,
-    });
+    const newRefreshToken = this.jwtService.sign(
+      { ...payload, jti: crypto.randomUUID() },
+      {
+        secret: this.configService.get<string>('JWT_REFRESH_SECRET'),
+        expiresIn: REFRESH_TOKEN_EXPIRY,
+      }
+    );
 
     const expiresAt = new Date(Date.now() + REFRESH_COOKIE_MAX_AGE_MS);
     const tokenHash = crypto.createHash('sha256').update(newRefreshToken).digest('hex');

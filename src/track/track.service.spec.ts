@@ -1415,9 +1415,26 @@ describe('TrackService', () => {
       );
     });
 
-    it('should return message and processing trackStatus', async () => {
+    it('should throw ConflictException when title already exists for this user', async () => {
+      ffmpegService.getDuration.mockResolvedValue(120);
       userRepo.findById.mockResolvedValue(mockPublicUser());
-      ffmpegService.getDuration.mockResolvedValue(213);
+      trackRepo.getUserUploadedSeconds.mockResolvedValue(0);
+      (trackRepo as any).findByTitleAndUser.mockResolvedValue(
+        mockOwnTrack({ title: 'Midnight Drive' })
+      );
+
+      await expect(service.uploadTrack(MOCK_USER_ID, dto as any, mockAudioFile)).rejects.toThrow(
+        ConflictException
+      );
+
+      expect((trackRepo as any).createTrack).not.toHaveBeenCalled();
+    });
+
+    it('should allow upload when title does not exist for this user', async () => {
+      userRepo.findById.mockResolvedValue(mockPublicUser());
+      ffmpegService.getDuration.mockResolvedValue(120);
+      trackRepo.getUserUploadedSeconds.mockResolvedValue(0);
+      (trackRepo as any).findByTitleAndUser.mockResolvedValue(null);
       const savedTrack = {
         trackId: MOCK_TRACK_ID,
         title: 'Midnight Drive',
@@ -1429,8 +1446,7 @@ describe('TrackService', () => {
 
       const result = await service.uploadTrack(MOCK_USER_ID, dto as any, mockAudioFile);
 
-      expect(result.message).toBe('Track upload started. Processing in background.');
-      expect(result.data.trackStatus).toBe('processing');
+      expect(result.status).toBe('success');
     });
   });
 
@@ -1524,6 +1540,32 @@ describe('TrackService', () => {
         expect.objectContaining({ trackId: MOCK_TRACK_ID, startTime: '00:01:00' }),
         expect.any(Object)
       );
+    });
+
+    it('should throw ConflictException when new title already exists for this user', async () => {
+      trackRepo.findById.mockResolvedValue(mockOwnTrack({ title: 'Old Title' }));
+      (trackRepo as any).findByTitleAndUser.mockResolvedValue(
+        mockOwnTrack({ title: 'Taken Title' })
+      );
+
+      await expect(
+        service.updateTrackMetadata(MOCK_TRACK_ID, MOCK_USER_ID, { title: 'Taken Title' } as any)
+      ).rejects.toThrow(ConflictException);
+
+      expect(trackRepo.updateTrack).not.toHaveBeenCalled();
+    });
+
+    it('should skip title uniqueness check when title is unchanged', async () => {
+      const ownTrack = mockOwnTrack({ title: 'Same Title', trackStatus: 'finished' });
+      trackRepo.findById.mockResolvedValue(ownTrack);
+      trackRepo.updateTrack.mockResolvedValue({ ...ownTrack, previewStartTime: null });
+
+      const result = await service.updateTrackMetadata(MOCK_TRACK_ID, MOCK_USER_ID, {
+        title: 'Same Title',
+      } as any);
+
+      expect((trackRepo as any).findByTitleAndUser).not.toHaveBeenCalled();
+      expect(result.status).toBe('success');
     });
   });
 
@@ -2169,8 +2211,8 @@ describe('TrackService', () => {
 
       const result = await service.getUserSpotlightTacks(MOCK_USER_ID, MOCK_IP);
 
-      expect(result[0]).not.toHaveProperty('audioUrl');
-      expect(result[0]).not.toHaveProperty('audioUrlHq');
+      expect(result[0].audioUrl).toBeNull();
+      expect(result[0].audioUrlHq).toBeNull();
     });
 
     it('should return empty array when spotlight is empty', async () => {

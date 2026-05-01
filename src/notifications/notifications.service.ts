@@ -254,27 +254,6 @@ export class NotificationsService {
   }
 
   async notifyNewMessage(recipientId: string, actor: User, chatId: string) {
-    const notification = await this.notificationsRepository.createNotification(
-      NotificationType.MESSAGE,
-      recipientId,
-      actor.userId
-    );
-    const unreadCount = await this.notificationsRepository.getUnreadCount(recipientId);
-
-    this.websocketsService.emitToUser(recipientId, 'new_notification', {
-      notification: {
-        notificationId: notification.notificationId,
-        type: NotificationType.MESSAGE,
-        actor: {
-          userId: actor.userId,
-          username: actor.username,
-          avatarUrl: actor.avatarUrl,
-        },
-        createdAt: notification.createdAt,
-      },
-      unreadCount,
-    });
-
     await this.sendPushNotification(
       recipientId,
       'New Message',
@@ -333,7 +312,6 @@ export class NotificationsService {
     data?: any
   ) {
     try {
-      // 1. Permission Check
       const settings = await this.settingsService.getNotificationSettings(userId);
       const deviceSettings = settings?.data?.device as Record<string, any>;
 
@@ -362,6 +340,16 @@ export class NotificationsService {
         notification: { title, body },
         data: fcmData,
         tokens,
+        android: {
+          priority: 'high',
+        },
+        apns: {
+          payload: {
+            aps: {
+              'content-available': 1,
+            },
+          },
+        },
       });
     } catch (error: any) {
       console.error(`Push error: ${error?.message}`);

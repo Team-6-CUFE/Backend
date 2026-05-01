@@ -907,7 +907,7 @@ export function ApiGetPublicPlaylist() {
       summary: 'Get playlist details',
       description:
         'Retrieves a public playlist by ID, including its owner, tracks (ordered), and tags. ' +
-        "For tracks blocked in the requester's region, `audioUrl` and `waveformUrl` are returned as `null`.",
+        "For tracks blocked in the requester's region, `audioUrl` is returned as `null`",
     }),
     ApiParam({
       name: 'playlistId',
@@ -918,7 +918,7 @@ export function ApiGetPublicPlaylist() {
     ApiResponse({
       status: 200,
       description:
-        "Playlist retrieved successfully. `audioUrl` and `waveformUrl` per track are `null` when blocked in the requester's region.",
+        "Playlist retrieved successfully. Only `audioUrl` per track is `null` when blocked in the requester's region",
       schema: {
         example: {
           status: 'success',
@@ -973,7 +973,7 @@ export function ApiGetPublicPlaylist() {
                 durationSeconds: 195,
                 coverImage: 'https://cdn.harmonica.com/covers/locked.jpg',
                 audioUrl: null,
-                waveformUrl: null,
+                waveformUrl: 'https://cdn.harmonica.com/waveforms/locked.json',
                 playCount: 500,
                 likesCount: 20,
                 repostsCount: 3,
@@ -1009,7 +1009,7 @@ export function ApiGetSecretPlaylist() {
       summary: 'Get a private playlist via secret token',
       description:
         'Allows users with the secret link to view a private playlist. Used for SoundCloud-style sharing. ' +
-        "For tracks blocked in the requester's region, `audioUrl` and `waveformUrl` are returned as `null`.",
+        "For tracks blocked in the requester's region, `audioUrl` is returned as `null`.",
     }),
     ApiParam({
       name: 'secretToken',
@@ -1020,7 +1020,7 @@ export function ApiGetSecretPlaylist() {
     ApiResponse({
       status: 200,
       description:
-        "Secret playlist retrieved successfully. `audioUrl` and `waveformUrl` per track are `null` when blocked in the requester's region.",
+        "Secret playlist retrieved successfully. `audioUrl` per track is `null` when blocked in the requester's region.",
       schema: {
         example: {
           status: 'success',
@@ -1072,7 +1072,7 @@ export function ApiGetSecretPlaylist() {
                 durationSeconds: 210,
                 coverImage: 'https://cdn.harmonica.com/covers/locked.jpg',
                 audioUrl: null,
-                waveformUrl: null,
+                waveformUrl: 'https://cdn.harmonica.com/waveforms/locked.json',
                 playCount: 0,
                 likesCount: 0,
                 repostsCount: 0,
