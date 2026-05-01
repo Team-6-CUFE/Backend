@@ -57,6 +57,21 @@ export class TrackRepository {
     });
   }
 
+  async findByTitleAndUser(
+    title: string,
+    userId: string,
+    excludeTrackId?: string
+  ): Promise<Track | null> {
+    const qb = this.trackRepository
+      .createQueryBuilder('track')
+      .where('LOWER(track.title) = LOWER(:title)', { title })
+      .andWhere('track.userId = :userId', { userId });
+    if (excludeTrackId) {
+      qb.andWhere('track.trackId != :excludeTrackId', { excludeTrackId });
+    }
+    return qb.getOne();
+  }
+
   async findByIdWithRelations(trackId: string): Promise<Track | null> {
     return this.trackRepository
       .createQueryBuilder('track')

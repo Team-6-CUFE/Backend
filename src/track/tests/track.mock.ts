@@ -286,6 +286,7 @@ export const mockTrackRepository = () => ({
   getTrackPlaylists: jest.fn(),
   deleteTrack: jest.fn(),
   findTrackByTitleAndArtist: jest.fn(),
+  findByTitleAndUser: jest.fn(),
   getTrackTopFansIds: jest.fn(),
   findRelatedTracks: jest.fn(),
   findAllTimeStats: jest.fn(),
