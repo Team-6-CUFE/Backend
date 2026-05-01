@@ -16,6 +16,7 @@ import { StorageService } from '../common/storage_service';
 import { ActivityService } from '../activity/activity.service';
 import { ActivityType } from '../activity/entities/activity.entity';
 import { getLocationFromIp } from '../common/utilities/geolocation.util';
+import { resolveAudioUrl } from '../common/utilities/audio.util';
 import { addDocuments, deleteDocument, mapAlbum, mapPlaylist } from '../search/indexing';
 import { generateVerificationToken } from '../common/utilities/tokens.util';
 import { NotificationsService } from '../notifications/notifications.service';
@@ -798,7 +799,7 @@ export class PlaylistService {
     };
   }
 
-  async getPublicPlaylist(playlistId: string, userId: string, ip?: string) {
+  async getPublicPlaylist(playlistId: string, userId: string, ip?: string, plan?: string) {
     const playlist = await this.playlistRepository.getPublicPlaylist(playlistId);
 
     if (!playlist) {
@@ -853,7 +854,7 @@ export class PlaylistService {
             title: pt.track.title,
             durationSeconds: pt.track.durationSeconds,
             coverImage: pt.track.coverImage,
-            audioUrl: isBlocked ? null : (pt.track.audioUrl ?? null),
+            audioUrl: isBlocked ? null : resolveAudioUrl(pt.track, plan),
             waveformUrl: isBlocked ? null : (pt.track.waveformUrl ?? null),
             playCount: pt.track.playCount,
             likesCount: pt.track.likesCount,

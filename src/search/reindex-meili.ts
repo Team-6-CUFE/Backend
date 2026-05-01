@@ -17,7 +17,7 @@ const dataSource = new DataSource({
   username: process.env.DB_USERNAME || 'postgres',
   password: process.env.DB_PASSWORD,
   database: process.env.DB_DATABASE,
-  entities: [path.join(__dirname, '/../**/*.entity.ts')],
+  entities: [path.join(__dirname, '/../**/*.entity.js')],
   synchronize: false,
   logging: false,
 });

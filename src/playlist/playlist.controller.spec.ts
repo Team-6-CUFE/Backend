@@ -873,7 +873,12 @@ describe('PlaylistController', () => {
 
       const result = await controller.getPublicPlaylist(mockPlaylistId, mockUserId, '1.2.3.4');
 
-      expect(service.getPublicPlaylist).toHaveBeenCalledWith(mockPlaylistId, mockUserId, '1.2.3.4');
+      expect(service.getPublicPlaylist).toHaveBeenCalledWith(
+        mockPlaylistId,
+        mockUserId,
+        '1.2.3.4',
+        undefined
+      );
       expect(result).toBe(mockResponse);
     });
 

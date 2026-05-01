@@ -2082,3 +2082,54 @@ export function ApiUpdateSpotlight() {
     ApiUnauthorizedResponse({ description: 'Unauthorized' })
   );
 }
+
+export function ApiScheduleTrackRelease() {
+  return applyDecorators(
+    ApiCookieAuth('access_token'),
+    ApiOperation({
+      summary: 'Schedule a track for future release',
+      description:
+        'Sets or updates the future release date for a track. Pro plan required. ' +
+        'The track must be FINISHED (processing complete) or already SCHEDULED. ' +
+        'On first call (FINISHED): track moves to SCHEDULED and is removed from search. ' +
+        'On subsequent calls (SCHEDULED): the release time and queued job are replaced. ' +
+        'At the scheduled time the track is automatically published and indexed in search.',
+    }),
+    ApiParam({ name: 'trackId', description: 'UUID of the track to schedule', type: 'string' }),
+    ApiBody({
+      schema: {
+        type: 'object',
+        required: ['scheduledAt'],
+        properties: {
+          scheduledAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2026-06-01T09:00:00.000Z',
+            description:
+              'ISO 8601 datetime in the future. Must include timezone offset (e.g. +03:00 or Z). All times are stored and processed in UTC.',
+          },
+        },
+      },
+    }),
+    ApiResponse({
+      status: 200,
+      description: 'Release scheduled successfully',
+      schema: {
+        example: {
+          status: 'success',
+          message: 'Track scheduled for release.',
+          data: {
+            trackId: '550e8400-e29b-41d4-a716-446655440000',
+            scheduledAt: '2026-06-01T09:00:00.000Z',
+          },
+        },
+      },
+    }),
+    ApiResponse({
+      status: 400,
+      description: 'scheduledAt not in the future, or track status is PROCESSING/FAILED',
+    }),
+    ApiResponse({ status: 403, description: 'Pro plan required or not the track owner' }),
+    ApiUnauthorizedResponse({ description: 'Unauthorized' })
+  );
+}

@@ -17,6 +17,7 @@ import { Track } from '../track/entities/track.entity';
 import { Playlist } from '../playlist/entities/playlist.entity';
 import { TrackVisibility } from '../track/enums/track-visibility.enum';
 import { getLocationFromIp } from '../common/utilities/geolocation.util';
+import { resolveAudioUrl } from '../common/utilities/audio.util';
 import { UserService } from '../user/user.service';
 import { search, autocomplete } from '../search/search';
 import { EntityType } from '../search/types';
@@ -61,7 +62,8 @@ export class DiscoveryService {
    */
   private formatTrack(
     track: Track & { isLiked?: boolean; isReposted?: boolean },
-    country: string | null
+    country: string | null,
+    plan?: string
   ): Record<string, any> | null {
     if (track.hidden || track.visibility !== TrackVisibility.PUBLIC) return null;
     const isBlocked = country && track.blockedRegions?.includes(country);
@@ -85,7 +87,7 @@ export class DiscoveryService {
       genre: track.genre
         ? { genreId: (track.genre as Genre).genreId, name: (track.genre as Genre).name }
         : null,
-      audioUrl: isBlocked ? null : track.audioUrl,
+      audioUrl: isBlocked ? null : resolveAudioUrl(track, plan),
       waveformUrl: track.waveformUrl,
       playCount: track.playCount,
       likesCount: track.likesCount,
@@ -105,7 +107,8 @@ export class DiscoveryService {
    */
   private formatPlaylistTrack(
     pt: { position: number; track: Track & { isLiked?: boolean; isReposted?: boolean } },
-    country: string | null
+    country: string | null,
+    plan?: string
   ): Record<string, any> | null {
     const { track } = pt;
     if (!track) return null;
@@ -119,7 +122,7 @@ export class DiscoveryService {
       title: track.title,
       durationSeconds: track.durationSeconds,
       coverImage: track.coverImage,
-      audioUrl: isBlocked ? null : track.audioUrl,
+      audioUrl: isBlocked ? null : resolveAudioUrl(track, plan),
       waveformUrl: track.waveformUrl,
       playCount: track.playCount,
       likesCount: track.likesCount,
@@ -147,7 +150,8 @@ export class DiscoveryService {
    */
   private formatPlaylist(
     playlist: Playlist & { isLiked?: boolean; isReposted?: boolean },
-    country: string | null
+    country: string | null,
+    plan?: string
   ): Record<string, any> {
     const owner = playlist.user as User;
     return {
@@ -174,7 +178,7 @@ export class DiscoveryService {
           }
         : null,
       playlistTracks: (playlist.playlistTracks ?? [])
-        .map((pt: any) => this.formatPlaylistTrack(pt, country))
+        .map((pt: any) => this.formatPlaylistTrack(pt, country, plan))
         .filter((pt): pt is NonNullable<typeof pt> => pt !== null),
     };
   }
@@ -185,7 +189,8 @@ export class DiscoveryService {
   private async assembleActivities(
     activities: any[],
     userId: string,
-    country: string | null
+    country: string | null,
+    plan?: string
   ): Promise<any[]> {
     const trackIds = activities
       .filter(
@@ -231,7 +236,7 @@ export class DiscoveryService {
         a.activityType === ActivityType.TRACK_POSTED ||
         a.activityType === ActivityType.TRACK_REPOST
       ) {
-        return { ...a, target: this.formatTrack(rawTarget, country) };
+        return { ...a, target: this.formatTrack(rawTarget, country, plan) };
       }
 
       if (
@@ -254,7 +259,7 @@ export class DiscoveryService {
               : pt.track,
           })),
         };
-        return { ...a, target: this.formatPlaylist(playlistWithStatus, country) };
+        return { ...a, target: this.formatPlaylist(playlistWithStatus, country, plan) };
       }
 
       return { ...a, target: rawTarget };
@@ -266,7 +271,8 @@ export class DiscoveryService {
     ip: string,
     includeReposts: boolean = true,
     page: number = 1,
-    limit: number = 20
+    limit: number = 20,
+    plan?: string
   ) {
     const { country } = getLocationFromIp(ip);
 
@@ -282,10 +288,15 @@ export class DiscoveryService {
       includeReposts
     );
 
-    return this.assembleActivities(activities, userId, country);
+    return this.assembleActivities(activities, userId, country, plan);
   }
 
-  private async stationResponse(currentUserId: string, station: Playlist, ip?: string) {
+  private async stationResponse(
+    currentUserId: string,
+    station: Playlist,
+    ip?: string,
+    plan?: string
+  ) {
     // Batch-query like/repost status for the station and its tracks
     const stationTrackIds = station.playlistTracks
       .map((pt) => pt.track?.trackId)
@@ -351,7 +362,8 @@ export class DiscoveryService {
                     }
                   : pt.track,
               },
-              country
+              country,
+              plan
             )
           )
           .filter((pt): pt is NonNullable<typeof pt> => pt !== null),
@@ -364,7 +376,8 @@ export class DiscoveryService {
     artistUsername: string,
     trackName: string,
     currentUserId: string,
-    ip?: string
+    ip?: string,
+    plan?: string
   ) {
     const track = await this.trackRepository.findTrackByTitleAndArtist(trackName, artistUsername);
     if (!track) {
@@ -377,7 +390,7 @@ export class DiscoveryService {
     const station = await this.playlistRepository.getTrackStation(track.trackId);
     if (station && station?.createdAt.getTime() > new Date().getTime() - 15 * 24 * 60 * 60 * 1000) {
       // If station exists and is less than 15 days old, return it
-      return this.stationResponse(currentUserId, station, ip);
+      return this.stationResponse(currentUserId, station, ip, plan);
     }
 
     const relatedTracks = await this.trackService.getRelatedTracksByTrackId(track.trackId);
@@ -444,7 +457,7 @@ export class DiscoveryService {
       newStation.playlistId
     );
 
-    return this.stationResponse(currentUserId, stationWithTracks!, ip);
+    return this.stationResponse(currentUserId, stationWithTracks!, ip, plan);
   }
 
   private updateScore(map: Map<string, TrackCandidate>, track: Track, points: number) {
@@ -459,7 +472,7 @@ export class DiscoveryService {
     }
   }
 
-  async getArtistStation(username: string, currentUserId: string, ip?: string) {
+  async getArtistStation(username: string, currentUserId: string, ip?: string, plan?: string) {
     const user = await this.userService.findByUsername(username);
     if (!user) {
       throw new NotFoundException('User not found');
@@ -477,7 +490,7 @@ export class DiscoveryService {
     const station = await this.playlistRepository.getArtistStation(user.userId);
     if (station && station?.createdAt.getTime() > new Date().getTime() - 15 * 24 * 60 * 60 * 1000) {
       // If station exists and is less than 15 days old, return it
-      return this.stationResponse(currentUserId, station, ip);
+      return this.stationResponse(currentUserId, station, ip, plan);
     }
 
     // get the user's most popular tracks
@@ -576,7 +589,7 @@ export class DiscoveryService {
       newStation.playlistId
     );
 
-    return this.stationResponse(currentUserId, stationWithTracks!, ip);
+    return this.stationResponse(currentUserId, stationWithTracks!, ip, plan);
   }
 
   async getUserRecentActivities(
@@ -584,7 +597,8 @@ export class DiscoveryService {
     username: string,
     ip: string,
     page: number = 1,
-    limit: number = 20
+    limit: number = 20,
+    plan?: string
   ) {
     const { country } = getLocationFromIp(ip);
 
@@ -606,10 +620,10 @@ export class DiscoveryService {
       true
     );
 
-    return this.assembleActivities(activities, userId, country);
+    return this.assembleActivities(activities, userId, country, plan);
   }
 
-  async getUserPopularTracks(username: string, currentUserId: string, ip: string) {
+  async getUserPopularTracks(username: string, currentUserId: string, ip: string, plan?: string) {
     const targetUser = await this.userService.findByUsername(username);
     if (!targetUser) {
       return { status: 'error', message: 'User not found' };
@@ -652,14 +666,15 @@ export class DiscoveryService {
               isLiked: likedIds.has(track.trackId),
               isReposted: repostedIds.has(track.trackId),
             },
-            country
+            country,
+            plan
           )
         )
         .filter((t): t is NonNullable<typeof t> => t !== null),
     };
   }
 
-  async getMoreOfWhatYouLike(userId: string, ip: string) {
+  async getMoreOfWhatYouLike(userId: string, ip: string, plan?: string) {
     // get genres of tracks the user has interacted with
     const interactedTrackTags = await this.trackService.getUserInteractedTrackTags(userId);
     // determine top 5 most interacted genres
@@ -687,7 +702,7 @@ export class DiscoveryService {
     return {
       status: 'success',
       data: tracks
-        .map((track) => this.formatTrack(track as any, country))
+        .map((track) => this.formatTrack(track as any, country, plan))
         .filter((t): t is NonNullable<typeof t> => t !== null),
     };
   }
@@ -702,7 +717,8 @@ export class DiscoveryService {
     createdAt: string | undefined,
     ip: string,
     page: number = 1,
-    limit: number = 20
+    limit: number = 20,
+    plan?: string
   ) {
     let durationRange;
     if (duration && type === 'track') {
@@ -827,7 +843,7 @@ export class DiscoveryService {
           const id = hit.id.replace('track_', '');
           const track = tracks.find((t) => t.trackId === id);
           if (!track) return null;
-          const formatted = this.formatTrack(track, country);
+          const formatted = this.formatTrack(track, country, plan);
           if (!formatted) return null;
           return { type: 'track', ...formatted };
         }
@@ -853,7 +869,7 @@ export class DiscoveryService {
           };
           return {
             type: 'playlist',
-            ...this.formatPlaylist(playlistWithStatus, country),
+            ...this.formatPlaylist(playlistWithStatus, country, plan),
           };
         }
         const id = hit.id.replace('album_', '');
@@ -876,7 +892,7 @@ export class DiscoveryService {
         };
         return {
           type: 'album',
-          ...this.formatPlaylist(albumWithStatus, country),
+          ...this.formatPlaylist(albumWithStatus, country, plan),
         };
       })
     );
@@ -895,7 +911,7 @@ export class DiscoveryService {
     };
   }
 
-  async getRecommendedStations(userId: string, ip: string) {
+  async getRecommendedStations(userId: string, ip: string, plan?: string) {
     const cached = await this.redis.get(`recommended_stations:${userId}`);
     if (cached) {
       const data = JSON.parse(cached) as Track[];
@@ -915,7 +931,7 @@ export class DiscoveryService {
       ...new Set([...lastListenedArtistUsernames, ...topFollowedArtistUsernames]),
     ].map(async (username) => {
       try {
-        return (await this.getArtistStation(username, userId, ip)).data;
+        return (await this.getArtistStation(username, userId, ip, plan)).data;
       } catch (e) {
         return null;
       }
@@ -1061,7 +1077,7 @@ export class DiscoveryService {
     };
   }
 
-  async getUserLikedby(userId: string, myUserId: string, ip: string | null) {
+  async getUserLikedby(userId: string, myUserId: string, ip: string | null, plan?: string) {
     const { country } = ip ? getLocationFromIp(ip) : { country: null };
     const user = await this.userService.findById(userId);
     if (!user) throw new NotFoundException('User not found');
@@ -1076,7 +1092,7 @@ export class DiscoveryService {
     // format liked tracks as playlist tracks
     const likedTrackItems = trackLikes
       .map((like, index) =>
-        this.formatPlaylistTrack({ position: index + 1, track: like.track }, country)
+        this.formatPlaylistTrack({ position: index + 1, track: like.track }, country, plan)
       )
       .filter(Boolean);
 
@@ -1084,7 +1100,7 @@ export class DiscoveryService {
     const playlistTrackItems = playlistLikes.flatMap((like) =>
       (like.playlist.playlistTracks ?? [])
         .slice(0, 5)
-        .map((pt: any) => this.formatPlaylistTrack(pt, country))
+        .map((pt: any) => this.formatPlaylistTrack(pt, country, plan))
         .filter(Boolean)
     );
 
@@ -1126,7 +1142,8 @@ export class DiscoveryService {
     ip: string,
     type: string,
     page: number,
-    limit: number
+    limit: number,
+    plan?: string
   ) {
     const tag = await this.genreRepository.findByName(tagName);
     if (!tag) {
@@ -1159,7 +1176,8 @@ export class DiscoveryService {
             isLiked: likedIds.has(track.trackId),
             isReposted: repostedIds.has(track.trackId),
           },
-          country
+          country,
+          plan
         )
       );
       total = trackTotal;
@@ -1185,7 +1203,8 @@ export class DiscoveryService {
             isLiked: likedIds.has(playlist.playlistId),
             isReposted: repostedIds.has(playlist.playlistId),
           },
-          country
+          country,
+          plan
         )
       );
       total = playlistTotal;
@@ -1197,7 +1216,7 @@ export class DiscoveryService {
     };
   }
 
-  async getMoreAlbumsOfWhatYouLike(userId: string, ip: string) {
+  async getMoreAlbumsOfWhatYouLike(userId: string, ip: string, plan?: string) {
     // Get genres from albums the user has interacted with
     const interactedAlbumTags = await this.playlistRepository.getUserInteractedAlbumTags(userId);
 
@@ -1225,12 +1244,12 @@ export class DiscoveryService {
     return {
       status: 'success',
       data: albums
-        .map((album) => this.formatPlaylist(album as any, country))
+        .map((album) => this.formatPlaylist(album as any, country, plan))
         .filter((a): a is NonNullable<typeof a> => a !== null),
     };
   }
 
-  async getDiscoverFeed(userId: string, ip: string) {
+  async getDiscoverFeed(userId: string, ip: string, plan?: string) {
     const { country } = getLocationFromIp(ip);
     // check cache
     const cached = await this.redis.get(`discover_feed_pool:${userId}`);
@@ -1339,7 +1358,7 @@ export class DiscoveryService {
 
     const formattedTracks = selected
       .map(({ track, reason }) => {
-        const formatted = this.formatTrack(track, country);
+        const formatted = this.formatTrack(track, country, plan);
         if (!formatted) return null;
         return {
           ...formatted,
