@@ -333,7 +333,6 @@ export class NotificationsService {
     data?: any
   ) {
     try {
-      // 1. Permission Check
       const settings = await this.settingsService.getNotificationSettings(userId);
       const deviceSettings = settings?.data?.device as Record<string, any>;
 
@@ -362,6 +361,16 @@ export class NotificationsService {
         notification: { title, body },
         data: fcmData,
         tokens,
+        android: {
+          priority: 'high',
+        },
+        apns: {
+          payload: {
+            aps: {
+              'content-available': 1,
+            },
+          },
+        },
       });
     } catch (error: any) {
       console.error(`Push error: ${error?.message}`);
