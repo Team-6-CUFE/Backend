@@ -254,27 +254,6 @@ export class NotificationsService {
   }
 
   async notifyNewMessage(recipientId: string, actor: User, chatId: string) {
-    const notification = await this.notificationsRepository.createNotification(
-      NotificationType.MESSAGE,
-      recipientId,
-      actor.userId
-    );
-    const unreadCount = await this.notificationsRepository.getUnreadCount(recipientId);
-
-    this.websocketsService.emitToUser(recipientId, 'new_notification', {
-      notification: {
-        notificationId: notification.notificationId,
-        type: NotificationType.MESSAGE,
-        actor: {
-          userId: actor.userId,
-          username: actor.username,
-          avatarUrl: actor.avatarUrl,
-        },
-        createdAt: notification.createdAt,
-      },
-      unreadCount,
-    });
-
     await this.sendPushNotification(
       recipientId,
       'New Message',
