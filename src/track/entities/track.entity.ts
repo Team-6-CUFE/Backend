@@ -156,6 +156,9 @@ export class Track extends BaseEntity {
   @Column({ name: 'show_insights', type: 'boolean', default: false })
   showInsights!: boolean;
 
+  @Column({ name: 'scheduled_at', type: 'timestamptz', nullable: true })
+  scheduledAt!: Date | null;
+
   @ManyToOne(() => User, (user) => user.tracks, { onDelete: 'CASCADE' })
   @JoinColumn({ name: 'user_id' })
   user!: Relation<User>;

@@ -42,6 +42,7 @@ import { BlockedRegionsDto } from './dto/blocked-regions.dto';
 import { GenresResDto } from './dto/get-genres-res.dto';
 import { TrackTagDto } from './dto/track-tag.dto';
 import { getLocationFromIp } from '../common/utilities/geolocation.util';
+import { resolveAudioUrl } from '../common/utilities/audio.util';
 import { PlaylistService } from '../playlist/playlist.service';
 import { RecentlyPlayedItemType } from './entities/recently-played.entity';
 import { FansService } from './services/fans.service';
@@ -69,6 +70,8 @@ export class TrackService {
     private readonly notificationsService: NotificationsService,
     @InjectQueue('audioQueue')
     private readonly audioQueue: Queue,
+    @InjectQueue('releaseQueue')
+    private readonly releaseQueue: Queue,
 
     @Inject(REDIS_CLIENT)
     private readonly redis: ReturnType<typeof createClient>,
@@ -76,9 +79,7 @@ export class TrackService {
   ) {}
 
   private resolveAudioUrl(track: Track, user?: JwtPayload): string | null {
-    const isHqEligible = user?.plan === 'pro' || user?.plan === 'go+';
-    if (isHqEligible && track.audioUrlHq) return track.audioUrlHq;
-    return track.audioUrl ?? null;
+    return resolveAudioUrl(track, user?.plan);
   }
 
   async uploadTrack(
@@ -785,7 +786,8 @@ export class TrackService {
     userId: string,
     currentUserId: string,
     page: number = 1,
-    limit: number = 20
+    limit: number = 20,
+    currentUserPlan?: string
   ) {
     const user = await this.userRepository.findById(userId);
     if (!user) throw new NotFoundException('User does not exist');
@@ -802,8 +804,10 @@ export class TrackService {
       cappedLimit
     );
 
-    const data = plainToInstance(UserTrackResponseDto, tracks, {
-      excludeExtraneousValues: true,
+    const data = tracks.map((t) => {
+      const dto = plainToInstance(UserTrackResponseDto, t, { excludeExtraneousValues: true });
+      dto.audioUrl = resolveAudioUrl(t, currentUserPlan);
+      return dto;
     });
 
     return { status: 'success', ...buildPaginationResponse(data, total, page, cappedLimit) };
@@ -953,7 +957,8 @@ export class TrackService {
     artistUsername: string,
     page: number = 1,
     limit: number = 10,
-    ip?: string
+    ip?: string,
+    plan?: string
   ): Promise<{
     status: string;
     data: UserTrackResponseDto[];
@@ -973,9 +978,12 @@ export class TrackService {
 
     const data = relatedTracks.map((t) => {
       const dto = plainToInstance(UserTrackResponseDto, t, { excludeExtraneousValues: true });
-      if (country && t.blockedRegions?.includes(country)) {
+      const isBlocked = country && t.blockedRegions?.includes(country);
+      if (isBlocked) {
         dto.audioUrl = null;
         dto.waveformUrl = null;
+      } else {
+        dto.audioUrl = resolveAudioUrl(t, plan);
       }
       dto.genreName = t.genre?.name ?? null;
       dto.artistId = t.user.userId;
@@ -1070,6 +1078,51 @@ export class TrackService {
       status: 'success',
       data,
     };
+  }
+
+  async scheduleRelease(userId: string, trackId: string, scheduledAt: Date) {
+    const track = await this.trackRepository.findById(trackId);
+    if (!track) throw new NotFoundException('Track not found');
+    if (track.userId !== userId) throw new ForbiddenException('You do not own this track');
+    if (scheduledAt <= new Date()) {
+      throw new BadRequestException('Scheduled date must be in the future');
+    }
+
+    if (track.trackStatus === TrackStatus.FINISHED || track.trackStatus === TrackStatus.SCHEDULED) {
+      // FINISHED → first-time schedule; SCHEDULED → update existing schedule
+      await this.trackRepository.scheduleTrackRelease(
+        trackId,
+        scheduledAt,
+        track.trackStatus === TrackStatus.FINISHED
+      );
+      const existing = await this.releaseQueue.getJob(`release-${trackId}`);
+      if (existing) await existing.remove();
+      await this.releaseQueue.add(
+        'release-track',
+        { trackId },
+        {
+          jobId: `release-${trackId}`,
+          delay: scheduledAt.getTime() - Date.now(),
+          removeOnComplete: true,
+          removeOnFail: { count: 3 },
+        }
+      );
+      return {
+        status: 'success',
+        message:
+          track.trackStatus === TrackStatus.FINISHED
+            ? 'Track scheduled for release.'
+            : 'Release schedule updated.',
+        data: { trackId, scheduledAt },
+      };
+    }
+
+    // PROCESSING, FAILED — not valid
+    throw new BadRequestException(
+      track.trackStatus === TrackStatus.PROCESSING
+        ? 'Track is still processing. Wait for processing to complete before scheduling.'
+        : `Cannot schedule a track with status: ${track.trackStatus}`
+    );
   }
 
   async getUserSpotlightTacks(userId: string, ip: string) {

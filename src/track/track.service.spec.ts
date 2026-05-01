@@ -57,6 +57,7 @@ import {
   mockRedisClient,
   mockActivitiesService,
   mockFfmpegService,
+  mockReleaseQueue,
 } from './tests/track.mock';
 import { REDIS_CLIENT } from '../redis/redis.module';
 import { ActivityService } from '../activity/activity.service';
@@ -83,6 +84,7 @@ describe('TrackService', () => {
   let playlistService: ReturnType<typeof mockPlaylistService>;
   let redisClient: ReturnType<typeof mockRedisClient>;
   let ffmpegService: ReturnType<typeof mockFfmpegService>;
+  let releaseQueue: ReturnType<typeof mockReleaseQueue>;
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
@@ -94,6 +96,7 @@ describe('TrackService', () => {
         { provide: TrackSseService, useValue: {} },
         { provide: StorageService, useFactory: mockStorageService },
         { provide: getQueueToken('audioQueue'), useFactory: mockAudioQueue },
+        { provide: getQueueToken('releaseQueue'), useFactory: mockReleaseQueue },
         { provide: FansService, useFactory: mockFansService },
         { provide: PlaylistService, useFactory: mockPlaylistService },
         { provide: REDIS_CLIENT, useFactory: mockRedisClient },
@@ -117,6 +120,7 @@ describe('TrackService', () => {
     playlistService = module.get(PlaylistService);
     redisClient = module.get(REDIS_CLIENT);
     ffmpegService = module.get(FfmpegService);
+    releaseQueue = module.get(getQueueToken('releaseQueue'));
   });
 
   afterEach(() => jest.clearAllMocks());
@@ -2240,6 +2244,101 @@ describe('TrackService', () => {
       await service.updateSpotlightTracks(MOCK_USER_ID, trackIds);
 
       expect(trackRepo.updateSpotlightTracks).toHaveBeenCalledWith(MOCK_USER_ID, trackIds);
+    });
+  });
+
+  // ─── scheduleRelease ──────────────────────────────────────────────────────────
+
+  describe('scheduleRelease', () => {
+    const futureDate = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hrs from now
+
+    it('should throw NotFoundException if track not found', async () => {
+      trackRepo.findById.mockResolvedValue(null);
+
+      await expect(
+        service.scheduleRelease(MOCK_USER_ID, MOCK_TRACK_ID, futureDate)
+      ).rejects.toThrow(NotFoundException);
+    });
+
+    it('should throw ForbiddenException if user does not own the track', async () => {
+      trackRepo.findById.mockResolvedValue({ ...mockPublicTrack(), userId: MOCK_OTHER_USER_ID });
+
+      await expect(
+        service.scheduleRelease(MOCK_USER_ID, MOCK_TRACK_ID, futureDate)
+      ).rejects.toThrow(ForbiddenException);
+    });
+
+    it('should throw BadRequestException if scheduledAt is in the past', async () => {
+      trackRepo.findById.mockResolvedValue({
+        ...mockPublicTrack(),
+        userId: MOCK_USER_ID,
+        trackStatus: TrackStatus.FINISHED,
+      });
+      const pastDate = new Date(Date.now() - 1000);
+
+      await expect(service.scheduleRelease(MOCK_USER_ID, MOCK_TRACK_ID, pastDate)).rejects.toThrow(
+        BadRequestException
+      );
+    });
+
+    it('should schedule a FINISHED track and enqueue a delayed release job', async () => {
+      trackRepo.findById.mockResolvedValue({
+        ...mockPublicTrack(),
+        userId: MOCK_USER_ID,
+        trackStatus: TrackStatus.FINISHED,
+      });
+      trackRepo.scheduleTrackRelease.mockResolvedValue(undefined);
+      releaseQueue.getJob.mockResolvedValue(null);
+      releaseQueue.add.mockResolvedValue({});
+
+      const result = await service.scheduleRelease(MOCK_USER_ID, MOCK_TRACK_ID, futureDate);
+
+      expect(trackRepo.scheduleTrackRelease).toHaveBeenCalledWith(MOCK_TRACK_ID, futureDate, true);
+      expect(releaseQueue.add).toHaveBeenCalledWith(
+        'release-track',
+        { trackId: MOCK_TRACK_ID },
+        expect.objectContaining({ jobId: `release-${MOCK_TRACK_ID}` })
+      );
+      expect(result.data.scheduledAt).toBe(futureDate);
+    });
+
+    it('should reschedule a SCHEDULED track, remove old job and enqueue new one', async () => {
+      const mockJob = { remove: jest.fn() };
+      trackRepo.findById.mockResolvedValue({
+        ...mockPublicTrack(),
+        userId: MOCK_USER_ID,
+        trackStatus: TrackStatus.SCHEDULED,
+      });
+      trackRepo.scheduleTrackRelease.mockResolvedValue(undefined);
+      releaseQueue.getJob.mockResolvedValue(mockJob);
+      releaseQueue.add.mockResolvedValue({});
+
+      const result = await service.scheduleRelease(MOCK_USER_ID, MOCK_TRACK_ID, futureDate);
+
+      expect(trackRepo.scheduleTrackRelease).toHaveBeenCalledWith(MOCK_TRACK_ID, futureDate, false);
+      expect(mockJob.remove).toHaveBeenCalled();
+      expect(releaseQueue.add).toHaveBeenCalled();
+      expect(result.message).toBe('Release schedule updated.');
+    });
+
+    it('should throw BadRequestException if track is still PROCESSING', async () => {
+      trackRepo.findById.mockResolvedValue({ ...mockProcessingTrack(), userId: MOCK_USER_ID });
+
+      await expect(
+        service.scheduleRelease(MOCK_USER_ID, MOCK_TRACK_ID, futureDate)
+      ).rejects.toThrow(BadRequestException);
+    });
+
+    it('should throw BadRequestException for FAILED track', async () => {
+      trackRepo.findById.mockResolvedValue({
+        ...mockPublicTrack(),
+        userId: MOCK_USER_ID,
+        trackStatus: TrackStatus.FAILED,
+      });
+
+      await expect(
+        service.scheduleRelease(MOCK_USER_ID, MOCK_TRACK_ID, futureDate)
+      ).rejects.toThrow(BadRequestException);
     });
   });
 });

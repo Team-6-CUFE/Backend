@@ -6,9 +6,6 @@ import { WebsocketsService } from '../websockets/websockets.service';
 import { MessageType } from './enums/message-type.enum';
 import { ChatFilter } from './enums/chat-filter.enum';
 import {
-  mockMessagingRepository,
-  mockWebsocketsService,
-  mockChat,
   mockMessage,
   mockChatStatus,
   mockUserOne,
@@ -17,7 +14,16 @@ import {
   makeSendMessageDto,
   makeMarkReadDto,
   makeGetMessagesDto,
+  mockNotificationsService,
+  mockMessagingRepository,
+  mockWebsocketsService,
+  mockUserRepository,
+  mockChat,
 } from './test/messaging.mock';
+import { NotificationsService } from '../notifications/notifications.service';
+import { MailService } from '../mail/mail.service';
+import { mockMailService } from '../authentication/test/auth.mock';
+import { UserRepository } from '../user/user.repository';
 
 describe('MessagingService', () => {
   let service: MessagingService;
@@ -28,6 +34,9 @@ describe('MessagingService', () => {
         MessagingService,
         { provide: MessagingRepository, useValue: mockMessagingRepository },
         { provide: WebsocketsService, useValue: mockWebsocketsService },
+        { provide: NotificationsService, useValue: mockNotificationsService },
+        { provide: MailService, useValue: mockMailService },
+        { provide: UserRepository, useValue: mockUserRepository },
       ],
     }).compile();
 
