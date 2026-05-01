@@ -113,7 +113,16 @@ export class TrackService {
       throw new ForbiddenException('Insufficient quota');
     }
 
-    // Step 3 — create track record in DB with PROCESSING status
+    // Step 3 — enforce unique title per artist
+    if (dto.title) {
+      const existing = await this.trackRepository.findByTitleAndUser(dto.title, userId);
+      if (existing) {
+        fs.unlinkSync(tempFilePath);
+        throw new ConflictException('You already have a track with this title');
+      }
+    }
+
+    // Step 4 — create track record in DB with PROCESSING status
     const savedTrack = await this.trackRepository.createTrack(userId, dto, coverImageUrl);
 
     // Step 4 — queue the background job; jobId === trackId for SSE keying
@@ -173,6 +182,12 @@ export class TrackService {
     const track = await this.trackRepository.findById(trackId);
     if (!track) throw new NotFoundException('Track not found');
     if (track.userId !== userId) throw new ForbiddenException('You do not own this track');
+
+    // Enforce unique title per artist when title is being changed
+    if (dto.title && dto.title !== track.title) {
+      const existing = await this.trackRepository.findByTitleAndUser(dto.title, userId, trackId);
+      if (existing) throw new ConflictException('You already have a track with this title');
+    }
 
     // Upload new cover and delete old one atomically
     let coverImageUrl: string | undefined;
