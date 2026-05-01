@@ -2169,8 +2169,8 @@ describe('TrackService', () => {
 
       const result = await service.getUserSpotlightTacks(MOCK_USER_ID, MOCK_IP);
 
-      expect(result[0]).not.toHaveProperty('audioUrl');
-      expect(result[0]).not.toHaveProperty('audioUrlHq');
+      expect(result[0].audioUrl).toBeNull();
+      expect(result[0].audioUrlHq).toBeNull();
     });
 
     it('should return empty array when spotlight is empty', async () => {
