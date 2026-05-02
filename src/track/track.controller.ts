@@ -80,7 +80,11 @@ import { PlaylistTypeFilter } from '../playlist/entities/playlist.entity';
 const ALLOWED_AUDIO_MIME_TYPES = [
   'audio/mpeg',
   'audio/wav',
+  'audio/x-wav',
+  'audio/wave',
+  'audio/vnd.wave',
   'audio/flac',
+  'audio/x-flac',
   'audio/aiff',
   'audio/x-aiff',
 ];

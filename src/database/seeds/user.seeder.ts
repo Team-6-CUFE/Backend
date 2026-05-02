@@ -9,6 +9,11 @@ import { Genre } from '../../genre/entities/genre.entity';
 import { Settings } from '../../settings/entities/settings.entity';
 import * as bcrypt from 'bcrypt';
 import { mapUser, addDocuments } from '../../search/indexing';
+import {
+  Subscription,
+  SubscriptionPlan,
+  SubscriptionStatus,
+} from '../../subscription/entities/subscription.entity';
 
 export class UserSeeder implements Seeder {
   private async createSettingsForUser(
@@ -28,6 +33,8 @@ export class UserSeeder implements Seeder {
     const favoriteGenreRepository = dataSource.getRepository(FavoriteGenre);
     const genreRepository = dataSource.getRepository(Genre);
     const settingsRepository = dataSource.getRepository(Settings);
+    const subscriptionRepository = dataSource.getRepository(Subscription);
+    const { faker } = await import('@faker-js/faker');
 
     // Check if users already exist
     const existingUsers = await userRepository.count();
@@ -56,12 +63,32 @@ export class UserSeeder implements Seeder {
       lastName: 'User',
       displayName: 'Administrator',
       role: 'admin',
-      plan: 'go+',
+      plan: 'pro',
       isPublic: true,
+      country: 'England',
+      city: 'London',
     });
     var adminUser = await userRepository.save(admin);
     await addDocuments([mapUser(adminUser)]);
     await this.createSettingsForUser(admin.userId, settingsRepository);
+    // Admin has pro plan — seed a subscription
+    {
+      const now = new Date();
+      const periodEnd = new Date(now);
+      periodEnd.setFullYear(periodEnd.getFullYear() + 1);
+      await subscriptionRepository.save(
+        subscriptionRepository.create({
+          userId: adminUser.userId,
+          stripeCustomerId: `cus_seed_admin_${faker.string.nanoid(8)}`,
+          stripeSubscriptionId: `sub_seed_admin_${faker.string.nanoid(8)}`,
+          plan: SubscriptionPlan.PRO_YEARLY,
+          status: SubscriptionStatus.ACTIVE,
+          cancelAtPeriodEnd: false,
+          currentPeriodStart: now,
+          currentPeriodEnd: periodEnd,
+        })
+      );
+    }
 
     const adminEmail = emailRepository.create({
       userId: admin.userId,
@@ -82,6 +109,8 @@ export class UserSeeder implements Seeder {
         lastName: 'Doe',
         role: 'artist',
         plan: 'pro',
+        country: 'England',
+        city: 'London',
       },
       {
         username: 'artist2',
@@ -90,6 +119,8 @@ export class UserSeeder implements Seeder {
         lastName: 'Smith',
         role: 'artist',
         plan: 'pro',
+        country: 'England',
+        city: 'London',
       },
       {
         username: 'listener1',
@@ -98,6 +129,8 @@ export class UserSeeder implements Seeder {
         lastName: 'Johnson',
         role: 'listener',
         plan: 'free',
+        country: 'England',
+        city: 'London',
       },
       {
         username: 'listener2',
@@ -107,6 +140,8 @@ export class UserSeeder implements Seeder {
         role: 'listener',
         plan: 'go+',
         isSuspended: true,
+        country: 'England',
+        city: 'London',
       },
       {
         username: 'listener3',
@@ -114,7 +149,9 @@ export class UserSeeder implements Seeder {
         firstName: 'Ann',
         lastName: 'Michael',
         role: 'listener',
-        plan: 'free',
+        plan: 'go+',
+        country: 'England',
+        city: 'London',
       },
     ];
 
@@ -155,6 +192,28 @@ export class UserSeeder implements Seeder {
           userId: user.userId,
           genreId: genre.genreId,
         });
+      }
+
+      // if the user is pro or go+ add subscription
+      if (testUserData.plan === 'pro' || testUserData.plan === 'go+') {
+        const now = new Date();
+        const periodEnd = new Date(now);
+        periodEnd.setFullYear(periodEnd.getFullYear() + 1);
+        await subscriptionRepository.save(
+          subscriptionRepository.create({
+            userId: savedUser.userId,
+            stripeCustomerId: `cus_seed_${faker.string.nanoid(14)}`,
+            stripeSubscriptionId: `sub_seed_${faker.string.nanoid(14)}`,
+            plan:
+              testUserData.plan === 'pro'
+                ? SubscriptionPlan.PRO_YEARLY
+                : SubscriptionPlan.GO_PLUS_YEARLY,
+            status: SubscriptionStatus.ACTIVE,
+            cancelAtPeriodEnd: false,
+            currentPeriodStart: now,
+            currentPeriodEnd: periodEnd,
+          })
+        );
       }
     }
 
@@ -232,6 +291,26 @@ export class UserSeeder implements Seeder {
           userId: user.userId,
           genreId: genre.genreId,
         });
+      }
+
+      // if the user is pro or go+ add subscription
+      if (user.plan === 'pro' || user.plan === 'go+') {
+        const now = new Date();
+        const periodEnd = new Date(now);
+        periodEnd.setFullYear(periodEnd.getFullYear() + 1);
+        await subscriptionRepository.save(
+          subscriptionRepository.create({
+            userId: user.userId,
+            stripeCustomerId: `cus_seed_${faker.string.nanoid(14)}`,
+            stripeSubscriptionId: `sub_seed_${faker.string.nanoid(14)}`,
+            plan:
+              user.plan === 'pro' ? SubscriptionPlan.PRO_YEARLY : SubscriptionPlan.GO_PLUS_YEARLY,
+            status: SubscriptionStatus.ACTIVE,
+            cancelAtPeriodEnd: false,
+            currentPeriodStart: now,
+            currentPeriodEnd: periodEnd,
+          })
+        );
       }
     }
 
