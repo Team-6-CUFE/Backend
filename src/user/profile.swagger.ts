@@ -227,7 +227,7 @@ export function ApiUpdateBirthdate() {
   return applyDecorators(
     ApiCookieAuth('access_token'),
     ApiOperation({
-      summary: 'Update my birthdate',
+      summary: 'Update my birthdate - deprecated',
       description:
         "Updates the authenticated user's birthdate. Must be in YYYY-MM-DD format, not in the future, and the user must be at least 13 years old.",
     }),
@@ -289,7 +289,7 @@ export function ApiUpdateGender() {
   return applyDecorators(
     ApiCookieAuth('access_token'),
     ApiOperation({
-      summary: 'Update my gender',
+      summary: 'Update my gender - deprecated',
       description: "Updates the authenticated user's gender. Accepted values: 'male', 'female'.",
     }),
     ApiResponse({
@@ -326,7 +326,7 @@ export function ApiUpdatePrivacy() {
   return applyDecorators(
     ApiCookieAuth('access_token'),
     ApiOperation({
-      summary: 'Change account privacy',
+      summary: 'Change account privacy - deprecated',
       description:
         "Toggles the authenticated user's account between public and private. Private accounts hide their content from non-followers.",
     }),
@@ -365,7 +365,7 @@ export function ApiUpdateAvatar() {
     ApiCookieAuth('access_token'),
     ApiConsumes('multipart/form-data'),
     ApiOperation({
-      summary: 'Update profile picture',
+      summary: 'Update profile picture - deprecated',
       description:
         "Updates the authenticated user's avatar/profile picture. The image is optimized, converted to WebP, and saved to S3.",
     }),
@@ -419,7 +419,7 @@ export function ApiUpdateCover() {
     ApiCookieAuth('access_token'),
     ApiConsumes('multipart/form-data'),
     ApiOperation({
-      summary: 'Update cover photo',
+      summary: 'Update cover photo - deprecated',
       description: "Updates the authenticated user's cover photo and saves it to S3.",
     }),
     ApiBody({
