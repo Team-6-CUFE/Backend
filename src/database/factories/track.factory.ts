@@ -2,6 +2,9 @@ import { setSeederFactory } from 'typeorm-extension';
 import { Track } from '../../track/entities/track.entity';
 import { TrackStatus } from '../../track/enums/track-status.enum';
 import { TrackVisibility } from '../../track/enums/track-visibility.enum';
+import { SEED_PROTECTED_AUDIO_URLS } from '../seeds/seed-audio-urls.constant';
+
+const [audioUrl, audioUrlHq, previewAudioUrl, waveformUrl] = [...SEED_PROTECTED_AUDIO_URLS];
 
 export default setSeederFactory(Track, async () => {
   const { faker } = await import('@faker-js/faker');
@@ -11,15 +14,11 @@ export default setSeederFactory(Track, async () => {
   track.title = faker.music.songName();
   track.description = faker.lorem.paragraph();
 
-  // Media URLs
-  track.audioUrl =
-    'https://harmonica-s3-storage-287109772507-us-east-1-an.s3.amazonaws.com/tracks/d96f835d-488c-4d9d-99b3-a67e28a652d7/WhatsApp_Audio_2026-05-02_at_51805_PM_standard.mp3';
-  track.previewAudioUrl =
-    'https://harmonica-s3-storage-287109772507-us-east-1-an.s3.amazonaws.com/tracks/d96f835d-488c-4d9d-99b3-a67e28a652d7/WhatsApp_Audio_2026-05-02_at_51805_PM_preview.mp3';
-  track.waveformUrl =
-    'https://harmonica-s3-storage-287109772507-us-east-1-an.s3.amazonaws.com/tracks/d96f835d-488c-4d9d-99b3-a67e28a652d7/waveform.json';
-  track.audioUrlHq =
-    'https://harmonica-s3-storage-287109772507-us-east-1-an.s3.amazonaws.com/tracks/d96f835d-488c-4d9d-99b3-a67e28a652d7/WhatsApp_Audio_2026-05-02_at_51805_PM_hq.mp3';
+  // Media URLs — sourced from seed-audio-urls.constant.ts (protected from processor deletion)
+  track.audioUrl = audioUrl;
+  track.previewAudioUrl = previewAudioUrl;
+  track.waveformUrl = waveformUrl;
+  track.audioUrlHq = audioUrlHq;
   track.coverImage = faker.image.url({ width: 500, height: 500 });
 
   // Metadata
