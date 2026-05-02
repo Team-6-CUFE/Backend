@@ -14,4 +14,8 @@ export const getDatabaseConfig = (configService: ConfigService): TypeOrmModuleOp
   logging: configService.get<string>('NODE_ENV') === 'development',
   migrations: [`${__dirname}/../migrations/*{.ts,.js}`],
   migrationsRun: false, // Run migrations manually
+
+  ssl:{
+    rejectUnauthorized: false,
+  },
 });
