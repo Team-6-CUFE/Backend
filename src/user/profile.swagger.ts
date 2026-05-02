@@ -132,7 +132,7 @@ export function ApiUpdateProfile() {
           bio: { type: 'string', maxLength: 1000, example: 'Backend dev by day.' },
           country: { type: 'string', maxLength: 100, example: 'EG' },
           city: { type: 'string', maxLength: 100, example: 'Alexandria' },
-          gender: { type: 'string', enum: ['male', 'female', 'preferNotToSay'] },
+          gender: { type: 'string', enum: ['male', 'female'] },
           favoriteGenres: {
             type: 'array',
             items: { type: 'string' },
@@ -290,8 +290,7 @@ export function ApiUpdateGender() {
     ApiCookieAuth('access_token'),
     ApiOperation({
       summary: 'Update my gender',
-      description:
-        "Updates the authenticated user's gender. Accepted values: 'male', 'female', 'preferNotToSay'.",
+      description: "Updates the authenticated user's gender. Accepted values: 'male', 'female'.",
     }),
     ApiResponse({
       status: 200,
@@ -314,9 +313,7 @@ export function ApiUpdateGender() {
         example: {
           status: 'error',
           message: 'Validation failed',
-          errors: [
-            { field: 'gender', message: "Gender must be one of: 'male','female','preferNotToSay'" },
-          ],
+          errors: [{ field: 'gender', message: "Gender must be one of: 'male','female'" }],
         },
       },
     }),
