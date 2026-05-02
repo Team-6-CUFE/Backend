@@ -3,7 +3,7 @@ import { BadRequestException } from '@nestjs/common';
 import { SubscriptionController } from './subscription.controller';
 import { SubscriptionService } from './subscription.service';
 import { SubscriptionPlan, SubscriptionStatus } from './entities/subscription.entity';
-import { PlanType, BillingCycle } from './dto/createCheckOutSessionDto';
+import { PlanType, BillingCycle } from './dto/createCheckOutSessionDto.dto';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 

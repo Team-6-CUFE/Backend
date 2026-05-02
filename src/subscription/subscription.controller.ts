@@ -1,7 +1,7 @@
 import { Controller, Post, Get, Patch, Body } from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
 import { SubscriptionService } from './subscription.service';
-import { CreateCheckoutSessionDto } from './dto/createCheckOutSessionDto';
+import { CreateCheckoutSessionDto } from './dto/createCheckOutSessionDto.dto';
 import { CurrentUser } from '../authentication/decorators/current-user.decorator';
 import {
   ApiCreateCheckout,
