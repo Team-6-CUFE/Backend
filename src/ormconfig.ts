@@ -21,6 +21,9 @@ const options: DataSourceOptions & SeederOptions = {
   logging: !isProd,
   seeds: [`${base}/database/seeds/**/*.${ext}`],
   factories: [`${base}/database/factories/**/*.${ext}`],
+  ssl: {
+    rejectUnauthorized: false,
+  },
 };
 
 export default new DataSource(options);
