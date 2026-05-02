@@ -4,14 +4,19 @@ import { ConfigService } from '@nestjs/config';
 
 export const getDatabaseConfig = (configService: ConfigService): TypeOrmModuleOptions => ({
   type: 'postgres',
+
   url: configService.get<string>('DATABASE_URL'),
+
   entities: [`${__dirname}/../**/*.entity{.ts,.js}`],
-  synchronize: false, // NEVER true in production
+  synchronize: false,
   logging: configService.get<string>('NODE_ENV') === 'development',
   migrations: [`${__dirname}/../migrations/*{.ts,.js}`],
-  migrationsRun: false, // Run migrations manually
+  migrationsRun: false,
 
-  ssl:{
-    rejectUnauthorized: false,
+  ssl: true, // 👈 important
+  extra: {
+    ssl: {
+      rejectUnauthorized: false,
+    },
   },
 });
