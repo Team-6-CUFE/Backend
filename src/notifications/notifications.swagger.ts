@@ -51,7 +51,8 @@ export function ApiGetNotifications() {
       name: 'type',
       required: false,
       type: String,
-      description: 'Filter by notification type (e.g., follow, like, repost, comment)',
+      description:
+        'Filter by notification type (new_follower, new_like, new_repost, new_comment, new_post)',
     }),
     ApiResponse({
       status: HttpStatus.OK,

@@ -74,12 +74,12 @@ export class UpdateProfileReqDto {
   city?: string;
 
   @ApiPropertyOptional({
-    description: "Gender — accepted values: 'male', 'female', 'preferNotToSay'",
+    description: "Gender — accepted values: 'male', 'female'",
     example: 'male',
-    enum: ['male', 'female', 'preferNotToSay'],
+    enum: ['male', 'female'],
   })
   @IsOptional()
-  @IsIn(['male', 'female', 'preferNotToSay'])
+  @IsIn(['male', 'female'])
   gender?: string;
 
   @ApiPropertyOptional({
