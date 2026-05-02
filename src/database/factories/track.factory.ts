@@ -13,13 +13,13 @@ export default setSeederFactory(Track, async () => {
 
   // Media URLs
   track.audioUrl =
-    'https://harmonica-s3-storage-287109772507-us-east-1-an.s3.amazonaws.com/tracks/d96f835d-488c-4d9d-99b3-a67e28a652d7/WhatsApp_Audio_2026-05-02_at_51805_PM_standard.mp3';
+    'https://harmonica-s3-storage-287109772507-us-east-1-an.s3.amazonaws.com/tracks/e2117315-c592-479f-81f2-f5f91e8cc691/WhatsApp_Audio_2026-05-02_at_51805_PM_standard.mp3';
   track.previewAudioUrl =
-    'https://harmonica-s3-storage-287109772507-us-east-1-an.s3.amazonaws.com/tracks/d96f835d-488c-4d9d-99b3-a67e28a652d7/WhatsApp_Audio_2026-05-02_at_51805_PM_preview.mp3';
+    'https://harmonica-s3-storage-287109772507-us-east-1-an.s3.amazonaws.com/tracks/e2117315-c592-479f-81f2-f5f91e8cc691/WhatsApp_Audio_2026-05-02_at_51805_PM_preview.mp3';
   track.waveformUrl =
-    'https://harmonica-s3-storage-287109772507-us-east-1-an.s3.amazonaws.com/tracks/d96f835d-488c-4d9d-99b3-a67e28a652d7/waveform.json';
+    'https://harmonica-s3-storage-287109772507-us-east-1-an.s3.amazonaws.com/tracks/e2117315-c592-479f-81f2-f5f91e8cc691/waveform.json';
   track.audioUrlHq =
-    'https://harmonica-s3-storage-287109772507-us-east-1-an.s3.amazonaws.com/tracks/d96f835d-488c-4d9d-99b3-a67e28a652d7/WhatsApp_Audio_2026-05-02_at_51805_PM_hq.mp3';
+    'https://harmonica-s3-storage-287109772507-us-east-1-an.s3.amazonaws.com/tracks/e2117315-c592-479f-81f2-f5f91e8cc691/WhatsApp_Audio_2026-05-02_at_51805_PM_preview.mp3';
   track.coverImage = faker.image.url({ width: 500, height: 500 });
 
   // Metadata
