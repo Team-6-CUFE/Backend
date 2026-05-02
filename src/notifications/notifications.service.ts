@@ -315,20 +315,28 @@ export class NotificationsService {
       const settings = await this.settingsService.getNotificationSettings(userId);
       const deviceSettings = settings?.data?.device as Record<string, any>;
 
+      // 1. Opt-in by default: Only abort if the user explicitly turned it off
       if (
-        !deviceSettings ||
-        deviceSettings[settingKey] === false ||
-        deviceSettings[settingKey] === 'off'
-      )
+        deviceSettings &&
+        (deviceSettings[settingKey] === false || deviceSettings[settingKey] === 'off')
+      ) {
+        console.log(`[Push] Aborted for user ${userId}: Setting '${settingKey}' is off.`);
         return;
+      }
 
+      // 2. Fetch and sanitize tokens
       const rawTokens = await this.notificationsRepository.getUserDeviceTokens(userId);
       const tokens: string[] = (rawTokens || [])
         .map((t: any) => (typeof t === 'string' ? t : t?.token)?.trim())
         .filter((t): t is string => !!t && t.length > 0);
 
-      if (tokens.length === 0) return;
+      // 3. Log a warning if no tokens exist, instead of failing silently
+      if (tokens.length === 0) {
+        console.warn(`[Push Warning] No device tokens in DB for user: ${userId}. Aborting.`);
+        return;
+      }
 
+      // 4. Format the custom data payload for Flutter
       const fcmData: Record<string, string> = { click_action: 'FLUTTER_NOTIFICATION_CLICK' };
       if (data) {
         Object.entries(data).forEach(([k, v]) => {
@@ -336,7 +344,8 @@ export class NotificationsService {
         });
       }
 
-      await getMessaging(getFirebaseApp()).sendEachForMulticast({
+      // 5. Send to Firebase and capture the receipt response
+      const response = await getMessaging(getFirebaseApp()).sendEachForMulticast({
         notification: { title, body },
         data: fcmData,
         tokens,
@@ -351,8 +360,25 @@ export class NotificationsService {
           },
         },
       });
+
+      // 6. Print the EXACT raw JSON receipt from Google's servers
+      console.log(`[Raw Firebase ACK]:\n${JSON.stringify(response, null, 2)}`);
+
+      // 7. If any tokens failed, print exactly why (helps with quick debugging)
+      if (response.failureCount > 0) {
+        console.log(
+          `[Push Summary] Successes: ${response.successCount}, Failures: ${response.failureCount}`
+        );
+        response.responses.forEach((resp, idx) => {
+          if (!resp.success) {
+            console.error(
+              `[Push Error] Token ${idx} failed: ${resp.error?.code} - ${resp.error?.message}`
+            );
+          }
+        });
+      }
     } catch (error: any) {
-      console.error(`Push error: ${error?.message}`);
+      console.error(`[Push Error] Failed for user ${userId} (Catastrophic): ${error?.message}`);
     }
   }
 
