@@ -291,27 +291,25 @@ export class AdminService {
   }
 
   async toggleTrackVisibility(trackId: string, hidden: boolean) {
-    const track = await this.trackRepository.findById(trackId);
+    const track = await this.trackRepository.findByIdWithRelations(trackId);
 
     if (!track) {
       throw new NotFoundException('Track not found');
     }
 
-    // 1. Update the DB via your new repo method
     await this.trackRepository.updateHiddenStatus(trackId, hidden);
 
-    // 2. Sync Meilisearch
-    if (hidden === true) {
-      // Even if the track is PUBLIC, if it's hidden, it's gone from search
+    track.hidden = hidden;
+
+    if (hidden) {
       await deleteDocument(`track_${trackId}`);
+    } else if (
+      track.visibility === TrackVisibility.PUBLIC &&
+      track.trackStatus === TrackStatus.FINISHED
+    ) {
+      await updateDocument(mapTrack(track));
     } else {
-      // Only add back to search if the track was originally PUBLIC
-      // If it was PRIVATE, it shouldn't be in the index anyway
-      // eslint-disable-next-line no-lonely-if
-      if (track.visibility === TrackVisibility.PUBLIC) {
-        // We pass the track object with the updated hidden status
-        await updateDocument(mapTrack({ ...track, hidden: false }));
-      }
+      await deleteDocument(`track_${trackId}`);
     }
 
     return {
