@@ -47,7 +47,7 @@ jobs:
           username: ${{ secrets.EC2_USER }}
           key: ${{ secrets.EC2_SSH_KEY }}
           script: |
-            cd ~/app
+            cd ~/app-new
             docker pull ${{ secrets.DOCKERHUB_USERNAME }}/harmonica-backend:${{ env.TAG }}
             docker compose -p ${{ env.PROJECT }} \
             -f ${{ env.COMPOSE_FILE }} \
