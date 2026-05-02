@@ -4,11 +4,11 @@ import { IsIn } from 'class-validator';
 export class UpdateGenderReqDto {
   @ApiProperty({
     description: 'Gender value',
-    enum: ['male', 'female', 'preferNotToSay'],
+    enum: ['male', 'female'],
     example: 'male',
   })
-  @IsIn(['male', 'female', 'preferNotToSay'], {
-    message: "Gender must be one of: 'male','female','preferNotToSay'",
+  @IsIn(['male', 'female'], {
+    message: "Gender must be one of: 'male','female'",
   })
   gender!: string;
 }
