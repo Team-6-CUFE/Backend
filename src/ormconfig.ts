@@ -10,17 +10,23 @@ const base = isProd ? 'dist' : 'src';
 
 const options: DataSourceOptions & SeederOptions = {
   type: 'postgres',
-  host: process.env.DB_HOST || 'localhost',
-  port: parseInt(process.env.DB_PORT ?? '5432', 10),
-  username: process.env.DB_USERNAME || 'postgres',
-  password: process.env.DB_PASSWORD,
-  database: process.env.DB_DATABASE,
+
+  url: process.env.DATABASE_URL, 
+
   entities: [`${base}/**/*.entity.${ext}`],
   migrations: [`${base}/database/migrations/*.${ext}`],
   synchronize: false,
   logging: !isProd,
+
   seeds: [`${base}/database/seeds/**/*.${ext}`],
   factories: [`${base}/database/factories/**/*.${ext}`],
+
+  ssl: true,
+  extra: {
+    ssl: {
+      rejectUnauthorized: false,
+    },
+  },
 };
 
 export default new DataSource(options);
