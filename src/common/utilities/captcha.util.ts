@@ -7,25 +7,37 @@ export function getFirebaseApp() {
 
   const projectId = process.env.FIREBASE_PROJECT_ID;
   const clientEmail = process.env.FIREBASE_CLIENT_EMAIL;
-  const rawKey = process.env.FIREBASE_PRIVATE_KEY; // Use a temp variable
+  const rawKey = process.env.FIREBASE_PRIVATE_KEY;
 
-  // Check if everything exists first
+  console.log('🔥 Firebase env check:', {
+    hasProjectId: !!projectId,
+    hasClientEmail: !!clientEmail,
+    hasPrivateKey: !!rawKey,
+    keyLength: rawKey?.length,
+  });
+
   if (!projectId || !clientEmail || !rawKey) {
     throw new Error(
       'Missing Firebase env vars: FIREBASE_PROJECT_ID, FIREBASE_CLIENT_EMAIL, FIREBASE_PRIVATE_KEY'
     );
   }
 
-  // Now TypeScript knows rawKey is a STRING, not undefined
-  const privateKey = process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, '\n')
-    ?.replace(/^["']|["']$/g, '')
-    ?.trim();
+  const privateKey = rawKey.replace(/\\n/g, '\n').trim();
+
+  console.log('🔑 Firebase key processed:', {
+    length: privateKey.length,
+    startsWith: privateKey.slice(0, 30),
+    endsWith: privateKey.slice(-30),
+  });
 
   return initializeApp({
-    credential: cert({ projectId, clientEmail, privateKey }),
+    credential: cert({
+      projectId,
+      clientEmail,
+      privateKey,
+    }),
   });
 }
-
 export const verifyAppCheckToken = async (token: string): Promise<boolean> => {
   if (token === process.env.FIREBASE_DEBUG_TOKEN) {
     return true;
