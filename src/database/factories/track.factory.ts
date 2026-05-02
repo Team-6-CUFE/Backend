@@ -22,7 +22,7 @@ export default setSeederFactory(Track, async () => {
   track.coverImage = faker.image.url({ width: 500, height: 500 });
 
   // Metadata
-  track.durationSeconds = faker.number.int({ min: 60, max: 600 });
+  track.durationSeconds = 248;
   track.playCount = 0;
   track.likesCount = 0;
   track.repostsCount = 0;
