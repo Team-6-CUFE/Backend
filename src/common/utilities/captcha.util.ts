@@ -7,22 +7,22 @@ export function getFirebaseApp() {
 
   const projectId = process.env.FIREBASE_PROJECT_ID;
   const clientEmail = process.env.FIREBASE_CLIENT_EMAIL;
-  const rawKey = process.env.FIREBASE_PRIVATE_KEY;
+  const b64Key = process.env.FIREBASE_PRIVATE_KEY_B64;
 
   console.log('🔥 Firebase env check:', {
     hasProjectId: !!projectId,
     hasClientEmail: !!clientEmail,
-    hasPrivateKey: !!rawKey,
-    keyLength: rawKey?.length,
+    hasPrivateKey: !!b64Key,
+    keyLength: b64Key?.length,
   });
 
-  if (!projectId || !clientEmail || !rawKey) {
+  if (!projectId || !clientEmail || !b64Key) {
     throw new Error(
-      'Missing Firebase env vars: FIREBASE_PROJECT_ID, FIREBASE_CLIENT_EMAIL, FIREBASE_PRIVATE_KEY'
+      'Missing Firebase env vars: FIREBASE_PROJECT_ID, FIREBASE_CLIENT_EMAIL, FIREBASE_PRIVATE_KEY_B64'
     );
   }
 
-  const privateKey = rawKey.replace(/\\n/g, '\n').trim();
+  const privateKey = Buffer.from(b64Key, 'base64').toString('utf8');
 
   console.log('🔑 Firebase key processed:', {
     length: privateKey.length,
