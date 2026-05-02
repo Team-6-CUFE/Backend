@@ -48,6 +48,7 @@ import { RecentlyPlayedItemType } from './entities/recently-played.entity';
 import { FansService } from './services/fans.service';
 import { ActivityService } from '../activity/activity.service';
 import { ActivityType } from '../activity/entities/activity.entity';
+import { SEED_PROTECTED_AUDIO_URLS } from '../database/seeds/seed-audio-urls.constant';
 import { REDIS_CLIENT } from '../redis/redis.module';
 import { Genre } from '../genre/entities/genre.entity';
 import { DEFAULT_GENRE_NAMES } from '../genre/genre.constants';
@@ -934,7 +935,9 @@ export class TrackService {
         throw new ForbiddenException('You do not own this track');
     }
     const oldUrls = track
-      ? [track.audioUrl, track.audioUrlHq, track.previewAudioUrl, track.waveformUrl].filter(Boolean)
+      ? [track.audioUrl, track.audioUrlHq, track.previewAudioUrl, track.waveformUrl].filter(
+          (url) => url && !SEED_PROTECTED_AUDIO_URLS.has(url)
+        )
       : [];
 
     await Promise.allSettled(oldUrls.map((url) => this.storageService.deleteFile(url)));

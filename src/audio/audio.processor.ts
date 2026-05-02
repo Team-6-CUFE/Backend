@@ -10,6 +10,7 @@ import { FfmpegService } from './ffmpeg.service';
 import { StorageService } from '../common/storage_service';
 import { Track } from '../track/entities/track.entity';
 import { TrackStatus } from '../track/enums/track-status.enum';
+import { SEED_PROTECTED_AUDIO_URLS } from '../database/seeds/seed-audio-urls.constant';
 
 export interface AudioJobResult {
   audioUrl: string;
@@ -58,7 +59,8 @@ export class AudioProcessor extends WorkerHost {
     const { trackId, filePath, originalName, previewStartTime } = job.data;
     this.logger.log(`Processing audio for track ${trackId}`);
 
-    // Snapshot old S3 URLs before overwriting them
+    // Snapshot old S3 URLs before overwriting them.
+    // Exclude seeded URLs so they are never accidentally deleted.
     const existing = await this.trackRepository.findOne({ where: { trackId } });
     const oldUrls = existing
       ? [
@@ -66,7 +68,7 @@ export class AudioProcessor extends WorkerHost {
           existing.audioUrlHq,
           existing.previewAudioUrl,
           existing.waveformUrl,
-        ].filter(Boolean)
+        ].filter((url) => url && !SEED_PROTECTED_AUDIO_URLS.has(url))
       : [];
 
     try {
