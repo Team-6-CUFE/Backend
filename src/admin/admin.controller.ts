@@ -8,6 +8,7 @@ import {
   Param,
   ParseUUIDPipe,
   Body,
+  Delete,
 } from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
 import { AdminService } from './admin.service';
@@ -21,6 +22,8 @@ import {
   ApiGetPlatformStats,
   ApiGetEngagementAnalytics,
   ApiGetAllTracksWithReportCount,
+  ApiHideTrack,
+  ApiDeleteTrack,
 } from './admin.swagger';
 import { TrackStatus } from '../track/enums/track-status.enum';
 import { Role, UserStatus } from './report-enums';
@@ -128,5 +131,30 @@ export class AdminController {
     @Query('status') status?: TrackStatus
   ) {
     return this.adminService.getAllTracksWithReportCount(page, limit, status);
+  }
+
+  @ApiHideTrack()
+  @Patch('tracks/:track_id/hide')
+  async hideTrack(
+    @Param('track_id', ParseUUIDPipe) trackId: string,
+    @Body('hidden') hidden: boolean
+  ) {
+    await this.adminService.toggleTrackVisibility(trackId, hidden);
+
+    return {
+      status: 'success',
+      message: `Track ${hidden ? 'hidden' : 'shown'} successfully`,
+    };
+  }
+
+  @ApiDeleteTrack()
+  @Delete('tracks/:track_id')
+  async deleteTrack(@Param('track_id', ParseUUIDPipe) trackId: string) {
+    await this.adminService.adminDeleteTrack(trackId);
+
+    return {
+      status: 'success',
+      message: 'Track deleted successfully',
+    };
   }
 }

@@ -16,6 +16,8 @@ import { UserRepository } from '../user/user.repository';
 import { AdminRepository } from './admin.repository';
 import { UserService } from '../user/user.service';
 import { TrackStatus } from '../track/enums/track-status.enum';
+import { deleteDocument, mapTrack, updateDocument } from '../search/indexing';
+import { TrackVisibility } from '../track/enums/track-visibility.enum';
 
 @Injectable()
 export class AdminService {
@@ -286,5 +288,45 @@ export class AdminService {
         totalPages: Math.ceil(total / limit),
       },
     };
+  }
+
+  async toggleTrackVisibility(trackId: string, hidden: boolean) {
+    const track = await this.trackRepository.findById(trackId);
+
+    if (!track) {
+      throw new NotFoundException('Track not found');
+    }
+
+    // 1. Update the DB via your new repo method
+    await this.trackRepository.updateHiddenStatus(trackId, hidden);
+
+    // 2. Sync Meilisearch
+    if (hidden === true) {
+      // Even if the track is PUBLIC, if it's hidden, it's gone from search
+      await deleteDocument(`track_${trackId}`);
+    } else {
+      // Only add back to search if the track was originally PUBLIC
+      // If it was PRIVATE, it shouldn't be in the index anyway
+      // eslint-disable-next-line no-lonely-if
+      if (track.visibility === TrackVisibility.PUBLIC) {
+        // We pass the track object with the updated hidden status
+        await updateDocument(mapTrack({ ...track, hidden: false }));
+      }
+    }
+
+    return {
+      status: 'success',
+      message: `Track ${hidden ? 'hidden' : 'shown'} successfully`,
+    };
+  }
+
+  async adminDeleteTrack(trackId: string) {
+    const track = await this.trackRepository.findById(trackId);
+
+    if (!track) {
+      throw new NotFoundException('Track not found');
+    }
+
+    return this.trackService.deleteTrack(trackId, track.userId);
   }
 }
