@@ -1,12 +1,13 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { BadRequestException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import Stripe from 'stripe';
 import { SubscriptionService } from './subscription.service';
 import { SubscriptionRepository } from './subscription.repository';
 import { StripeService } from './stripe.service';
 import { UserRepository } from '../user/user.repository';
 import { SubscriptionPlan, SubscriptionStatus } from './entities/subscription.entity';
-import { PlanType, BillingCycle } from './dto/createCheckOutSessionDto';
+import { PlanType, BillingCycle } from './dto/createCheckOutSessionDto.dto';
 
 // ─── UUIDs ────────────────────────────────────────────────────────────────────
 
@@ -541,6 +542,164 @@ describe('SubscriptionService', () => {
       const result = await service.resumeSubscription(MOCK_USER_ID);
 
       expect(result).toEqual({ message: 'Subscription resumed successfully' });
+    });
+  });
+
+  // ─── handleWebhookEvent ────────────────────────────────────────────────────
+
+  describe('handleWebhookEvent', () => {
+    const makeInvoiceSucceededEvent = (priceId: string | null, subscriptionId = 'sub_123') =>
+      ({
+        type: 'invoice.payment_succeeded' as const,
+        data: {
+          object: {
+            customer: MOCK_STRIPE_CUSTOMER_ID,
+            subscription: subscriptionId,
+            lines: {
+              data: [
+                {
+                  price: priceId ? { id: priceId } : null,
+                  period: { start: 1700000000, end: 1702600000 },
+                },
+              ],
+            },
+          },
+        },
+      }) as unknown as Stripe.Event;
+
+    const makeSubUpdatedEvent = (cancelAtPeriodEnd: boolean) =>
+      ({
+        type: 'customer.subscription.updated' as const,
+        data: {
+          object: {
+            customer: MOCK_STRIPE_CUSTOMER_ID,
+            cancel_at_period_end: cancelAtPeriodEnd,
+            current_period_start: 1700000000,
+            current_period_end: 1702600000,
+          },
+        },
+      }) as unknown as Stripe.Event;
+
+    const makeSubDeletedEvent = () =>
+      ({
+        type: 'customer.subscription.deleted' as const,
+        data: { object: { customer: MOCK_STRIPE_CUSTOMER_ID } },
+      }) as unknown as Stripe.Event;
+
+    const makeInvoiceFailedEvent = () =>
+      ({
+        type: 'invoice.payment_failed' as const,
+        data: { object: { customer: MOCK_STRIPE_CUSTOMER_ID } },
+      }) as unknown as Stripe.Event;
+
+    describe('invoice.payment_succeeded', () => {
+      it('should update subscription plan to PRO_MONTHLY when priceId matches, and update user plan', async () => {
+        mockSubscriptionRepository.updateSubscription.mockResolvedValue(undefined);
+        mockSubscriptionRepository.findOneByCustomerId.mockResolvedValue(
+          mockSubscription({ user: { userId: MOCK_USER_ID } })
+        );
+        mockUserRepository.update.mockResolvedValue(undefined);
+
+        await service.handleWebhookEvent(makeInvoiceSucceededEvent(MOCK_PRICE_ID_PRO_MONTHLY));
+
+        expect(mockSubscriptionRepository.updateSubscription).toHaveBeenCalledWith(
+          MOCK_STRIPE_CUSTOMER_ID,
+          expect.objectContaining({
+            plan: SubscriptionPlan.PRO_MONTHLY,
+            status: SubscriptionStatus.ACTIVE,
+          })
+        );
+        expect(mockUserRepository.update).toHaveBeenCalledWith(MOCK_USER_ID, {
+          plan: SubscriptionPlan.PRO_MONTHLY,
+        });
+      });
+
+      it('should skip update when priceId is missing (no lines data)', async () => {
+        await service.handleWebhookEvent(makeInvoiceSucceededEvent(null));
+
+        expect(mockSubscriptionRepository.updateSubscription).not.toHaveBeenCalled();
+      });
+
+      it('should skip update when priceId does not match any plan (unknown price ID)', async () => {
+        await service.handleWebhookEvent(makeInvoiceSucceededEvent('price_unknown_xyz'));
+
+        expect(mockSubscriptionRepository.updateSubscription).not.toHaveBeenCalled();
+      });
+    });
+
+    describe('customer.subscription.updated', () => {
+      it('should call updateSubscription with correct cancelAtPeriodEnd and period dates', async () => {
+        mockSubscriptionRepository.updateSubscription.mockResolvedValue(undefined);
+
+        await service.handleWebhookEvent(makeSubUpdatedEvent(true));
+
+        expect(mockSubscriptionRepository.updateSubscription).toHaveBeenCalledWith(
+          MOCK_STRIPE_CUSTOMER_ID,
+          expect.objectContaining({
+            cancelAtPeriodEnd: true,
+            currentPeriodStart: expect.any(Date),
+            currentPeriodEnd: expect.any(Date),
+          })
+        );
+      });
+    });
+
+    describe('customer.subscription.deleted', () => {
+      it('should reset plan to FREE and status to ACTIVE and update user plan', async () => {
+        mockSubscriptionRepository.updateSubscription.mockResolvedValue(undefined);
+        mockSubscriptionRepository.findOneByCustomerId.mockResolvedValue(
+          mockSubscription({ user: { userId: MOCK_USER_ID } })
+        );
+        mockUserRepository.update.mockResolvedValue(undefined);
+
+        await service.handleWebhookEvent(makeSubDeletedEvent());
+
+        expect(mockSubscriptionRepository.updateSubscription).toHaveBeenCalledWith(
+          MOCK_STRIPE_CUSTOMER_ID,
+          expect.objectContaining({
+            plan: SubscriptionPlan.FREE,
+            status: SubscriptionStatus.ACTIVE,
+            cancelAtPeriodEnd: false,
+          })
+        );
+        expect(mockUserRepository.update).toHaveBeenCalledWith(MOCK_USER_ID, {
+          plan: SubscriptionPlan.FREE,
+        });
+      });
+    });
+
+    describe('invoice.payment_failed', () => {
+      it('should set status to PAST_DUE and reset user plan to FREE', async () => {
+        mockSubscriptionRepository.updateSubscription.mockResolvedValue(undefined);
+        mockSubscriptionRepository.findOneByCustomerId.mockResolvedValue(
+          mockSubscription({ user: { userId: MOCK_USER_ID } })
+        );
+        mockUserRepository.update.mockResolvedValue(undefined);
+
+        await service.handleWebhookEvent(makeInvoiceFailedEvent());
+
+        expect(mockSubscriptionRepository.updateSubscription).toHaveBeenCalledWith(
+          MOCK_STRIPE_CUSTOMER_ID,
+          expect.objectContaining({ status: SubscriptionStatus.PAST_DUE })
+        );
+        expect(mockUserRepository.update).toHaveBeenCalledWith(MOCK_USER_ID, {
+          plan: SubscriptionPlan.FREE,
+        });
+      });
+    });
+
+    describe('unknown event type', () => {
+      it('should do nothing for unknown event type', async () => {
+        const unknownEvent = {
+          type: 'some.unknown.event',
+          data: { object: {} },
+        } as unknown as Stripe.Event;
+
+        await service.handleWebhookEvent(unknownEvent);
+
+        expect(mockSubscriptionRepository.updateSubscription).not.toHaveBeenCalled();
+        expect(mockUserRepository.update).not.toHaveBeenCalled();
+      });
     });
   });
 });

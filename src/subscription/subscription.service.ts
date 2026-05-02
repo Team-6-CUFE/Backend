@@ -6,7 +6,7 @@ import { SubscriptionRepository } from './subscription.repository';
 import { StripeService } from './stripe.service';
 import { Subscription, SubscriptionStatus, SubscriptionPlan } from './entities/subscription.entity';
 
-import { PlanType } from './dto/createCheckOutSessionDto';
+import { PlanType } from './dto/createCheckOutSessionDto.dto';
 
 @Injectable()
 export class SubscriptionService {
