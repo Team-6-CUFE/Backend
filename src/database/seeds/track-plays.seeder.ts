@@ -18,7 +18,7 @@ import { TrackVisibility } from '../../track/enums/track-visibility.enum';
 import { mapUser, addDocuments } from '../../search/indexing';
 
 const AVATAR_URL =
-  'https://harmonica-s3-storage-287109772507-us-east-1-an.s3.amazonaws.com/profiles/1f2561b1-adbc-4319-b5bb-53102bb92ab2/avatar_1775521418796.webp';
+  'https://harmonica-s3-storage-287109772507-us-east-1-an.s3.amazonaws.com/profiles/bb4207da-259a-4338-a24e-3df2911abbd2/avatar_1777219932024.webp';
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
@@ -74,6 +74,8 @@ export class TrackPlaysSeeder implements Seeder {
             isPublic: true,
             avatarUrl: AVATAR_URL,
             bio: 'Dedicated music fan.',
+            country: 'England',
+            city: 'london',
           })
         );
         await addDocuments([mapUser(fan)]);
@@ -152,8 +154,8 @@ export class TrackPlaysSeeder implements Seeder {
 
     // ── 5. Build play records ─────────────────────────────────────────────────
     // Each fan gets:
-    //  • 10 plays within the first-7-day window  → qualifies as a first fan
-    //  • 10 plays after the window               → boosts top-fan ranking
+    //  • 10-20 plays within the first-7-day window  → qualifies as a first fan
+    //  • 10-30 plays after the window               → boosts top-fan ranking
     // All fans play ALL featured tracks from both artists
     //  → top fans of track A also played track B → related-track data
     const allPlays: Partial<TrackPlay>[] = [];
@@ -175,6 +177,12 @@ export class TrackPlaysSeeder implements Seeder {
             playlistId: null,
           });
         }
+        // add random plays within the window to create variation
+        var random_num = Math.floor(Math.random() * 10);
+        for (let i = 0; i < random_num; i++) {
+          const playedAt = new Date(releaseDate.getTime() + Math.random() * 7 * DAY_MS);
+          allPlays.push({ trackId: track.trackId, userId: fan.userId, playedAt, playlistId: null });
+        }
         // 10 plays after the window, one every 2 days
         for (let i = 0; i < 10; i++) {
           const playedAt = new Date(windowEnd.getTime() + (i + 1) * 2 * DAY_MS);
@@ -187,6 +195,12 @@ export class TrackPlaysSeeder implements Seeder {
           if (!aMap.has(artistId) || playedAt > aMap.get(artistId)!) {
             aMap.set(artistId, playedAt);
           }
+        }
+        // add random plays after the window to create variation
+        random_num = Math.floor(Math.random() * 20);
+        for (let i = 0; i < random_num; i++) {
+          const playedAt = new Date(windowEnd.getTime() + Math.random() * 10 * DAY_MS);
+          allPlays.push({ trackId: track.trackId, userId: fan.userId, playedAt, playlistId: null });
         }
       }
     }

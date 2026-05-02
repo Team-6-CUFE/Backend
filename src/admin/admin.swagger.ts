@@ -722,3 +722,75 @@ export function ApiGetEngagementAnalytics() {
     ApiResponse({ status: 403, description: 'Forbidden — admin access only.' })
   );
 }
+
+export function ApiHideTrack() {
+  return applyDecorators(
+    ApiOperation({
+      summary: 'Toggle track visibility (Hide/Show)',
+      description:
+        'Allows an admin to hide a track from public view or show a previously hidden track. This also syncs with the search index.',
+    }),
+    ApiParam({
+      name: 'track_id',
+      description: 'The UUID of the track to hide or show',
+      type: 'string',
+      format: 'uuid',
+    }),
+    ApiBody({
+      schema: {
+        type: 'object',
+        properties: {
+          hidden: {
+            type: 'boolean',
+            description: 'Set to true to hide the track, false to make it visible',
+            example: true,
+          },
+        },
+        required: ['hidden'],
+      },
+    }),
+    ApiResponse({
+      status: 200,
+      description: 'Track visibility updated successfully.',
+      schema: {
+        example: {
+          status: 'success',
+          message: 'Track hidden successfully',
+        },
+      },
+    }),
+    ApiResponse({ status: 400, description: 'Bad Request — invalid track ID.' }),
+    ApiResponse({ status: 401, description: 'Unauthorized.' }),
+    ApiResponse({ status: 403, description: 'Forbidden — admin access only.' }),
+    ApiResponse({ status: 404, description: 'Track not found.' })
+  );
+}
+
+export function ApiDeleteTrack() {
+  return applyDecorators(
+    ApiOperation({
+      summary: 'Administrative delete of a track',
+      description:
+        'Permanently deletes a track, removes associated files from storage (S3), and wipes it from the search index.',
+    }),
+    ApiParam({
+      name: 'track_id',
+      description: 'The UUID of the track to permanently delete',
+      type: 'string',
+      format: 'uuid',
+    }),
+    ApiResponse({
+      status: 200,
+      description: 'Track deleted successfully.',
+      schema: {
+        example: {
+          status: 'success',
+          message: 'Track deleted successfully',
+        },
+      },
+    }),
+    ApiResponse({ status: 401, description: 'Unauthorized.' }),
+    ApiResponse({ status: 403, description: 'Forbidden — admin access only.' }),
+    ApiResponse({ status: 404, description: 'Track not found.' })
+  );
+}

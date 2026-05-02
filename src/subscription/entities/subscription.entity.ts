@@ -60,6 +60,9 @@ export class Subscription extends BaseEntity {
   cancelAtPeriodEnd!: boolean;
 
   // Relation
+  @Column({ name: 'user_id', type: 'uuid' })
+  userId!: string;
+
   @OneToOne(() => User, { onDelete: 'CASCADE' })
   @JoinColumn({ name: 'user_id' })
   user!: User;
