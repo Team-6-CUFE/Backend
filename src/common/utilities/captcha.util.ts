@@ -17,7 +17,9 @@ export function getFirebaseApp() {
   }
 
   // Now TypeScript knows rawKey is a STRING, not undefined
-  const privateKey = rawKey.replace(/\\n/g, '\n').replace(/^"|"$/g, '').trim();
+  const privateKey = process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, '\n')
+    ?.replace(/^["']|["']$/g, '')
+    ?.trim();
 
   return initializeApp({
     credential: cert({ projectId, clientEmail, privateKey }),

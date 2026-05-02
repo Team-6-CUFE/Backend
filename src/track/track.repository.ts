@@ -1184,4 +1184,8 @@ export class TrackRepository {
 
     await this.spotlightTracksRepository.save(spotlights);
   }
+
+  async updateHiddenStatus(trackId: string, hidden: boolean): Promise<void> {
+    await this.trackRepository.update(trackId, { hidden });
+  }
 }
