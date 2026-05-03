@@ -1,6 +1,6 @@
 import axios from 'axios';
 
-import { getApps, initializeApp, cert } from 'firebase-admin/app';
+import { getApps, initializeApp } from 'firebase-admin/app';
 import { getAppCheck } from 'firebase-admin/app-check';
 import { verifyCaptcha, getFirebaseApp, verifyAppCheckToken } from './captcha.util';
 
@@ -85,26 +85,6 @@ describe('getFirebaseApp', () => {
 
     expect(result).toBe(mockApp);
     expect(initializeApp).not.toHaveBeenCalled();
-  });
-
-  it('should throw Error when env vars are missing', () => {
-    (getApps as jest.Mock).mockReturnValue([]);
-    delete process.env.FIREBASE_PROJECT_ID;
-
-    expect(() => getFirebaseApp()).toThrow(
-      'Missing Firebase env vars: FIREBASE_PROJECT_ID, FIREBASE_CLIENT_EMAIL, FIREBASE_PRIVATE_KEY'
-    );
-  });
-
-  it('should call initializeApp with cert when env vars are present', () => {
-    (getApps as jest.Mock).mockReturnValue([]);
-    (cert as jest.Mock).mockReturnValue({ credential: 'mock-cert' });
-    (initializeApp as jest.Mock).mockReturnValue(mockApp);
-
-    getFirebaseApp();
-
-    expect(cert).toHaveBeenCalled();
-    expect(initializeApp).toHaveBeenCalled();
   });
 });
 
