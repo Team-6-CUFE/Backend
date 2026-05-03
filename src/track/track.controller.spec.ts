@@ -506,7 +506,11 @@ describe('TrackController', () => {
 
     it('reuploadTrackAudio should throw BadRequest when audio missing', async () => {
       await expect(
-        controller.reuploadTrackAudio(MOCK_TRACK_ID, MOCK_USER_ID, undefined)
+        controller.reuploadTrackAudio(
+          MOCK_TRACK_ID,
+          MOCK_USER_ID,
+          undefined as unknown as Express.Multer.File
+        )
       ).rejects.toThrow(BadRequestException);
     });
 
@@ -759,7 +763,11 @@ describe('TrackController', () => {
 
     it('should throw BadRequestException when no audio file provided', async () => {
       await expect(
-        controller.reuploadTrackAudio(MOCK_TRACK_ID, MOCK_USER_ID, undefined)
+        controller.reuploadTrackAudio(
+          MOCK_TRACK_ID,
+          MOCK_USER_ID,
+          undefined as unknown as Express.Multer.File
+        )
       ).rejects.toThrow(BadRequestException);
     });
 
