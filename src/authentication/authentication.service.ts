@@ -296,7 +296,13 @@ export class AuthenticationService {
     // Rotate: revoke old token, issue new pair
     await this.authRepository.revokeRefreshToken(oldTokenHash);
 
-    const payload: JwtPayload = { sub: userId, email, role, plan };
+    // Always read the current plan/role from DB so subscription changes are
+    // reflected immediately on the next token refresh, without re-login.
+    const currentUser = await this.userService.findById(userId);
+    const currentPlan = (currentUser?.plan ?? plan) as UserPlan;
+    const currentRole = (currentUser?.role ?? role) as UserRole;
+
+    const payload: JwtPayload = { sub: userId, email, role: currentRole, plan: currentPlan };
 
     const newAccessToken = this.jwtService.sign(payload, {
       expiresIn: ACCESS_TOKEN_EXPIRY,
