@@ -2,6 +2,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { NotFoundException } from '@nestjs/common';
 import { SettingsService } from './settings.service';
 import { SettingsRepository } from './settings.repository';
+import { UpdateNotificationsDto } from './dtos/update-notifications.dto';
 
 const MOCK_USER_ID = '550e8400-e29b-41d4-a716-446655440001';
 
@@ -35,6 +36,7 @@ const mockSettingsRepository = () => ({
   updatePrivacySettings: jest.fn(),
   createDefaultSettings: jest.fn(),
   delete: jest.fn(),
+  updateNotificationSettings: jest.fn(),
 });
 
 describe('SettingsService', () => {
@@ -239,6 +241,119 @@ describe('SettingsService', () => {
       expect(repo.delete).toHaveBeenCalledWith(MOCK_USER_ID);
       expect(repo.createDefaultSettings).toHaveBeenCalledWith(MOCK_USER_ID);
       expect(result).toBe(fresh);
+    });
+  });
+
+  // ─── getNotificationSettings ─────────────────────────────────────────────────
+
+  describe('getNotificationSettings', () => {
+    it('should return shaped notification settings object with email and device keys', async () => {
+      repo.getPrivacySettings.mockResolvedValue(mockSettings());
+
+      const result = await service.getNotificationSettings(MOCK_USER_ID);
+
+      expect(result.status).toBe('success');
+      expect(result.data).toHaveProperty('email');
+      expect(result.data).toHaveProperty('device');
+    });
+
+    it('should throw NotFoundException when settings not found', async () => {
+      repo.getPrivacySettings.mockResolvedValue(null);
+
+      await expect(service.getNotificationSettings(MOCK_USER_ID)).rejects.toThrow(
+        NotFoundException
+      );
+    });
+
+    it('should correctly map all email notification fields', async () => {
+      repo.getPrivacySettings.mockResolvedValue(mockSettings());
+
+      const result = await service.getNotificationSettings(MOCK_USER_ID);
+
+      expect(result.data.email).toEqual({
+        newFollower: false,
+        repost: true,
+        newPost: true,
+        likesPlays: false,
+        comment: false,
+        recommended: true,
+        newMessage: true,
+      });
+    });
+
+    it('should correctly map all device notification fields (including likes_plays snake_case key)', async () => {
+      repo.getPrivacySettings.mockResolvedValue(mockSettings());
+
+      const result = await service.getNotificationSettings(MOCK_USER_ID);
+
+      expect(result.data.device).toEqual({
+        newFollower: true,
+        repost: true,
+        newPost: true,
+        likes_plays: true,
+        comment: true,
+        recommended: true,
+        newMessage: 'everyone',
+      });
+    });
+  });
+
+  // ─── updateNotificationSettings ──────────────────────────────────────────────
+
+  describe('updateNotificationSettings', () => {
+    beforeEach(() => {
+      repo.getPrivacySettings.mockResolvedValue(mockSettings());
+      repo.updateNotificationSettings.mockResolvedValue(undefined);
+    });
+
+    it('should call updateNotificationSettings repo with correct flat payload when email fields are provided', async () => {
+      const dto: UpdateNotificationsDto = { email: { newFollower: true, repost: false } };
+
+      await service.updateNotificationSettings(MOCK_USER_ID, dto);
+
+      expect(repo.updateNotificationSettings).toHaveBeenCalledWith(
+        MOCK_USER_ID,
+        expect.objectContaining({ emailNewFollower: true, emailRepost: false })
+      );
+    });
+
+    it('should NOT call updateNotificationSettings repo when dto is empty', async () => {
+      await service.updateNotificationSettings(MOCK_USER_ID, {});
+
+      expect(repo.updateNotificationSettings).not.toHaveBeenCalled();
+    });
+
+    it('should map device notification fields correctly', async () => {
+      const dto: UpdateNotificationsDto = { device: { newFollower: false, comment: true } };
+
+      await service.updateNotificationSettings(MOCK_USER_ID, dto);
+
+      expect(repo.updateNotificationSettings).toHaveBeenCalledWith(
+        MOCK_USER_ID,
+        expect.objectContaining({ deviceNewFollower: false, deviceComment: true })
+      );
+    });
+
+    it('should return success message and updated data', async () => {
+      const dto: UpdateNotificationsDto = { email: { newFollower: true } };
+
+      const result = await service.updateNotificationSettings(MOCK_USER_ID, dto);
+
+      expect(result.status).toBe('success');
+      expect(result.message).toBe('Notification settings updated successfully');
+      expect(result.data).toHaveProperty('email');
+      expect(result.data).toHaveProperty('device');
+    });
+
+    it('should only update fields that are explicitly provided (undefined fields skipped)', async () => {
+      const dto: UpdateNotificationsDto = { email: { newFollower: true } };
+
+      await service.updateNotificationSettings(MOCK_USER_ID, dto);
+
+      const callPayload = repo.updateNotificationSettings.mock.calls[0][1];
+      expect(callPayload).toHaveProperty('emailNewFollower', true);
+      expect(callPayload).not.toHaveProperty('emailRepost');
+      expect(callPayload).not.toHaveProperty('emailComment');
     });
   });
 });

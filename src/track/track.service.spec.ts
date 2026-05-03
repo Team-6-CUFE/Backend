@@ -2383,4 +2383,140 @@ describe('TrackService', () => {
       ).rejects.toThrow(BadRequestException);
     });
   });
+
+  // ─── updateTrackCommentSettings ───────────────────────────────────────────────
+
+  describe('updateTrackCommentSettings', () => {
+    it('should update comment settings and return success', async () => {
+      trackRepo.findById.mockResolvedValue(mockOwnTrack());
+      trackRepo.updateTrackCommentSettings.mockResolvedValue(undefined);
+
+      const result = await service.updateTrackCommentSettings(
+        MOCK_USER_ID,
+        MOCK_TRACK_ID,
+        true,
+        false
+      );
+
+      expect(trackRepo.updateTrackCommentSettings).toHaveBeenCalledWith(MOCK_TRACK_ID, true, false);
+      expect(result).toEqual({ status: 'success', message: 'track comment settings  updated' });
+    });
+
+    it('should throw BadRequestException when track not found', async () => {
+      trackRepo.findById.mockResolvedValue(null);
+
+      await expect(
+        service.updateTrackCommentSettings(MOCK_USER_ID, MOCK_TRACK_ID, true, true)
+      ).rejects.toThrow(new BadRequestException('track is not found'));
+    });
+
+    it('should throw BadRequestException when user is not the owner', async () => {
+      trackRepo.findById.mockResolvedValue(mockPublicTrack());
+
+      await expect(
+        service.updateTrackCommentSettings(MOCK_USER_ID, MOCK_TRACK_ID, true, true)
+      ).rejects.toThrow(new BadRequestException('you are not the owner of this track'));
+    });
+
+    it('should not call repo when track not found', async () => {
+      trackRepo.findById.mockResolvedValue(null);
+
+      await expect(
+        service.updateTrackCommentSettings(MOCK_USER_ID, MOCK_TRACK_ID, true, true)
+      ).rejects.toThrow();
+
+      expect(trackRepo.updateTrackCommentSettings).not.toHaveBeenCalled();
+    });
+  });
+
+  // ─── getUserTracks ────────────────────────────────────────────────────────────
+
+  describe('getUserTracks', () => {
+    it('should call getAllUserTracks with username and return result', async () => {
+      const tracks = [mockPublicTrack()];
+      trackRepo.getAllUserTracks.mockResolvedValue(tracks);
+
+      const result = await service.getUserTracks('dj_nour');
+
+      expect(trackRepo.getAllUserTracks).toHaveBeenCalledWith('dj_nour');
+      expect(result).toBe(tracks);
+    });
+
+    it('should return empty array when no tracks', async () => {
+      trackRepo.getAllUserTracks.mockResolvedValue([]);
+
+      const result = await service.getUserTracks('unknown_user');
+
+      expect(result).toEqual([]);
+    });
+  });
+
+  // ─── getPopularityScore ───────────────────────────────────────────────────────
+
+  describe('getPopularityScore', () => {
+    it('should return popularity score from repository', async () => {
+      trackRepo.calculatePopularityScore.mockResolvedValue(87.5);
+
+      const result = await service.getPopularityScore(MOCK_TRACK_ID);
+
+      expect(trackRepo.calculatePopularityScore).toHaveBeenCalledWith(MOCK_TRACK_ID);
+      expect(result).toBe(87.5);
+    });
+
+    it('should return 0 when track has no plays', async () => {
+      trackRepo.calculatePopularityScore.mockResolvedValue(0);
+
+      const result = await service.getPopularityScore(MOCK_TRACK_ID);
+
+      expect(result).toBe(0);
+    });
+  });
+
+  // ─── getUserInteractedTrackTags ───────────────────────────────────────────────
+
+  describe('getUserInteractedTrackTags', () => {
+    it('should return genres the user has interacted with', async () => {
+      const genres = [
+        { genreId: 'g1', name: 'Electronic' },
+        { genreId: 'g2', name: 'Hip-Hop' },
+      ];
+      trackRepo.getUserInteractedTrackTags.mockResolvedValue(genres);
+
+      const result = await service.getUserInteractedTrackTags(MOCK_USER_ID);
+
+      expect(trackRepo.getUserInteractedTrackTags).toHaveBeenCalledWith(MOCK_USER_ID);
+      expect(result).toBe(genres);
+    });
+
+    it('should return empty array when user has no interactions', async () => {
+      trackRepo.getUserInteractedTrackTags.mockResolvedValue([]);
+
+      const result = await service.getUserInteractedTrackTags(MOCK_USER_ID);
+
+      expect(result).toEqual([]);
+    });
+  });
+
+  // ─── getTopTracksByTagIds ─────────────────────────────────────────────────────
+
+  describe('getTopTracksByTagIds', () => {
+    it('should call repo with tagIds and userId', async () => {
+      const tagIds = ['tag-1', 'tag-2'];
+      const tracks = [mockPublicTrack()];
+      trackRepo.getTopTracksByTagIds.mockResolvedValue(tracks);
+
+      const result = await service.getTopTracksByTagIds(tagIds, MOCK_USER_ID);
+
+      expect(trackRepo.getTopTracksByTagIds).toHaveBeenCalledWith(tagIds, MOCK_USER_ID);
+      expect(result).toBe(tracks);
+    });
+
+    it('should return empty array when no matching tracks', async () => {
+      trackRepo.getTopTracksByTagIds.mockResolvedValue([]);
+
+      const result = await service.getTopTracksByTagIds(['tag-999'], MOCK_USER_ID);
+
+      expect(result).toEqual([]);
+    });
+  });
 });

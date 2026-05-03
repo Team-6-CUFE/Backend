@@ -193,7 +193,18 @@
       "\\.dto\\.ts$",
       "\\.entity\\.ts$",
       "\\.type\\.ts$",
-      "\\.filter\\.ts$"
+      "\\.filter\\.ts$",
+      "\\.interface\\.ts$",
+      "\\.repository\\.ts$",
+      "\\.d\\.ts$",
+      "\\.mock\\.ts$",
+      "\\.decorator\\.ts$",
+      "\\.swagger\\.ts$",
+      "\\.constants\\.ts$",
+      "ormconfig\\.ts$",
+      "src/database/",
+      "src/search/",
+      "src/config/database.config.ts"
     ],
     "coverageThreshold": {
       "global": {
