@@ -301,6 +301,11 @@ export const mockTrackRepository = () => ({
   setScheduledAt: jest.fn(),
   scheduleTrackRelease: jest.fn(),
   releaseTrack: jest.fn(),
+  updateTrackCommentSettings: jest.fn(),
+  calculatePopularityScore: jest.fn(),
+  getUserInteractedTrackTags: jest.fn(),
+  getTopTracksByTagIds: jest.fn(),
+  getAllUserTracks: jest.fn(),
 });
 
 export const mockUserRepository = () => ({

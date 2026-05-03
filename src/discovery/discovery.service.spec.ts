@@ -146,6 +146,10 @@ const mockPlaylistRepository = () => ({
   getUserPlaylistLikes: jest.fn(),
   getUserInteractedAlbumTags: jest.fn(),
   getTopAlbumsByTagIds: jest.fn(),
+  getPlaylistByUserAndTitle: jest.fn(),
+  createPlaylist: jest.fn(),
+  updatePlaylistGenre: jest.fn(),
+  clearPlaylistTracks: jest.fn(),
 });
 
 const mockUserService = () => ({
@@ -306,6 +310,44 @@ describe('DiscoveryService', () => {
       const activity = mockActivity({
         activityType: ActivityType.TRACK_POSTED,
         targetId: 'missing-id',
+      });
+      activitySvc.getActivitiesByUserIds.mockResolvedValue([activity]);
+      trackRepo.findByIds.mockResolvedValue([]);
+      playlistRepo.findByIds.mockResolvedValue([]);
+
+      const result = await service.getFeed(MOCK_USER_ID, '1.2.3.4', true);
+
+      expect((result as any)[0].target).toBeNull();
+    });
+
+    it('should set target to null for track activity when track is not in batch result', async () => {
+      jest.spyOn(geolocationUtil, 'getLocationFromIp').mockReturnValue({ country: 'US' } as any);
+      followersRepo.getFollowingIds.mockResolvedValue([MOCK_OTHER_USER_ID]);
+      const foundActivity = mockActivity({
+        activityType: ActivityType.TRACK_POSTED,
+        targetId: MOCK_TRACK_ID,
+      });
+      const missingActivity = mockActivity({
+        activityId: 'act-missing',
+        activityType: ActivityType.TRACK_POSTED,
+        targetId: 'nonexistent-track-id',
+      });
+      activitySvc.getActivitiesByUserIds.mockResolvedValue([foundActivity, missingActivity]);
+      trackRepo.findByIds.mockResolvedValue([mockTrack()]);
+      playlistRepo.findByIds.mockResolvedValue([]);
+
+      const result = await service.getFeed(MOCK_USER_ID, '1.2.3.4', true);
+
+      expect((result as any)[0].target).not.toBeNull();
+      expect((result as any)[1].target).toBeNull();
+    });
+
+    it('should handle playlist activities where playlist is not found', async () => {
+      jest.spyOn(geolocationUtil, 'getLocationFromIp').mockReturnValue({ country: 'US' } as any);
+      followersRepo.getFollowingIds.mockResolvedValue([MOCK_OTHER_USER_ID]);
+      const activity = mockActivity({
+        activityType: ActivityType.PLAYLIST_POSTED,
+        targetId: 'missing-playlist-id',
       });
       activitySvc.getActivitiesByUserIds.mockResolvedValue([activity]);
       trackRepo.findByIds.mockResolvedValue([]);
@@ -1025,6 +1067,33 @@ describe('DiscoveryService', () => {
       const call = trackSvc.getTopTracksByTagIds.mock.calls[0];
       expect(call[0].length).toBeLessThanOrEqual(5);
     });
+
+    it('should return empty array when user has no track likes (getTopTracksByTagIds returns empty)', async () => {
+      jest.spyOn(geolocationUtil, 'getLocationFromIp').mockReturnValue({ country: 'US' } as any);
+      trackSvc.getUserInteractedTrackTags.mockResolvedValue([
+        { genreId: 'tag-1', name: 'Electronic' },
+      ]);
+      trackSvc.getTopTracksByTagIds.mockResolvedValue([]);
+
+      const result = await service.getMoreOfWhatYouLike(MOCK_USER_ID, '1.2.3.4');
+
+      expect((result as any).status).toBe('success');
+      expect((result as any).data).toEqual([]);
+    });
+
+    it('should handle case where tag lookup returns nothing', async () => {
+      jest.spyOn(geolocationUtil, 'getLocationFromIp').mockReturnValue({ country: 'US' } as any);
+      trackSvc.getUserInteractedTrackTags.mockResolvedValue([
+        { genreId: 'tag-1', name: 'Jazz' },
+        { genreId: 'tag-2', name: 'Blues' },
+      ]);
+      trackSvc.getTopTracksByTagIds.mockResolvedValue([]);
+
+      const result = await service.getMoreOfWhatYouLike(MOCK_USER_ID, '1.2.3.4');
+
+      expect(trackSvc.getTopTracksByTagIds).toHaveBeenCalled();
+      expect((result as any).data).toHaveLength(0);
+    });
   });
 
   // ─── getSearchResults ─────────────────────────────────────────────────────
@@ -1158,6 +1227,47 @@ describe('DiscoveryService', () => {
       );
 
       expect((result as any).data[0].audioUrl).toBeNull();
+    });
+
+    it('should call search module with the provided query term', async () => {
+      const searchSpy = jest
+        .spyOn(searchModule, 'search')
+        .mockResolvedValue({ hits: [], total: 0 });
+
+      await service.getSearchResults(
+        MOCK_USER_ID,
+        'midnight vibes',
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        '1.2.3.4'
+      );
+
+      expect(searchSpy).toHaveBeenCalledWith(expect.objectContaining({ query: 'midnight vibes' }));
+    });
+
+    it('should return empty data array and total 0 when search returns no hits', async () => {
+      jest.spyOn(searchModule, 'search').mockResolvedValue({ hits: [], total: 0 });
+      trackRepo.findByIds.mockResolvedValue([]);
+      userSvc.findByIds.mockResolvedValue([]);
+      playlistRepo.findPlaylistsByIds.mockResolvedValue([]);
+      playlistRepo.findAlbumsByIds.mockResolvedValue([]);
+
+      const result = await service.getSearchResults(
+        MOCK_USER_ID,
+        'nothing here',
+        'track',
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        '1.2.3.4'
+      );
+
+      expect((result as any).total).toBe(0);
+      expect((result as any).data).toEqual([]);
     });
   });
 
@@ -1352,6 +1462,21 @@ describe('DiscoveryService', () => {
 
       const [, titlesArg] = playlistRepo.getPlaylistByUserAndTitles.mock.calls[0];
       expect(titlesArg).toHaveLength(5);
+    });
+
+    it('should return empty array when no trending tracks found for any genre', async () => {
+      userSvc.findByUsername.mockResolvedValue(trendingUser);
+      trackSvc.getUserInteractedTrackTags.mockResolvedValue([
+        { genreId: 'g1', name: 'Electronic' },
+        { genreId: 'g2', name: 'Jazz' },
+      ]);
+      playlistRepo.getPlaylistByUserAndTitles.mockResolvedValue([]);
+      followersRepo.isFollowing.mockResolvedValue(false);
+
+      const result = await service.getTrendingMusicByGenre(MOCK_USER_ID);
+
+      expect(result.status).toBe('success');
+      expect((result as any).data).toEqual([]);
     });
   });
 
@@ -1741,6 +1866,304 @@ describe('DiscoveryService', () => {
         'artistDisplayName',
         'coverImage',
       ]);
+    });
+  });
+
+  // ─── createTrendingMusicPlaylists ─────────────────────────────────────────
+
+  describe('createTrendingMusicPlaylists', () => {
+    it('should throw Error when trending music user is not found', async () => {
+      userSvc.findByUsername.mockResolvedValue(null);
+
+      await expect(service.createTrendingMusicPlaylists()).rejects.toThrow(
+        'Trending Music user not found'
+      );
+    });
+
+    it('should call genreRepository.findByNames and create a playlist for each genre', async () => {
+      const genre1 = { genreId: 'genre-1', name: 'Pop' };
+      const genre2 = { genreId: 'genre-2', name: 'Rock' };
+      const track = mockTrack({ trackId: 'track-1' });
+
+      userSvc.findByUsername.mockResolvedValue(mockUser());
+      genreRepo.findByNames.mockResolvedValue([genre1, genre2]);
+      trackRepo.findTracksByGenreOrTags.mockResolvedValue([[track], 1]);
+      playlistRepo.getPlaylistByUserAndTitle.mockResolvedValue(null);
+      playlistRepo.createPlaylist.mockResolvedValue({ playlistId: 'playlist-new' });
+      playlistRepo.updatePlaylistGenre.mockResolvedValue(undefined);
+      playlistRepo.addTrackToPlaylist.mockResolvedValue(undefined);
+
+      await service.createTrendingMusicPlaylists();
+
+      expect(genreRepo.findByNames).toHaveBeenCalledTimes(1);
+      // 1 track × 2 genres
+      expect(playlistRepo.addTrackToPlaylist).toHaveBeenCalledTimes(2);
+    });
+  });
+
+  // ─── createTrendingMusicPlaylistByGenre ───────────────────────────────────
+
+  describe('createTrendingMusicPlaylistByGenre', () => {
+    const genre = { genreId: 'genre-1', name: 'Pop' };
+
+    it('should return null when findTracksByGenreOrTags returns empty tracks', async () => {
+      trackRepo.findTracksByGenreOrTags.mockResolvedValue([[], 0]);
+
+      const result = await service.createTrendingMusicPlaylistByGenre(genre as any, MOCK_USER_ID);
+
+      expect(result).toBeNull();
+      expect(playlistRepo.createPlaylist).not.toHaveBeenCalled();
+    });
+
+    it('should create new playlist when getPlaylistByUserAndTitle returns null', async () => {
+      const track = mockTrack();
+      trackRepo.findTracksByGenreOrTags.mockResolvedValue([[track], 1]);
+      playlistRepo.getPlaylistByUserAndTitle.mockResolvedValue(null);
+      playlistRepo.createPlaylist.mockResolvedValue({ playlistId: 'new-playlist-id' });
+      playlistRepo.updatePlaylistGenre.mockResolvedValue(undefined);
+      playlistRepo.addTrackToPlaylist.mockResolvedValue(undefined);
+
+      const result = await service.createTrendingMusicPlaylistByGenre(genre as any, MOCK_USER_ID);
+
+      expect(playlistRepo.createPlaylist).toHaveBeenCalledWith(
+        expect.objectContaining({ title: genre.name, isPublic: true }),
+        MOCK_USER_ID
+      );
+      expect(playlistRepo.updatePlaylistGenre).toHaveBeenCalledWith('new-playlist-id', genre);
+      expect(result).toBe('new-playlist-id');
+    });
+
+    it('should clear existing playlist tracks when getPlaylistByUserAndTitle returns an existing playlist', async () => {
+      const track = mockTrack();
+      trackRepo.findTracksByGenreOrTags.mockResolvedValue([[track], 1]);
+      playlistRepo.getPlaylistByUserAndTitle.mockResolvedValue({ playlistId: 'existing-id' });
+      playlistRepo.clearPlaylistTracks.mockResolvedValue(undefined);
+      playlistRepo.addTrackToPlaylist.mockResolvedValue(undefined);
+
+      const result = await service.createTrendingMusicPlaylistByGenre(genre as any, MOCK_USER_ID);
+
+      expect(playlistRepo.clearPlaylistTracks).toHaveBeenCalledWith('existing-id');
+      expect(playlistRepo.createPlaylist).not.toHaveBeenCalled();
+      expect(result).toBe('existing-id');
+    });
+
+    it('should call addTrackToPlaylist for each track in topTracks', async () => {
+      const track1 = mockTrack({ trackId: 'track-1' });
+      const track2 = mockTrack({ trackId: 'track-2' });
+      trackRepo.findTracksByGenreOrTags.mockResolvedValue([[track1, track2], 2]);
+      playlistRepo.getPlaylistByUserAndTitle.mockResolvedValue(null);
+      playlistRepo.createPlaylist.mockResolvedValue({ playlistId: 'pl-1' });
+      playlistRepo.updatePlaylistGenre.mockResolvedValue(undefined);
+      playlistRepo.addTrackToPlaylist.mockResolvedValue(undefined);
+
+      await service.createTrendingMusicPlaylistByGenre(genre as any, MOCK_USER_ID);
+
+      expect(playlistRepo.addTrackToPlaylist).toHaveBeenCalledTimes(2);
+      expect(playlistRepo.addTrackToPlaylist).toHaveBeenCalledWith('pl-1', 'track-1', 1);
+      expect(playlistRepo.addTrackToPlaylist).toHaveBeenCalledWith('pl-1', 'track-2', 2);
+    });
+  });
+
+  // ─── getLikedByUsers ──────────────────────────────────────────────────────
+
+  describe('getLikedByUsers', () => {
+    it('should return mapped users from activityService.getLikedByUsers', async () => {
+      const rawUsers = [
+        {
+          user_user_id: 'uid-1',
+          user_username: 'user1',
+          user_display_name: 'User One',
+          user_avatar_url: 'https://example.com/avatar1.jpg',
+        },
+      ];
+      activitySvc.getLikedByUsers.mockResolvedValue(rawUsers);
+
+      const result = await service.getLikedByUsers(MOCK_USER_ID);
+
+      expect(result.status).toBe('success');
+      expect(result.data).toHaveLength(1);
+      expect(result.data[0]).toEqual({
+        userId: 'uid-1',
+        username: 'user1',
+        displayName: 'User One',
+        avatarUrl: 'https://example.com/avatar1.jpg',
+      });
+    });
+
+    it('should return empty data array when activityService returns []', async () => {
+      activitySvc.getLikedByUsers.mockResolvedValue([]);
+
+      const result = await service.getLikedByUsers(MOCK_USER_ID);
+
+      expect(result).toEqual({ status: 'success', data: [] });
+    });
+  });
+
+  // ─── getUserLikedby ───────────────────────────────────────────────────────
+
+  describe('getUserLikedby', () => {
+    it('should throw NotFoundException when user is not found', async () => {
+      userSvc.findById.mockResolvedValue(null);
+
+      await expect(
+        service.getUserLikedby(MOCK_USER_ID, MOCK_OTHER_USER_ID, '1.2.3.4')
+      ).rejects.toThrow(NotFoundException);
+    });
+
+    it('should throw ForbiddenException when user profile is private and caller is not the user', async () => {
+      userSvc.findById.mockResolvedValue(mockUser({ userId: MOCK_OTHER_USER_ID, isPublic: false }));
+
+      await expect(
+        service.getUserLikedby(MOCK_OTHER_USER_ID, MOCK_USER_ID, '1.2.3.4')
+      ).rejects.toThrow(ForbiddenException);
+    });
+
+    it('should return response with playlistId and title for a public user', async () => {
+      jest.spyOn(geolocationUtil, 'getLocationFromIp').mockReturnValue({ country: 'US' } as any);
+      userSvc.findById.mockResolvedValue(mockUser({ isPublic: true }));
+      trackRepo.getUserTrackLikes.mockResolvedValue([[], 0]);
+      playlistRepo.getUserPlaylistLikes.mockResolvedValue([[], 0]);
+
+      const result = await service.getUserLikedby(MOCK_USER_ID, MOCK_OTHER_USER_ID, '1.2.3.4');
+
+      expect(result.playlistId).toBe(MOCK_USER_ID);
+      expect(result.title).toBe(`Liked by ${mockUser().username}`);
+    });
+
+    it('should call getUserTrackLikes and getUserPlaylistLikes', async () => {
+      jest.spyOn(geolocationUtil, 'getLocationFromIp').mockReturnValue({ country: 'US' } as any);
+      userSvc.findById.mockResolvedValue(mockUser({ isPublic: true }));
+      trackRepo.getUserTrackLikes.mockResolvedValue([[], 0]);
+      playlistRepo.getUserPlaylistLikes.mockResolvedValue([[], 0]);
+
+      await service.getUserLikedby(MOCK_USER_ID, MOCK_OTHER_USER_ID, '1.2.3.4');
+
+      expect(trackRepo.getUserTrackLikes).toHaveBeenCalledWith(
+        MOCK_USER_ID,
+        MOCK_OTHER_USER_ID,
+        1,
+        1000
+      );
+      expect(playlistRepo.getUserPlaylistLikes).toHaveBeenCalledWith(MOCK_USER_ID, 1, 1000);
+    });
+  });
+
+  // ─── getMoreAlbumsOfWhatYouLike ───────────────────────────────────────────
+
+  describe('getMoreAlbumsOfWhatYouLike', () => {
+    it('should return empty data when no interacted album tags', async () => {
+      playlistRepo.getUserInteractedAlbumTags.mockResolvedValue([]);
+
+      const result = await service.getMoreAlbumsOfWhatYouLike(MOCK_USER_ID, '1.2.3.4');
+
+      expect(result).toEqual({ status: 'success', data: [] });
+      expect(playlistRepo.getTopAlbumsByTagIds).not.toHaveBeenCalled();
+    });
+
+    it('should call getTopAlbumsByTagIds with top 5 tag ids when user has interactions', async () => {
+      jest.spyOn(geolocationUtil, 'getLocationFromIp').mockReturnValue({ country: 'US' } as any);
+      const tags = Array.from({ length: 7 }, (_, i) => ({
+        genreId: `genre-${i}`,
+        name: `Genre ${i}`,
+      }));
+      playlistRepo.getUserInteractedAlbumTags.mockResolvedValue(tags);
+      playlistRepo.getTopAlbumsByTagIds.mockResolvedValue([]);
+
+      await service.getMoreAlbumsOfWhatYouLike(MOCK_USER_ID, '1.2.3.4');
+
+      const [calledTagIds] = (playlistRepo.getTopAlbumsByTagIds as jest.Mock).mock.calls[0];
+      expect(calledTagIds).toHaveLength(5);
+    });
+
+    it('should return formatted albums', async () => {
+      jest.spyOn(geolocationUtil, 'getLocationFromIp').mockReturnValue({ country: 'US' } as any);
+      playlistRepo.getUserInteractedAlbumTags.mockResolvedValue([
+        { genreId: 'genre-1', name: 'Pop' },
+      ]);
+      const mockAlbum = {
+        playlistId: 'album-1',
+        title: 'Album 1',
+        description: null,
+        coverImage: null,
+        user: mockUser(),
+        playlistTracks: [],
+        tracksCount: 0,
+        totalDurationSeconds: 0,
+        likesCount: 0,
+        repostsCount: 0,
+        createdAt: new Date(),
+        visibility: 'public',
+        isPublic: true,
+        hidden: false,
+      };
+      playlistRepo.getTopAlbumsByTagIds.mockResolvedValue([mockAlbum]);
+
+      const result = await service.getMoreAlbumsOfWhatYouLike(MOCK_USER_ID, '1.2.3.4');
+
+      expect(result.status).toBe('success');
+      expect((result as any).data).toHaveLength(1);
+      expect((result as any).data[0].playlistId).toBe('album-1');
+    });
+  });
+
+  // ─── getDiscoverFeed ──────────────────────────────────────────────────────
+
+  describe('getDiscoverFeed', () => {
+    it('should return cached result directly from redis when cache hit', async () => {
+      jest.spyOn(geolocationUtil, 'getLocationFromIp').mockReturnValue({ country: 'US' } as any);
+      redis.get.mockResolvedValue(JSON.stringify([]));
+
+      const result = await service.getDiscoverFeed(MOCK_USER_ID, '1.2.3.4');
+
+      expect(redis.get).toHaveBeenCalledWith(`discover_feed_pool:${MOCK_USER_ID}`);
+      expect(result.status).toBe('success');
+      expect((result as any).data).toEqual([]);
+      expect(playlistRepo.getUserInteractedAlbumTags).not.toHaveBeenCalled();
+    });
+
+    it('should build track pool from scratch when cache is empty', async () => {
+      jest.spyOn(geolocationUtil, 'getLocationFromIp').mockReturnValue({ country: 'US' } as any);
+      redis.get.mockResolvedValue(null);
+      playlistRepo.getUserInteractedAlbumTags.mockResolvedValue([]);
+      trackRepo.findNewReleasedTracks.mockResolvedValue([[], 0]);
+      trackRepo.getUserRecentlyPlayed.mockResolvedValue([]);
+      followersRepo.getTopFollowedArtistUsernames.mockResolvedValue([]);
+      redis.set.mockResolvedValue('OK');
+
+      const result = await service.getDiscoverFeed(MOCK_USER_ID, '1.2.3.4');
+
+      expect(playlistRepo.getUserInteractedAlbumTags).toHaveBeenCalledWith(MOCK_USER_ID);
+      expect(trackRepo.getUserRecentlyPlayed).toHaveBeenCalled();
+      expect(followersRepo.getTopFollowedArtistUsernames).toHaveBeenCalled();
+      expect(redis.set).toHaveBeenCalled();
+      expect(result.status).toBe('success');
+    });
+
+    it('should return status success with data array', async () => {
+      jest.spyOn(geolocationUtil, 'getLocationFromIp').mockReturnValue({ country: 'US' } as any);
+      redis.get.mockResolvedValue(JSON.stringify([]));
+
+      const result = await service.getDiscoverFeed(MOCK_USER_ID, '1.2.3.4');
+
+      expect(result).toHaveProperty('status', 'success');
+      expect(result).toHaveProperty('data');
+      expect(Array.isArray((result as any).data)).toBe(true);
+    });
+
+    it('should handle user with no recent plays (getUserRecentlyPlayed returns empty)', async () => {
+      jest.spyOn(geolocationUtil, 'getLocationFromIp').mockReturnValue({ country: 'US' } as any);
+      redis.get.mockResolvedValue(null);
+      playlistRepo.getUserInteractedAlbumTags.mockResolvedValue([]);
+      trackRepo.findNewReleasedTracks.mockResolvedValue([[], 0]);
+      trackRepo.getUserRecentlyPlayed.mockResolvedValue([]);
+      followersRepo.getTopFollowedArtistUsernames.mockResolvedValue([]);
+      redis.set.mockResolvedValue('OK');
+
+      const result = await service.getDiscoverFeed(MOCK_USER_ID, '1.2.3.4');
+
+      expect(trackRepo.getUserRecentlyPlayed).toHaveBeenCalled();
+      expect(result.status).toBe('success');
+      expect(Array.isArray((result as any).data)).toBe(true);
     });
   });
 });

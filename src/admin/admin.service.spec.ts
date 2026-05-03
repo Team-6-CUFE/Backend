@@ -10,6 +10,16 @@ import { UserRepository } from '../user/user.repository';
 import { Report } from './entities/report.entity';
 import { ReportStatus, ReportType, ReportReason } from './report-enums';
 import { CreateReportDto } from './dto/createReport.dto';
+import { TrackVisibility } from '../track/enums/track-visibility.enum';
+import { TrackStatus } from '../track/enums/track-status.enum';
+
+import { deleteDocument, updateDocument } from '../search/indexing';
+
+jest.mock('../search/indexing', () => ({
+  deleteDocument: jest.fn().mockResolvedValue(undefined),
+  updateDocument: jest.fn().mockResolvedValue(undefined),
+  mapTrack: jest.fn().mockReturnValue({ id: 'track_test', type: 'track' }),
+}));
 
 describe('AdminService', () => {
   let service: AdminService;
@@ -33,11 +43,15 @@ describe('AdminService', () => {
 
   const mockTrackService = {
     getTrackById: jest.fn(),
+    deleteTrack: jest.fn(),
   };
 
   const mockTrackRepository = {
     findCommentById: jest.fn(),
     findAllTracksWithReportCount: jest.fn(),
+    findById: jest.fn(),
+    findByIdWithRelations: jest.fn(),
+    updateHiddenStatus: jest.fn(),
   };
 
   const mockUserRepository = {
@@ -403,6 +417,120 @@ describe('AdminService', () => {
       expect(result.data).toHaveLength(1);
       expect(result.data[0]).toHaveProperty('reportsCount', 3);
       expect(result.meta).toEqual({ total: 1, page: 1, limit: 20, totalPages: 1 });
+    });
+  });
+
+  describe('toggleTrackVisibility', () => {
+    const trackId = 'track-123';
+
+    it('should throw NotFoundException when track is not found', async () => {
+      mockTrackRepository.findByIdWithRelations.mockResolvedValue(null);
+
+      await expect(service.toggleTrackVisibility(trackId, true)).rejects.toThrow(NotFoundException);
+    });
+
+    it('should hide track: calls updateHiddenStatus and deleteDocument', async () => {
+      const track = {
+        trackId,
+        hidden: false,
+        visibility: TrackVisibility.PUBLIC,
+        trackStatus: TrackStatus.FINISHED,
+        userId: 'u1',
+      };
+      mockTrackRepository.findByIdWithRelations.mockResolvedValue(track);
+      mockTrackRepository.updateHiddenStatus.mockResolvedValue(undefined);
+
+      const result = await service.toggleTrackVisibility(trackId, true);
+
+      expect(mockTrackRepository.updateHiddenStatus).toHaveBeenCalledWith(trackId, true);
+      expect(deleteDocument).toHaveBeenCalledWith(`track_${trackId}`);
+      expect(updateDocument).not.toHaveBeenCalled();
+      expect(result.message).toContain('hidden');
+    });
+
+    it('should call updateDocument for PUBLIC+FINISHED track when showing', async () => {
+      const track = {
+        trackId,
+        hidden: true,
+        visibility: TrackVisibility.PUBLIC,
+        trackStatus: TrackStatus.FINISHED,
+        userId: 'u1',
+      };
+      mockTrackRepository.findByIdWithRelations.mockResolvedValue(track);
+      mockTrackRepository.updateHiddenStatus.mockResolvedValue(undefined);
+
+      const result = await service.toggleTrackVisibility(trackId, false);
+
+      expect(mockTrackRepository.updateHiddenStatus).toHaveBeenCalledWith(trackId, false);
+      expect(updateDocument).toHaveBeenCalled();
+      expect(deleteDocument).not.toHaveBeenCalled();
+      expect(result.message).toContain('shown');
+    });
+
+    it('should call deleteDocument for PRIVATE track when showing', async () => {
+      const track = {
+        trackId,
+        hidden: true,
+        visibility: TrackVisibility.PRIVATE,
+        trackStatus: TrackStatus.FINISHED,
+        userId: 'u1',
+      };
+      mockTrackRepository.findByIdWithRelations.mockResolvedValue(track);
+      mockTrackRepository.updateHiddenStatus.mockResolvedValue(undefined);
+
+      await service.toggleTrackVisibility(trackId, false);
+
+      expect(deleteDocument).toHaveBeenCalledWith(`track_${trackId}`);
+      expect(updateDocument).not.toHaveBeenCalled();
+    });
+
+    it('should return success message with hidden/shown wording', async () => {
+      const track = {
+        trackId,
+        hidden: false,
+        visibility: TrackVisibility.PUBLIC,
+        trackStatus: TrackStatus.FINISHED,
+        userId: 'u1',
+      };
+      mockTrackRepository.findByIdWithRelations.mockResolvedValue(track);
+      mockTrackRepository.updateHiddenStatus.mockResolvedValue(undefined);
+
+      const hiddenResult = await service.toggleTrackVisibility(trackId, true);
+      const shownResult = await service.toggleTrackVisibility(trackId, false);
+
+      expect(hiddenResult.message).toContain('hidden');
+      expect(shownResult.message).toContain('shown');
+    });
+  });
+
+  describe('adminDeleteTrack', () => {
+    const trackId = 'track-123';
+
+    it('should throw NotFoundException when track is not found', async () => {
+      mockTrackRepository.findById.mockResolvedValue(null);
+
+      await expect(service.adminDeleteTrack(trackId)).rejects.toThrow(NotFoundException);
+    });
+
+    it('should call trackService.deleteTrack with trackId and track.userId', async () => {
+      const track = { trackId, userId: 'user-abc' };
+      mockTrackRepository.findById.mockResolvedValue(track);
+      mockTrackService.deleteTrack.mockResolvedValue({ status: 'success' });
+
+      await service.adminDeleteTrack(trackId);
+
+      expect(mockTrackService.deleteTrack).toHaveBeenCalledWith(trackId, 'user-abc');
+    });
+
+    it('should return the result of deleteTrack', async () => {
+      const track = { trackId, userId: 'user-abc' };
+      mockTrackRepository.findById.mockResolvedValue(track);
+      const expected = { status: 'success', message: 'Track deleted' };
+      mockTrackService.deleteTrack.mockResolvedValue(expected);
+
+      const result = await service.adminDeleteTrack(trackId);
+
+      expect(result).toEqual(expected);
     });
   });
 });

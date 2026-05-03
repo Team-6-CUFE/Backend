@@ -228,4 +228,43 @@ describe('MailService', () => {
       );
     });
   });
+
+  // ─── sendFirstMessageEmail ────────────────────────────────────────────────
+
+  describe('sendFirstMessageEmail', () => {
+    it('should send to recipient email with subject containing sender username', async () => {
+      await service.sendFirstMessageEmail('recipient@example.com', 'alice', 'bob');
+
+      expect(mockMailerService.sendMail).toHaveBeenCalledWith(
+        expect.objectContaining({
+          to: 'recipient@example.com',
+          subject: 'bob sent you a message',
+        })
+      );
+    });
+
+    it("should use 'first-message' template", async () => {
+      await service.sendFirstMessageEmail('recipient@example.com', 'alice', 'bob');
+
+      expect(mockMailerService.sendMail).toHaveBeenCalledWith(
+        expect.objectContaining({ template: 'first-message' })
+      );
+    });
+
+    it('should include recipientUsername, senderUsername, and messagesUrl in context', async () => {
+      await service.sendFirstMessageEmail('recipient@example.com', 'alice', 'bob');
+
+      const call = mockMailerService.sendMail.mock.calls[0][0];
+      expect(call.context.recipientUsername).toBe('alice');
+      expect(call.context.senderUsername).toBe('bob');
+      expect(call.context.messagesUrl).toBeDefined();
+    });
+
+    it('should build correct messagesUrl from FRONTEND_URL config', async () => {
+      await service.sendFirstMessageEmail('recipient@example.com', 'alice', 'bob');
+
+      const call = mockMailerService.sendMail.mock.calls[0][0];
+      expect(call.context.messagesUrl).toBe('https://harmonica.app/messages');
+    });
+  });
 });
