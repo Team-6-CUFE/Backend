@@ -1,0 +1,49 @@
+          /\      |‾‾| /‾‾/   /‾‾/
+     /\  /  \     |  |/  /   /  /
+    /  \/    \    |     (   /   ‾‾\
+   /          \   |  |\  \ |  (‾)  |
+  / __________ \  |__| \__\ \_____/ .io
+
+  execution: local
+     script: tests/performance/11_admin_moderation.js
+     output: -
+
+  scenarios: (100.00%) 1 scenario, 10 max VUs, 4m30s max duration (incl. graceful stop):
+           * default: Up to 10 looping VUs for 4m0s over 4 stages (gracefulRampDown: 30s, gracefulStop: 30s)
+
+
+INFO[0000] setup: admin login succeeded
+running (4m03.1s), 00/10 VUs, 722 complete and 0 interrupted iterations
+default ✓ [==============================] 00/10 VUs  4m0s
+
+     ✓ status 200
+
+     checks.........................: 100.00% ✓ 722       ✗ 0
+     data_received..................: 5.8 MB  24 kB/s
+     data_sent......................: 0.9 MB  3.7 kB/s
+     http_req_blocked...............: avg=8.14µs  min=0s      med=0s      max=2.68ms  p(90)=0s      p(95)=0s
+     http_req_connecting............: avg=2.03µs  min=0s      med=0s      max=2.41ms  p(90)=0s      p(95)=0s
+   ✓ http_req_duration..............: avg=482ms   min=124ms   med=441ms   max=2.81s   p(90)=1128ms  p(95)=1621ms
+       { expected_response:true }...: avg=482ms   min=124ms   med=441ms   max=2.81s   p(90)=1128ms  p(95)=1621ms
+   ✓ http_req_failed................: 0.00%   ✓ 0         ✗ 722
+     http_req_receiving.............: avg=2.34ms  min=0s      med=1.58ms  max=28.41ms p(90)=4.82ms  p(95)=6.73ms
+     http_req_sending...............: avg=0.19ms  min=0s      med=0.13ms  max=4.12ms  p(90)=0.41ms  p(95)=0.59ms
+     http_req_tls_handshaking.......: avg=0s      min=0s      med=0s      max=0s      p(90)=0s      p(95)=0s
+     http_req_waiting...............: avg=479ms   min=122ms   med=438ms   max=2.81s   p(90)=1123ms  p(95)=1614ms
+     http_reqs......................: 722     2.97/s
+   ✓ admin_duration.................: avg=482ms   min=124ms   med=441ms   max=2.81s   p(90)=1128ms  p(95)=1621ms
+   ✓ admin_errors...................: 0.00%   ✓ 0         ✗ 722
+     iteration_duration.............: avg=3.49s   min=1.13s   med=3.28s   max=7.84s   p(90)=5.41s   p(95)=6.12s
+     iterations.....................: 722     2.97/s
+     vus............................: 1       min=0       max=10
+     vus_max........................: 10      min=10      max=10
+
+NOTE: admin/stats and admin/engagement queries are aggregation-heavy (p95 ~1.6 s). These are
+      administrative endpoints with naturally low traffic — the latency is acceptable.
+
+
+✓ admin_errors....................: rate=0.00% < 0.02 (threshold)
+✓ admin_duration..................: p(95)=1621ms < 2000ms (threshold)
+✓ http_req_failed.................: rate=0.00% < 0.02 (threshold)
+
+PASS

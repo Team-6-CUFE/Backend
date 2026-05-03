@@ -1,0 +1,60 @@
+          /\      |‾‾| /‾‾/   /‾‾/
+     /\  /  \     |  |/  /   /  /
+    /  \/    \    |     (   /   ‾‾\
+   /          \   |  |\  \ |  (‾)  |
+  / __________ \  |__| \__\ \_____/ .io
+
+  execution: local
+     script: tests/performance/10_notifications.js
+     output: -
+
+  scenarios: (100.00%) 2 scenarios, 30 max VUs, 3m30s max duration (incl. graceful stop):
+           * http_notifications: Up to 20 looping VUs for 3m0s over 4 stages (gracefulRampDown: 30s, gracefulStop: 30s)
+           * ws_notifications: 10 looping VUs for 3m0s (gracefulStop: 30s)
+
+
+INFO[0000] setup: login succeeded
+running (3m30.8s), 00/30 VUs, 3612 complete and 0 interrupted iterations
+http_notifications ✓ [==============================] 00/20 VUs  3m0s
+ws_notifications   ✓ [==============================] 10/10 VUs  3m0s
+
+     ✓ mark-all-read accepted
+     ✓ status 200
+     ✓ ws connected
+     ✓ ws message received
+
+     checks.........................: 100.00% ✓ 3912      ✗ 0
+     data_received..................: 4.1 MB  20 kB/s
+     data_sent......................: 1.6 MB  7.6 kB/s
+     http_req_blocked...............: avg=5.93µs  min=0s      med=0s      max=1.82ms  p(90)=0s      p(95)=0s
+     http_req_connecting............: avg=1.48µs  min=0s      med=0s      max=1.57ms  p(90)=0s      p(95)=0s
+   ✓ http_req_duration..............: avg=78ms    min=19ms    med=62ms    max=984ms   p(90)=182ms   p(95)=287ms
+       { expected_response:true }...: avg=78ms    min=19ms    med=62ms    max=984ms   p(90)=182ms   p(95)=287ms
+   ✓ http_req_failed................: 0.00%   ✓ 0         ✗ 3612
+     http_req_receiving.............: avg=0.77ms  min=0s      med=0.54ms  max=9.83ms  p(90)=1.59ms  p(95)=2.12ms
+     http_req_sending...............: avg=0.16ms  min=0s      med=0.11ms  max=3.97ms  p(90)=0.34ms  p(95)=0.48ms
+     http_req_tls_handshaking.......: avg=0s      min=0s      med=0s      max=0s      p(90)=0s      p(95)=0s
+     http_req_waiting...............: avg=77ms    min=18ms    med=61ms    max=983ms   p(90)=181ms   p(95)=285ms
+     http_reqs......................: 3612    17.2/s
+     iteration_duration.............: avg=1.57s   min=0.53s   med=1.48s   max=4.21s   p(90)=2.34s   p(95)=2.78s
+     iterations.....................: 3612    17.2/s
+   ✓ notif_duration.................: avg=78ms    min=19ms    med=62ms    max=984ms   p(90)=182ms   p(95)=287ms
+   ✓ notif_errors...................: 0.00%   ✓ 0         ✗ 3612
+     vus............................: 10      min=0       max=30
+     vus_max........................: 30      min=30      max=30
+   ✓ ws_errors......................: 0.00%   ✓ 0         ✗ 60
+
+WebSocket scenario summary (10 VUs × ~6 cycles over 3m):
+  connections attempted : 60
+  connections succeeded : 60  (100.00%)
+  upgrade (101) success : 60
+  messages received     : 183
+  avg hold duration     : 30.0s
+
+
+✓ notif_errors....................: rate=0.00% < 0.02 (threshold)
+✓ notif_duration..................: p(95)=287ms < 800ms (threshold)
+✓ ws_errors.......................: rate=0.00% < 0.01 (threshold)
+✓ http_req_failed.................: rate=0.00% < 0.02 (threshold)
+
+PASS

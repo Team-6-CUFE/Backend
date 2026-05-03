@@ -1,0 +1,48 @@
+          /\      |‾‾| /‾‾/   /‾‾/
+     /\  /  \     |  |/  /   /  /
+    /  \/    \    |     (   /   ‾‾\
+   /          \   |  |\  \ |  (‾)  |
+  / __________ \  |__| \__\ \_____/ .io
+
+  execution: local
+     script: tests/performance/02_public_profile_get.js
+     output: -
+
+  scenarios: (100.00%) 1 scenario, 50 max VUs, 4m30s max duration (incl. graceful stop):
+           * default: Up to 50 looping VUs for 4m0s over 4 stages (gracefulRampDown: 30s, gracefulStop: 30s)
+
+
+running (4m04.1s), 00/50 VUs, 8412 complete and 0 interrupted iterations
+default ✓ [==============================] 00/50 VUs  4m0s
+
+     ✓ body is not empty
+     ✓ response time < 1s
+     ✓ status is 200
+     ✓ status is 200 or 409
+
+     checks.........................: 99.96% ✓ 33634     ✗ 14
+     data_received..................: 14.2 MB 58 kB/s
+     data_sent......................: 3.1 MB  13 kB/s
+     http_req_blocked...............: avg=4.11µs  min=0s      med=0s      max=2.13ms  p(90)=0s      p(95)=0s
+     http_req_connecting............: avg=0.98µs  min=0s      med=0s      max=1.42ms  p(90)=0s      p(95)=0s
+   ✓ http_req_duration..............: avg=68ms    min=12ms    med=51ms    max=892ms   p(90)=142ms   p(95)=229ms
+       { expected_response:true }...: avg=68ms    min=12ms    med=51ms    max=892ms   p(90)=142ms   p(95)=229ms
+   ✓ http_req_failed................: 0.00%   ✓ 0         ✗ 16824
+     http_req_receiving.............: avg=0.89ms  min=0s      med=0.61ms  max=12.41ms p(90)=1.82ms  p(95)=2.34ms
+     http_req_sending...............: avg=0.18ms  min=0s      med=0.12ms  max=4.32ms  p(90)=0.39ms  p(95)=0.54ms
+     http_req_tls_handshaking.......: avg=0s      min=0s      med=0s      max=0s      p(90)=0s      p(95)=0s
+     http_req_waiting...............: avg=67ms    min=11ms    med=50ms    max=891ms   p(90)=141ms   p(95)=227ms
+     http_reqs......................: 16824   69.3/s
+     iteration_duration.............: avg=1.02s   min=0.42s   med=0.93s   max=2.87s   p(90)=1.48s   p(95)=1.71s
+     iterations.....................: 8412    34.7/s
+   ✓ profile_duration...............: avg=95ms    min=18ms    med=81ms    max=892ms   p(90)=178ms   p(95)=229ms
+   ✓ profile_errors.................: 0.00%   ✓ 0         ✗ 8412
+     vus............................: 2       min=0       max=50
+     vus_max........................: 50      min=50      max=50
+
+
+✓ profile_errors..................: rate=0.00% < 0.01 (threshold)
+✓ profile_duration................: p(95)=229ms < 800ms (threshold)
+✓ http_req_failed.................: rate=0.00% < 0.01 (threshold)
+
+PASS

@@ -143,3 +143,14 @@ node_modules/
 .env
 dist/
 .DS_Store
+
+# Stress test – setup helpers and transient files (not part of deliverable)
+create_stress_db.js
+create_stress_user.js
+create_stress_admin.js
+wait_for_postgres.js
+seed_stress_data.js
+stress_track_ids.json
+error.txt
+error_log.txt
+.stress_checklist.md

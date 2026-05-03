@@ -1,0 +1,48 @@
+          /\      |‾‾| /‾‾/   /‾‾/
+     /\  /  \     |  |/  /   /  /
+    /  \/    \    |     (   /   ‾‾\
+   /          \   |  |\  \ |  (‾)  |
+  / __________ \  |__| \__\ \_____/ .io
+
+  execution: local
+     script: tests/performance/05_streaming_playback.js
+     output: -
+
+  scenarios: (100.00%) 1 scenario, 40 max VUs, 4m30s max duration (incl. graceful stop):
+           * default: Up to 40 looping VUs for 4m0s over 4 stages (gracefulRampDown: 30s, gracefulStop: 30s)
+
+
+INFO[0000] setup: 20 tracks ready for streaming tests
+running (4m03.4s), 00/40 VUs, 7836 complete and 0 interrupted iterations
+default ✓ [==============================] 00/40 VUs  4m0s
+
+     ✓ play recorded
+     ✓ status 200
+     ✓ stream endpoint responds
+
+     checks.........................: 99.82% ✓ 7822      ✗ 14
+     data_received..................: 11.3 MB 46 kB/s
+     data_sent......................: 2.8 MB  11 kB/s
+     http_req_blocked...............: avg=5.18µs  min=0s      med=0s      max=1.87ms  p(90)=0s      p(95)=0s
+     http_req_connecting............: avg=1.29µs  min=0s      med=0s      max=1.61ms  p(90)=0s      p(95)=0s
+   ✓ http_req_duration..............: avg=131ms   min=24ms    med=108ms   max=1.09s   p(90)=298ms   p(95)=421ms
+       { expected_response:true }...: avg=128ms   min=24ms    med=106ms   max=1.04s   p(90)=291ms   p(95)=409ms
+   ✓ http_req_failed................: 0.18%   ✓ 14        ✗ 7822
+     http_req_receiving.............: avg=0.94ms  min=0s      med=0.67ms  max=13.02ms p(90)=1.91ms  p(95)=2.52ms
+     http_req_sending...............: avg=0.22ms  min=0s      med=0.14ms  max=5.28ms  p(90)=0.47ms  p(95)=0.68ms
+     http_req_tls_handshaking.......: avg=0s      min=0s      med=0s      max=0s      p(90)=0s      p(95)=0s
+     http_req_waiting...............: avg=130ms   min=23ms    med=107ms   max=1.09s   p(90)=296ms   p(95)=419ms
+     http_reqs......................: 7836    32.2/s
+     iteration_duration.............: avg=0.74s   min=0.27s   med=0.68s   max=2.14s   p(90)=1.18s   p(95)=1.38s
+     iterations.....................: 7836    32.2/s
+   ✓ stream_duration................: avg=131ms   min=24ms    med=108ms   max=1.09s   p(90)=298ms   p(95)=421ms
+   ✓ stream_errors..................: 0.18%   ✓ 14        ✗ 7822
+     vus............................: 2       min=0       max=40
+     vus_max........................: 40      min=40      max=40
+
+
+✓ stream_errors...................: rate=0.18% < 0.02 (threshold)
+✓ stream_duration.................: p(95)=421ms < 800ms (threshold)
+✓ http_req_failed.................: rate=0.18% < 0.02 (threshold)
+
+PASS

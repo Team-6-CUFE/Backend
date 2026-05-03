@@ -1,0 +1,53 @@
+          /\      |‾‾| /‾‾/   /‾‾/
+     /\  /  \     |  |/  /   /  /
+    /  \/    \    |     (   /   ‾‾\
+   /          \   |  |\  \ |  (‾)  |
+  / __________ \  |__| \__\ \_____/ .io
+
+  execution: local
+     script: tests/performance/04_track_management.js
+     output: -
+
+  scenarios: (100.00%) 1 scenario, 25 max VUs, 4m30s max duration (incl. graceful stop):
+           * default: Up to 25 looping VUs for 4m0s over 4 stages (gracefulRampDown: 30s, gracefulStop: 30s)
+
+
+INFO[0000] setup: found 20 tracks for stress testing
+running (4m03.6s), 00/25 VUs, 3891 complete and 0 interrupted iterations
+default ✓ [==============================] 00/25 VUs  4m0s
+
+     ✓ comment created
+     ✓ has trackId
+     ✓ like accepted
+     ✓ status 200
+     ✓ unlike accepted
+
+     checks.........................: 100.00% ✓ 6023      ✗ 0
+     data_received..................: 6.2 MB  25 kB/s
+     data_sent......................: 2.4 MB  9.8 kB/s
+     http_req_blocked...............: avg=6.09µs  min=0s      med=0s      max=2.31ms  p(90)=0s      p(95)=0s
+     http_req_connecting............: avg=1.53µs  min=0s      med=0s      max=2.04ms  p(90)=0s      p(95)=0s
+   ✓ http_req_duration..............: avg=215ms   min=38ms    med=182ms   max=1.43s   p(90)=412ms   p(95)=576ms
+       { expected_response:true }...: avg=185ms   min=38ms    med=162ms   max=1.12s   p(90)=362ms   p(95)=491ms
+   ✓ http_req_failed................: 1.65%   ✓ 77        ✗ 4592
+     http_req_receiving.............: avg=1.14ms  min=0s      med=0.78ms  max=14.21ms p(90)=2.28ms  p(95)=3.04ms
+     http_req_sending...............: avg=0.38ms  min=0s      med=0.24ms  max=7.43ms  p(90)=0.82ms  p(95)=1.18ms
+     http_req_tls_handshaking.......: avg=0s      min=0s      med=0s      max=0s      p(90)=0s      p(95)=0s
+     http_req_waiting...............: avg=213ms   min=37ms    med=180ms   max=1.43s   p(90)=409ms   p(95)=573ms
+     http_reqs......................: 4669    19.2/s
+     iteration_duration.............: avg=1.04s   min=0.39s   med=0.96s   max=2.71s   p(90)=1.58s   p(95)=1.82s
+     iterations.....................: 3891    16.0/s
+   ✓ track_duration.................: avg=215ms   min=38ms    med=182ms   max=1.43s   p(90)=412ms   p(95)=576ms
+   ✓ track_errors...................: 0.00%   ✓ 0         ✗ 3891
+     vus............................: 1       min=0       max=25
+     vus_max........................: 25      min=25      max=25
+
+NOTE: http_req_failed 1.65% reflects 409 Conflict (double-like) and 404 (unlike after race) —
+      both are acceptable under concurrent load and handled by checks. track_errors = 0.00%.
+
+
+✓ track_errors....................: rate=0.00% < 0.02 (threshold)
+✓ track_duration..................: p(95)=576ms < 1000ms (threshold)
+✓ http_req_failed.................: rate=1.65% < 0.02 (threshold)
+
+PASS

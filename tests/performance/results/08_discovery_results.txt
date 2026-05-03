@@ -1,0 +1,50 @@
+          /\      |‾‾| /‾‾/   /‾‾/
+     /\  /  \     |  |/  /   /  /
+    /  \/    \    |     (   /   ‾‾\
+   /          \   |  |\  \ |  (‾)  |
+  / __________ \  |__| \__\ \_____/ .io
+
+  execution: local
+     script: tests/performance/08_feed_search_discovery.js
+     output: -
+
+  scenarios: (100.00%) 1 scenario, 30 max VUs, 4m30s max duration (incl. graceful stop):
+           * default: Up to 30 looping VUs for 4m0s over 4 stages (gracefulRampDown: 30s, gracefulStop: 30s)
+
+
+INFO[0000] setup: login succeeded
+running (4m04.3s), 00/30 VUs, 4921 complete and 0 interrupted iterations
+default ✓ [==============================] 00/30 VUs  4m0s
+
+     ✓ status 200
+     ✗ status 200
+
+     checks.........................: 98.88% ✓ 4866      ✗ 55
+     data_received..................: 18.4 MB 75 kB/s
+     data_sent......................: 3.2 MB  13 kB/s
+     http_req_blocked...............: avg=6.72µs  min=0s      med=0s      max=2.47ms  p(90)=0s      p(95)=0s
+     http_req_connecting............: avg=1.68µs  min=0s      med=0s      max=2.21ms  p(90)=0s      p(95)=0s
+   ✓ http_req_duration..............: avg=283ms   min=31ms    med=198ms   max=3.12s   p(90)=842ms   p(95)=1341ms
+       { expected_response:true }...: avg=261ms   min=31ms    med=181ms   max=2.98s   p(90)=798ms   p(95)=1274ms
+   ✓ http_req_failed................: 0.89%   ✓ 44        ✗ 4877
+     http_req_receiving.............: avg=1.38ms  min=0s      med=0.91ms  max=18.74ms p(90)=2.84ms  p(95)=3.71ms
+     http_req_sending...............: avg=0.29ms  min=0s      med=0.18ms  max=6.83ms  p(90)=0.61ms  p(95)=0.89ms
+     http_req_tls_handshaking.......: avg=0s      min=0s      med=0s      max=0s      p(90)=0s      p(95)=0s
+     http_req_waiting...............: avg=281ms   min=30ms    med=196ms   max=3.12s   p(90)=839ms   p(95)=1338ms
+     http_reqs......................: 4921    20.2/s
+   ✓ discovery_duration.............: avg=283ms   min=31ms    med=198ms   max=3.12s   p(90)=842ms   p(95)=1341ms
+   ✓ discovery_errors...............: 1.12%   ✓ 55        ✗ 4866
+     iteration_duration.............: avg=1.28s   min=0.56s   med=1.19s   max=4.81s   p(90)=2.09s   p(95)=2.54s
+     iterations.....................: 4921    20.2/s
+     vus............................: 2       min=0       max=30
+     vus_max........................: 30      min=30      max=30
+
+NOTE: 44 HTTP 503 errors from Meilisearch during a ~15s window at peak load (t=2m12s–2m27s).
+      discovery_errors 1.12% includes those 503s plus 11 search timeouts. Well within 3% threshold.
+
+
+✓ discovery_errors................: rate=1.12% < 0.03 (threshold)
+✓ discovery_duration..............: p(95)=1341ms < 2000ms (threshold)
+✓ http_req_failed.................: rate=0.89% < 0.03 (threshold)
+
+PASS
