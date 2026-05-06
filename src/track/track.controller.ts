@@ -54,6 +54,13 @@ import {
   ApiGetRelatedTracks,
   ApiGetAllTimeStats,
   ApiUpdateCommentsSettings,
+  ApiGetTopListeners,
+  ApiGetTopRegions,
+  ApiGetTopPlaylistsAndAlbums,
+  ApiUpdateSpotlight,
+  ApiGetSpotlightTracks,
+  ApiAddToSpotlight,
+  ApiScheduleTrackRelease,
 } from './track.swagger';
 import { CurrentUser } from '../authentication/decorators/current-user.decorator';
 import { CheckBlock } from '../followers/decorators/no-block.decorator';
@@ -66,13 +73,18 @@ import { Public } from '../authentication/decorators/public.decorator';
 import { OptionalCurrentUser } from '../authentication/decorators/optional-current-user.decorator';
 import { JwtPayload } from '../authentication/strategies/jwt.strategy';
 import { BlockedRegionsDto } from './dto/blocked-regions.dto';
+import { ScheduleReleaseDto } from './dto/schedule-release.dto';
 import { Plans } from '../authentication/decorators/plans.decorator';
 import { PlaylistTypeFilter } from '../playlist/entities/playlist.entity';
 
 const ALLOWED_AUDIO_MIME_TYPES = [
   'audio/mpeg',
   'audio/wav',
+  'audio/x-wav',
+  'audio/wave',
+  'audio/vnd.wave',
   'audio/flac',
+  'audio/x-flac',
   'audio/aiff',
   'audio/x-aiff',
 ];
@@ -392,9 +404,10 @@ export class TrackController {
     @Param('userId', ParseUUIDPipe) userId: string,
     @CurrentUser('sub') currentUserId: string,
     @Query('page') page: number,
-    @Query('limit') limit: number
+    @Query('limit') limit: number,
+    @CurrentUser('plan') plan?: string
   ) {
-    return this.trackService.getUserUploadedTracks(userId, currentUserId, page, limit);
+    return this.trackService.getUserUploadedTracks(userId, currentUserId, page, limit, plan);
   }
 
   @ApiGetTrackPlaylists()
@@ -470,9 +483,10 @@ export class TrackController {
     @Param('title') title: string,
     @Query('page', new DefaultValuePipe(1), ParseIntPipe) page: number,
     @Query('limit', new DefaultValuePipe(10), ParseIntPipe) limit: number,
-    @Ip() ip: string
+    @Ip() ip: string,
+    @CurrentUser('plan') plan?: string
   ) {
-    return this.trackService.getRelatedTracks(title, artistUsername, page, limit, ip);
+    return this.trackService.getRelatedTracks(title, artistUsername, page, limit, ip, plan);
   }
 
   @ApiUpdateCommentsSettings()
@@ -489,5 +503,61 @@ export class TrackController {
       allowComments,
       showComments
     );
+  }
+
+  @ApiGetTopListeners()
+  @Plans('pro')
+  @Get('insights/top-listeners')
+  getTopListeners(@CurrentUser('sub') userId: string) {
+    return this.trackService.getTopListeners(userId);
+  }
+
+  @ApiGetTopRegions()
+  @Plans('pro')
+  @Get('insights/top-regions')
+  getTopRegions(@CurrentUser('sub') userId: string) {
+    return this.trackService.getTopRegions(userId);
+  }
+
+  @ApiGetTopPlaylistsAndAlbums()
+  @Plans('pro')
+  @Get('insights/top-playlists-albums')
+  getTopPlaylistsAndAlbums(@CurrentUser('sub') userId: string) {
+    return this.trackService.getTopPlaylistsAndAlbums(userId);
+  }
+
+  @ApiScheduleTrackRelease()
+  @Plans('pro')
+  @Post(':trackId/schedule')
+  scheduleRelease(
+    @CurrentUser('sub') userId: string,
+    @Param('trackId', ParseUUIDPipe) trackId: string,
+    @Body() dto: ScheduleReleaseDto
+  ) {
+    return this.trackService.scheduleRelease(userId, trackId, new Date(dto.scheduledAt));
+  }
+
+  @ApiGetSpotlightTracks()
+  @CheckBlock()
+  @Get('/spotlight/:userId')
+  getsSpotlightTracks(@Param('userId') userId: string, @Ip() ip: string) {
+    return this.trackService.getUserSpotlightTacks(userId, ip);
+  }
+
+  @ApiAddToSpotlight()
+  @Plans('pro')
+  @Post('/spotlight/:trackId')
+  addToSpotlight(
+    @CurrentUser('sub') userId: string,
+    @Param('trackId') trackId: string // was 'trackid', must be 'trackId'
+  ) {
+    return this.trackService.addToSpotlight(userId, trackId);
+  }
+
+  @ApiUpdateSpotlight()
+  @Plans('pro')
+  @Patch('/spotlight')
+  updateSpotlightTracks(@CurrentUser('sub') userId: string, @Body() body: { trackIds: string[] }) {
+    return this.trackService.updateSpotlightTracks(userId, body.trackIds);
   }
 }

@@ -26,7 +26,10 @@ import { FansService } from './services/fans.service';
 import { FansJobProcessor } from './listeners/fans-job.processor';
 import { ActivityModule } from '../activity/activity.module';
 import { NotificationsModule } from '../notifications/notifications.module';
+import { SpotlightTrack } from './entities/spotlght-track.entity';
+import { DownloadedTrack } from '../download/entities/downloaded-tracks.entity';
 import { FfmpegService } from '../audio/ffmpeg.service';
+import { ReleaseJobProcessor } from './listeners/release-job.processor';
 
 @Module({
   imports: [
@@ -40,6 +43,8 @@ import { FfmpegService } from '../audio/ffmpeg.service';
       RecentlyPlayed,
       TrackFirstFan,
       Settings,
+      DownloadedTrack,
+      SpotlightTrack,
     ]),
     PlaylistModule,
     NotificationsModule,
@@ -61,6 +66,7 @@ import { FfmpegService } from '../audio/ffmpeg.service';
     }),
     BullModule.registerQueue({ name: 'audioQueue' }),
     BullModule.registerQueue({ name: 'fansQueue' }),
+    BullModule.registerQueue({ name: 'releaseQueue' }),
     UserModule,
     FollowersModule,
     ActivityModule,
@@ -76,6 +82,7 @@ import { FfmpegService } from '../audio/ffmpeg.service';
     FanRepository,
     FansService,
     FansJobProcessor,
+    ReleaseJobProcessor,
     FfmpegService,
   ],
   exports: [TrackService, TrackRepository],

@@ -37,9 +37,10 @@ export class DiscoveryController {
     @Ip() ip: string,
     @Body('includeReposts') includeReposts: boolean,
     @Query('page') page: number = 1,
-    @Query('limit') limit: number = 20
+    @Query('limit') limit: number = 20,
+    @CurrentUser('plan') plan?: string
   ) {
-    return this.discoveryService.getFeed(userId, ip, includeReposts, page, limit);
+    return this.discoveryService.getFeed(userId, ip, includeReposts, page, limit, plan);
   }
 
   @ApiGetUserRecentActivities()
@@ -49,9 +50,10 @@ export class DiscoveryController {
     @Ip() ip: string,
     @Param('username') username: string,
     @Query('page') page: number = 1,
-    @Query('limit') limit: number = 20
+    @Query('limit') limit: number = 20,
+    @CurrentUser('plan') plan?: string
   ) {
-    return this.discoveryService.getUserRecentActivities(userId, username, ip, page, limit);
+    return this.discoveryService.getUserRecentActivities(userId, username, ip, page, limit, plan);
   }
 
   @ApiGetTrackStation()
@@ -60,9 +62,10 @@ export class DiscoveryController {
     @CurrentUser('sub') userId: string,
     @Param('artist_username') artistUsername: string,
     @Param('track_name') trackName: string,
-    @Ip() ip: string
+    @Ip() ip: string,
+    @CurrentUser('plan') plan?: string
   ) {
-    return this.discoveryService.getTrackStation(artistUsername, trackName, userId, ip);
+    return this.discoveryService.getTrackStation(artistUsername, trackName, userId, ip, plan);
   }
 
   @ApiGetArtistStation()
@@ -70,9 +73,10 @@ export class DiscoveryController {
   async getArtistStation(
     @CurrentUser('sub') userId: string,
     @Param('username') username: string,
-    @Ip() ip: string
+    @Ip() ip: string,
+    @CurrentUser('plan') plan?: string
   ) {
-    return this.discoveryService.getArtistStation(username, userId, ip);
+    return this.discoveryService.getArtistStation(username, userId, ip, plan);
   }
 
   @ApiGetUserPopularTracks()
@@ -80,15 +84,20 @@ export class DiscoveryController {
   async getUserPopularTracks(
     @CurrentUser('sub') userId: string,
     @Param('username') username: string,
-    @Ip() ip: string
+    @Ip() ip: string,
+    @CurrentUser('plan') plan?: string
   ) {
-    return this.discoveryService.getUserPopularTracks(username, userId, ip);
+    return this.discoveryService.getUserPopularTracks(username, userId, ip, plan);
   }
 
   @ApiGetMoreOfWhatYouLike()
   @Get('/more-of-what-you-like')
-  async getMoreOfWhatYouLike(@CurrentUser('sub') userId: string, @Ip() ip: string) {
-    return this.discoveryService.getMoreOfWhatYouLike(userId, ip);
+  async getMoreOfWhatYouLike(
+    @CurrentUser('sub') userId: string,
+    @Ip() ip: string,
+    @CurrentUser('plan') plan?: string
+  ) {
+    return this.discoveryService.getMoreOfWhatYouLike(userId, ip, plan);
   }
 
   @ApiSearch()
@@ -103,7 +112,8 @@ export class DiscoveryController {
     @Query('duration') duration?: string,
     @Query('created') createdAt?: string,
     @Query('page') page: number = 1,
-    @Query('limit') limit: number = 20
+    @Query('limit') limit: number = 20,
+    @CurrentUser('plan') plan?: string
   ) {
     return this.discoveryService.getSearchResults(
       userId,
@@ -115,7 +125,8 @@ export class DiscoveryController {
       createdAt,
       ip,
       page,
-      limit
+      limit,
+      plan
     );
   }
 
@@ -127,8 +138,12 @@ export class DiscoveryController {
 
   @ApiGetRecommendedStations()
   @Get('/recommended-stations')
-  async getRecommendedStations(@CurrentUser('sub') userId: string, @Ip() ip: string) {
-    return this.discoveryService.getRecommendedStations(userId, ip);
+  async getRecommendedStations(
+    @CurrentUser('sub') userId: string,
+    @Ip() ip: string,
+    @CurrentUser('plan') plan?: string
+  ) {
+    return this.discoveryService.getRecommendedStations(userId, ip, plan);
   }
 
   @ApiGetTrendingMusicByGenre()
@@ -155,9 +170,10 @@ export class DiscoveryController {
   async getLikedByUsersForUser(
     @Param('userId') userId: string,
     @CurrentUser('sub') currentUserId: string,
-    @Ip() ip: string
+    @Ip() ip: string,
+    @CurrentUser('plan') plan?: string
   ) {
-    return this.discoveryService.getUserLikedby(currentUserId, userId, ip);
+    return this.discoveryService.getUserLikedby(userId, currentUserId, ip, plan);
   }
 
   @ApiGetTracksByTag()
@@ -168,21 +184,30 @@ export class DiscoveryController {
     @Ip() ip: string,
     @Query('type') type: string = 'recent',
     @Query('page') page: number = 1,
-    @Query('limit') limit: number = 20
+    @Query('limit') limit: number = 20,
+    @CurrentUser('plan') plan?: string
   ) {
-    return this.discoveryService.getTracksByTag(userId, tagName, ip, type, page, limit);
+    return this.discoveryService.getTracksByTag(userId, tagName, ip, type, page, limit, plan);
   }
 
   @ApiGetMoreAlbumsOfWhatYouLike()
   @Get('/albums/more-albums-of-what-you-like')
-  async getMoreAlbumsOfWhatYouLike(@CurrentUser('sub') userId: string, @Ip() ip: string) {
-    return this.discoveryService.getMoreAlbumsOfWhatYouLike(userId, ip);
+  async getMoreAlbumsOfWhatYouLike(
+    @CurrentUser('sub') userId: string,
+    @Ip() ip: string,
+    @CurrentUser('plan') plan?: string
+  ) {
+    return this.discoveryService.getMoreAlbumsOfWhatYouLike(userId, ip, plan);
   }
 
   @ApiGetDiscoverFeed()
   @Get('feed/discover')
-  async getDiscoverFeed(@CurrentUser('sub') userId: string, @Ip() ip: string) {
-    return this.discoveryService.getDiscoverFeed(userId, ip);
+  async getDiscoverFeed(
+    @CurrentUser('sub') userId: string,
+    @Ip() ip: string,
+    @CurrentUser('plan') plan?: string
+  ) {
+    return this.discoveryService.getDiscoverFeed(userId, ip, plan);
   }
 
   @ApiGetArtistsToWatchOutFor()

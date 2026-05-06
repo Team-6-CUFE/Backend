@@ -19,6 +19,7 @@ import { TrackVisibility } from '../enums/track-visibility.enum';
 import { Genre } from '../../genre/entities/genre.entity';
 import { TrackPlay } from './track-play.entity';
 import { DownloadedTrack } from '../../download/entities/downloaded-tracks.entity';
+import { SpotlightTrack } from './spotlght-track.entity';
 
 @Entity('tracks')
 export class Track extends BaseEntity {
@@ -127,7 +128,7 @@ export class Track extends BaseEntity {
   @Column({ name: 'enable_direct_downloads', type: 'boolean', default: false })
   enableDirectDownloads!: boolean;
 
-  @Column({ name: 'offline_listening', type: 'boolean', default: false })
+  @Column({ name: 'offline_listening', type: 'boolean', default: true })
   offlineListening!: boolean;
 
   // Licensing (Creative Commons style)
@@ -154,6 +155,9 @@ export class Track extends BaseEntity {
 
   @Column({ name: 'show_insights', type: 'boolean', default: false })
   showInsights!: boolean;
+
+  @Column({ name: 'scheduled_at', type: 'timestamptz', nullable: true })
+  scheduledAt!: Date | null;
 
   @ManyToOne(() => User, (user) => user.tracks, { onDelete: 'CASCADE' })
   @JoinColumn({ name: 'user_id' })
@@ -185,4 +189,7 @@ export class Track extends BaseEntity {
 
   @OneToMany(() => DownloadedTrack, (dt) => dt.track)
   downloads!: DownloadedTrack[];
+
+  @OneToMany(() => SpotlightTrack, (spotlight) => spotlight.user)
+  spotlightTracks!: SpotlightTrack[];
 }

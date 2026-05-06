@@ -7,6 +7,8 @@ import {
 import { plainToInstance } from 'class-transformer';
 import { MessagingRepository } from './messaging.repository';
 import { WebsocketsService } from '../websockets/websockets.service';
+import { NotificationsService } from '../notifications/notifications.service';
+import { MailService } from '../mail/mail.service';
 import { CreateChatDto } from './dto/api/create-chat.dto';
 import { SendMessageDto, MessageType } from './dto/ws/send-message.dto';
 import { MarkReadDto } from './dto/ws/mark-read.dto';
@@ -15,12 +17,16 @@ import { ChatResDto } from './dto/chat-res.dto';
 import { MessageResDto } from './dto/message-res.dto';
 import { buildPaginationResponse } from '../common/utilities/pagination.util';
 import { ChatFilter } from './enums/chat-filter.enum';
+import { UserRepository } from '../user/user.repository';
 
 @Injectable()
 export class MessagingService {
   constructor(
     private readonly messagingRepository: MessagingRepository,
-    private readonly websocketsService: WebsocketsService
+    private readonly websocketsService: WebsocketsService,
+    private readonly notificationsService: NotificationsService,
+    private readonly mailService: MailService,
+    private readonly userRepository: UserRepository
   ) {}
 
   async createChat(currentUserId: string, dto: CreateChatDto) {
@@ -117,18 +123,43 @@ export class MessagingService {
     await this.assertNotBlocked(dto.chatId, currentUserId);
     this.assertMessagePayload(dto);
 
+    const [isFirst, sender] = await Promise.all([
+      this.messagingRepository.isFirstMessage(dto.chatId),
+      this.userRepository.findById(currentUserId),
+    ]);
+
     const message = await this.messagingRepository.createMessage(currentUserId, dto);
 
     const otherId = await this.getOtherParticipantId(dto.chatId, currentUserId);
-    await Promise.all([
+    const [unreadCount] = await Promise.all([
+      this.messagingRepository.getChatUnreadCountForUser(dto.chatId, otherId),
       this.messagingRepository.setChatArchived(dto.chatId, currentUserId, false),
       this.messagingRepository.setChatArchived(dto.chatId, otherId, false),
     ]);
 
     const formatted = plainToInstance(MessageResDto, message);
 
-    // Emit to both participants via the chat room
     this.websocketsService.emitToRoom(`chat:${dto.chatId}`, 'message:new', formatted);
+    this.websocketsService.emitToUser(otherId, 'chat:update', {
+      chatId: dto.chatId,
+      unreadCount,
+      lastMessage: formatted,
+    });
+
+    if (sender) {
+      this.notificationsService.notifyNewMessage(otherId, sender, dto.chatId);
+
+      if (isFirst) {
+        Promise.all([
+          this.userRepository.getPrimaryEmail(otherId),
+          this.userRepository.findById(otherId),
+        ]).then(([email, recipient]) => {
+          if (email && recipient) {
+            this.mailService.sendFirstMessageEmail(email, recipient.username, sender.username);
+          }
+        });
+      }
+    }
 
     return {
       status: 'success',

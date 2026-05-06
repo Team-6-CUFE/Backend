@@ -16,6 +16,7 @@ import { StorageService } from '../common/storage_service';
 import { ActivityService } from '../activity/activity.service';
 import { ActivityType } from '../activity/entities/activity.entity';
 import { getLocationFromIp } from '../common/utilities/geolocation.util';
+import { resolveAudioUrl } from '../common/utilities/audio.util';
 import { addDocuments, deleteDocument, mapAlbum, mapPlaylist } from '../search/indexing';
 import { generateVerificationToken } from '../common/utilities/tokens.util';
 import { NotificationsService } from '../notifications/notifications.service';
@@ -798,7 +799,7 @@ export class PlaylistService {
     };
   }
 
-  async getPublicPlaylist(playlistId: string, userId: string, ip?: string) {
+  async getPublicPlaylist(playlistId: string, userId: string, ip?: string, plan?: string) {
     const playlist = await this.playlistRepository.getPublicPlaylist(playlistId);
 
     if (!playlist) {
@@ -812,7 +813,12 @@ export class PlaylistService {
     }
 
     const country = ip ? getLocationFromIp(ip).country : null;
-
+    let returnSecret = false;
+    if (!playlist.isPublic) {
+      if (playlist.userId === userId) {
+        returnSecret = true;
+      }
+    }
     return {
       status: 'success',
       data: {
@@ -829,6 +835,7 @@ export class PlaylistService {
         updatedAt: playlist.updatedAt,
         genreName: playlist.genre?.name,
         genreId: playlist.genre?.genreId,
+        secretToken: returnSecret ? playlist.secretToken : undefined,
         tags: playlist.tags.map((tag) => ({
           tagId: tag.genreId,
           name: tag.name,
@@ -847,8 +854,8 @@ export class PlaylistService {
             title: pt.track.title,
             durationSeconds: pt.track.durationSeconds,
             coverImage: pt.track.coverImage,
-            audioUrl: isBlocked ? null : (pt.track.audioUrl ?? null),
-            waveformUrl: isBlocked ? null : (pt.track.waveformUrl ?? null),
+            audioUrl: isBlocked ? null : resolveAudioUrl(pt.track, plan),
+            waveformUrl: pt.track.waveformUrl ?? null,
             playCount: pt.track.playCount,
             likesCount: pt.track.likesCount,
             repostsCount: pt.track.repostsCount,
@@ -909,7 +916,7 @@ export class PlaylistService {
             durationSeconds: pt.track.durationSeconds,
             coverImage: pt.track.coverImage,
             audioUrl: isBlocked ? null : (pt.track.audioUrl ?? null),
-            waveformUrl: isBlocked ? null : (pt.track.waveformUrl ?? null),
+            waveformUrl: pt.track.waveformUrl ?? null,
             playCount: pt.track.playCount,
             likesCount: pt.track.likesCount,
             repostsCount: pt.track.repostsCount,

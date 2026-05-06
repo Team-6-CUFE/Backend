@@ -1,5 +1,5 @@
 /** Deep-link schemes that are allowed as OAuth redirect_uri values. */
-export const ALLOWED_MOBILE_SCHEMES = ['harmonica://'];
+export const ALLOWED_MOBILE_SCHEMES = ['harmonica://', 'com.harmonica.app://'];
 
 /**
  * Validates an OAuth redirect_uri coming from a client.

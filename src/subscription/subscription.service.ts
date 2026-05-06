@@ -6,7 +6,7 @@ import { SubscriptionRepository } from './subscription.repository';
 import { StripeService } from './stripe.service';
 import { Subscription, SubscriptionStatus, SubscriptionPlan } from './entities/subscription.entity';
 
-import { PlanType } from './dto/createCheckOutSessionDto';
+import { PlanType } from './dto/createCheckOutSessionDto.dto';
 
 @Injectable()
 export class SubscriptionService {
@@ -75,43 +75,78 @@ export class SubscriptionService {
   ): Promise<{ status: string; message: string }> {
     const subscription = await this.getOrCreateSubscription(userId);
 
-    // Already on a paid plan
     if (this.isPaidPlan(subscription.plan) && subscription.status === SubscriptionStatus.ACTIVE) {
       throw new BadRequestException('User already has an active subscription');
     }
 
-    // Get the right price ID
     const priceId = this.getPriceId(plan, billingCycle);
 
-    // Attach payment method to Stripe customer
     await this.stripeService.attachPaymentMethod(paymentMethodId, subscription.stripeCustomerId);
 
-    // Create subscription in Stripe
     const stripeSubscription = await this.stripeService.createStripeSubscription(
       subscription.stripeCustomerId,
       priceId
     );
 
-    // Check payment status
     const invoice = stripeSubscription.latest_invoice as Stripe.Invoice;
     const paymentIntent = invoice?.payment_intent as Stripe.PaymentIntent;
 
-    if (paymentIntent?.status === 'succeeded') {
-      await this.userRepository.update(userId, { plan });
-      return {
-        status: 'success',
-        message: 'Subscription created successfully',
-      };
-    }
-
+    // Declined immediately — no need to wait
     if (paymentIntent?.status === 'requires_payment_method') {
       throw new BadRequestException('Your card was declined');
     }
 
-    return {
-      status: 'pending',
-      message: 'Payment is being processed',
-    };
+    // Already succeeded synchronously (rare but possible)
+    if (paymentIntent?.status === 'succeeded') {
+      await this.userRepository.update(userId, { plan });
+      return { status: 'success', message: 'Subscription created successfully' };
+    }
+
+    // ⏳ Payment is processing — wait for webhook to update the DB
+    const result = await this.pollSubscriptionStatus(subscription.stripeCustomerId);
+
+    if (result === 'active') {
+      await this.userRepository.update(userId, { plan });
+      return { status: 'success', message: 'Subscription created successfully' };
+    }
+
+    if (result === 'failed') {
+      throw new BadRequestException('Payment failed');
+    }
+
+    throw new BadRequestException('Payment timed out, please check your subscription status');
+  }
+
+  // ─── Poll DB until webhook updates it ─────────────────────────────────────
+
+  private pollSubscriptionStatus(
+    stripeCustomerId: string,
+    intervalMs = 1000,
+    timeoutMs = 30000
+  ): Promise<'active' | 'failed' | 'timeout'> {
+    return new Promise((resolve) => {
+      let interval: ReturnType<typeof setInterval>;
+
+      const timeout = setTimeout(() => {
+        clearInterval(interval);
+        resolve('timeout');
+      }, timeoutMs);
+
+      interval = setInterval(async () => {
+        const subscription =
+          await this.subscriptionRepository.findOneByCustomerId(stripeCustomerId);
+
+        if (subscription?.status === SubscriptionStatus.ACTIVE) {
+          clearInterval(interval);
+          clearTimeout(timeout);
+          resolve('active');
+        } else if (subscription?.status === SubscriptionStatus.PAST_DUE) {
+          clearInterval(interval);
+          clearTimeout(timeout);
+          resolve('failed');
+        }
+      }, intervalMs);
+    });
   }
   // ─── Get My Subscription ───────────────────────────────────────────────────
 
@@ -221,6 +256,11 @@ export class SubscriptionService {
           currentPeriodEnd,
           cancelAtPeriodEnd: false,
         });
+
+        const sub = await this.subscriptionRepository.findOneByCustomerId(stripeCustomerId);
+        if (sub?.user?.userId) {
+          await this.userRepository.update(sub.user.userId, { plan });
+        }
         break;
       }
 
@@ -248,6 +288,11 @@ export class SubscriptionService {
           currentPeriodStart: undefined,
           stripeSubscriptionId: undefined,
         });
+
+        const sub = await this.subscriptionRepository.findOneByCustomerId(stripeCustomerId);
+        if (sub?.user?.userId) {
+          await this.userRepository.update(sub.user.userId, { plan: SubscriptionPlan.FREE });
+        }
         break;
       }
 
@@ -258,6 +303,11 @@ export class SubscriptionService {
         await this.subscriptionRepository.updateSubscription(stripeCustomerId, {
           status: SubscriptionStatus.PAST_DUE,
         });
+
+        const sub = await this.subscriptionRepository.findOneByCustomerId(stripeCustomerId);
+        if (sub?.user?.userId) {
+          await this.userRepository.update(sub.user.userId, { plan: SubscriptionPlan.FREE });
+        }
         break;
       }
       default:

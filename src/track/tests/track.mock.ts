@@ -286,9 +286,26 @@ export const mockTrackRepository = () => ({
   getTrackPlaylists: jest.fn(),
   deleteTrack: jest.fn(),
   findTrackByTitleAndArtist: jest.fn(),
+  findByTitleAndUser: jest.fn(),
   getTrackTopFansIds: jest.fn(),
   findRelatedTracks: jest.fn(),
   findAllTimeStats: jest.fn(),
+  getTopListeners: jest.fn(),
+  getTopRegions: jest.fn(),
+  getTopPlaylistsAndAlbums: jest.fn(),
+  getSpotlightTracks: jest.fn(),
+  countSpotlight: jest.fn(),
+  findSpotlight: jest.fn(),
+  addToSpotlight: jest.fn(),
+  updateSpotlightTracks: jest.fn(),
+  setScheduledAt: jest.fn(),
+  scheduleTrackRelease: jest.fn(),
+  releaseTrack: jest.fn(),
+  updateTrackCommentSettings: jest.fn(),
+  calculatePopularityScore: jest.fn(),
+  getUserInteractedTrackTags: jest.fn(),
+  getTopTracksByTagIds: jest.fn(),
+  getAllUserTracks: jest.fn(),
 });
 
 export const mockUserRepository = () => ({
@@ -320,6 +337,11 @@ export const mockTrackSseService = () => ({
 export const mockAudioQueue = () => ({
   add: jest.fn(),
   remove: jest.fn(),
+});
+
+export const mockReleaseQueue = () => ({
+  add: jest.fn(),
+  getJob: jest.fn(),
 });
 
 export const mockFansService = () => ({

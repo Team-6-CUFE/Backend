@@ -42,19 +42,21 @@ import { BlockedRegionsDto } from './dto/blocked-regions.dto';
 import { GenresResDto } from './dto/get-genres-res.dto';
 import { TrackTagDto } from './dto/track-tag.dto';
 import { getLocationFromIp } from '../common/utilities/geolocation.util';
+import { resolveAudioUrl } from '../common/utilities/audio.util';
 import { PlaylistService } from '../playlist/playlist.service';
 import { RecentlyPlayedItemType } from './entities/recently-played.entity';
 import { FansService } from './services/fans.service';
 import { ActivityService } from '../activity/activity.service';
 import { ActivityType } from '../activity/entities/activity.entity';
+import { SEED_PROTECTED_AUDIO_URLS } from '../database/seeds/seed-audio-urls.constant';
 import { REDIS_CLIENT } from '../redis/redis.module';
 import { Genre } from '../genre/entities/genre.entity';
 import { DEFAULT_GENRE_NAMES } from '../genre/genre.constants';
 import { NotificationsService } from '../notifications/notifications.service';
 import { FfmpegService } from '../audio/ffmpeg.service';
 
-const RELATED_TRACKS_TTL_SECS = 3 * 24 * 60 * 60; // 3 days
-const ALL_TIME_STATS_TTL_SECS = 24 * 60 * 60; // 1 day
+const RELATED_TRACKS_TTL_SECS = 1 * 60 * 60; // 3 days but for testing we will set it to 1 hour
+const ALL_TIME_STATS_TTL_SECS = 1 * 60 * 60; // 1 day but for testing and demonstration we will set it to 1 hour
 
 @Injectable()
 export class TrackService {
@@ -69,6 +71,8 @@ export class TrackService {
     private readonly notificationsService: NotificationsService,
     @InjectQueue('audioQueue')
     private readonly audioQueue: Queue,
+    @InjectQueue('releaseQueue')
+    private readonly releaseQueue: Queue,
 
     @Inject(REDIS_CLIENT)
     private readonly redis: ReturnType<typeof createClient>,
@@ -76,9 +80,7 @@ export class TrackService {
   ) {}
 
   private resolveAudioUrl(track: Track, user?: JwtPayload): string | null {
-    const isHqEligible = user?.plan === 'pro' || user?.plan === 'go+';
-    if (isHqEligible && track.audioUrlHq) return track.audioUrlHq;
-    return track.audioUrl ?? null;
+    return resolveAudioUrl(track, user?.plan);
   }
 
   async uploadTrack(
@@ -112,7 +114,16 @@ export class TrackService {
       throw new ForbiddenException('Insufficient quota');
     }
 
-    // Step 3 — create track record in DB with PROCESSING status
+    // Step 3 — enforce unique title per artist
+    if (dto.title) {
+      const existing = await this.trackRepository.findByTitleAndUser(dto.title, userId);
+      if (existing) {
+        fs.unlinkSync(tempFilePath);
+        throw new ConflictException('You already have a track with this title');
+      }
+    }
+
+    // Step 4 — create track record in DB with PROCESSING status
     const savedTrack = await this.trackRepository.createTrack(userId, dto, coverImageUrl);
 
     // Step 4 — queue the background job; jobId === trackId for SSE keying
@@ -172,6 +183,12 @@ export class TrackService {
     const track = await this.trackRepository.findById(trackId);
     if (!track) throw new NotFoundException('Track not found');
     if (track.userId !== userId) throw new ForbiddenException('You do not own this track');
+
+    // Enforce unique title per artist when title is being changed
+    if (dto.title && dto.title !== track.title) {
+      const existing = await this.trackRepository.findByTitleAndUser(dto.title, userId, trackId);
+      if (existing) throw new ConflictException('You already have a track with this title');
+    }
 
     // Upload new cover and delete old one atomically
     let coverImageUrl: string | undefined;
@@ -785,7 +802,8 @@ export class TrackService {
     userId: string,
     currentUserId: string,
     page: number = 1,
-    limit: number = 20
+    limit: number = 20,
+    currentUserPlan?: string
   ) {
     const user = await this.userRepository.findById(userId);
     if (!user) throw new NotFoundException('User does not exist');
@@ -802,8 +820,10 @@ export class TrackService {
       cappedLimit
     );
 
-    const data = plainToInstance(UserTrackResponseDto, tracks, {
-      excludeExtraneousValues: true,
+    const data = tracks.map((t) => {
+      const dto = plainToInstance(UserTrackResponseDto, t, { excludeExtraneousValues: true });
+      dto.audioUrl = resolveAudioUrl(t, currentUserPlan);
+      return dto;
     });
 
     return { status: 'success', ...buildPaginationResponse(data, total, page, cappedLimit) };
@@ -909,9 +929,15 @@ export class TrackService {
   async deleteTrack(trackId: string, userId: string) {
     const track = await this.trackRepository.findById(trackId);
     if (!track) throw new NotFoundException('Track not found');
-    if (track.userId !== userId) throw new ForbiddenException('You do not own this track');
+    const user = await this.userRepository.findById(userId);
+    if (user) {
+      if (track.userId !== userId && user.role !== 'admin')
+        throw new ForbiddenException('You do not own this track');
+    }
     const oldUrls = track
-      ? [track.audioUrl, track.audioUrlHq, track.previewAudioUrl, track.waveformUrl].filter(Boolean)
+      ? [track.audioUrl, track.audioUrlHq, track.previewAudioUrl, track.waveformUrl].filter(
+          (url) => url && !SEED_PROTECTED_AUDIO_URLS.has(url)
+        )
       : [];
 
     await Promise.allSettled(oldUrls.map((url) => this.storageService.deleteFile(url)));
@@ -949,7 +975,8 @@ export class TrackService {
     artistUsername: string,
     page: number = 1,
     limit: number = 10,
-    ip?: string
+    ip?: string,
+    plan?: string
   ): Promise<{
     status: string;
     data: UserTrackResponseDto[];
@@ -969,9 +996,11 @@ export class TrackService {
 
     const data = relatedTracks.map((t) => {
       const dto = plainToInstance(UserTrackResponseDto, t, { excludeExtraneousValues: true });
-      if (country && t.blockedRegions?.includes(country)) {
+      const isBlocked = country && t.blockedRegions?.includes(country);
+      if (isBlocked) {
         dto.audioUrl = null;
-        dto.waveformUrl = null;
+      } else {
+        dto.audioUrl = resolveAudioUrl(t, plan);
       }
       dto.genreName = t.genre?.name ?? null;
       dto.artistId = t.user.userId;
@@ -1042,5 +1071,121 @@ export class TrackService {
       status: 'success',
       message: 'track comment settings  updated',
     };
+  }
+
+  async getTopListeners(userId: string) {
+    const data = await this.trackRepository.getTopListeners(userId);
+    return {
+      status: 'success',
+      data,
+    };
+  }
+
+  async getTopRegions(userId: string) {
+    const data = await this.trackRepository.getTopRegions(userId);
+    return {
+      status: 'success',
+      data,
+    };
+  }
+
+  async getTopPlaylistsAndAlbums(userId: string) {
+    const data = await this.trackRepository.getTopPlaylistsAndAlbums(userId);
+    return {
+      status: 'success',
+      data,
+    };
+  }
+
+  async scheduleRelease(userId: string, trackId: string, scheduledAt: Date) {
+    const track = await this.trackRepository.findById(trackId);
+    if (!track) throw new NotFoundException('Track not found');
+    if (track.userId !== userId) throw new ForbiddenException('You do not own this track');
+    if (scheduledAt <= new Date()) {
+      throw new BadRequestException('Scheduled date must be in the future');
+    }
+
+    if (track.trackStatus === TrackStatus.FINISHED || track.trackStatus === TrackStatus.SCHEDULED) {
+      // FINISHED → first-time schedule; SCHEDULED → update existing schedule
+      await this.trackRepository.scheduleTrackRelease(
+        trackId,
+        scheduledAt,
+        track.trackStatus === TrackStatus.FINISHED
+      );
+      const existing = await this.releaseQueue.getJob(`release-${trackId}`);
+      if (existing) await existing.remove();
+      await this.releaseQueue.add(
+        'release-track',
+        { trackId },
+        {
+          jobId: `release-${trackId}`,
+          delay: scheduledAt.getTime() - Date.now(),
+          removeOnComplete: true,
+          removeOnFail: { count: 3 },
+        }
+      );
+      return {
+        status: 'success',
+        message:
+          track.trackStatus === TrackStatus.FINISHED
+            ? 'Track scheduled for release.'
+            : 'Release schedule updated.',
+        data: { trackId, scheduledAt },
+      };
+    }
+
+    // PROCESSING, FAILED — not valid
+    throw new BadRequestException(
+      track.trackStatus === TrackStatus.PROCESSING
+        ? 'Track is still processing. Wait for processing to complete before scheduling.'
+        : `Cannot schedule a track with status: ${track.trackStatus}`
+    );
+  }
+
+  async getUserSpotlightTacks(userId: string, ip: string) {
+    const { country } = getLocationFromIp(ip);
+    const user = await this.userRepository.findById(userId);
+    if (!user) {
+      throw new BadRequestException('user is not found');
+    }
+
+    const tracks = await this.trackRepository.getSpotlightTracks(userId);
+
+    return tracks.map((track) => {
+      const isBlocked = track.blockedRegions.includes(country!);
+      if (isBlocked) {
+        return { ...track, audioUrl: null, audioUrlHq: null };
+      }
+      return track;
+    });
+  }
+
+  async addToSpotlight(userId: string, trackId: string) {
+    const track = await this.trackRepository.findById(trackId);
+    if (!track) {
+      throw new BadRequestException('track not found');
+    }
+    const existing = await this.trackRepository.findSpotlight(userId, trackId);
+    if (existing) {
+      throw new BadRequestException('you have already added this to your spotlight');
+    }
+    const countSpotlighTracks = await this.trackRepository.countSpotlight(userId);
+    if (countSpotlighTracks > 5) {
+      throw new ForbiddenException(
+        'you have reached the maximum limit of tracks to be added to your spotlight'
+      );
+    }
+    await this.trackRepository.addToSpotlight(userId, trackId);
+    return {
+      status: 'success',
+      messsage: 'track is successfully added to spotlight',
+    };
+  }
+
+  async updateSpotlightTracks(userId: string, trackIds: string[]) {
+    if (trackIds.length > 5) {
+      throw new BadRequestException('Maximum 5 tracks allowed in spotlight');
+    }
+    return this.trackRepository.updateSpotlightTracks(userId, trackIds);
   }
 }

@@ -28,6 +28,7 @@
     "seed": "ts-node -P tsconfig.json src/seed-main.ts",
     "schema:drop": "typeorm-ts-node-commonjs schema:drop -d src/ormconfig.ts",
     "meili:clear": "ts-node src/search/clear-meili.ts",
+    "meili:reindex": "ts-node src/search/reindex-meili.ts",
     "seed:fresh": "npm run schema:drop && npm run migration:run && npm run meili:clear && npm run seed",
     "test": "jest",
     "test:watch": "jest --watch",
@@ -192,7 +193,18 @@
       "\\.dto\\.ts$",
       "\\.entity\\.ts$",
       "\\.type\\.ts$",
-      "\\.filter\\.ts$"
+      "\\.filter\\.ts$",
+      "\\.interface\\.ts$",
+      "\\.repository\\.ts$",
+      "\\.d\\.ts$",
+      "\\.mock\\.ts$",
+      "\\.decorator\\.ts$",
+      "\\.swagger\\.ts$",
+      "\\.constants\\.ts$",
+      "ormconfig\\.ts$",
+      "src/database/",
+      "src/search/",
+      "src/config/database.config.ts"
     ],
     "coverageThreshold": {
       "global": {

@@ -2,6 +2,9 @@ import { setSeederFactory } from 'typeorm-extension';
 import { Track } from '../../track/entities/track.entity';
 import { TrackStatus } from '../../track/enums/track-status.enum';
 import { TrackVisibility } from '../../track/enums/track-visibility.enum';
+import { SEED_PROTECTED_AUDIO_URLS } from '../seeds/seed-audio-urls.constant';
+
+const [audioUrl, audioUrlHq, previewAudioUrl, waveformUrl] = [...SEED_PROTECTED_AUDIO_URLS];
 
 export default setSeederFactory(Track, async () => {
   const { faker } = await import('@faker-js/faker');
@@ -11,27 +14,22 @@ export default setSeederFactory(Track, async () => {
   track.title = faker.music.songName();
   track.description = faker.lorem.paragraph();
 
-  // Media URLs
-  track.audioUrl =
-    'https://harmonica-s3-storage-287109772507-us-east-1-an.s3.amazonaws.com/tracks/594929cf-87b3-4461-a80f-c2572fed8107/u_vld2chgq8f-magma-prod-2025-sample-142bpm-459102_standard.mp3';
-  track.previewAudioUrl =
-    'https://harmonica-s3-storage-287109772507-us-east-1-an.s3.amazonaws.com/tracks/594929cf-87b3-4461-a80f-c2572fed8107/u_vld2chgq8f-magma-prod-2025-sample-142bpm-459102_preview.mp3';
-  track.waveformUrl =
-    'https://harmonica-s3-storage-287109772507-us-east-1-an.s3.amazonaws.com/tracks/594929cf-87b3-4461-a80f-c2572fed8107/waveform.json';
-  track.coverImage =
-    'https://harmonica-s3-storage-287109772507-us-east-1-an.s3.amazonaws.com/transparent-cassete.png';
-  track.audioUrlHq =
-    'https://harmonica-s3-storage-287109772507-us-east-1-an.s3.amazonaws.com/tracks/594929cf-87b3-4461-a80f-c2572fed8107/u_vld2chgq8f-magma-prod-2025-sample-142bpm-459102_hq.mp3';
+  // Media URLs — sourced from seed-audio-urls.constant.ts (protected from processor deletion)
+  track.audioUrl = audioUrl;
+  track.previewAudioUrl = previewAudioUrl;
+  track.waveformUrl = waveformUrl;
+  track.audioUrlHq = audioUrlHq;
+  track.coverImage = faker.image.url({ width: 500, height: 500 });
 
   // Metadata
-  track.durationSeconds = faker.number.int({ min: 60, max: 600 });
-  track.playCount = faker.number.int({ min: 0, max: 100000 });
+  track.durationSeconds = 248;
+  track.playCount = 0;
   track.likesCount = 0;
   track.repostsCount = 0;
   track.commentsCount = 0;
 
   // Status & Visibility
-  track.trackStatus = faker.helpers.arrayElement(Object.values(TrackStatus)) as TrackStatus;
+  track.trackStatus = TrackStatus.FINISHED;
   track.visibility = faker.helpers.weightedArrayElement([
     { weight: 3, value: TrackVisibility.PUBLIC },
     { weight: 1, value: TrackVisibility.PRIVATE },

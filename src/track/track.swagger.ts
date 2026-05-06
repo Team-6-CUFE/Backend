@@ -7,6 +7,7 @@ import {
   ApiParam,
   ApiQuery,
   ApiResponse,
+  ApiUnauthorizedResponse,
 } from '@nestjs/swagger';
 import { AddCommentDto } from './dto/add-comment.dto';
 
@@ -1704,7 +1705,7 @@ export function ApiGetRelatedTracks() {
         'Returns a paginated list of tracks that are related to the given track, ' +
         'based on the listening history of its top fans. ' +
         'The track must be public. Results are cached for 3 days. ' +
-        "For tracks blocked in the requester's region, `audioUrl` and `waveformUrl` are returned as `null`.",
+        "For tracks blocked in the requester's region, `audioUrl` is returned as `null`",
     }),
     ApiParam({
       name: 'artistUsername',
@@ -1735,7 +1736,7 @@ export function ApiGetRelatedTracks() {
     ApiResponse({
       status: 200,
       description:
-        "Paginated list of related tracks. `audioUrl` and `waveformUrl` are `null` for tracks blocked in the requester's region.",
+        "Paginated list of related tracks. `audioUrl` per track is `null` when blocked in the requester's region.",
       schema: {
         example: {
           status: 'success',
@@ -1767,7 +1768,7 @@ export function ApiGetRelatedTracks() {
               description: 'Not available in all regions.',
               coverImage: 'https://s3.amazonaws.com/covers/locked.jpg',
               audioUrl: null,
-              waveformUrl: null,
+              waveformUrl: 'https://s3.amazonaws.com/waveforms/locked.json',
               durationSeconds: 210,
               playCount: 800,
               likesCount: 90,
@@ -1876,5 +1877,259 @@ export function ApiUpdateCommentsSettings() {
     }),
     ApiResponse({ status: 400, description: 'Track not found or user is not the owner' }),
     ApiResponse({ status: 401, description: 'Unauthorized' })
+  );
+}
+
+// ─── Get Top Listeners ────────────────────────────────────────────────────────
+
+export function ApiGetTopListeners() {
+  return applyDecorators(
+    ApiCookieAuth('access_token'),
+    ApiOperation({
+      summary: 'Get top listeners for the authenticated artist',
+      description:
+        "Returns the top 10 listeners who played the authenticated artist's tracks the most " +
+        'in the last 30 days, ordered by play count descending. ' +
+        'Requires a Pro plan.',
+    }),
+    ApiResponse({
+      status: 200,
+      description: 'Top listeners returned successfully',
+      schema: {
+        example: {
+          status: 'success',
+          data: [
+            {
+              userId: '550e8400-e29b-41d4-a716-446655440001',
+              username: 'superfan1',
+              displayName: 'Super Fan',
+              avatarUrl: 'https://s3.amazonaws.com/profiles/avatar.webp',
+              followersCount: 200,
+              playCount: 42,
+            },
+          ],
+        },
+      },
+    }),
+    ApiResponse({ status: 401, description: 'Unauthorized' }),
+    ApiResponse({ status: 403, description: 'Forbidden — Pro plan required' })
+  );
+}
+
+// ─── Get Top Regions ────────────────────────────────────────────────────────
+
+export function ApiGetTopRegions() {
+  return applyDecorators(
+    ApiCookieAuth('access_token'),
+    ApiOperation({
+      summary: 'Get top regions for the authenticated artist',
+      description:
+        "Returns the top 10 regions where the authenticated artist's tracks were played the most " +
+        'in the last 30 days, ordered by play count descending. ' +
+        'Requires a Pro plan.',
+    }),
+    ApiResponse({
+      status: 200,
+      description: 'Top regions returned successfully',
+      schema: {
+        example: {
+          status: 'success',
+          data: [
+            {
+              country: 'Egypt',
+              playCount: 42,
+            },
+            {
+              country: 'England',
+              playCount: 23,
+            },
+          ],
+        },
+      },
+    }),
+    ApiResponse({ status: 401, description: 'Unauthorized' }),
+    ApiResponse({ status: 403, description: 'Forbidden — Pro plan required' })
+  );
+}
+
+// ─── Get Top Playlists ────────────────────────────────────────────────────────
+
+export function ApiGetTopPlaylistsAndAlbums() {
+  return applyDecorators(
+    ApiCookieAuth('access_token'),
+    ApiOperation({
+      summary: 'Get top playlists and albums streams for the authenticated artist',
+      description:
+        "Returns the top 10 playlists and albums that the authenticated artist's tracks get played from the most " +
+        'in the last 30 days, ordered by play count descending. ' +
+        'Requires a Pro plan.',
+    }),
+    ApiResponse({
+      status: 200,
+      description: 'Top playlists and albums returned successfully',
+      schema: {
+        example: {
+          status: 'success',
+          data: [
+            {
+              playlistId: '550e8400-e29b-41d4-a716-446655440001',
+              title: 'Top Hits',
+              coverImage: 'https://s3.amazonaws.com/playlists/cover.webp',
+              trackCount: 10,
+              likesCount: 100,
+              repostsCount: 50,
+              ownerId: '550e8400-e29b-41d4-a716-446655440001',
+              type: 'playlist',
+              playCount: 1000,
+            },
+          ],
+        },
+      },
+    }),
+    ApiResponse({ status: 401, description: 'Unauthorized' }),
+    ApiResponse({ status: 403, description: 'Forbidden — Pro plan required' })
+  );
+}
+
+export function ApiGetSpotlightTracks() {
+  return applyDecorators(
+    ApiOperation({
+      summary: 'Get spotlight tracks for a user',
+      description:
+        "Returns the spotlight tracks of the given user. Audio URLs are stripped for tracks blocked in the requesting user's region.",
+    }),
+    ApiParam({ name: 'userId', description: 'UUID of the user', type: 'string' }),
+    ApiResponse({
+      status: 200,
+      description: 'Spotlight tracks returned successfully',
+      schema: {
+        type: 'array',
+        items: {
+          type: 'object',
+          properties: {
+            trackId: { type: 'string', format: 'uuid' },
+            title: { type: 'string' },
+            audioUrl: {
+              type: 'string',
+              nullable: true,
+              description: "Null if track is blocked in the requester's region",
+            },
+            audioUrlHq: {
+              type: 'string',
+              nullable: true,
+              description: "Null if track is blocked in the requester's region",
+            },
+          },
+        },
+      },
+    }),
+    ApiResponse({ status: 400, description: 'User not found' })
+  );
+}
+
+export function ApiAddToSpotlight() {
+  return applyDecorators(
+    ApiCookieAuth('access_token'),
+    ApiOperation({
+      summary: 'Add a track to spotlight',
+      description:
+        "Adds the specified track to the authenticated user's spotlight. Requires Pro plan. Maximum 5 tracks allowed.",
+    }),
+    ApiParam({ name: 'trackId', description: 'UUID of the track to add', type: 'string' }),
+    ApiResponse({
+      status: 201,
+      description: 'Track added to spotlight successfully',
+      schema: {
+        type: 'object',
+        properties: {
+          status: { type: 'string', example: 'success' },
+          messsage: { type: 'string', example: 'track is successfully added to spotlight' },
+        },
+      },
+    }),
+    ApiResponse({ status: 400, description: 'Track not found or already in spotlight' }),
+    ApiResponse({
+      status: 403,
+      description: 'Spotlight limit (5 tracks) reached or Pro plan required',
+    }),
+    ApiUnauthorizedResponse({ description: 'Unauthorized' })
+  );
+}
+
+export function ApiUpdateSpotlight() {
+  return applyDecorators(
+    ApiOperation({ summary: 'Update spotlight tracks' }),
+    ApiBody({
+      schema: {
+        type: 'object',
+        properties: {
+          trackIds: {
+            type: 'array',
+            items: { type: 'string', format: 'uuid' },
+            maxItems: 5,
+            example: [
+              '550e8400-e29b-41d4-a716-446655440000',
+              '550e8400-e29b-41d4-a716-446655440001',
+            ],
+          },
+        },
+        required: ['trackIds'],
+      },
+    }),
+    ApiResponse({ status: 200, description: 'Spotlight tracks updated successfully' }),
+    ApiResponse({ status: 400, description: 'Maximum 5 tracks allowed in spotlight' }),
+    ApiResponse({ status: 403, description: 'Pro plan required' }),
+    ApiUnauthorizedResponse({ description: 'Unauthorized' })
+  );
+}
+
+export function ApiScheduleTrackRelease() {
+  return applyDecorators(
+    ApiCookieAuth('access_token'),
+    ApiOperation({
+      summary: 'Schedule a track for future release',
+      description:
+        'Sets or updates the future release date for a track. Pro plan required. ' +
+        'The track must be FINISHED (processing complete) or already SCHEDULED. ' +
+        'On first call (FINISHED): track moves to SCHEDULED and is removed from search. ' +
+        'On subsequent calls (SCHEDULED): the release time and queued job are replaced. ' +
+        'At the scheduled time the track is automatically published and indexed in search.',
+    }),
+    ApiParam({ name: 'trackId', description: 'UUID of the track to schedule', type: 'string' }),
+    ApiBody({
+      schema: {
+        type: 'object',
+        required: ['scheduledAt'],
+        properties: {
+          scheduledAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2026-06-01T09:00:00.000Z',
+            description:
+              'ISO 8601 datetime in the future. Must include timezone offset (e.g. +03:00 or Z). All times are stored and processed in UTC.',
+          },
+        },
+      },
+    }),
+    ApiResponse({
+      status: 200,
+      description: 'Release scheduled successfully',
+      schema: {
+        example: {
+          status: 'success',
+          message: 'Track scheduled for release.',
+          data: {
+            trackId: '550e8400-e29b-41d4-a716-446655440000',
+            scheduledAt: '2026-06-01T09:00:00.000Z',
+          },
+        },
+      },
+    }),
+    ApiResponse({
+      status: 400,
+      description: 'scheduledAt not in the future, or track status is PROCESSING/FAILED',
+    }),
+    ApiResponse({ status: 403, description: 'Pro plan required or not the track owner' }),
+    ApiUnauthorizedResponse({ description: 'Unauthorized' })
   );
 }

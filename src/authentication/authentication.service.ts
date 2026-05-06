@@ -296,16 +296,25 @@ export class AuthenticationService {
     // Rotate: revoke old token, issue new pair
     await this.authRepository.revokeRefreshToken(oldTokenHash);
 
-    const payload: JwtPayload = { sub: userId, email, role, plan };
+    // Always read the current plan/role from DB so subscription changes are
+    // reflected immediately on the next token refresh, without re-login.
+    const currentUser = await this.userService.findById(userId);
+    const currentPlan = (currentUser?.plan ?? plan) as UserPlan;
+    const currentRole = (currentUser?.role ?? role) as UserRole;
+
+    const payload: JwtPayload = { sub: userId, email, role: currentRole, plan: currentPlan };
 
     const newAccessToken = this.jwtService.sign(payload, {
       expiresIn: ACCESS_TOKEN_EXPIRY,
     });
 
-    const newRefreshToken = this.jwtService.sign(payload, {
-      secret: this.configService.get<string>('JWT_REFRESH_SECRET'),
-      expiresIn: REFRESH_TOKEN_EXPIRY,
-    });
+    const newRefreshToken = this.jwtService.sign(
+      { ...payload, jti: crypto.randomUUID() },
+      {
+        secret: this.configService.get<string>('JWT_REFRESH_SECRET'),
+        expiresIn: REFRESH_TOKEN_EXPIRY,
+      }
+    );
 
     const expiresAt = new Date(Date.now() + REFRESH_COOKIE_MAX_AGE_MS);
     const tokenHash = crypto.createHash('sha256').update(newRefreshToken).digest('hex');
@@ -734,7 +743,7 @@ export class AuthenticationService {
 
     // Brand new user
     const pendingToken = await this.createPendingOAuthSession(profile);
-    const displayName = `${profile.firstName} ${profile.lastName}`;
+    const displayName = `${profile.firstName} ${profile.lastName ? profile.lastName : ''}`;
     const pendingParams = `pendingToken=${pendingToken}&displayName=${encodeURIComponent(displayName)}`;
     return {
       url: isMobile

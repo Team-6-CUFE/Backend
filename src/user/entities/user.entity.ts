@@ -15,6 +15,7 @@ import { Settings } from '../../settings/entities/settings.entity';
 import { Subscription } from '../../subscription/entities/subscription.entity';
 import { DownloadedTrack } from '../../download/entities/downloaded-tracks.entity';
 import { DownloadedPlaylist } from '../../download/entities/downloaded-playlists.entity';
+import { SpotlightTrack } from '../../track/entities/spotlght-track.entity';
 
 @Entity('users')
 export class User extends BaseEntity {
@@ -70,7 +71,7 @@ export class User extends BaseEntity {
   isSuspended!: boolean;
 
   @Column({ type: 'varchar', length: 500, nullable: true, name: 'suspension_reason' })
-  suspensionReason!: string;
+  suspensionReason!: string | null;
 
   @Column({ type: 'varchar', length: 500, nullable: true, name: 'support_link' })
   supportLink!: string;
@@ -138,4 +139,7 @@ export class User extends BaseEntity {
 
   @OneToMany(() => DownloadedPlaylist, (dp) => dp.user)
   downloadedPlaylists!: DownloadedPlaylist[];
+
+  @OneToMany(() => SpotlightTrack, (spotlight) => spotlight.user)
+  spotlightTracks!: SpotlightTrack[];
 }

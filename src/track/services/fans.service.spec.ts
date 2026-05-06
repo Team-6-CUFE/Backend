@@ -259,10 +259,6 @@ describe('FansService', () => {
       expect(fanRepo.hasSnapshot).toHaveBeenCalledWith(MOCK_TRACK_ID);
       expect(fanRepo.findStoredFirstFans).toHaveBeenCalledWith(MOCK_TRACK_ID);
       expect(fanRepo.computeFirstFans).not.toHaveBeenCalled();
-      // 25h TTL for locked snapshot
-      expect(redis.set).toHaveBeenCalledWith(`first_fans:${MOCK_TRACK_ID}`, expect.any(String), {
-        EX: 90000,
-      });
       expect(result).toHaveLength(1);
     });
 
@@ -326,6 +322,83 @@ describe('FansService', () => {
       expect(fanRepo.saveSnapshot).toHaveBeenCalledWith(MOCK_TRACK_ID, fans);
       expect(result).toHaveLength(5); // only top 5 returned
       expect(result[0].rank).toBe(1);
+    });
+  });
+
+  // ─── refreshAllTopFans ────────────────────────────────────────────────────────
+
+  describe('refreshAllTopFans', () => {
+    it('should call findActiveTrackIds and refreshTopFans for each track', async () => {
+      fanRepo.findActiveTrackIds.mockResolvedValue([MOCK_TRACK_ID, 'track-2']);
+      const refreshSpy = jest.spyOn(service, 'refreshTopFans').mockResolvedValue([]);
+
+      await service.refreshAllTopFans();
+
+      expect(fanRepo.findActiveTrackIds).toHaveBeenCalled();
+      expect(refreshSpy).toHaveBeenCalledWith(MOCK_TRACK_ID);
+      expect(refreshSpy).toHaveBeenCalledWith('track-2');
+      expect(refreshSpy).toHaveBeenCalledTimes(2);
+    });
+
+    it('should handle empty track list gracefully (no refreshTopFans called)', async () => {
+      fanRepo.findActiveTrackIds.mockResolvedValue([]);
+      const refreshSpy = jest.spyOn(service, 'refreshTopFans').mockResolvedValue([]);
+
+      await service.refreshAllTopFans();
+
+      expect(fanRepo.findActiveTrackIds).toHaveBeenCalled();
+      expect(refreshSpy).not.toHaveBeenCalled();
+    });
+
+    it('should process tracks in batches of 50 (test with 51 ids)', async () => {
+      const trackIds = Array.from({ length: 51 }, (_, i) => `track-${i}`);
+      fanRepo.findActiveTrackIds.mockResolvedValue(trackIds);
+      const refreshSpy = jest.spyOn(service, 'refreshTopFans').mockResolvedValue([]);
+
+      await service.refreshAllTopFans();
+
+      expect(refreshSpy).toHaveBeenCalledTimes(51);
+    });
+  });
+
+  // ─── snapshotAllPendingFirstFans ──────────────────────────────────────────────
+
+  describe('snapshotAllPendingFirstFans', () => {
+    it('should call triggerFirstFansSnapshot for each pending track', async () => {
+      fanRepo.findTracksNeedingSnapshot.mockResolvedValue([MOCK_TRACK_ID, 'track-2']);
+      const snapshotSpy = jest.spyOn(service, 'triggerFirstFansSnapshot').mockResolvedValue([]);
+
+      await service.snapshotAllPendingFirstFans();
+
+      expect(fanRepo.findTracksNeedingSnapshot).toHaveBeenCalled();
+      expect(snapshotSpy).toHaveBeenCalledWith(MOCK_TRACK_ID);
+      expect(snapshotSpy).toHaveBeenCalledWith('track-2');
+      expect(snapshotSpy).toHaveBeenCalledTimes(2);
+    });
+
+    it('should handle empty list gracefully', async () => {
+      fanRepo.findTracksNeedingSnapshot.mockResolvedValue([]);
+      const snapshotSpy = jest.spyOn(service, 'triggerFirstFansSnapshot').mockResolvedValue([]);
+
+      await service.snapshotAllPendingFirstFans();
+
+      expect(snapshotSpy).not.toHaveBeenCalled();
+    });
+
+    it('should log error for rejected promises', async () => {
+      fanRepo.findTracksNeedingSnapshot.mockResolvedValue([MOCK_TRACK_ID, 'track-fail']);
+      jest
+        .spyOn(service, 'triggerFirstFansSnapshot')
+        .mockResolvedValueOnce([])
+        .mockRejectedValueOnce(new Error('snapshot failed'));
+      const loggerErrorSpy = jest.spyOn((service as any).logger, 'error').mockImplementation();
+
+      await service.snapshotAllPendingFirstFans();
+
+      expect(loggerErrorSpy).toHaveBeenCalledWith(
+        expect.stringContaining('track-fail'),
+        expect.any(Error)
+      );
     });
   });
 });

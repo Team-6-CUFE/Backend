@@ -1020,4 +1020,21 @@ export class PlaylistRepository {
         })) || [],
     }));
   }
+
+  async getDownloadedPlaylistsByUser(
+    userId: string,
+    page: number = 1,
+    limit: number = 10
+  ): Promise<[Playlist[], number]> {
+    return this.playlistRepository
+      .createQueryBuilder('playlist')
+      .innerJoin('playlist.downloads', 'download')
+      .leftJoinAndSelect('playlist.user', 'owner')
+      .addSelect('download.downloadedAt')
+      .where('download.userId = :userId', { userId })
+      .orderBy('download.downloadedAt', 'DESC')
+      .skip((page - 1) * limit)
+      .take(limit)
+      .getManyAndCount();
+  }
 }

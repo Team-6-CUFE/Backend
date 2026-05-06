@@ -79,7 +79,14 @@ describe('DiscoveryController', () => {
 
       const result = await controller.getFeed(mockUserId, mockIp, true, 1, 20);
 
-      expect(discoveryService.getFeed).toHaveBeenCalledWith(mockUserId, mockIp, true, 1, 20);
+      expect(discoveryService.getFeed).toHaveBeenCalledWith(
+        mockUserId,
+        mockIp,
+        true,
+        1,
+        20,
+        undefined
+      );
       expect(discoveryService.getFeed).toHaveBeenCalledTimes(1);
       expect(result).toEqual(mockFeed);
     });
@@ -91,7 +98,14 @@ describe('DiscoveryController', () => {
 
       await controller.getFeed(mockUserId, mockIp, false, undefined, undefined);
 
-      expect(discoveryService.getFeed).toHaveBeenCalledWith(mockUserId, mockIp, false, 1, 20);
+      expect(discoveryService.getFeed).toHaveBeenCalledWith(
+        mockUserId,
+        mockIp,
+        false,
+        1,
+        20,
+        undefined
+      );
     });
 
     it('should handle includeReposts parameter correctly', async () => {
@@ -100,7 +114,14 @@ describe('DiscoveryController', () => {
 
       await controller.getFeed(mockUserId, mockIp, false, 1, 20);
 
-      expect(discoveryService.getFeed).toHaveBeenCalledWith(mockUserId, mockIp, false, 1, 20);
+      expect(discoveryService.getFeed).toHaveBeenCalledWith(
+        mockUserId,
+        mockIp,
+        false,
+        1,
+        20,
+        undefined
+      );
     });
 
     it('should handle custom pagination parameters', async () => {
@@ -121,7 +142,14 @@ describe('DiscoveryController', () => {
 
       const result = await controller.getFeed(mockUserId, mockIp, true, 3, 50);
 
-      expect(discoveryService.getFeed).toHaveBeenCalledWith(mockUserId, mockIp, true, 3, 50);
+      expect(discoveryService.getFeed).toHaveBeenCalledWith(
+        mockUserId,
+        mockIp,
+        true,
+        3,
+        50,
+        undefined
+      );
       expect(result).toEqual(mockFeed);
     });
 
@@ -191,7 +219,8 @@ describe('DiscoveryController', () => {
         mockUsername,
         mockIp,
         1,
-        20
+        20,
+        undefined
       );
       expect(discoveryService.getUserRecentActivities).toHaveBeenCalledTimes(1);
       expect(result).toEqual(mockActivities);
@@ -215,7 +244,8 @@ describe('DiscoveryController', () => {
         mockUsername,
         mockIp,
         1,
-        20
+        20,
+        undefined
       );
     });
 
@@ -237,7 +267,8 @@ describe('DiscoveryController', () => {
         mockUsername,
         mockIp,
         2,
-        10
+        10,
+        undefined
       );
       expect(result).toEqual(mockActivities);
     });
@@ -253,7 +284,8 @@ describe('DiscoveryController', () => {
         'different-user',
         mockIp,
         1,
-        20
+        20,
+        undefined
       );
     });
 
@@ -376,7 +408,8 @@ describe('DiscoveryController', () => {
         mockArtistUsername,
         mockTrackName,
         mockUserId,
-        mockIp
+        mockIp,
+        undefined
       );
       expect(discoveryService.getTrackStation).toHaveBeenCalledTimes(1);
       expect(result).toEqual(mockStation);
@@ -400,7 +433,8 @@ describe('DiscoveryController', () => {
         'different-artist',
         mockTrackName,
         mockUserId,
-        mockIp
+        mockIp,
+        undefined
       );
     });
 
@@ -422,7 +456,8 @@ describe('DiscoveryController', () => {
         mockArtistUsername,
         'different-track',
         mockUserId,
-        mockIp
+        mockIp,
+        undefined
       );
     });
 
@@ -445,7 +480,8 @@ describe('DiscoveryController', () => {
         mockArtistUsername,
         specialTrackName,
         mockUserId,
-        mockIp
+        mockIp,
+        undefined
       );
     });
 
@@ -632,7 +668,8 @@ describe('DiscoveryController', () => {
       expect(discoveryService.getArtistStation).toHaveBeenCalledWith(
         mockUsername,
         mockUserId,
-        mockIp
+        mockIp,
+        undefined
       );
       expect(discoveryService.getArtistStation).toHaveBeenCalledTimes(1);
       expect(result).toEqual(mockStation);
@@ -656,7 +693,8 @@ describe('DiscoveryController', () => {
       expect(discoveryService.getArtistStation).toHaveBeenCalledWith(
         'different-artist',
         mockUserId,
-        mockIp
+        mockIp,
+        undefined
       );
     });
 
@@ -799,7 +837,8 @@ describe('DiscoveryController', () => {
       expect(discoveryService.getArtistStation).toHaveBeenCalledWith(
         mockUsername,
         mockUserId,
-        differentIp
+        differentIp,
+        undefined
       );
     });
 
@@ -833,7 +872,8 @@ describe('DiscoveryController', () => {
       expect(discoveryService.getUserPopularTracks).toHaveBeenCalledWith(
         mockUsername,
         mockUserId,
-        mockIp
+        mockIp,
+        undefined
       );
       expect(discoveryService.getUserPopularTracks).toHaveBeenCalledTimes(1);
       expect(result).toEqual(mockResult);
@@ -896,7 +936,11 @@ describe('DiscoveryController', () => {
 
       const result = await controller.getMoreOfWhatYouLike(mockUserId, mockIp);
 
-      expect(discoveryService.getMoreOfWhatYouLike).toHaveBeenCalledWith(mockUserId, mockIp);
+      expect(discoveryService.getMoreOfWhatYouLike).toHaveBeenCalledWith(
+        mockUserId,
+        mockIp,
+        undefined
+      );
       expect(discoveryService.getMoreOfWhatYouLike).toHaveBeenCalledTimes(1);
       expect(result).toEqual(mockResult);
     });
@@ -966,7 +1010,8 @@ describe('DiscoveryController', () => {
         'd',
         mockIp,
         1,
-        20
+        20,
+        undefined
       );
       expect(result).toEqual(mockResult);
     });
@@ -998,7 +1043,8 @@ describe('DiscoveryController', () => {
         undefined,
         mockIp,
         1,
-        20
+        20,
+        undefined
       );
     });
 
@@ -1029,7 +1075,8 @@ describe('DiscoveryController', () => {
         undefined,
         mockIp,
         1,
-        20
+        20,
+        undefined
       );
     });
 
@@ -1131,7 +1178,11 @@ describe('DiscoveryController', () => {
 
       const result = await controller.getRecommendedStations(mockUserId, mockIp);
 
-      expect(discoveryService.getRecommendedStations).toHaveBeenCalledWith(mockUserId, mockIp);
+      expect(discoveryService.getRecommendedStations).toHaveBeenCalledWith(
+        mockUserId,
+        mockIp,
+        undefined
+      );
       expect(discoveryService.getRecommendedStations).toHaveBeenCalledTimes(1);
       expect(result).toEqual(mockResult);
     });
@@ -1226,7 +1277,8 @@ describe('DiscoveryController', () => {
         mockIp,
         'recent',
         1,
-        20
+        20,
+        undefined
       );
       expect(discoveryService.getTracksByTag).toHaveBeenCalledTimes(1);
     });
@@ -1282,7 +1334,8 @@ describe('DiscoveryController', () => {
         mockIp,
         'playlists',
         1,
-        20
+        20,
+        undefined
       );
       expect(result).toBe(mockResult);
     });
@@ -1366,15 +1419,16 @@ describe('DiscoveryController', () => {
       playlistTracks: [],
     };
 
-    it('should call getUserLikedby with currentUserId first then targetUserId', async () => {
+    it('should call getUserLikedby with targetUserId first then currentUserId', async () => {
       mockDiscoveryService.getUserLikedby.mockResolvedValue(mockPlaylistResponse);
 
-      const result = await controller.getLikedByUsersForUser(targetUserId, mockUserId, mockIp);
+      const result = await controller.getLikedByUsersForUser(mockUserId, targetUserId, mockIp);
 
       expect(mockDiscoveryService.getUserLikedby).toHaveBeenCalledWith(
         mockUserId,
         targetUserId,
-        mockIp
+        mockIp,
+        undefined
       );
       expect(result).toEqual(mockPlaylistResponse);
     });
@@ -1423,7 +1477,8 @@ describe('DiscoveryController', () => {
 
       expect(mockDiscoveryService.getMoreAlbumsOfWhatYouLike).toHaveBeenCalledWith(
         mockUserId,
-        mockIp
+        mockIp,
+        undefined
       );
       expect(result).toEqual(expected);
     });
@@ -1450,7 +1505,11 @@ describe('DiscoveryController', () => {
 
       const result = await controller.getDiscoverFeed(mockUserId, mockIp);
 
-      expect(mockDiscoveryService.getDiscoverFeed).toHaveBeenCalledWith(mockUserId, mockIp);
+      expect(mockDiscoveryService.getDiscoverFeed).toHaveBeenCalledWith(
+        mockUserId,
+        mockIp,
+        undefined
+      );
       expect(result).toEqual(expected);
     });
 

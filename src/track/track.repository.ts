@@ -14,6 +14,10 @@ import { TrackVisibility } from './enums/track-visibility.enum';
 import { TrackPlay } from './entities/track-play.entity';
 import { RecentlyPlayed, RecentlyPlayedItemType } from './entities/recently-played.entity';
 import { mapTrack, addDocuments, updateDocument, deleteDocument } from '../search/indexing';
+import { DownloadedTrack } from '../download/entities/downloaded-tracks.entity';
+import { ReportType } from '../admin/report-enums';
+import { PlaylistType } from '../playlist/entities/playlist.entity';
+import { SpotlightTrack } from './entities/spotlght-track.entity';
 
 const RECENTLY_PLAYED_LIMIT = 6;
 
@@ -39,13 +43,33 @@ export class TrackRepository {
     private readonly trackPlayRepository: Repository<TrackPlay>,
 
     @InjectRepository(RecentlyPlayed)
-    private readonly recentlyPlayedRepository: Repository<RecentlyPlayed>
+    private readonly recentlyPlayedRepository: Repository<RecentlyPlayed>,
+
+    @InjectRepository(DownloadedTrack)
+    private readonly downloadedTrackRepository: Repository<DownloadedTrack>,
+    @InjectRepository(SpotlightTrack)
+    private readonly spotlightTracksRepository: Repository<SpotlightTrack>
   ) {}
 
   async findById(trackId: string): Promise<Track | null> {
     return this.trackRepository.findOne({
       where: { trackId },
     });
+  }
+
+  async findByTitleAndUser(
+    title: string,
+    userId: string,
+    excludeTrackId?: string
+  ): Promise<Track | null> {
+    const qb = this.trackRepository
+      .createQueryBuilder('track')
+      .where('LOWER(track.title) = LOWER(:title)', { title })
+      .andWhere('track.userId = :userId', { userId });
+    if (excludeTrackId) {
+      qb.andWhere('track.trackId != :excludeTrackId', { excludeTrackId });
+    }
+    return qb.getOne();
   }
 
   async findByIdWithRelations(trackId: string): Promise<Track | null> {
@@ -462,7 +486,7 @@ export class TrackRepository {
   async getUserUploadedSeconds(userId: string): Promise<number> {
     const sum = await this.trackRepository.sum('durationSeconds', {
       userId,
-      trackStatus: TrackStatus.FINISHED,
+      trackStatus: In([TrackStatus.FINISHED, TrackStatus.SCHEDULED]),
     });
     return sum ?? 0;
   }
@@ -478,10 +502,15 @@ export class TrackRepository {
 
     const query = this.trackRepository
       .createQueryBuilder('track')
-      .where('track.userId = :userId', { userId })
-      .andWhere('track.trackStatus = :status', { status: TrackStatus.FINISHED });
+      .where('track.userId = :userId', { userId });
 
-    if (!isOwner) {
+    if (isOwner) {
+      // Owner sees finished + their own scheduled tracks
+      query.andWhere('track.trackStatus IN (:...statuses)', {
+        statuses: [TrackStatus.FINISHED, TrackStatus.SCHEDULED],
+      });
+    } else {
+      query.andWhere('track.trackStatus = :status', { status: TrackStatus.FINISHED });
       query.andWhere('track.visibility = :visibility', { visibility: TrackVisibility.PUBLIC });
     }
 
@@ -541,6 +570,7 @@ export class TrackRepository {
       .leftJoinAndSelect('track.user', 'user')
       .leftJoinAndSelect('track.genre', 'genre')
       .where('track.trackId IN (:...relatedTrackIds)', { relatedTrackIds })
+      .andWhere('track.trackStatus = :status', { status: TrackStatus.FINISHED })
       .getMany();
   }
 
@@ -551,7 +581,15 @@ export class TrackRepository {
     totalLikes: number;
     totalComments: number;
   }> {
-    const totalDownloads = 0; // TODO: add download count to track entity in module 12
+    const { totalDownloads } = await this.downloadedTrackRepository
+      .createQueryBuilder('download')
+      .innerJoin('download.track', 'track')
+      .where('track.userId = :userId', { userId })
+      .select('COUNT(DISTINCT(download.userId, download.trackId))', 'totalDownloads')
+      .getRawOne();
+
+    console.log('Total Downloads Raw Result:', totalDownloads);
+
     const { totalPlays, totalReposts, totalLikes, totalComments } = await this.trackRepository
       .createQueryBuilder('track')
       .select('SUM(track.playCount)', 'totalPlays')
@@ -587,6 +625,7 @@ export class TrackRepository {
         'track.coverImage',
         'track.audioUrl',
         'track.waveformUrl',
+        'track.audioUrlHq',
         'track.durationSeconds',
         'track.userId',
         'track.createdAt',
@@ -647,7 +686,7 @@ export class TrackRepository {
       .leftJoinAndSelect('track.user', 'trackUser')
       .where('user.username = :username', { username })
       .andWhere('track.visibility = :visibility', { visibility: TrackVisibility.PUBLIC })
-      .andWhere('track.hidden = false')
+      .andWhere('track.trackStatus = :status', { status: TrackStatus.FINISHED })
       .getMany();
   }
 
@@ -658,7 +697,7 @@ export class TrackRepository {
       .leftJoinAndSelect('track.user', 'trackUser')
       .where('user.username = :username', { username })
       .andWhere('track.visibility = :visibility', { visibility: TrackVisibility.PUBLIC })
-      .andWhere('track.hidden = false')
+      .andWhere('track.trackStatus = :status', { status: TrackStatus.FINISHED })
       .orderBy('track.playCount', 'DESC')
       .getOne();
   }
@@ -766,6 +805,7 @@ export class TrackRepository {
         })
       )
       .andWhere('track.visibility = :visibility', { visibility: TrackVisibility.PUBLIC })
+      .andWhere('track.trackStatus = :status', { status: TrackStatus.FINISHED })
       .andWhere('track.hidden = false')
       .setParameter('tagIds', tagIds)
       .select([
@@ -773,6 +813,7 @@ export class TrackRepository {
         'track.title',
         'track.coverImage',
         'track.audioUrl',
+        'track.audioUrlHq',
         'track.waveformUrl',
         'track.durationSeconds',
         'track.userId',
@@ -846,6 +887,7 @@ export class TrackRepository {
       .leftJoinAndSelect('track.user', 'user')
       .leftJoinAndSelect('track.genre', 'genre')
       .where('track.visibility = :visibility', { visibility: TrackVisibility.PUBLIC })
+      .andWhere('track.trackStatus = :status', { status: TrackStatus.FINISHED })
       .andWhere('track.hidden = false')
       .andWhere('track.releaseDate <= :now', { now: new Date() })
       .orderBy('track.createdAt', 'DESC')
@@ -890,7 +932,6 @@ export class TrackRepository {
   }
 
   async findTrendingTracks(): Promise<Track[]> {
-    // top 5 played tracks in the last month
     const oneMonthAgo = new Date();
     oneMonthAgo.setMonth(oneMonthAgo.getMonth() - 1);
 
@@ -898,6 +939,7 @@ export class TrackRepository {
       .createQueryBuilder('track')
       .leftJoinAndSelect('track.user', 'user')
       .where('track.createdAt > :oneMonthAgo', { oneMonthAgo })
+      .andWhere('track.trackStatus = :status', { status: TrackStatus.FINISHED })
       .orderBy('track.playCount', 'DESC')
       .take(5)
       .getMany();
@@ -905,27 +947,245 @@ export class TrackRepository {
     return tracks;
   }
 
-  async isTrackDownloadable(trackId: string): Promise<boolean> {
-    const track = await this.trackRepository.findOne({
-      where: { trackId },
-      select: ['offlineListening'],
-    });
-
-    return track?.offlineListening ?? false;
-  }
-
-  async isPrivate(trackId: string): Promise<boolean> {
-    const track = await this.trackRepository.findOne({
-      where: { trackId },
-      select: ['visibility'],
-    });
-    return track?.visibility === TrackVisibility.PRIVATE;
-  }
-
   async updateTrackCommentSettings(trackId: string, allowComments: boolean, showComments: boolean) {
     await this.trackRepository.update(trackId, {
       allowComments,
       showComments,
     });
+  }
+
+  async getDownloadedTracksByUser(
+    userId: string,
+    page: number = 1,
+    limit: number = 10
+  ): Promise<[Track[], number]> {
+    return this.trackRepository
+      .createQueryBuilder('track')
+      .innerJoin('track.downloads', 'download')
+      .leftJoinAndSelect('track.user', 'artist')
+      .leftJoinAndSelect('track.genre', 'genre')
+      .addSelect('download.downloadedAt')
+      .where('download.userId = :userId', { userId })
+      .orderBy('download.downloadedAt', 'DESC')
+      .skip((page - 1) * limit)
+      .take(limit)
+      .getManyAndCount();
+  }
+
+  async findAllTracksWithReportCount(page: number, limit: number, status?: TrackStatus) {
+    const qb = this.trackRepository
+      .createQueryBuilder('track')
+      .addSelect(
+        (subQb) =>
+          subQb
+            .select('COUNT(r.report_id)', 'reportsCount')
+            .from('reports', 'r')
+            .where('r.target_id = track.track_id')
+            .andWhere('r.type = :type', { type: ReportType.TRACK }),
+        'reportsCount'
+      )
+      .skip((page - 1) * limit)
+      .take(limit)
+      .orderBy('track.createdAt', 'DESC');
+
+    if (status) {
+      qb.andWhere('track.trackStatus = :status', { status });
+    }
+
+    const { entities, raw } = await qb.getRawAndEntities();
+
+    const total = await this.trackRepository.count({
+      where: status ? { trackStatus: status } : {},
+    });
+
+    const tracks = entities.map((track, index) => ({
+      ...track,
+      reportsCount: parseInt(raw[index]?.reportsCount ?? '0', 10),
+    }));
+
+    return { tracks, total };
+  }
+
+  async getTopListeners(userId: string) {
+    const oneMonthAgo = new Date();
+    oneMonthAgo.setMonth(oneMonthAgo.getMonth() - 1);
+
+    const rawResults = await this.trackPlayRepository
+      .createQueryBuilder('play')
+      .innerJoin('play.track', 'track')
+      .innerJoin('track.user', 'artist')
+      .innerJoin('play.user', 'user')
+      .select([
+        'user.userId AS "userId"',
+        'user.username AS "username"',
+        'user.displayName AS "displayName"',
+        'user.avatarUrl AS "avatarUrl"',
+        'user.followersCount AS "followersCount"',
+        'COUNT(play.trackPlayId) AS "playCount"',
+      ])
+      .where('play.playedAt > :oneMonthAgo', { oneMonthAgo })
+      .andWhere('artist.userId = :userId', { userId })
+      .groupBy('user.userId')
+      .addGroupBy('user.username')
+      .addGroupBy('user.displayName')
+      .addGroupBy('user.avatarUrl')
+      .addGroupBy('user.followersCount')
+      .orderBy('"playCount"', 'DESC')
+      .limit(10)
+      .getRawMany();
+
+    return rawResults.map((result) => ({
+      userId: result.userId,
+      username: result.username,
+      displayName: result.displayName,
+      avatarUrl: result.avatarUrl,
+      followersCount: Number(result.followersCount),
+      playCount: Number(result.playCount),
+    }));
+  }
+
+  async getTopRegions(userId: string) {
+    const oneMonthAgo = new Date();
+    oneMonthAgo.setMonth(oneMonthAgo.getMonth() - 1);
+
+    const rawResults = await this.trackPlayRepository
+      .createQueryBuilder('play')
+      .innerJoin('play.track', 'track')
+      .innerJoin('track.user', 'artist')
+      .innerJoin('play.user', 'user')
+      .select(['user.country AS "country"', 'COUNT(play.trackPlayId) AS "playCount"'])
+      .where('play.playedAt > :oneMonthAgo', { oneMonthAgo })
+      .andWhere('artist.userId = :userId', { userId })
+      .andWhere('user.country IS NOT NULL')
+      .groupBy('user.country')
+      .orderBy('"playCount"', 'DESC')
+      .limit(10)
+      .getRawMany();
+
+    return rawResults.map((result) => ({
+      country: result.country,
+      playCount: Number(result.playCount),
+    }));
+  }
+
+  async getTopPlaylistsAndAlbums(userId: string) {
+    const oneMonthAgo = new Date();
+    oneMonthAgo.setMonth(oneMonthAgo.getMonth() - 1);
+
+    const rawResults = await this.trackPlayRepository
+      .createQueryBuilder('play')
+      .innerJoin('play.track', 'track')
+      .innerJoin('track.user', 'artist')
+      .innerJoin('play.playlist', 'playlist')
+      .select([
+        'playlist.playlistId AS "playlistId"',
+        'playlist.title AS "title"',
+        'playlist.coverImage AS "coverImage"',
+        'playlist.tracksCount AS "trackCount"',
+        'playlist.likesCount AS "likesCount"',
+        'playlist.repostsCount AS "repostsCount"',
+        'playlist.userId AS "ownerId"',
+        'playlist.isPublic AS "isPublic"',
+        'playlist.type AS "type"',
+        'COUNT(play.trackPlayId) AS "playCount"',
+      ])
+      .where('play.playedAt > :oneMonthAgo', { oneMonthAgo })
+      .andWhere('artist.userId = :userId', { userId })
+      .andWhere('playlist.isPublic = true')
+      .andWhere('playlist.type != :playlistType ', { playlistType: PlaylistType.STATION })
+      .groupBy('playlist.playlistId')
+      .addGroupBy('playlist.title')
+      .addGroupBy('playlist.coverImage')
+      .addGroupBy('playlist.tracksCount')
+      .addGroupBy('playlist.likesCount')
+      .addGroupBy('playlist.repostsCount')
+      .addGroupBy('playlist.userId')
+      .addGroupBy('playlist.isPublic')
+      .addGroupBy('playlist.type')
+      .orderBy('"playCount"', 'DESC')
+      .limit(10)
+      .getRawMany();
+
+    return rawResults.map((result) => ({
+      playlistId: result.playlistId,
+      title: result.title,
+      coverImage: result.coverImage,
+      trackCount: Number(result.trackCount),
+      likesCount: Number(result.likesCount),
+      repostsCount: Number(result.repostsCount),
+      ownerId: result.ownerId,
+      type: result.type,
+      playCount: Number(result.playCount),
+    }));
+  }
+
+  async setScheduledAt(trackId: string, scheduledAt: Date): Promise<void> {
+    await this.trackRepository.update(trackId, { scheduledAt });
+  }
+
+  async scheduleTrackRelease(
+    trackId: string,
+    scheduledAt: Date,
+    removeFromSearch = true
+  ): Promise<void> {
+    await this.trackRepository.update(trackId, {
+      scheduledAt,
+      trackStatus: TrackStatus.SCHEDULED,
+    });
+    if (removeFromSearch) {
+      await deleteDocument(`track_${trackId}`);
+    }
+  }
+
+  async releaseTrack(trackId: string): Promise<Track | null> {
+    await this.trackRepository.update(trackId, {
+      trackStatus: TrackStatus.FINISHED,
+      scheduledAt: null,
+    });
+    const track = await this.findByIdWithRelations(trackId);
+    if (track && track.visibility === TrackVisibility.PUBLIC) {
+      await addDocuments([mapTrack(track)]);
+    }
+    return track;
+  }
+
+  async getSpotlightTracks(userId: string) {
+    const spotlights = await this.spotlightTracksRepository.find({
+      where: { userId },
+      relations: ['track', 'track.genre', 'track.tags'],
+    });
+
+    return spotlights.map((s) => s.track);
+  }
+
+  async countSpotlight(userId: string) {
+    return this.spotlightTracksRepository.count({ where: { userId } });
+  }
+
+  async findSpotlight(userId: string, trackId: string) {
+    return this.spotlightTracksRepository.findOne({
+      where: { userId, trackId },
+    });
+  }
+
+  async addToSpotlight(userId: string, trackId: string) {
+    const spotlight = this.spotlightTracksRepository.create({ userId, trackId });
+    return this.spotlightTracksRepository.save(spotlight);
+  }
+
+  async updateSpotlightTracks(userId: string, trackIds: string[]): Promise<void> {
+    await this.spotlightTracksRepository.delete({ userId });
+
+    if (trackIds.length === 0) return;
+
+    const spotlights = trackIds.map((trackId) =>
+      this.spotlightTracksRepository.create({ userId, trackId })
+    );
+
+    await this.spotlightTracksRepository.save(spotlights);
+  }
+
+  async updateHiddenStatus(trackId: string, hidden: boolean): Promise<void> {
+    await this.trackRepository.update(trackId, { hidden });
   }
 }
