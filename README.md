@@ -1,6 +1,27 @@
-# SoundCloud Backend
+# Harmonica — SoundCloud Clone (Backend)
 
-Backend API for SoundCloud-like application built with Node.js, NestJS, TypeScript, and PostgreSQL.
+Backend API for Harmonica, a SoundCloud-style audio streaming platform, built with Node.js, NestJS, TypeScript, and PostgreSQL. The frontend lives in [Harmonica-SoundCloudClone-Frontend](https://github.com/Team-6-CUFE/Harmonica-SoundCloudClone-Frontend).
+
+## Overview
+
+**Features**, one NestJS module per domain under `src/`:
+
+| Area | Modules |
+|---|---|
+| Accounts | `authentication`, `user` (profiles, privacy, username availability), `settings`, `followers` |
+| Audio | `track`, `audio` (background processing), `download`, `genre`, `playlist` |
+| Discovery | `discovery`, `search`, `activity` (feeds) |
+| Social | `messaging` (real-time chat), `notifications`, `websockets` |
+| Business | `subscription` (Stripe), `admin`, `legal` |
+
+**Architecture**
+
+- **API:** REST under `/api`, documented with Swagger at `/api/docs`.
+- **Data:** PostgreSQL through TypeORM entities and migrations.
+- **Redis:** caching and sessions, plus a Bloom filter for fast username-availability checks.
+- **Audio pipeline:** uploads are queued with BullMQ, processed with FFmpeg by a background worker, and stored in AWS S3.
+- **Real-time:** Socket.io gateways for chat: joining and leaving conversations, typing indicators and read receipts.
+- **CI/CD:** GitHub Actions run lint and tests on `dev`. Merges to `main` build a Docker image, push it to Docker Hub, and deploy it to AWS EC2.
 
 ## Tech Stack
 
